@@ -4,6 +4,24 @@ The Java port reproduces these CardDemo defects so that it behaves as the COBOL 
 
 `LegacyDefectRegisterTest` writes this file from the `@LegacyDefect` annotations during `mvn verify`. Edit the annotations, not this file.
 
+## `CBACT01C-reissue-keeps-null-padding`
+
+COBDATFT writes eight bytes of YYYYMMDD into a twenty-byte area that starts as low-values, and the MOVE into OUT-ACCT-REISSUE-DATE keeps the two nulls after them.
+
+- Lives in [`Cbact01c.reissueDate`](../src/main/java/com/carddemo/batch/programs/Cbact01c.java).
+- Comes from the program logic.
+- Pinned by `acct-extract-two-accounts`.
+- Fix: space-fill OUT-ACCT-REISSUE-DATE and move only the eight converted characters.
+
+## `CBACT01C-zero-cycle-debit-becomes-2525`
+
+1300-POPUL-ACCT-RECORD moves 2525.00 into the packed cycle debit only when the account debit is zero, so a later non-zero debit keeps the previous record's value.
+
+- Lives in [`Cbact01c.carryCycleDebit`](../src/main/java/com/carddemo/batch/programs/Cbact01c.java).
+- Comes from the program logic.
+- Pinned by `acct-extract-two-accounts`.
+- Fix: move ACCT-CURR-CYC-DEBIT into OUT-ACCT-CURR-CYC-DEBIT on every account.
+
 ## `CBACT03C-displays-each-record-twice`
 
 1000-XREFFILE-GET-NEXT DISPLAYs each cross-reference record it reads and the main loop DISPLAYs it again, so SYSOUT lists every record twice.
@@ -21,6 +39,15 @@ The Java port reproduces these CardDemo defects so that it behaves as the COBOL 
 - Comes from the program logic.
 - Pinned by `customer-list-full-seed`.
 - Fix: drop the DISPLAY in 1000-CUSTFILE-GET-NEXT, as CBACT02C comments out its own.
+
+## `CBSTM03A-city-cut-at-first-space`
+
+The address line STRINGs city, state, country and zip DELIMITED BY one space, so a city with an embedded space such as West Bernita is printed as its first word.
+
+- Lives in [`Cbstm03a.firstWord`](../src/main/java/com/carddemo/batch/programs/Cbstm03a.java).
+- Comes from the program logic.
+- Pinned by `statement-two-accounts`.
+- Fix: move the city, state, country and zip fields whole, the way address lines 1 and 2 are moved.
 
 ## `COACTUPC-any-other-key-is-enter`
 
