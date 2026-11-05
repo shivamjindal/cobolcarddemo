@@ -20,14 +20,14 @@ public final class SqlTypes {
 
     public static Mapped map(Field field, List<?> values) {
         return switch (field.pic()) {
-            case Pic.Alnum alnum -> mapText(alnum, values);
+            case Pic.Alnum alnum -> mapText(field, alnum, values);
             case Pic.Zoned zoned -> mapNumber(zoned.digits(), zoned.scale(), zoned.signed(), "zoned");
             case Pic.Packed packed -> mapNumber(packed.digits(), packed.scale(), packed.signed(), "packed");
             case Pic.Binary binary -> mapNumber(binary.digits(), binary.scale(), binary.signed(), "binary");
         };
     }
 
-    private static Mapped mapText(Pic.Alnum alnum, List<?> values) {
+    private static Mapped mapText(Field field, Pic.Alnum alnum, List<?> values) {
         if (alnum.length() == 10 && !values.isEmpty() && values.stream().allMatch(SqlTypes::isIsoDate)) {
             return new Mapped(new SqlType.Date(), "every source row parses as uuuu-MM-dd");
         }
@@ -41,7 +41,7 @@ public final class SqlTypes {
             case 26 -> values.isEmpty()
                     ? "no source rows, PIC X(26) stays text"
                     : "PIC X(26) is not a timestamp on every row";
-            default -> "PIC X(" + alnum.length() + ") stored as text";
+            default -> "PIC " + field.picClause() + " stored as text";
         };
         return new Mapped(new SqlType.Text(alnum.length()), reason);
     }
