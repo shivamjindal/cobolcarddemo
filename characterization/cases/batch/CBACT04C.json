@@ -1,0 +1,640 @@
+{
+  "feature": "batch-interest",
+  "kind": "batch",
+  "programs": [
+    "CBACT04C"
+  ],
+  "cases": [
+    {
+      "id": "interest-default-group",
+      "title": "Blank account group falls back to DEFAULT and interest is written to SYSTRAN; the only (so last) account is never rewritten",
+      "provenance": "observed",
+      "source": "CBACT04C main loop, 1200-GET-INTEREST-RATE, 1300-COMPUTE-INTEREST, 1050-UPDATE-ACCOUNT",
+      "setup": {
+        "TCATBALF": {
+          "replace": [
+            {
+              "TRANCAT-ACCT-ID": 1,
+              "TRANCAT-TYPE-CD": "01",
+              "TRANCAT-CD": 1,
+              "TRAN-CAT-BAL": "1000.00"
+            }
+          ]
+        },
+        "ACCTDATA": {
+          "upsert": [
+            {
+              "ACCT-ID": 1,
+              "ACCT-CURR-CYC-CREDIT": "30.00",
+              "ACCT-CURR-CYC-DEBIT": "-5.00"
+            }
+          ]
+        }
+      },
+      "job": {
+        "program": "CBACT04C",
+        "parm": "2022071800",
+        "dd": {
+          "TCATBALF": "TCATBALF",
+          "XREFFILE": "CARDXREF",
+          "ACCTFILE": "ACCTDATA",
+          "DISCGRP": "DISCGRP",
+          "TRANSACT": {
+            "output": "SYSTRAN",
+            "reclen": 350,
+            "decode_as": "TRANSACT"
+          }
+        }
+      },
+      "expect": {
+        "completion": "RC=0",
+        "sysout": [
+          "START OF EXECUTION OF PROGRAM CBACT04C",
+          "000000000010100010000010000{",
+          "DISCLOSURE GROUP RECORD MISSING",
+          "TRY WITH DEFAULT GROUP CODE",
+          "END OF EXECUTION OF PROGRAM CBACT04C"
+        ],
+        "outputs": {
+          "SYSTRAN": [
+            {
+              "TRAN-ID": "2022071800000001",
+              "TRAN-TYPE-CD": "01",
+              "TRAN-CAT-CD": "5",
+              "TRAN-SOURCE": "System",
+              "TRAN-DESC": "Int. for a/c 00000000001\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000",
+              "TRAN-AMT": "12.50",
+              "TRAN-MERCHANT-ID": "0",
+              "TRAN-MERCHANT-NAME": "",
+              "TRAN-MERCHANT-CITY": "",
+              "TRAN-MERCHANT-ZIP": "",
+              "TRAN-CARD-NUM": "9680294154603697",
+              "TRAN-ORIG-TS": "2026-11-05-10.00.00.000000",
+              "TRAN-PROC-TS": "2026-11-05-10.00.00.000000"
+            }
+          ]
+        }
+      }
+    },
+    {
+      "id": "interest-group-rate-truncates",
+      "title": "Account group rate applies and the monthly amount truncates to cents",
+      "provenance": "observed",
+      "source": "CBACT04C main loop, 1200-GET-INTEREST-RATE, 1300-COMPUTE-INTEREST, 1050-UPDATE-ACCOUNT",
+      "setup": {
+        "TCATBALF": {
+          "replace": [
+            {
+              "TRANCAT-ACCT-ID": 1,
+              "TRANCAT-TYPE-CD": "01",
+              "TRANCAT-CD": 2,
+              "TRAN-CAT-BAL": "333.33"
+            }
+          ]
+        },
+        "ACCTDATA": {
+          "upsert": [
+            {
+              "ACCT-ID": 1,
+              "ACCT-GROUP-ID": "A000000000"
+            }
+          ]
+        }
+      },
+      "job": {
+        "program": "CBACT04C",
+        "parm": "2022071800",
+        "dd": {
+          "TCATBALF": "TCATBALF",
+          "XREFFILE": "CARDXREF",
+          "ACCTFILE": "ACCTDATA",
+          "DISCGRP": "DISCGRP",
+          "TRANSACT": {
+            "output": "SYSTRAN",
+            "reclen": 350,
+            "decode_as": "TRANSACT"
+          }
+        }
+      },
+      "expect": {
+        "completion": "RC=0",
+        "sysout": [
+          "START OF EXECUTION OF PROGRAM CBACT04C",
+          "000000000010100020000003333C",
+          "END OF EXECUTION OF PROGRAM CBACT04C"
+        ],
+        "outputs": {
+          "SYSTRAN": [
+            {
+              "TRAN-ID": "2022071800000001",
+              "TRAN-TYPE-CD": "01",
+              "TRAN-CAT-CD": "5",
+              "TRAN-SOURCE": "System",
+              "TRAN-DESC": "Int. for a/c 00000000001\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000",
+              "TRAN-AMT": "6.94",
+              "TRAN-MERCHANT-ID": "0",
+              "TRAN-MERCHANT-NAME": "",
+              "TRAN-MERCHANT-CITY": "",
+              "TRAN-MERCHANT-ZIP": "",
+              "TRAN-CARD-NUM": "9680294154603697",
+              "TRAN-ORIG-TS": "2026-11-05-10.00.00.000000",
+              "TRAN-PROC-TS": "2026-11-05-10.00.00.000000"
+            }
+          ]
+        }
+      }
+    },
+    {
+      "id": "interest-negative-balance",
+      "title": "A credit category balance produces negative interest",
+      "provenance": "observed",
+      "source": "CBACT04C main loop, 1200-GET-INTEREST-RATE, 1300-COMPUTE-INTEREST, 1050-UPDATE-ACCOUNT",
+      "setup": {
+        "TCATBALF": {
+          "replace": [
+            {
+              "TRANCAT-ACCT-ID": 1,
+              "TRANCAT-TYPE-CD": "01",
+              "TRANCAT-CD": 1,
+              "TRAN-CAT-BAL": "-100.00"
+            }
+          ]
+        }
+      },
+      "job": {
+        "program": "CBACT04C",
+        "parm": "2022071800",
+        "dd": {
+          "TCATBALF": "TCATBALF",
+          "XREFFILE": "CARDXREF",
+          "ACCTFILE": "ACCTDATA",
+          "DISCGRP": "DISCGRP",
+          "TRANSACT": {
+            "output": "SYSTRAN",
+            "reclen": 350,
+            "decode_as": "TRANSACT"
+          }
+        }
+      },
+      "expect": {
+        "completion": "RC=0",
+        "sysout": [
+          "START OF EXECUTION OF PROGRAM CBACT04C",
+          "000000000010100010000001000}",
+          "DISCLOSURE GROUP RECORD MISSING",
+          "TRY WITH DEFAULT GROUP CODE",
+          "END OF EXECUTION OF PROGRAM CBACT04C"
+        ],
+        "outputs": {
+          "SYSTRAN": [
+            {
+              "TRAN-ID": "2022071800000001",
+              "TRAN-TYPE-CD": "01",
+              "TRAN-CAT-CD": "5",
+              "TRAN-SOURCE": "System",
+              "TRAN-DESC": "Int. for a/c 00000000001\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000",
+              "TRAN-AMT": "-1.25",
+              "TRAN-MERCHANT-ID": "0",
+              "TRAN-MERCHANT-NAME": "",
+              "TRAN-MERCHANT-CITY": "",
+              "TRAN-MERCHANT-ZIP": "",
+              "TRAN-CARD-NUM": "9680294154603697",
+              "TRAN-ORIG-TS": "2026-11-05-10.00.00.000000",
+              "TRAN-PROC-TS": "2026-11-05-10.00.00.000000"
+            }
+          ]
+        }
+      }
+    },
+    {
+      "id": "interest-zero-rate-no-transaction",
+      "title": "A zero rate writes no interest transaction but still resets the account cycle",
+      "provenance": "observed",
+      "source": "CBACT04C main loop, 1200-GET-INTEREST-RATE, 1300-COMPUTE-INTEREST, 1050-UPDATE-ACCOUNT",
+      "setup": {
+        "TCATBALF": {
+          "replace": [
+            {
+              "TRANCAT-ACCT-ID": 1,
+              "TRANCAT-TYPE-CD": "02",
+              "TRANCAT-CD": 1,
+              "TRAN-CAT-BAL": "500.00"
+            }
+          ]
+        },
+        "ACCTDATA": {
+          "upsert": [
+            {
+              "ACCT-ID": 1,
+              "ACCT-CURR-CYC-CREDIT": "30.00"
+            }
+          ]
+        }
+      },
+      "job": {
+        "program": "CBACT04C",
+        "parm": "2022071800",
+        "dd": {
+          "TCATBALF": "TCATBALF",
+          "XREFFILE": "CARDXREF",
+          "ACCTFILE": "ACCTDATA",
+          "DISCGRP": "DISCGRP",
+          "TRANSACT": {
+            "output": "SYSTRAN",
+            "reclen": 350,
+            "decode_as": "TRANSACT"
+          }
+        }
+      },
+      "expect": {
+        "completion": "RC=0",
+        "sysout": [
+          "START OF EXECUTION OF PROGRAM CBACT04C",
+          "000000000010200010000005000{",
+          "DISCLOSURE GROUP RECORD MISSING",
+          "TRY WITH DEFAULT GROUP CODE",
+          "END OF EXECUTION OF PROGRAM CBACT04C"
+        ],
+        "outputs": {
+          "SYSTRAN": []
+        }
+      }
+    },
+    {
+      "id": "interest-unknown-group-uses-default",
+      "title": "An account group with no disclosure rows also falls back to DEFAULT",
+      "provenance": "observed",
+      "source": "CBACT04C main loop, 1200-GET-INTEREST-RATE, 1300-COMPUTE-INTEREST, 1050-UPDATE-ACCOUNT",
+      "setup": {
+        "TCATBALF": {
+          "replace": [
+            {
+              "TRANCAT-ACCT-ID": 1,
+              "TRANCAT-TYPE-CD": "01",
+              "TRANCAT-CD": 3,
+              "TRAN-CAT-BAL": "1200.00"
+            }
+          ]
+        },
+        "ACCTDATA": {
+          "upsert": [
+            {
+              "ACCT-ID": 1,
+              "ACCT-GROUP-ID": "NOSUCHGRP"
+            }
+          ]
+        }
+      },
+      "job": {
+        "program": "CBACT04C",
+        "parm": "2022071800",
+        "dd": {
+          "TCATBALF": "TCATBALF",
+          "XREFFILE": "CARDXREF",
+          "ACCTFILE": "ACCTDATA",
+          "DISCGRP": "DISCGRP",
+          "TRANSACT": {
+            "output": "SYSTRAN",
+            "reclen": 350,
+            "decode_as": "TRANSACT"
+          }
+        }
+      },
+      "expect": {
+        "completion": "RC=0",
+        "sysout": [
+          "START OF EXECUTION OF PROGRAM CBACT04C",
+          "000000000010100030000012000{",
+          "DISCLOSURE GROUP RECORD MISSING",
+          "TRY WITH DEFAULT GROUP CODE",
+          "END OF EXECUTION OF PROGRAM CBACT04C"
+        ],
+        "outputs": {
+          "SYSTRAN": [
+            {
+              "TRAN-ID": "2022071800000001",
+              "TRAN-TYPE-CD": "01",
+              "TRAN-CAT-CD": "5",
+              "TRAN-SOURCE": "System",
+              "TRAN-DESC": "Int. for a/c 00000000001\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000",
+              "TRAN-AMT": "25.00",
+              "TRAN-MERCHANT-ID": "0",
+              "TRAN-MERCHANT-NAME": "",
+              "TRAN-MERCHANT-CITY": "",
+              "TRAN-MERCHANT-ZIP": "",
+              "TRAN-CARD-NUM": "9680294154603697",
+              "TRAN-ORIG-TS": "2026-11-05-10.00.00.000000",
+              "TRAN-PROC-TS": "2026-11-05-10.00.00.000000"
+            }
+          ]
+        }
+      }
+    },
+    {
+      "id": "interest-two-accounts",
+      "title": "Categories accumulate per account; account 1 is rewritten on account change (interest added, cycle reset) but the last account is not",
+      "provenance": "observed",
+      "source": "CBACT04C main loop, 1200-GET-INTEREST-RATE, 1300-COMPUTE-INTEREST, 1050-UPDATE-ACCOUNT",
+      "setup": {
+        "TCATBALF": {
+          "replace": [
+            {
+              "TRANCAT-ACCT-ID": 1,
+              "TRANCAT-TYPE-CD": "01",
+              "TRANCAT-CD": 1,
+              "TRAN-CAT-BAL": "1000.00"
+            },
+            {
+              "TRANCAT-ACCT-ID": 1,
+              "TRANCAT-TYPE-CD": "01",
+              "TRANCAT-CD": 2,
+              "TRAN-CAT-BAL": "1000.00"
+            },
+            {
+              "TRANCAT-ACCT-ID": 2,
+              "TRANCAT-TYPE-CD": "05",
+              "TRANCAT-CD": 1,
+              "TRAN-CAT-BAL": "240.00"
+            }
+          ]
+        }
+      },
+      "job": {
+        "program": "CBACT04C",
+        "parm": "2022071800",
+        "dd": {
+          "TCATBALF": "TCATBALF",
+          "XREFFILE": "CARDXREF",
+          "ACCTFILE": "ACCTDATA",
+          "DISCGRP": "DISCGRP",
+          "TRANSACT": {
+            "output": "SYSTRAN",
+            "reclen": 350,
+            "decode_as": "TRANSACT"
+          }
+        }
+      },
+      "expect": {
+        "completion": "RC=0",
+        "sysout": [
+          "START OF EXECUTION OF PROGRAM CBACT04C",
+          "000000000010100010000010000{",
+          "DISCLOSURE GROUP RECORD MISSING",
+          "TRY WITH DEFAULT GROUP CODE",
+          "000000000010100020000010000{",
+          "DISCLOSURE GROUP RECORD MISSING",
+          "TRY WITH DEFAULT GROUP CODE",
+          "000000000020500010000002400{",
+          "DISCLOSURE GROUP RECORD MISSING",
+          "TRY WITH DEFAULT GROUP CODE",
+          "END OF EXECUTION OF PROGRAM CBACT04C"
+        ],
+        "files": {
+          "ACCTDATA": {
+            "updated": [
+              {
+                "key": "00000000001",
+                "changed": {
+                  "ACCT-CURR-BAL": [
+                    "194.00",
+                    "227.33"
+                  ]
+                }
+              }
+            ]
+          }
+        },
+        "outputs": {
+          "SYSTRAN": [
+            {
+              "TRAN-ID": "2022071800000001",
+              "TRAN-TYPE-CD": "01",
+              "TRAN-CAT-CD": "5",
+              "TRAN-SOURCE": "System",
+              "TRAN-DESC": "Int. for a/c 00000000001\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000",
+              "TRAN-AMT": "12.50",
+              "TRAN-MERCHANT-ID": "0",
+              "TRAN-MERCHANT-NAME": "",
+              "TRAN-MERCHANT-CITY": "",
+              "TRAN-MERCHANT-ZIP": "",
+              "TRAN-CARD-NUM": "9680294154603697",
+              "TRAN-ORIG-TS": "2026-11-05-10.00.00.000000",
+              "TRAN-PROC-TS": "2026-11-05-10.00.00.000000"
+            },
+            {
+              "TRAN-ID": "2022071800000002",
+              "TRAN-TYPE-CD": "01",
+              "TRAN-CAT-CD": "5",
+              "TRAN-SOURCE": "System",
+              "TRAN-DESC": "Int. for a/c 00000000001\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000",
+              "TRAN-AMT": "20.83",
+              "TRAN-MERCHANT-ID": "0",
+              "TRAN-MERCHANT-NAME": "",
+              "TRAN-MERCHANT-CITY": "",
+              "TRAN-MERCHANT-ZIP": "",
+              "TRAN-CARD-NUM": "9680294154603697",
+              "TRAN-ORIG-TS": "2026-11-05-10.00.00.000000",
+              "TRAN-PROC-TS": "2026-11-05-10.00.00.000000"
+            },
+            {
+              "TRAN-ID": "2022071800000003",
+              "TRAN-TYPE-CD": "01",
+              "TRAN-CAT-CD": "5",
+              "TRAN-SOURCE": "System",
+              "TRAN-DESC": "Int. for a/c 00000000002\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000",
+              "TRAN-AMT": "3.00",
+              "TRAN-MERCHANT-ID": "0",
+              "TRAN-MERCHANT-NAME": "",
+              "TRAN-MERCHANT-CITY": "",
+              "TRAN-MERCHANT-ZIP": "",
+              "TRAN-CARD-NUM": "0923877193247330",
+              "TRAN-ORIG-TS": "2026-11-05-10.00.00.000000",
+              "TRAN-PROC-TS": "2026-11-05-10.00.00.000000"
+            }
+          ]
+        }
+      }
+    },
+    {
+      "id": "interest-full-seed-summary",
+      "title": "The shipped TCATBAL file (all zero balances)",
+      "provenance": "observed",
+      "source": "CBACT04C against app/data/ASCII/tcatbal.txt",
+      "setup": {},
+      "job": {
+        "program": "CBACT04C",
+        "parm": "2022071800",
+        "dd": {
+          "TCATBALF": "TCATBALF",
+          "XREFFILE": "CARDXREF",
+          "ACCTFILE": "ACCTDATA",
+          "DISCGRP": "DISCGRP",
+          "TRANSACT": {
+            "output": "SYSTRAN",
+            "reclen": 350,
+            "decode_as": "TRANSACT"
+          }
+        }
+      },
+      "match": "subset",
+      "expect": {
+        "completion": "RC=0",
+        "sysout": [
+          "START OF EXECUTION OF PROGRAM CBACT04C",
+          "000000000010100010000000000{0000000000000000000000",
+          "DISCLOSURE GROUP RECORD MISSING",
+          "TRY WITH DEFAULT GROUP CODE",
+          "000000000020100010000000000{0000000000000000000000",
+          "DISCLOSURE GROUP RECORD MISSING",
+          "TRY WITH DEFAULT GROUP CODE",
+          "000000000030100010000000000{0000000000000000000000",
+          "DISCLOSURE GROUP RECORD MISSING",
+          "TRY WITH DEFAULT GROUP CODE",
+          "000000000040100010000000000{0000000000000000000000",
+          "DISCLOSURE GROUP RECORD MISSING",
+          "TRY WITH DEFAULT GROUP CODE",
+          "000000000050100010000000000{0000000000000000000000",
+          "DISCLOSURE GROUP RECORD MISSING",
+          "TRY WITH DEFAULT GROUP CODE",
+          "000000000060100010000000000{0000000000000000000000",
+          "DISCLOSURE GROUP RECORD MISSING",
+          "TRY WITH DEFAULT GROUP CODE",
+          "000000000070100010000000000{0000000000000000000000",
+          "DISCLOSURE GROUP RECORD MISSING",
+          "TRY WITH DEFAULT GROUP CODE",
+          "000000000080100010000000000{0000000000000000000000",
+          "DISCLOSURE GROUP RECORD MISSING",
+          "TRY WITH DEFAULT GROUP CODE",
+          "000000000090100010000000000{0000000000000000000000",
+          "DISCLOSURE GROUP RECORD MISSING",
+          "TRY WITH DEFAULT GROUP CODE",
+          "000000000100100010000000000{0000000000000000000000",
+          "DISCLOSURE GROUP RECORD MISSING",
+          "TRY WITH DEFAULT GROUP CODE",
+          "000000000110100010000000000{0000000000000000000000",
+          "DISCLOSURE GROUP RECORD MISSING",
+          "TRY WITH DEFAULT GROUP CODE",
+          "000000000120100010000000000{0000000000000000000000",
+          "DISCLOSURE GROUP RECORD MISSING",
+          "TRY WITH DEFAULT GROUP CODE",
+          "000000000130100010000000000{0000000000000000000000",
+          "DISCLOSURE GROUP RECORD MISSING",
+          "TRY WITH DEFAULT GROUP CODE",
+          "000000000140100010000000000{0000000000000000000000",
+          "DISCLOSURE GROUP RECORD MISSING",
+          "TRY WITH DEFAULT GROUP CODE",
+          "000000000150100010000000000{0000000000000000000000",
+          "DISCLOSURE GROUP RECORD MISSING",
+          "TRY WITH DEFAULT GROUP CODE",
+          "000000000160100010000000000{0000000000000000000000",
+          "DISCLOSURE GROUP RECORD MISSING",
+          "TRY WITH DEFAULT GROUP CODE",
+          "000000000170100010000000000{0000000000000000000000",
+          "DISCLOSURE GROUP RECORD MISSING",
+          "TRY WITH DEFAULT GROUP CODE",
+          "000000000180100010000000000{0000000000000000000000",
+          "DISCLOSURE GROUP RECORD MISSING",
+          "TRY WITH DEFAULT GROUP CODE",
+          "000000000190100010000000000{0000000000000000000000",
+          "DISCLOSURE GROUP RECORD MISSING",
+          "TRY WITH DEFAULT GROUP CODE",
+          "000000000200100010000000000{0000000000000000000000",
+          "DISCLOSURE GROUP RECORD MISSING",
+          "TRY WITH DEFAULT GROUP CODE",
+          "000000000210100010000000000{0000000000000000000000",
+          "DISCLOSURE GROUP RECORD MISSING",
+          "TRY WITH DEFAULT GROUP CODE",
+          "000000000220100010000000000{0000000000000000000000",
+          "DISCLOSURE GROUP RECORD MISSING",
+          "TRY WITH DEFAULT GROUP CODE",
+          "000000000230100010000000000{0000000000000000000000",
+          "DISCLOSURE GROUP RECORD MISSING",
+          "TRY WITH DEFAULT GROUP CODE",
+          "000000000240100010000000000{0000000000000000000000",
+          "DISCLOSURE GROUP RECORD MISSING",
+          "TRY WITH DEFAULT GROUP CODE",
+          "000000000250100010000000000{0000000000000000000000",
+          "DISCLOSURE GROUP RECORD MISSING",
+          "TRY WITH DEFAULT GROUP CODE",
+          "000000000260100010000000000{0000000000000000000000",
+          "DISCLOSURE GROUP RECORD MISSING",
+          "TRY WITH DEFAULT GROUP CODE",
+          "000000000270100010000000000{0000000000000000000000",
+          "DISCLOSURE GROUP RECORD MISSING",
+          "TRY WITH DEFAULT GROUP CODE",
+          "000000000280100010000000000{0000000000000000000000",
+          "DISCLOSURE GROUP RECORD MISSING",
+          "TRY WITH DEFAULT GROUP CODE",
+          "000000000290100010000000000{0000000000000000000000",
+          "DISCLOSURE GROUP RECORD MISSING",
+          "TRY WITH DEFAULT GROUP CODE",
+          "000000000300100010000000000{0000000000000000000000",
+          "DISCLOSURE GROUP RECORD MISSING",
+          "TRY WITH DEFAULT GROUP CODE",
+          "000000000310100010000000000{0000000000000000000000",
+          "DISCLOSURE GROUP RECORD MISSING",
+          "TRY WITH DEFAULT GROUP CODE",
+          "000000000320100010000000000{0000000000000000000000",
+          "DISCLOSURE GROUP RECORD MISSING",
+          "TRY WITH DEFAULT GROUP CODE",
+          "000000000330100010000000000{0000000000000000000000",
+          "DISCLOSURE GROUP RECORD MISSING",
+          "TRY WITH DEFAULT GROUP CODE",
+          "000000000340100010000000000{0000000000000000000000",
+          "DISCLOSURE GROUP RECORD MISSING",
+          "TRY WITH DEFAULT GROUP CODE",
+          "000000000350100010000000000{0000000000000000000000",
+          "DISCLOSURE GROUP RECORD MISSING",
+          "TRY WITH DEFAULT GROUP CODE",
+          "000000000360100010000000000{0000000000000000000000",
+          "DISCLOSURE GROUP RECORD MISSING",
+          "TRY WITH DEFAULT GROUP CODE",
+          "000000000370100010000000000{0000000000000000000000",
+          "DISCLOSURE GROUP RECORD MISSING",
+          "TRY WITH DEFAULT GROUP CODE",
+          "000000000380100010000000000{0000000000000000000000",
+          "DISCLOSURE GROUP RECORD MISSING",
+          "TRY WITH DEFAULT GROUP CODE",
+          "000000000390100010000000000{0000000000000000000000",
+          "DISCLOSURE GROUP RECORD MISSING",
+          "TRY WITH DEFAULT GROUP CODE",
+          "000000000400100010000000000{0000000000000000000000",
+          "DISCLOSURE GROUP RECORD MISSING",
+          "TRY WITH DEFAULT GROUP CODE",
+          "000000000410100010000000000{0000000000000000000000",
+          "DISCLOSURE GROUP RECORD MISSING",
+          "TRY WITH DEFAULT GROUP CODE",
+          "000000000420100010000000000{0000000000000000000000",
+          "DISCLOSURE GROUP RECORD MISSING",
+          "TRY WITH DEFAULT GROUP CODE",
+          "000000000430100010000000000{0000000000000000000000",
+          "DISCLOSURE GROUP RECORD MISSING",
+          "TRY WITH DEFAULT GROUP CODE",
+          "000000000440100010000000000{0000000000000000000000",
+          "DISCLOSURE GROUP RECORD MISSING",
+          "TRY WITH DEFAULT GROUP CODE",
+          "000000000450100010000000000{0000000000000000000000",
+          "DISCLOSURE GROUP RECORD MISSING",
+          "TRY WITH DEFAULT GROUP CODE",
+          "000000000460100010000000000{0000000000000000000000",
+          "DISCLOSURE GROUP RECORD MISSING",
+          "TRY WITH DEFAULT GROUP CODE",
+          "000000000470100010000000000{0000000000000000000000",
+          "DISCLOSURE GROUP RECORD MISSING",
+          "TRY WITH DEFAULT GROUP CODE",
+          "000000000480100010000000000{0000000000000000000000",
+          "DISCLOSURE GROUP RECORD MISSING",
+          "TRY WITH DEFAULT GROUP CODE",
+          "000000000490100010000000000{0000000000000000000000",
+          "DISCLOSURE GROUP RECORD MISSING",
+          "TRY WITH DEFAULT GROUP CODE",
+          "000000000500100010000000000{0000000000000000000000",
+          "DISCLOSURE GROUP RECORD MISSING",
+          "TRY WITH DEFAULT GROUP CODE",
+          "END OF EXECUTION OF PROGRAM CBACT04C"
+        ]
+      }
+    }
+  ],
+  "notes": "Legacy defect pinned on purpose: the main loop is PERFORM UNTIL END-OF-FILE = 'Y', so the ELSE branch that rewrites the final account never runs. The last account's interest reaches SYSTRAN but not ACCTDATA."
+}

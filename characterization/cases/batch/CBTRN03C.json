@@ -1,0 +1,221 @@
+{
+  "feature": "batch-reports",
+  "kind": "batch",
+  "programs": [
+    "CBTRN03C"
+  ],
+  "cases": [
+    {
+      "id": "tranrept-two-cards",
+      "title": "Report across two cards; at EOF the last amount is added again, so page and grand totals double count it, and the last card's account total is never written",
+      "provenance": "observed",
+      "source": "TRANREPT STEP05R SORT (by card, proc date in range) feeding CBTRN03C; inputs here are pre-sorted",
+      "setup": {
+        "TRANSACT": {
+          "replace": [
+            {
+              "TRAN-ID": "0000000000000001",
+              "TRAN-TYPE-CD": "01",
+              "TRAN-CAT-CD": 1,
+              "TRAN-SOURCE": "POS TERM",
+              "TRAN-DESC": "Purchase 1",
+              "TRAN-AMT": "10.00",
+              "TRAN-MERCHANT-ID": 800000001,
+              "TRAN-MERCHANT-NAME": "Harness Store",
+              "TRAN-MERCHANT-CITY": "Springfield",
+              "TRAN-MERCHANT-ZIP": "12345",
+              "TRAN-CARD-NUM": "0923877193247330",
+              "TRAN-ORIG-TS": "2022-03-01 10:00:00.000000",
+              "TRAN-PROC-TS": "2022-03-01 11:00:00.000000"
+            },
+            {
+              "TRAN-ID": "0000000000000002",
+              "TRAN-TYPE-CD": "03",
+              "TRAN-CAT-CD": 1,
+              "TRAN-SOURCE": "POS TERM",
+              "TRAN-DESC": "Purchase 2",
+              "TRAN-AMT": "-2.50",
+              "TRAN-MERCHANT-ID": 800000001,
+              "TRAN-MERCHANT-NAME": "Harness Store",
+              "TRAN-MERCHANT-CITY": "Springfield",
+              "TRAN-MERCHANT-ZIP": "12345",
+              "TRAN-CARD-NUM": "0923877193247330",
+              "TRAN-ORIG-TS": "2022-03-02 10:00:00.000000",
+              "TRAN-PROC-TS": "2022-03-02 11:00:00.000000"
+            },
+            {
+              "TRAN-ID": "0000000000000003",
+              "TRAN-TYPE-CD": "02",
+              "TRAN-CAT-CD": 1,
+              "TRAN-SOURCE": "POS TERM",
+              "TRAN-DESC": "Purchase 3",
+              "TRAN-AMT": "100.25",
+              "TRAN-MERCHANT-ID": 800000001,
+              "TRAN-MERCHANT-NAME": "Harness Store",
+              "TRAN-MERCHANT-CITY": "Springfield",
+              "TRAN-MERCHANT-ZIP": "12345",
+              "TRAN-CARD-NUM": "9680294154603697",
+              "TRAN-ORIG-TS": "2022-04-01 10:00:00.000000",
+              "TRAN-PROC-TS": "2022-04-01 11:00:00.000000"
+            }
+          ]
+        }
+      },
+      "job": {
+        "program": "CBTRN03C",
+        "dd": {
+          "TRANFILE": {
+            "dataset": "TRANSACT"
+          },
+          "CARDXREF": "CARDXREF",
+          "TRANTYPE": "TRANTYPE",
+          "TRANCATG": "TRANCATG",
+          "DATEPARM": {
+            "lines": [
+              "2022-01-01 2022-07-06"
+            ],
+            "reclen": 80
+          },
+          "TRANREPT": {
+            "output": "TRANREPT",
+            "reclen": 133
+          }
+        }
+      },
+      "expect": {
+        "completion": "RC=0",
+        "sysout": [
+          "START OF EXECUTION OF PROGRAM CBTRN03C",
+          "Reporting from 2022-01-01 to 2022-07-06",
+          "0000000000000001010001POS TERM  Purchase 1                                                                                          0000000100{800000001Harness Store                                     Springfield                                       12345     09238771932473302022-03-01 10:00:00.0000002022-03-01 11:00:00.000000",
+          "0000000000000002030001POS TERM  Purchase 2                                                                                          0000000025}800000001Harness Store                                     Springfield                                       12345     09238771932473302022-03-02 10:00:00.0000002022-03-02 11:00:00.000000",
+          "0000000000000003020001POS TERM  Purchase 3                                                                                          0000001002E800000001Harness Store                                     Springfield                                       12345     96802941546036972022-04-01 10:00:00.0000002022-04-01 11:00:00.000000",
+          "TRAN-AMT 00000010025+",
+          "WS-PAGE-TOTAL00000010775+",
+          "END OF EXECUTION OF PROGRAM CBTRN03C"
+        ],
+        "outputs": {
+          "TRANREPT": [
+            "DALYREPT                              Daily Transaction Report                 Date Range: 2022-01-01 to 2022-07-06",
+            "",
+            "Transaction ID   Account ID  Transaction Type   Tran Category                      Tran Source            Amount",
+            "-------------------------------------------------------------------------------------------------------------------------------------",
+            "0000000000000001 00000000002 01-Purchase        0001-Regular Sales Draft           POS TERM                10.00",
+            "0000000000000002 00000000002 03-Credit          0001-Credit to Account             POS TERM      -          2.50",
+            "Account Total....................................................................................+          7.50",
+            "-------------------------------------------------------------------------------------------------------------------------------------",
+            "0000000000000003 00000000001 02-Payment         0001-Cash payment                  POS TERM               100.25",
+            "Page Total ......................................................................................+        208.00",
+            "-------------------------------------------------------------------------------------------------------------------------------------",
+            "Grand Total......................................................................................+        208.00"
+          ]
+        }
+      }
+    },
+    {
+      "id": "tranrept-out-of-range-stops-run",
+      "title": "An out-of-range record ends the run: NEXT SENTENCE jumps past END-PERFORM, so nothing is reported (production relies on the SORT step having filtered dates)",
+      "provenance": "observed",
+      "source": "TRANREPT STEP05R SORT (by card, proc date in range) feeding CBTRN03C; inputs here are pre-sorted",
+      "setup": {
+        "TRANSACT": {
+          "replace": [
+            {
+              "TRAN-ID": "0000000000000001",
+              "TRAN-TYPE-CD": "01",
+              "TRAN-CAT-CD": 1,
+              "TRAN-SOURCE": "POS TERM",
+              "TRAN-DESC": "Purchase 1",
+              "TRAN-AMT": "10.00",
+              "TRAN-MERCHANT-ID": 800000001,
+              "TRAN-MERCHANT-NAME": "Harness Store",
+              "TRAN-MERCHANT-CITY": "Springfield",
+              "TRAN-MERCHANT-ZIP": "12345",
+              "TRAN-CARD-NUM": "0923877193247330",
+              "TRAN-ORIG-TS": "2021-12-31 10:00:00.000000",
+              "TRAN-PROC-TS": "2021-12-31 11:00:00.000000"
+            },
+            {
+              "TRAN-ID": "0000000000000002",
+              "TRAN-TYPE-CD": "01",
+              "TRAN-CAT-CD": 1,
+              "TRAN-SOURCE": "POS TERM",
+              "TRAN-DESC": "Purchase 2",
+              "TRAN-AMT": "20.00",
+              "TRAN-MERCHANT-ID": 800000001,
+              "TRAN-MERCHANT-NAME": "Harness Store",
+              "TRAN-MERCHANT-CITY": "Springfield",
+              "TRAN-MERCHANT-ZIP": "12345",
+              "TRAN-CARD-NUM": "0923877193247330",
+              "TRAN-ORIG-TS": "2022-01-01 10:00:00.000000",
+              "TRAN-PROC-TS": "2022-01-01 11:00:00.000000"
+            },
+            {
+              "TRAN-ID": "0000000000000003",
+              "TRAN-TYPE-CD": "01",
+              "TRAN-CAT-CD": 1,
+              "TRAN-SOURCE": "POS TERM",
+              "TRAN-DESC": "Purchase 3",
+              "TRAN-AMT": "30.00",
+              "TRAN-MERCHANT-ID": 800000001,
+              "TRAN-MERCHANT-NAME": "Harness Store",
+              "TRAN-MERCHANT-CITY": "Springfield",
+              "TRAN-MERCHANT-ZIP": "12345",
+              "TRAN-CARD-NUM": "0923877193247330",
+              "TRAN-ORIG-TS": "2022-07-06 10:00:00.000000",
+              "TRAN-PROC-TS": "2022-07-06 11:00:00.000000"
+            },
+            {
+              "TRAN-ID": "0000000000000004",
+              "TRAN-TYPE-CD": "01",
+              "TRAN-CAT-CD": 1,
+              "TRAN-SOURCE": "POS TERM",
+              "TRAN-DESC": "Purchase 4",
+              "TRAN-AMT": "40.00",
+              "TRAN-MERCHANT-ID": 800000001,
+              "TRAN-MERCHANT-NAME": "Harness Store",
+              "TRAN-MERCHANT-CITY": "Springfield",
+              "TRAN-MERCHANT-ZIP": "12345",
+              "TRAN-CARD-NUM": "0923877193247330",
+              "TRAN-ORIG-TS": "2022-07-07 10:00:00.000000",
+              "TRAN-PROC-TS": "2022-07-07 11:00:00.000000"
+            }
+          ]
+        }
+      },
+      "job": {
+        "program": "CBTRN03C",
+        "dd": {
+          "TRANFILE": {
+            "dataset": "TRANSACT"
+          },
+          "CARDXREF": "CARDXREF",
+          "TRANTYPE": "TRANTYPE",
+          "TRANCATG": "TRANCATG",
+          "DATEPARM": {
+            "lines": [
+              "2022-01-01 2022-07-06"
+            ],
+            "reclen": 80
+          },
+          "TRANREPT": {
+            "output": "TRANREPT",
+            "reclen": 133
+          }
+        }
+      },
+      "expect": {
+        "completion": "RC=0",
+        "sysout": [
+          "START OF EXECUTION OF PROGRAM CBTRN03C",
+          "Reporting from 2022-01-01 to 2022-07-06",
+          "END OF EXECUTION OF PROGRAM CBTRN03C"
+        ],
+        "outputs": {
+          "TRANREPT": []
+        }
+      }
+    }
+  ],
+  "notes": "Both totals defect and NEXT SENTENCE exit are legacy behavior pinned on purpose; see titles."
+}

@@ -135,7 +135,10 @@ def main():
                 shutil.copytree(workdir, evidence / "runs" / case["id"], dirs_exist_ok=True)
             if args.record:
                 for step, obs in zip(case.get("steps", [case]), actual):
-                    step["expect"] = public(obs)
+                    obs = public(obs)
+                    if step.get("match") == "subset" and step.get("expect"):
+                        obs = {k: obs.get(k) for k in step["expect"]}
+                    step["expect"] = obs
                 row["status"] = "RECORDED"
                 continue
             diffs = []

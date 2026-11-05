@@ -45,6 +45,7 @@ class Datasets:
         """Write <DATASET>.dat files: seed records, then the case's setup edits.
 
         setup = {DATASET: {"upsert": [record fields], "delete": [keys], "replace": [record fields]}}
+        An upsert of an existing key changes only the fields it names.
         """
         for name in names or self.datasets:
             ds = self.datasets[name]
@@ -56,8 +57,9 @@ class Datasets:
                 k0, kl = ds["key"]
                 by_key = {r[k0:k0 + kl]: r for r in recs}
                 for r in edit.get("upsert", []):
-                    raw = self.encode(name, r)
-                    by_key[raw[k0:k0 + kl]] = raw
+                    key = self.encode(name, r)[k0:k0 + kl]
+                    base = by_key.get(key)
+                    by_key[key] = self.layout(name).encode(r, base)[:ds["reclen"]] if base else self.encode(name, r)
                 for key in edit.get("delete", []):
                     by_key.pop(key.encode("latin-1").ljust(kl, b" "), None)
                 recs = [by_key[k] for k in sorted(by_key)]
