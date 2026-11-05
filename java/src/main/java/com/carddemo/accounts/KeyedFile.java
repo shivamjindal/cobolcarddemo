@@ -9,7 +9,7 @@ import org.springframework.jdbc.core.RowMapper;
 import org.springframework.jdbc.core.simple.JdbcClient;
 
 /** The READ, READ UPDATE and REWRITE one KSDS table shares with the others. Every call runs in the request's transaction. */
-final class KeyedFile<T> {
+public final class KeyedFile<T> {
 
     private static final Logger log = LoggerFactory.getLogger(KeyedFile.class);
 
@@ -20,7 +20,7 @@ final class KeyedFile<T> {
     private final String keyColumn;
     private final RowMapper<T> rows;
 
-    KeyedFile(JdbcClient jdbc, String file, String table, String columns, String keyColumn, RowMapper<T> rows) {
+    public KeyedFile(JdbcClient jdbc, String file, String table, String columns, String keyColumn, RowMapper<T> rows) {
         this.jdbc = jdbc;
         this.file = file;
         this.table = table;
@@ -30,7 +30,7 @@ final class KeyedFile<T> {
     }
 
     /** {@code READ FILE(file) RIDFLD(key)}. */
-    Read<T> read(Object key) {
+    public Read<T> read(Object key) {
         try {
             return jdbc.sql(select() + " where " + keyColumn + " = ?").param(key).query(rows).optional()
                     .<Read<T>>map(Read.Found::new)
