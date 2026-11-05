@@ -8,16 +8,30 @@ package com.carddemo.db2;
 public final class Dsntiac {
 
     private static final int CONTINUATION_INDENT = 10;
+    private static final int MIN_LRECL = 72;
+    private static final int MAX_LRECL = 240;
+    private static final int MIN_MESSAGE_LENGTH = 240;
+
+    /** The call's RETURN-CODE and the message area after it. */
+    public record Formatted(int returnCode, String area) {}
 
     private Dsntiac() {}
 
     /**
-     * The message area after the call: {@code messageLength / lrecl} lines of {@code lrecl} characters. DSNTIAR
-     * breaks lines between words and indents continuation lines ten columns.
+     * Formats into {@code messageLength / lrecl} lines of {@code lrecl} characters at the start of {@code area};
+     * the rest of the area is left as it was. DSNTIAR breaks lines between words and indents continuation lines
+     * ten columns. An LRECL outside 72 to 240 is return code 8, a message length under 240 return code 12, and
+     * either leaves the area untouched.
      */
-    public static String format(Sqlca sqlca, int messageLength, int lrecl) {
-        int lines = lrecl > 0 ? messageLength / lrecl : 0;
-        char[] area = " ".repeat(lines * lrecl).toCharArray();
+    public static Formatted format(Sqlca sqlca, int messageLength, int lrecl, String area) {
+        if (lrecl < MIN_LRECL || lrecl > MAX_LRECL) {
+            return new Formatted(8, area);
+        }
+        if (messageLength < MIN_MESSAGE_LENGTH) {
+            return new Formatted(12, area);
+        }
+        int lines = messageLength / lrecl;
+        char[] formatted = " ".repeat(lines * lrecl).toCharArray();
         int code = sqlca.sqlcode();
         String text = " %s SQLCODE = %d, %s  %s".formatted(code > 0 ? "DSNT404I" : "DSNT408I", code,
                 code == Sqlca.NOT_FOUND ? "NOT FOUND:" : code > 0 ? "WARNING:" : "ERROR:", text(code));
@@ -41,10 +55,10 @@ public final class Dsntiac {
                     take = room;
                 }
             }
-            text.getChars(p, p + take, area, line * lrecl + pos);
+            text.getChars(p, p + take, formatted, line * lrecl + pos);
             p += take;
         }
-        return new String(area);
+        return new Formatted(0, new String(formatted) + (area.length() > formatted.length ? area.substring(formatted.length) : ""));
     }
 
     private static String text(int code) {

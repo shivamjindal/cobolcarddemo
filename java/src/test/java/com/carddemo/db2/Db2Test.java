@@ -9,6 +9,7 @@ import java.util.List;
 import org.junit.jupiter.api.Test;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertTrue;
 
 class Db2Test {
 
@@ -54,13 +55,26 @@ class Db2Test {
             int sqlcode = Integer.parseInt(golden.get(at));
             List<String> expected = golden.subList(at + 1, at + 11).stream()
                     .map(line -> line.substring(1, line.length() - 1)).toList();
-            String area = Dsntiac.format(code(sqlcode), 720, 72);
+            Dsntiac.Formatted formatted = Dsntiac.format(code(sqlcode), 720, 72, "?".repeat(720));
+            assertEquals(0, formatted.returnCode());
+            String area = formatted.area();
             List<String> actual = new ArrayList<>();
             for (int line = 0; line < 10; line++) {
                 actual.add(area.substring(line * 72, line * 72 + 72));
             }
             assertEquals(expected, actual, "SQLCODE " + sqlcode);
         }
+    }
+
+    @Test
+    void dsntiacRefusesAShortAreaOrABadLreclAndLeavesTheAreaAlone() {
+        String area = "?".repeat(720);
+        assertEquals(new Dsntiac.Formatted(12, area), Dsntiac.format(code(-803), 0, 72, area));
+        assertEquals(new Dsntiac.Formatted(12, area), Dsntiac.format(code(-803), 239, 72, area));
+        assertEquals(new Dsntiac.Formatted(8, area), Dsntiac.format(code(-803), 720, 71, area));
+        assertEquals(new Dsntiac.Formatted(8, area), Dsntiac.format(code(-803), 720, 241, area));
+        assertEquals(720, Dsntiac.format(code(-803), 360, 72, area).area().length());
+        assertTrue(Dsntiac.format(code(-803), 360, 72, area).area().endsWith("?".repeat(360)));
     }
 
     private static Sqlca code(int sqlcode) {
