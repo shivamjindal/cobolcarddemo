@@ -129,3 +129,68 @@ button:disabled {
 .broken button {
   margin-top: 0.75rem;
 }
+
+.mq h1 {
+  font-size: 1.1rem;
+  font-weight: normal;
+  color: #ffe56a;
+}
+
+.mq a {
+  color: #8ec5ff;
+}
+
+.mq-form,
+.mq-replies {
+  display: grid;
+  gap: 0.6rem;
+  max-width: 110ch;
+  margin-bottom: 1.25rem;
+}
+
+.mq label {
+  display: grid;
+  gap: 0.25rem;
+  font-size: 14px;
+  color: #a8dca8;
+}
+
+.mq input,
+.mq textarea {
+  font: inherit;
+  color: #73f073;
+  background: #031406;
+  border: 1px solid #1e4d1e;
+  padding: 0.3rem 0.5rem;
+  caret-color: #f4fff4;
+}
+
+.mq input:focus,
+.mq textarea:focus {
+  outline: 1px solid #3d8f3d;
+}
+
+.mq table {
+  border-collapse: collapse;
+  background: #031406;
+  border: 1px solid #1e4d1e;
+}
+
+.mq th,
+.mq td {
+  text-align: left;
+  vertical-align: top;
+  padding: 0.3rem 0.6rem;
+  border-bottom: 1px solid #1e4d1e;
+}
+
+.mq th {
+  color: #ffe56a;
+  font-weight: normal;
+}
+
+.mq code {
+  font: inherit;
+  white-space: pre-wrap;
+  word-break: break-all;
+}

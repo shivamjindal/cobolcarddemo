@@ -1,10 +1,12 @@
 import { Route, Routes } from "react-router-dom";
 import { BmsScreen, TextScreen } from "./BmsScreen";
+import { QueuePage } from "./QueuePage";
 import { useConversation } from "./useConversation";
 
 export function App() {
   return (
     <Routes>
+      <Route path="/mq" element={<QueuePage />} />
       <Route path="/:screen?" element={<ConversationScreen />} />
     </Routes>
   );
