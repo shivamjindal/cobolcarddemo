@@ -13,6 +13,15 @@ The Java port reproduces these CardDemo defects so that it behaves as the COBOL 
 - Pinned by `xref-list-full-seed`.
 - Fix: drop the DISPLAY in 1000-XREFFILE-GET-NEXT, as CBACT02C comments out its own.
 
+## `CBACT04C-skips-last-account`
+
+PERFORM UNTIL tests END-OF-FILE before the body, so the ELSE that rewrites the last account is dead. That account's interest is written and its balance and cycle totals are left as they were.
+
+- Lives in [`Cbact04c.charge`](../src/main/java/com/carddemo/batch/programs/Cbact04c.java).
+- Comes from the program logic.
+- Pinned by `interest-default-group`, `interest-group-rate-truncates`, `interest-negative-balance`, `interest-zero-rate-no-transaction`, `interest-unknown-group-uses-default`, `interest-two-accounts`.
+- Fix: rewrite the last account after the category file is exhausted.
+
 ## `CBCUS01C-displays-each-record-twice`
 
 1000-CUSTFILE-GET-NEXT DISPLAYs each customer record it reads and the main loop DISPLAYs it again, so SYSOUT lists every record twice.
@@ -21,6 +30,15 @@ The Java port reproduces these CardDemo defects so that it behaves as the COBOL 
 - Comes from the program logic.
 - Pinned by `customer-list-full-seed`.
 - Fix: drop the DISPLAY in 1000-CUSTFILE-GET-NEXT, as CBACT02C comments out its own.
+
+## `CBTRN02C-expired-overwrites-overlimit`
+
+The expiration check is not an ELSE of the limit check, so a transaction that is both over the credit limit and past the account expiration date is rejected as 103 instead of 102.
+
+- Lives in [`Cbtrn02c.rejectIfExpired`](../src/main/java/com/carddemo/batch/programs/Cbtrn02c.java).
+- Comes from the program logic.
+- Pinned by `posting-overlimit-and-expired-reports-103`.
+- Fix: keep 102 when the limit already failed.
 
 ## `COACTUPC-any-other-key-is-enter`
 
