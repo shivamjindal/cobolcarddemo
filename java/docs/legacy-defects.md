@@ -22,6 +22,33 @@ The Java port reproduces these CardDemo defects so that it behaves as the COBOL 
 - Pinned by `customer-list-full-seed`.
 - Fix: drop the DISPLAY in 1000-CUSTFILE-GET-NEXT, as CBACT02C comments out its own.
 
+## `CBTRN03C-drops-last-account-total`
+
+1120-WRITE-ACCOUNT-TOTALS runs only when the card changes, so the last card's account total is never written.
+
+- Lives in [`Cbtrn03c.endOfFile`](../src/main/java/com/carddemo/batch/programs/Cbtrn03c.java).
+- Comes from the program logic.
+- Pinned by `tranrept-two-cards`.
+- Fix: write the account total for the current card before the page and grand totals at end of file.
+
+## `CBTRN03C-eof-adds-stale-amount`
+
+At end of file TRAN-RECORD still holds the last transaction, and that amount is added to the page and account totals a second time.
+
+- Lives in [`Cbtrn03c.addStaleAmount`](../src/main/java/com/carddemo/batch/programs/Cbtrn03c.java).
+- Comes from the program logic.
+- Pinned by `tranrept-two-cards`.
+- Fix: do not add TRAN-AMT on the end-of-file branch.
+
+## `CBTRN03C-next-sentence-ends-run`
+
+NEXT SENTENCE on a process date outside DATEPARM leaves the PERFORM, so the run ends RC=0 without reading later records or writing totals.
+
+- Lives in [`Cbtrn03c.stopAtOutOfRangeDate`](../src/main/java/com/carddemo/batch/programs/Cbtrn03c.java).
+- Comes from the program logic.
+- Pinned by `tranrept-out-of-range-stops-run`.
+- Fix: skip that record and keep reading.
+
 ## `COACTUPC-any-other-key-is-enter`
 
 A key 0000-MAIN does not accept at this point, such as PF12 before an account is fetched or PF5 with no change waiting for confirmation, is taken as ENTER and processes the screen.
