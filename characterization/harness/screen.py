@@ -241,6 +241,9 @@ class Terminal:
             if value is None:
                 continue
             st = self.fields[name]
+            if st["protected"]:
+                # A 3270 locks the keyboard on a protected field; the Java API refuses it too.
+                raise ValueError(f"field {name} is protected")
             st["value"], st["mdt"] = str(value), True
         if aid in NO_DATA_AIDS:
             return None
