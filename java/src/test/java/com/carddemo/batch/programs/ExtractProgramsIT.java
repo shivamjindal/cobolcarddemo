@@ -48,7 +48,7 @@ class ExtractProgramsIT {
                 LibraryJob.READCUST, "customers");
         Map<LibraryJob, Integer> printsPerRecord = Map.of(LibraryJob.READCARD, 1, LibraryJob.READXREF, 2,
                 LibraryJob.READCUST, 2);
-        for (LibraryJob job : LibraryJob.values()) {
+        for (LibraryJob job : tables.keySet()) {
             String program = job.job().steps().getFirst().program();
             int records = jdbc.sql("select count(*) from " + tables.get(job)).query(Integer.class).single();
             Ran ran = run(job.job());
