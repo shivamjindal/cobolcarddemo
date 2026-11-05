@@ -2,6 +2,10 @@
 
 SchemaGenerator writes this file from the copybooks, LISTCAT, and EBCDIC sample rows. The Flyway migration is the same run.
 
+## Key order
+
+Every text column is `COLLATE "C"`, so text keys sort by the bytes of the stored text, which is ASCII order for this data. The characterization harness browses in that order, and the goldens were recorded on it. VSAM on z/OS compares EBCDIC, where lowercase letters sort before uppercase and both sort before digits. The sample keys of all ten tables sort the same way under both. A key added later can differ. A lowercase user id from COUSR01C lists after every uppercase id here and before them on the mainframe. `com.carddemo.ksds.KeyedBrowse` is the only code that decides browse order.
+
 ## accounts
 
 Cluster `AWS.M2.CARDDEMO.ACCTDATA.VSAM.KSDS`, copybook `CVACT01Y`, record `ACCOUNT-RECORD`, length 300, key offset 0 length 11. Data file `AWS.M2.CARDDEMO.ACCTDATA.PS`.

@@ -38,8 +38,8 @@ final class UsrsecCredentialCheck implements CredentialCheck {
             goldens = {"user-add-success", "user-update-fetch"},
             behavior = "USRSEC stores passwords in plaintext; sign-on compares them directly and user admin "
                     + "writes and displays them",
-            fix = "DelegatingPasswordEncoder (bcrypt, {noop} for unmigrated rows) here, hash on write in "
-                    + "UserStore, stop sending PASSWD from the update and delete screens; re-record the file diffs")
+            fix = "DelegatingPasswordEncoder (bcrypt, {noop} for unmigrated rows) here and hash on write in "
+                    + "UserStore, with COUSR02C-password-shown fixed first; re-record the file diffs")
     private static boolean matches(UserRecord user, String password) {
         return user.password().equals(password);
     }
