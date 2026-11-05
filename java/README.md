@@ -17,10 +17,18 @@ The command writes `src/main/resources/db/migration/V1__vsam_ksds_tables.sql` an
 Postgres is database `carddemo` on `localhost:5432`, user `carddemo`, password `carddemo`. Override the connection with `CARDDEMO_JDBC_URL`, `CARDDEMO_JDBC_USER`, and `CARDDEMO_JDBC_PASSWORD`.
 
 ```
-mvn -q spring-boot:run -Dspring-boot.run.arguments=--carddemo.load.app-root=/workspace/app
+mvn -q spring-boot:run -Dspring-boot.run.profiles=load -Dspring-boot.run.arguments=--carddemo.load.app-root=/workspace/app
 ```
 
-Flyway applies the migration on startup. The loader then replaces every table in one transaction and checks each row against the EBCDIC file. A field mismatch or a count mismatch makes the process exit non-zero. Filler bytes that are not spaces are printed and do not fail the check.
+Flyway applies the migration on startup. The loader then replaces every table in one transaction and checks each row against the EBCDIC file. A field mismatch or a count mismatch makes the process exit non-zero. Filler bytes that are not spaces are printed and do not fail the check. The `load` profile runs no web server.
+
+## Run the web app
+
+```
+mvn -q spring-boot:run
+```
+
+The API listens on port 8080 (`CARDDEMO_PORT` overrides it) against the same database. Load the sample data once first.
 
 ## Test
 
