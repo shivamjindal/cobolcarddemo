@@ -13,12 +13,11 @@ final class Intrinsics {
     private static final String TRAILING_SIGN = "([+-]|CR|DB)";
 
     private static final Pattern NUMVAL_LEADING = Pattern.compile(" *([+-])? *" + NUMBER + " *");
-    private static final Pattern NUMVAL_TRAILING = Pattern.compile(" *" + NUMBER + " *" + TRAILING_SIGN + " *",
-            Pattern.CASE_INSENSITIVE);
+    private static final Pattern NUMVAL_TRAILING = Pattern.compile(" *" + NUMBER + " *" + TRAILING_SIGN + " *");
     private static final Pattern NUMVAL_C_LEADING = Pattern.compile(
             " *(?:([+-]) *(?:\\$ *)?|\\$ *(?:([+-]) *)?)?" + NUMBER_WITH_COMMAS + " *");
     private static final Pattern NUMVAL_C_TRAILING = Pattern.compile(
-            " *(?:\\$ *)?" + NUMBER_WITH_COMMAS + " *" + TRAILING_SIGN + " *", Pattern.CASE_INSENSITIVE);
+            " *(?:\\$ *)?" + NUMBER_WITH_COMMAS + " *" + TRAILING_SIGN + " *");
 
     private static final BigDecimal TEN_DIGITS = BigDecimal.TEN.pow(10);
 
@@ -60,16 +59,19 @@ final class Intrinsics {
         throw new IllegalArgumentException("NUMVAL-C of '" + text + "'");
     }
 
+    /** The bytes of a PIC X({@code length}) holding {@code text}: padded with spaces, LOW-VALUES for null. */
+    static String field(String text, int length) {
+        return text == null ? "\0".repeat(length) : ("%-" + length + "s").formatted(text);
+    }
+
     /**
-     * An unsigned zoned DISPLAY field of {@code length} digits holding {@code text}, padded with spaces;
-     * null is LOW-VALUES. GnuCOBOL reads each byte's low nibble as its digit, so spaces and LOW-VALUES
-     * count as zeros and letters as whatever their nibble is.
+     * A PIC 9(n) DISPLAY redefining {@code bytes}, as GnuCOBOL 3.1 compares and computes with it: each
+     * byte counts as its code minus '0', so a space or LOW-VALUE is no zero and the value can go negative.
      */
-    static long zoned(String text, int length) {
+    static long zoned(String bytes) {
         long value = 0;
-        for (int i = 0; i < length; i++) {
-            int digit = text != null && i < text.length() ? text.charAt(i) & 0x0F : 0;
-            value = value * 10 + digit;
+        for (char c : bytes.toCharArray()) {
+            value = value * 10 + (c - '0');
         }
         return value;
     }
@@ -85,7 +87,7 @@ final class Intrinsics {
     }
 
     private static boolean isNegative(String trailingSign) {
-        return trailingSign.equals("-") || trailingSign.equalsIgnoreCase("CR") || trailingSign.equalsIgnoreCase("DB");
+        return trailingSign.equals("-") || trailingSign.equals("CR") || trailingSign.equals("DB");
     }
 
     private static BigDecimal signed(String digits, boolean negative) {

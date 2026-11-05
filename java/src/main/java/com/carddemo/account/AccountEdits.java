@@ -209,7 +209,7 @@ final class AccountEdits {
 
     private static final Pattern ALPHABETS = Pattern.compile("[A-Za-z ]*");
     private static final Pattern FOUR_DIGITS = Pattern.compile("\\d{4}");
-    private static final Set<Integer> THIRTY_ONE_DAY_MONTHS = Set.of(1, 3, 5, 7, 8, 10, 12);
+    private static final Set<Long> THIRTY_ONE_DAY_MONTHS = Set.of(1L, 3L, 5L, 7L, 8L, 10L, 12L);
 
     private final EnumMap<CACTUPA, Verdict> verdicts = new EnumMap<>(CACTUPA.class);
 
@@ -324,7 +324,7 @@ final class AccountEdits {
             Verdict y = year(name, year);
 
             Verdict m = Verdict.VALID;
-            int mm = (int) Intrinsics.zoned(month, 2);
+            long mm = Intrinsics.zoned(Intrinsics.field(month, 2));
             if (month == null) {
                 m = fail(Verdict.BLANK, name + " : Month must be supplied.");
             } else if (mm < 1 || mm > 12 || !Intrinsics.testNumval(month)) {
@@ -334,7 +334,7 @@ final class AccountEdits {
             }
 
             Verdict d = Verdict.VALID;
-            int dd = (int) Intrinsics.zoned(day, 2);
+            long dd = Intrinsics.zoned(Intrinsics.field(day, 2));
             if (day == null) {
                 d = fail(Verdict.BLANK, name + " : Day must be supplied.");
             } else if (!Intrinsics.testNumval(day)) {
@@ -374,8 +374,8 @@ final class AccountEdits {
 
         /** The DIVIDE in EDIT-DAY-MONTH-YEAR, on the zoned year whatever its edit said. */
         private static boolean leapYear(String year) {
-            long yy = year == null || year.length() <= 2 ? 0 : Intrinsics.zoned(year.substring(2), 2);
-            return Intrinsics.zoned(year, 4) % (yy == 0 ? 400 : 4) == 0;
+            String ccyy = Intrinsics.field(year, 4);
+            return Intrinsics.zoned(ccyy) % (Intrinsics.zoned(ccyy.substring(2)) == 0 ? 400 : 4) == 0;
         }
 
         /** EDIT-DATE-OF-BIRTH. */

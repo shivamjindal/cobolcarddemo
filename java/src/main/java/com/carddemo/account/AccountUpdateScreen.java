@@ -475,7 +475,7 @@ final class AccountUpdateScreen extends Screen<CACTUPA, AccountUpdateScreen.Acti
             if (entering) {
                 return;
             }
-            boolean noAccountId = Intrinsics.zoned(accountId, 11) == 0;
+            boolean noAccountId = Intrinsics.zoned(Intrinsics.field(accountId, 11)) == 0;
             if (!(noAccountId && accountFilter == Verdict.VALID)) {
                 move(map, ACCTSID, accountId);
             }
