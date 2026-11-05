@@ -23,7 +23,7 @@
 struct sqlca {
     char sqlcaid[8];
     int32_t sqlcabc, sqlcode;
-    int16_t sqlerrml;
+    unsigned char sqlerrml[2];
     char sqlerrmc[70];
     char sqlerrp[8];
     int32_t sqlerrd[6];
@@ -99,7 +99,8 @@ static void set_sqlca(struct sqlca *ca, int code, const char *state, const char 
     int ml = msg ? (int)strlen(msg) : 0;
     if (ml > 70) ml = 70;
     if (ml) memcpy(ca->sqlerrmc, msg, ml);
-    ca->sqlerrml = (int16_t)ml;
+    ca->sqlerrml[0] = (unsigned char)(ml >> 8);
+    ca->sqlerrml[1] = (unsigned char)ml;
     memcpy(ca->sqlerrp, "DSN     ", 8);
     memset(ca->sqlerrd, 0, sizeof ca->sqlerrd);
     ca->sqlerrd[2] = rows;
