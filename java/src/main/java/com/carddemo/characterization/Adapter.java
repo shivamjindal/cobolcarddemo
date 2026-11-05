@@ -74,7 +74,7 @@ public final class Adapter {
         Path registryFile = Path.of(request.get("datasets").asText()).toAbsolutePath();
         Path repo = registryFile.getParent().getParent().getParent();
         List<SeededTable> seeded = SeededTable.all(JSON.readTree(registryFile.toFile()), repo);
-        SeededTable.seed(db, seeded, setup);
+        SeededTable.seed(db, seeded, testCase);
         Browser browser = new Browser(URI.create(env("CARDDEMO_CHARACTERIZATION_URL", "http://127.0.0.1:18080")));
         List<Map<String, Object>> observations = new ArrayList<>();
         for (JsonNode step : testCase.get("steps")) {
