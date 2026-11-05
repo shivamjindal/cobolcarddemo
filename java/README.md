@@ -83,7 +83,7 @@ From the repository root:
 python3 characterization/run.py --target java
 ```
 
-The command prints `java: 337 PASS`: 297 online cases and 40 batch cases. The features the java target covers are listed in `characterization/targets.json`.
+The command prints `java: 1 FAIL, 380 PASS, 43 SKIP`: 340 online cases and 40 batch cases pass, and the 43 `tran-type-list` cases wait for COTRTLIC. The one failure is `tran-type-maint-from-list-f2`, which reaches COTRTUPC through COTRTLIC. The features the java target covers are listed in `characterization/targets.json`.
 
 `characterization-adapter` rebuilds the jar when a source is newer than it. It keeps one server on `127.0.0.1:18080` under profile `characterization`, against database `carddemo_characterization` and a clock fixed at 2026-11-05 10:00. Before every case it seeds the ten KSDS tables and the two Db2 tables from the harness seeds named in `characterization/fixtures/datasets.json`, empties the job queue, the spool and the dataset catalog, opens every CICS file, and installs the extensions the case's `install` lists (none by default). A Db2 row is seeded, snapshotted and diffed as the harness's image: the key, a two-digit length, then the 50-byte description. It does all of that in one transaction with foreign-key triggers off, because a case may delete a record others refer to. A step's new `job_submissions` rows are its `queues` observation. A batch case is submitted as a one-step deck to queue `JOBS`, and the server's internal reader runs it. `CARDDEMO_CHARACTERIZATION_PORT` and `CARDDEMO_CHARACTERIZATION_DB` give a second checkout its own server and database. The server stops after ten idle minutes, or with `characterization/cleanup.sh stop`.
 
@@ -204,7 +204,7 @@ The exit code is 0 when the command did its work. It is 4 when a chain did not c
 
 ## Db2 transaction types
 
-The optional extension `app/app-transaction-type-db2` keeps transaction types in Db2 tables. Its batch program COBTUPDT is ported. Its two screens, COTRTLIC (CTLI) and COTRTUPC (CTTU), are not ported yet.
+The optional extension `app/app-transaction-type-db2` keeps transaction types in Db2 tables. Its batch program COBTUPDT and its maintenance screen COTRTUPC (CTTU) are ported. Its list screen COTRTLIC (CTLI) is not ported yet.
 
 ### Schema
 
@@ -242,3 +242,9 @@ Every statement runs under its own savepoint in the caller's transaction. A fail
 `LibraryJob.MNTTRDB2` mirrors the extension's JCL: IKJEFT01 reads SYSTSIN `DSN SYSTEM(DAZ1)` then `RUN PROGRAM(COBTUPDT) PLAN(CARDDEMO)` and runs COBTUPDT on its own step, against the `INPFILE` data set. DBRMLIB and STEPLIB are left out, because RUN binds nothing and programs are beans. Any other TSO command ends the step RC 12, and a program with no bean abends `S806`. `CONTROLM_WEEKLY_DISCLOSURE` runs MNTTRDB2 as a job.
 
 COBTUPDT reads 53-byte records: the action (A, U, D, or * for a comment), the two-character type code and the description. An error DISPLAYs the message and ends the step RC 4. Its four `@LegacyDefect` methods pin the defects its goldens show.
+
+### COTRTUPC
+
+`trantype.TransactionTypeMaintenanceScreen` is COTRTUPC, admin menu option 6: search a type by code, then change its description (ENTER, then F5), delete it (F4, then F4), or add a code that is not found (F5, ENTER, F5). Its `Task` follows 0000-MAIN paragraph by paragraph, and its `State` keeps TTUP-CHANGE-ACTION and the old and new details as PIC X bytes, with X'00' for LOW-VALUES, because the program compares them with SPACES and LOW-VALUES separately. All of its SQL stays in the class.
+
+Its ABEND-ROUTINE sends ABEND-DATA and then abends 9999, so `Screen.sendTextAndAbend` puts that text on the terminal in place of the CICS abend message. `FieldAttribute.BMDAR` is the dark attribute it gives the ENTER/F3 legend during a delete confirmation. LOW-VALUES inside a sent value show as blanks, as the SQLERRML bytes in its SQL error messages do. `TransactionTypeMaintenanceIT` forces the SQL failures no golden reaches (a -911 lock, a failed UPDATE, INSERT or DELETE) with a trigger that raises the matching SQLSTATE. Its eleven `@LegacyDefect` methods are listed in `docs/legacy-defects.md`.
