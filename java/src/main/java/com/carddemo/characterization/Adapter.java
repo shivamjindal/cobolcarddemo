@@ -27,8 +27,6 @@ import java.util.TreeMap;
 import com.carddemo.online.BmsField;
 import com.carddemo.online.MapId;
 import com.carddemo.online.maps.Maps;
-import com.carddemo.vsam.SchemaGenerator;
-import com.carddemo.vsam.TableDef;
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.fasterxml.jackson.databind.node.ObjectNode;
@@ -60,10 +58,9 @@ public final class Adapter {
         Path registryFile = Path.of(request.get("datasets").asText()).toAbsolutePath();
         Path repo = registryFile.getParent().getParent().getParent();
         JsonNode registry = JSON.readTree(registryFile.toFile());
-        List<TableDef> tables = SchemaGenerator.generate(repo.resolve("app")).tables();
         List<SeededTable> seeded = new ArrayList<>();
         for (String name : SEEDED) {
-            seeded.add(SeededTable.of(registry, repo, name, tables));
+            seeded.add(SeededTable.of(registry, repo, name));
         }
         URI server = URI.create(env("CARDDEMO_CHARACTERIZATION_URL", "http://127.0.0.1:18080"));
         try (Connection db = DriverManager.getConnection(
@@ -73,7 +70,7 @@ public final class Adapter {
             Browser browser = new Browser(server);
             List<Map<String, Object>> observations = new ArrayList<>();
             for (JsonNode step : testCase.get("steps")) {
-                List<TreeMap<String, String>> before = new ArrayList<>();
+                List<TreeMap<String, byte[]>> before = new ArrayList<>();
                 for (SeededTable table : seeded) {
                     before.add(table.snapshot(db));
                 }
