@@ -46,6 +46,12 @@ struct req {
 enum { NORMAL = 0, NOTFND = 13, DUPREC = 14, DUPKEY = 15, INVREQ = 16, NOTOPEN = 19,
        ENDFILE = 20, PGMIDERR = 27, MAPFAIL = 36 };
 
+static int all_high_values(const char *key, int len) {
+    for (int i = 0; i < len; i++)
+        if ((unsigned char)key[i] != 0xFF) return 0;
+    return 1;
+}
+
 #define MAXREC 4096
 #define COMMAREA_MAX 32767
 
@@ -284,11 +290,11 @@ static int file_op(const char *fn, struct req *r, struct eib *e, char **a) {
         int i = lower_bound(f, &t, key, klen);
         if (has_flag(r, "EQUAL") && (i >= t.n || keycmp(f, t.rec[i], key, klen) != 0)) {
             rc = NOTFND;
-        } else if (i >= t.n && !has_flag(r, "GTEQ") && t.n == 0) {
+        } else if (i >= t.n && !all_high_values(key, klen)) {
             rc = NOTFND;
         } else {
-            /* A start key past the last record is legal and positions at end of file;
-               READPREV from there returns the last record. */
+            /* Only an all-high-values key may start past the last record (CICS positions at
+               end of file so READPREV returns the last record); any other such key is NOTFND. */
             f->browsing = 1;
             f->pos = i;
             f->last = -1;
@@ -318,6 +324,7 @@ static int file_op(const char *fn, struct req *r, struct eib *e, char **a) {
             }
         }
     } else if (!strcmp(fn, "ENDBR")) {
+        if (!f->browsing) rc = INVREQ;
         f->browsing = 0;
     }
     if (dirty) save(f, &t);
@@ -372,6 +379,7 @@ static int optchar(struct req *r, char **a, const char *opt, char dflt) {
 /* ---------- entry points called from translated COBOL ---------- */
 
 int CICSABND(struct req *r);
+
 
 int CICSAPI(struct req *r, struct eib *e, char *a0, char *a1, char *a2, char *a3,
             char *a4, char *a5, char *a6, char *a7) {
@@ -471,7 +479,7 @@ int CICSAPI(struct req *r, struct eib *e, char *a0, char *a1, char *a2, char *a3
         rc = file_op(fn, r, e, a);
     } else {
         event("unsupported", "\"command\":\"%s\"", fn);
-        r->resp = INVREQ;
+        r->resp = -1;
         CICSABND(r);
     }
     r->resp = rc;
@@ -481,10 +489,26 @@ int CICSAPI(struct req *r, struct eib *e, char *a0, char *a1, char *a2, char *a3
     return 0;
 }
 
+/* The abend CICS raises for a condition with no RESP or HANDLE. HUNS marks a command the stub
+   does not implement; it is a harness gap and must never appear in a golden. */
+static const char *condition_abend(int resp) {
+    switch (resp) {
+    case NOTFND: return "AEIM";
+    case DUPREC: return "AEIN";
+    case DUPKEY: return "AEIO";
+    case INVREQ: return "AEIP";
+    case NOTOPEN: return "AEIS";
+    case ENDFILE: return "AEIT";
+    case PGMIDERR: return "AEI0";
+    case MAPFAIL: return "AEI9";
+    default: return "HUNS";
+    }
+}
+
 int CICSABND(struct req *r) {
     char fn[17];
     trim_copy(fn, r->fn, 16);
-    event("abend", "\"code\":\"AEIx\",\"command\":\"%s\",\"resp\":%d", fn, r->resp);
+    event("abend", "\"code\":\"%s\",\"command\":\"%s\",\"resp\":%d", condition_abend(r->resp), fn, r->resp);
     cob_stop_run(0);
     return 0;
 }

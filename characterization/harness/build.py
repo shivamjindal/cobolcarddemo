@@ -131,3 +131,5 @@ def build_batch():
 if __name__ == "__main__":
     build_online()
     print(f"built {len(ONLINE_PROGRAMS)} online programs into {ONLINE}")
+    build_batch()
+    print(f"built {len(BATCH_PROGRAMS)} batch programs into {BATCH}")

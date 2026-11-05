@@ -1,0 +1,4777 @@
+{
+  "feature": "account-update",
+  "kind": "online",
+  "programs": [
+    "COACTUPC"
+  ],
+  "cases": [
+    {
+      "id": "account-update-first-display",
+      "title": "Menu option 2 shows the empty update screen with only the account field open and the search prompt",
+      "provenance": "observed",
+      "source": "app/cbl/COACTUPC.cbl 0000-MAIN (ACUP-DETAILS-NOT-FETCHED), 3000-SEND-MAP, 3300-SETUP-SCREEN-ATTRS",
+      "steps": [
+        {
+          "do": {
+            "transid": "CC00"
+          }
+        },
+        {
+          "do": {
+            "aid": "ENTER",
+            "fields": {
+              "USERID": "USER0001",
+              "PASSWD": "PASSWORD"
+            }
+          }
+        },
+        {
+          "do": {
+            "aid": "ENTER",
+            "fields": {
+              "OPTION": "2"
+            }
+          },
+          "expect": {
+            "map": "CACTUPA",
+            "fields": {
+              "TRNNAME": "CAUP",
+              "PGMNAME": "COACTUPC",
+              "ACTSSN1": "999",
+              "ACTSSN2": "99",
+              "ACTSSN3": "9999",
+              "INFOMSG": "Enter or update id of account to update",
+              "FKEYS": "ENTER=Process F3=Exit",
+              "FKEY05": "F5=Save",
+              "FKEY12": "F12=Cancel"
+            },
+            "protected": [
+              "AADDGRP",
+              "ACRCYCR",
+              "ACRCYDB",
+              "ACRDLIM",
+              "ACSADL1",
+              "ACSADL2",
+              "ACSCITY",
+              "ACSCTRY",
+              "ACSEFTC",
+              "ACSFNAM",
+              "ACSGOVT",
+              "ACSHLIM",
+              "ACSLNAM",
+              "ACSMNAM",
+              "ACSPFLG",
+              "ACSPH1A",
+              "ACSPH1B",
+              "ACSPH1C",
+              "ACSPH2A",
+              "ACSPH2B",
+              "ACSPH2C",
+              "ACSSTTE",
+              "ACSTFCO",
+              "ACSTNUM",
+              "ACSTTUS",
+              "ACSZIPC",
+              "ACTSSN1",
+              "ACTSSN2",
+              "ACTSSN3",
+              "ACURBAL",
+              "DOBDAY",
+              "DOBMON",
+              "DOBYEAR",
+              "EXPDAY",
+              "EXPMON",
+              "EXPYEAR",
+              "OPNDAY",
+              "OPNMON",
+              "OPNYEAR",
+              "RISDAY",
+              "RISMON",
+              "RISYEAR"
+            ],
+            "cursor": "ACCTSID"
+          }
+        }
+      ]
+    },
+    {
+      "id": "account-update-blank-account",
+      "title": "ENTER with no account: 'No input received' replaces 'Account number not provided' and the field shows a red '*'",
+      "provenance": "observed",
+      "source": "app/cbl/COACTUPC.cbl 1200-EDIT-MAP-INPUTS, 1210-EDIT-ACCOUNT, 3300-SETUP-SCREEN-ATTRS",
+      "steps": [
+        {
+          "do": {
+            "transid": "CC00"
+          }
+        },
+        {
+          "do": {
+            "aid": "ENTER",
+            "fields": {
+              "USERID": "USER0001",
+              "PASSWD": "PASSWORD"
+            }
+          }
+        },
+        {
+          "do": {
+            "aid": "ENTER",
+            "fields": {
+              "OPTION": "2"
+            }
+          }
+        },
+        {
+          "do": {
+            "aid": "ENTER"
+          },
+          "expect": {
+            "map": "CACTUPA",
+            "fields": {
+              "TRNNAME": "CAUP",
+              "PGMNAME": "COACTUPC",
+              "ACCTSID": "*",
+              "ACTSSN1": "999",
+              "ACTSSN2": "99",
+              "ACTSSN3": "9999",
+              "INFOMSG": "Enter or update id of account to update",
+              "ERRMSG": "No input received",
+              "FKEYS": "ENTER=Process F3=Exit",
+              "FKEY05": "F5=Save",
+              "FKEY12": "F12=Cancel"
+            },
+            "colors": {
+              "ACCTSID": "RED"
+            },
+            "protected": [
+              "AADDGRP",
+              "ACRCYCR",
+              "ACRCYDB",
+              "ACRDLIM",
+              "ACSADL1",
+              "ACSADL2",
+              "ACSCITY",
+              "ACSCTRY",
+              "ACSEFTC",
+              "ACSFNAM",
+              "ACSGOVT",
+              "ACSHLIM",
+              "ACSLNAM",
+              "ACSMNAM",
+              "ACSPFLG",
+              "ACSPH1A",
+              "ACSPH1B",
+              "ACSPH1C",
+              "ACSPH2A",
+              "ACSPH2B",
+              "ACSPH2C",
+              "ACSSTTE",
+              "ACSTFCO",
+              "ACSTNUM",
+              "ACSTTUS",
+              "ACSZIPC",
+              "ACTSSN1",
+              "ACTSSN2",
+              "ACTSSN3",
+              "ACURBAL",
+              "DOBDAY",
+              "DOBMON",
+              "DOBYEAR",
+              "EXPDAY",
+              "EXPMON",
+              "EXPYEAR",
+              "OPNDAY",
+              "OPNMON",
+              "OPNYEAR",
+              "RISDAY",
+              "RISMON",
+              "RISYEAR"
+            ],
+            "cursor": "ACCTSID"
+          }
+        }
+      ]
+    },
+    {
+      "id": "account-update-non-numeric-account",
+      "title": "A non-numeric account is rejected with the 11 digit non-zero message",
+      "provenance": "observed",
+      "source": "app/cbl/COACTUPC.cbl 1210-EDIT-ACCOUNT",
+      "steps": [
+        {
+          "do": {
+            "transid": "CC00"
+          }
+        },
+        {
+          "do": {
+            "aid": "ENTER",
+            "fields": {
+              "USERID": "USER0001",
+              "PASSWD": "PASSWORD"
+            }
+          }
+        },
+        {
+          "do": {
+            "aid": "ENTER",
+            "fields": {
+              "OPTION": "2"
+            }
+          }
+        },
+        {
+          "do": {
+            "aid": "ENTER",
+            "fields": {
+              "ACCTSID": "12345ABCDEF"
+            }
+          },
+          "expect": {
+            "map": "CACTUPA",
+            "fields": {
+              "TRNNAME": "CAUP",
+              "PGMNAME": "COACTUPC",
+              "ACCTSID": "12345ABCDEF",
+              "ACTSSN1": "999",
+              "ACTSSN2": "99",
+              "ACTSSN3": "9999",
+              "INFOMSG": "Enter or update id of account to update",
+              "ERRMSG": "Account Number if supplied must be a 11 digit Non-Zero Number",
+              "FKEYS": "ENTER=Process F3=Exit",
+              "FKEY05": "F5=Save",
+              "FKEY12": "F12=Cancel"
+            },
+            "colors": {
+              "ACCTSID": "RED"
+            },
+            "protected": [
+              "AADDGRP",
+              "ACRCYCR",
+              "ACRCYDB",
+              "ACRDLIM",
+              "ACSADL1",
+              "ACSADL2",
+              "ACSCITY",
+              "ACSCTRY",
+              "ACSEFTC",
+              "ACSFNAM",
+              "ACSGOVT",
+              "ACSHLIM",
+              "ACSLNAM",
+              "ACSMNAM",
+              "ACSPFLG",
+              "ACSPH1A",
+              "ACSPH1B",
+              "ACSPH1C",
+              "ACSPH2A",
+              "ACSPH2B",
+              "ACSPH2C",
+              "ACSSTTE",
+              "ACSTFCO",
+              "ACSTNUM",
+              "ACSTTUS",
+              "ACSZIPC",
+              "ACTSSN1",
+              "ACTSSN2",
+              "ACTSSN3",
+              "ACURBAL",
+              "DOBDAY",
+              "DOBMON",
+              "DOBYEAR",
+              "EXPDAY",
+              "EXPMON",
+              "EXPYEAR",
+              "OPNDAY",
+              "OPNMON",
+              "OPNYEAR",
+              "RISDAY",
+              "RISMON",
+              "RISYEAR"
+            ],
+            "cursor": "ACCTSID"
+          }
+        }
+      ]
+    },
+    {
+      "id": "account-update-account-not-in-xref",
+      "title": "An account with no cross-reference reports 'not found in Cross ref file'",
+      "provenance": "observed",
+      "source": "app/cbl/COACTUPC.cbl 9000-READ-ACCT, 9200-GETCARDXREF-BYACCT (NOTFND)",
+      "steps": [
+        {
+          "do": {
+            "transid": "CC00"
+          }
+        },
+        {
+          "do": {
+            "aid": "ENTER",
+            "fields": {
+              "USERID": "USER0001",
+              "PASSWD": "PASSWORD"
+            }
+          }
+        },
+        {
+          "do": {
+            "aid": "ENTER",
+            "fields": {
+              "OPTION": "2"
+            }
+          }
+        },
+        {
+          "do": {
+            "aid": "ENTER",
+            "fields": {
+              "ACCTSID": "00000000099"
+            }
+          },
+          "expect": {
+            "map": "CACTUPA",
+            "fields": {
+              "TRNNAME": "CAUP",
+              "PGMNAME": "COACTUPC",
+              "ACCTSID": "00000000099",
+              "ACTSSN1": "999",
+              "ACTSSN2": "99",
+              "ACTSSN3": "9999",
+              "INFOMSG": "Enter or update id of account to update",
+              "ERRMSG": "Account:00000000099 not found in Cross ref file.  Resp:000000013  Reas:0000",
+              "FKEYS": "ENTER=Process F3=Exit",
+              "FKEY05": "F5=Save",
+              "FKEY12": "F12=Cancel"
+            },
+            "colors": {
+              "ACCTSID": "RED"
+            },
+            "protected": [
+              "AADDGRP",
+              "ACRCYCR",
+              "ACRCYDB",
+              "ACRDLIM",
+              "ACSADL1",
+              "ACSADL2",
+              "ACSCITY",
+              "ACSCTRY",
+              "ACSEFTC",
+              "ACSFNAM",
+              "ACSGOVT",
+              "ACSHLIM",
+              "ACSLNAM",
+              "ACSMNAM",
+              "ACSPFLG",
+              "ACSPH1A",
+              "ACSPH1B",
+              "ACSPH1C",
+              "ACSPH2A",
+              "ACSPH2B",
+              "ACSPH2C",
+              "ACSSTTE",
+              "ACSTFCO",
+              "ACSTNUM",
+              "ACSTTUS",
+              "ACSZIPC",
+              "ACTSSN1",
+              "ACTSSN2",
+              "ACTSSN3",
+              "ACURBAL",
+              "DOBDAY",
+              "DOBMON",
+              "DOBYEAR",
+              "EXPDAY",
+              "EXPMON",
+              "EXPYEAR",
+              "OPNDAY",
+              "OPNMON",
+              "OPNYEAR",
+              "RISDAY",
+              "RISMON",
+              "RISYEAR"
+            ],
+            "cursor": "ACCTSID"
+          }
+        }
+      ]
+    },
+    {
+      "id": "account-update-pf12-before-fetch",
+      "title": "PF12 before any account is fetched is not a valid key and is treated as ENTER",
+      "provenance": "observed",
+      "source": "app/cbl/COACTUPC.cbl 0000-MAIN (PFK12 AND NOT ACUP-DETAILS-NOT-FETCHED)",
+      "steps": [
+        {
+          "do": {
+            "transid": "CC00"
+          }
+        },
+        {
+          "do": {
+            "aid": "ENTER",
+            "fields": {
+              "USERID": "USER0001",
+              "PASSWD": "PASSWORD"
+            }
+          }
+        },
+        {
+          "do": {
+            "aid": "ENTER",
+            "fields": {
+              "OPTION": "2"
+            }
+          }
+        },
+        {
+          "do": {
+            "aid": "PF12"
+          },
+          "expect": {
+            "map": "CACTUPA",
+            "fields": {
+              "TRNNAME": "CAUP",
+              "PGMNAME": "COACTUPC",
+              "ACCTSID": "*",
+              "ACTSSN1": "999",
+              "ACTSSN2": "99",
+              "ACTSSN3": "9999",
+              "INFOMSG": "Enter or update id of account to update",
+              "ERRMSG": "No input received",
+              "FKEYS": "ENTER=Process F3=Exit",
+              "FKEY05": "F5=Save",
+              "FKEY12": "F12=Cancel"
+            },
+            "colors": {
+              "ACCTSID": "RED"
+            },
+            "protected": [
+              "AADDGRP",
+              "ACRCYCR",
+              "ACRCYDB",
+              "ACRDLIM",
+              "ACSADL1",
+              "ACSADL2",
+              "ACSCITY",
+              "ACSCTRY",
+              "ACSEFTC",
+              "ACSFNAM",
+              "ACSGOVT",
+              "ACSHLIM",
+              "ACSLNAM",
+              "ACSMNAM",
+              "ACSPFLG",
+              "ACSPH1A",
+              "ACSPH1B",
+              "ACSPH1C",
+              "ACSPH2A",
+              "ACSPH2B",
+              "ACSPH2C",
+              "ACSSTTE",
+              "ACSTFCO",
+              "ACSTNUM",
+              "ACSTTUS",
+              "ACSZIPC",
+              "ACTSSN1",
+              "ACTSSN2",
+              "ACTSSN3",
+              "ACURBAL",
+              "DOBDAY",
+              "DOBMON",
+              "DOBYEAR",
+              "EXPDAY",
+              "EXPMON",
+              "EXPYEAR",
+              "OPNDAY",
+              "OPNMON",
+              "OPNYEAR",
+              "RISDAY",
+              "RISMON",
+              "RISYEAR"
+            ],
+            "cursor": "ACCTSID"
+          }
+        }
+      ]
+    },
+    {
+      "id": "account-update-fetch",
+      "title": "A valid account shows account and customer details split into editable parts, with the change prompt; the cursor is left on the now-protected account field (legacy quirk)",
+      "provenance": "observed",
+      "source": "app/cbl/COACTUPC.cbl 2000-DECIDE-ACTION (ACUP-DETAILS-NOT-FETCHED), 9000-READ-ACCT, 9500-STORE-FETCHED-DATA, 3202-SHOW-ORIGINAL-VALUES, 3320-UNPROTECT-FEW-ATTRS",
+      "steps": [
+        {
+          "do": {
+            "transid": "CC00"
+          }
+        },
+        {
+          "do": {
+            "aid": "ENTER",
+            "fields": {
+              "USERID": "USER0001",
+              "PASSWD": "PASSWORD"
+            }
+          }
+        },
+        {
+          "do": {
+            "aid": "ENTER",
+            "fields": {
+              "OPTION": "2"
+            }
+          }
+        },
+        {
+          "do": {
+            "aid": "ENTER",
+            "fields": {
+              "ACCTSID": "00000000001"
+            }
+          },
+          "expect": {
+            "map": "CACTUPA",
+            "fields": {
+              "TRNNAME": "CAUP",
+              "PGMNAME": "COACTUPC",
+              "ACCTSID": "00000000001",
+              "ACSTTUS": "Y",
+              "OPNYEAR": "2014",
+              "OPNMON": "11",
+              "OPNDAY": "20",
+              "ACRDLIM": "+      2,020.00",
+              "EXPYEAR": "2025",
+              "EXPMON": "05",
+              "EXPDAY": "20",
+              "ACSHLIM": "+      1,020.00",
+              "RISYEAR": "2025",
+              "RISMON": "05",
+              "RISDAY": "20",
+              "ACURBAL": "+        194.00",
+              "ACRCYCR": "+           .00",
+              "ACRCYDB": "+           .00",
+              "ACSTNUM": "000000001",
+              "ACTSSN1": "020",
+              "ACTSSN2": "97",
+              "ACTSSN3": "3888",
+              "DOBYEAR": "1961",
+              "DOBMON": "06",
+              "DOBDAY": "08",
+              "ACSTFCO": "274",
+              "ACSFNAM": "Immanuel",
+              "ACSMNAM": "Madeline",
+              "ACSLNAM": "Kessler",
+              "ACSADL1": "618 Deshaun Route",
+              "ACSSTTE": "NC",
+              "ACSADL2": "Apt. 802",
+              "ACSZIPC": "12546",
+              "ACSCITY": "Altenwerthshire",
+              "ACSCTRY": "USA",
+              "ACSPH1A": "908",
+              "ACSPH1B": "119",
+              "ACSPH1C": "8310",
+              "ACSGOVT": "00000000000049368437",
+              "ACSPH2A": "373",
+              "ACSPH2B": "693",
+              "ACSPH2C": "8684",
+              "ACSEFTC": "0053581756",
+              "ACSPFLG": "Y",
+              "INFOMSG": "Update account details presented above.",
+              "FKEYS": "ENTER=Process F3=Exit",
+              "FKEY05": "F5=Save",
+              "FKEY12": "F12=Cancel"
+            },
+            "protected": [
+              "ACCTSID",
+              "ACSCTRY",
+              "ACSTNUM"
+            ],
+            "cursor": "ACCTSID"
+          }
+        }
+      ]
+    },
+    {
+      "id": "account-update-no-changes",
+      "title": "ENTER with nothing changed on an account that has a group id reports no change detected, cursor on status",
+      "provenance": "observed",
+      "source": "app/cbl/COACTUPC.cbl 1205-COMPARE-OLD-NEW, 2000-DECIDE-ACTION (NO-CHANGES-DETECTED)",
+      "setup": {
+        "CUSTDATA": {
+          "upsert": [
+            {
+              "CUST-ID": 1,
+              "CUST-FICO-CREDIT-SCORE": 700,
+              "CUST-ADDR-ZIP": "27601",
+              "CUST-PHONE-NUM-2": "(212)693-8684"
+            }
+          ]
+        },
+        "ACCTDATA": {
+          "upsert": [
+            {
+              "ACCT-ID": 1,
+              "ACCT-GROUP-ID": "GRP1"
+            }
+          ]
+        }
+      },
+      "steps": [
+        {
+          "do": {
+            "transid": "CC00"
+          }
+        },
+        {
+          "do": {
+            "aid": "ENTER",
+            "fields": {
+              "USERID": "USER0001",
+              "PASSWD": "PASSWORD"
+            }
+          }
+        },
+        {
+          "do": {
+            "aid": "ENTER",
+            "fields": {
+              "OPTION": "2"
+            }
+          }
+        },
+        {
+          "do": {
+            "aid": "ENTER",
+            "fields": {
+              "ACCTSID": "00000000001"
+            }
+          }
+        },
+        {
+          "do": {
+            "aid": "ENTER"
+          },
+          "expect": {
+            "map": "CACTUPA",
+            "fields": {
+              "TRNNAME": "CAUP",
+              "PGMNAME": "COACTUPC",
+              "ACCTSID": "00000000001",
+              "ACSTTUS": "Y",
+              "OPNYEAR": "2014",
+              "OPNMON": "11",
+              "OPNDAY": "20",
+              "ACRDLIM": "+      2,020.00",
+              "EXPYEAR": "2025",
+              "EXPMON": "05",
+              "EXPDAY": "20",
+              "ACSHLIM": "+      1,020.00",
+              "RISYEAR": "2025",
+              "RISMON": "05",
+              "RISDAY": "20",
+              "ACURBAL": "+        194.00",
+              "ACRCYCR": "+           .00",
+              "AADDGRP": "GRP1",
+              "ACRCYDB": "+           .00",
+              "ACSTNUM": "000000001",
+              "ACTSSN1": "020",
+              "ACTSSN2": "97",
+              "ACTSSN3": "3888",
+              "DOBYEAR": "1961",
+              "DOBMON": "06",
+              "DOBDAY": "08",
+              "ACSTFCO": "700",
+              "ACSFNAM": "Immanuel",
+              "ACSMNAM": "Madeline",
+              "ACSLNAM": "Kessler",
+              "ACSADL1": "618 Deshaun Route",
+              "ACSSTTE": "NC",
+              "ACSADL2": "Apt. 802",
+              "ACSZIPC": "27601",
+              "ACSCITY": "Altenwerthshire",
+              "ACSCTRY": "USA",
+              "ACSPH1A": "908",
+              "ACSPH1B": "119",
+              "ACSPH1C": "8310",
+              "ACSGOVT": "00000000000049368437",
+              "ACSPH2A": "212",
+              "ACSPH2B": "693",
+              "ACSPH2C": "8684",
+              "ACSEFTC": "0053581756",
+              "ACSPFLG": "Y",
+              "INFOMSG": "Update account details presented above.",
+              "ERRMSG": "No change detected with respect to values fetched.",
+              "FKEYS": "ENTER=Process F3=Exit",
+              "FKEY05": "F5=Save",
+              "FKEY12": "F12=Cancel"
+            },
+            "protected": [
+              "ACCTSID",
+              "ACSCTRY",
+              "ACSTNUM"
+            ],
+            "cursor": "ACSTTUS"
+          }
+        }
+      ]
+    },
+    {
+      "id": "account-update-blank-group-always-changed",
+      "title": "ENTER with nothing changed on an account whose group id is blank goes straight to the save confirmation: the blank screen group becomes LOW-VALUES and never equals the stored spaces (legacy bug)",
+      "provenance": "observed",
+      "source": "app/cbl/COACTUPC.cbl 1100-RECEIVE-MAP (AADDGRP -> LOW-VALUES), 1205-COMPARE-OLD-NEW (TRIM group id)",
+      "setup": {
+        "CUSTDATA": {
+          "upsert": [
+            {
+              "CUST-ID": 1,
+              "CUST-FICO-CREDIT-SCORE": 700,
+              "CUST-ADDR-ZIP": "27601",
+              "CUST-PHONE-NUM-2": "(212)693-8684"
+            }
+          ]
+        }
+      },
+      "steps": [
+        {
+          "do": {
+            "transid": "CC00"
+          }
+        },
+        {
+          "do": {
+            "aid": "ENTER",
+            "fields": {
+              "USERID": "USER0001",
+              "PASSWD": "PASSWORD"
+            }
+          }
+        },
+        {
+          "do": {
+            "aid": "ENTER",
+            "fields": {
+              "OPTION": "2"
+            }
+          }
+        },
+        {
+          "do": {
+            "aid": "ENTER",
+            "fields": {
+              "ACCTSID": "00000000001"
+            }
+          }
+        },
+        {
+          "do": {
+            "aid": "ENTER"
+          },
+          "expect": {
+            "map": "CACTUPA",
+            "fields": {
+              "TRNNAME": "CAUP",
+              "PGMNAME": "COACTUPC",
+              "ACCTSID": "00000000001",
+              "ACSTTUS": "Y",
+              "OPNYEAR": "2014",
+              "OPNMON": "11",
+              "OPNDAY": "20",
+              "ACRDLIM": "+      2,020.00",
+              "EXPYEAR": "2025",
+              "EXPMON": "05",
+              "EXPDAY": "20",
+              "ACSHLIM": "+      1,020.00",
+              "RISYEAR": "2025",
+              "RISMON": "05",
+              "RISDAY": "20",
+              "ACURBAL": "+        194.00",
+              "ACRCYCR": "+           .00",
+              "ACRCYDB": "+           .00",
+              "ACSTNUM": "000000001",
+              "ACTSSN1": "020",
+              "ACTSSN2": "97",
+              "ACTSSN3": "3888",
+              "DOBYEAR": "1961",
+              "DOBMON": "06",
+              "DOBDAY": "08",
+              "ACSTFCO": "700",
+              "ACSFNAM": "Immanuel",
+              "ACSMNAM": "Madeline",
+              "ACSLNAM": "Kessler",
+              "ACSADL1": "618 Deshaun Route",
+              "ACSSTTE": "NC",
+              "ACSADL2": "Apt. 802",
+              "ACSZIPC": "27601",
+              "ACSCITY": "Altenwerthshire",
+              "ACSCTRY": "USA",
+              "ACSPH1A": "908",
+              "ACSPH1B": "119",
+              "ACSPH1C": "8310",
+              "ACSGOVT": "00000000000049368437",
+              "ACSPH2A": "212",
+              "ACSPH2B": "693",
+              "ACSPH2C": "8684",
+              "ACSEFTC": "0053581756",
+              "ACSPFLG": "Y",
+              "INFOMSG": "Changes validated.Press F5 to save",
+              "FKEYS": "ENTER=Process F3=Exit",
+              "FKEY05": "F5=Save",
+              "FKEY12": "F12=Cancel"
+            },
+            "protected": [
+              "AADDGRP",
+              "ACCTSID",
+              "ACRCYCR",
+              "ACRCYDB",
+              "ACRDLIM",
+              "ACSADL1",
+              "ACSADL2",
+              "ACSCITY",
+              "ACSCTRY",
+              "ACSEFTC",
+              "ACSFNAM",
+              "ACSGOVT",
+              "ACSHLIM",
+              "ACSLNAM",
+              "ACSMNAM",
+              "ACSPFLG",
+              "ACSPH1A",
+              "ACSPH1B",
+              "ACSPH1C",
+              "ACSPH2A",
+              "ACSPH2B",
+              "ACSPH2C",
+              "ACSSTTE",
+              "ACSTFCO",
+              "ACSTNUM",
+              "ACSTTUS",
+              "ACSZIPC",
+              "ACTSSN1",
+              "ACTSSN2",
+              "ACTSSN3",
+              "ACURBAL",
+              "DOBDAY",
+              "DOBMON",
+              "DOBYEAR",
+              "EXPDAY",
+              "EXPMON",
+              "EXPYEAR",
+              "OPNDAY",
+              "OPNMON",
+              "OPNYEAR",
+              "RISDAY",
+              "RISMON",
+              "RISYEAR"
+            ],
+            "cursor": "ACCTSID"
+          }
+        }
+      ]
+    },
+    {
+      "id": "account-update-status-lowercase-is-no-change",
+      "title": "Typing 'y' over status 'Y' is not a change because the comparison upper-cases the status",
+      "provenance": "observed",
+      "source": "app/cbl/COACTUPC.cbl 1205-COMPARE-OLD-NEW (FUNCTION UPPER-CASE)",
+      "setup": {
+        "CUSTDATA": {
+          "upsert": [
+            {
+              "CUST-ID": 1,
+              "CUST-FICO-CREDIT-SCORE": 700,
+              "CUST-ADDR-ZIP": "27601",
+              "CUST-PHONE-NUM-2": "(212)693-8684"
+            }
+          ]
+        },
+        "ACCTDATA": {
+          "upsert": [
+            {
+              "ACCT-ID": 1,
+              "ACCT-GROUP-ID": "GRP1"
+            }
+          ]
+        }
+      },
+      "steps": [
+        {
+          "do": {
+            "transid": "CC00"
+          }
+        },
+        {
+          "do": {
+            "aid": "ENTER",
+            "fields": {
+              "USERID": "USER0001",
+              "PASSWD": "PASSWORD"
+            }
+          }
+        },
+        {
+          "do": {
+            "aid": "ENTER",
+            "fields": {
+              "OPTION": "2"
+            }
+          }
+        },
+        {
+          "do": {
+            "aid": "ENTER",
+            "fields": {
+              "ACCTSID": "00000000001"
+            }
+          }
+        },
+        {
+          "do": {
+            "aid": "ENTER",
+            "fields": {
+              "ACSTTUS": "y"
+            }
+          },
+          "expect": {
+            "map": "CACTUPA",
+            "fields": {
+              "TRNNAME": "CAUP",
+              "PGMNAME": "COACTUPC",
+              "ACCTSID": "00000000001",
+              "ACSTTUS": "Y",
+              "OPNYEAR": "2014",
+              "OPNMON": "11",
+              "OPNDAY": "20",
+              "ACRDLIM": "+      2,020.00",
+              "EXPYEAR": "2025",
+              "EXPMON": "05",
+              "EXPDAY": "20",
+              "ACSHLIM": "+      1,020.00",
+              "RISYEAR": "2025",
+              "RISMON": "05",
+              "RISDAY": "20",
+              "ACURBAL": "+        194.00",
+              "ACRCYCR": "+           .00",
+              "AADDGRP": "GRP1",
+              "ACRCYDB": "+           .00",
+              "ACSTNUM": "000000001",
+              "ACTSSN1": "020",
+              "ACTSSN2": "97",
+              "ACTSSN3": "3888",
+              "DOBYEAR": "1961",
+              "DOBMON": "06",
+              "DOBDAY": "08",
+              "ACSTFCO": "700",
+              "ACSFNAM": "Immanuel",
+              "ACSMNAM": "Madeline",
+              "ACSLNAM": "Kessler",
+              "ACSADL1": "618 Deshaun Route",
+              "ACSSTTE": "NC",
+              "ACSADL2": "Apt. 802",
+              "ACSZIPC": "27601",
+              "ACSCITY": "Altenwerthshire",
+              "ACSCTRY": "USA",
+              "ACSPH1A": "908",
+              "ACSPH1B": "119",
+              "ACSPH1C": "8310",
+              "ACSGOVT": "00000000000049368437",
+              "ACSPH2A": "212",
+              "ACSPH2B": "693",
+              "ACSPH2C": "8684",
+              "ACSEFTC": "0053581756",
+              "ACSPFLG": "Y",
+              "INFOMSG": "Update account details presented above.",
+              "ERRMSG": "No change detected with respect to values fetched.",
+              "FKEYS": "ENTER=Process F3=Exit",
+              "FKEY05": "F5=Save",
+              "FKEY12": "F12=Cancel"
+            },
+            "protected": [
+              "ACCTSID",
+              "ACSCTRY",
+              "ACSTNUM"
+            ],
+            "cursor": "ACSTTUS"
+          }
+        }
+      ]
+    },
+    {
+      "id": "account-update-seed-customer-unchanged-fails",
+      "title": "ENTER with nothing changed on seed account 1 validates everything and fails on the stored FICO 274; stored state/zip and phone 2 area code 373 are also flagged red (seed data violates the edits)",
+      "provenance": "observed",
+      "source": "app/cbl/COACTUPC.cbl 1205-COMPARE-OLD-NEW, 1275-EDIT-FICO-SCORE, 1280-EDIT-US-STATE-ZIP-CD, 1260-EDIT-US-PHONE-NUM",
+      "steps": [
+        {
+          "do": {
+            "transid": "CC00"
+          }
+        },
+        {
+          "do": {
+            "aid": "ENTER",
+            "fields": {
+              "USERID": "USER0001",
+              "PASSWD": "PASSWORD"
+            }
+          }
+        },
+        {
+          "do": {
+            "aid": "ENTER",
+            "fields": {
+              "OPTION": "2"
+            }
+          }
+        },
+        {
+          "do": {
+            "aid": "ENTER",
+            "fields": {
+              "ACCTSID": "00000000001"
+            }
+          }
+        },
+        {
+          "do": {
+            "aid": "ENTER"
+          },
+          "expect": {
+            "map": "CACTUPA",
+            "fields": {
+              "TRNNAME": "CAUP",
+              "PGMNAME": "COACTUPC",
+              "ACCTSID": "00000000001",
+              "ACSTTUS": "Y",
+              "OPNYEAR": "2014",
+              "OPNMON": "11",
+              "OPNDAY": "20",
+              "ACRDLIM": "+      2,020.00",
+              "EXPYEAR": "2025",
+              "EXPMON": "05",
+              "EXPDAY": "20",
+              "ACSHLIM": "+      1,020.00",
+              "RISYEAR": "2025",
+              "RISMON": "05",
+              "RISDAY": "20",
+              "ACURBAL": "+        194.00",
+              "ACRCYCR": "+           .00",
+              "ACRCYDB": "+           .00",
+              "ACSTNUM": "000000001",
+              "ACTSSN1": "020",
+              "ACTSSN2": "97",
+              "ACTSSN3": "3888",
+              "DOBYEAR": "1961",
+              "DOBMON": "06",
+              "DOBDAY": "08",
+              "ACSTFCO": "274",
+              "ACSFNAM": "Immanuel",
+              "ACSMNAM": "Madeline",
+              "ACSLNAM": "Kessler",
+              "ACSADL1": "618 Deshaun Route",
+              "ACSSTTE": "NC",
+              "ACSADL2": "Apt. 802",
+              "ACSZIPC": "12546",
+              "ACSCITY": "Altenwerthshire",
+              "ACSCTRY": "USA",
+              "ACSPH1A": "908",
+              "ACSPH1B": "119",
+              "ACSPH1C": "8310",
+              "ACSGOVT": "00000000000049368437",
+              "ACSPH2A": "373",
+              "ACSPH2B": "693",
+              "ACSPH2C": "8684",
+              "ACSEFTC": "0053581756",
+              "ACSPFLG": "Y",
+              "INFOMSG": "Update account details presented above.",
+              "ERRMSG": "FICO Score: should be between 300 and 850",
+              "FKEYS": "ENTER=Process F3=Exit",
+              "FKEY05": "F5=Save",
+              "FKEY12": "F12=Cancel"
+            },
+            "colors": {
+              "ACSTFCO": "RED",
+              "ACSSTTE": "RED",
+              "ACSZIPC": "RED",
+              "ACSPH2A": "RED"
+            },
+            "protected": [
+              "ACCTSID",
+              "ACSCTRY",
+              "ACSTNUM"
+            ],
+            "cursor": "ACSTFCO"
+          }
+        }
+      ]
+    },
+    {
+      "id": "account-update-status-invalid",
+      "title": "Account status other than Y/N is rejected; field red and cursor on it",
+      "provenance": "observed",
+      "source": "app/cbl/COACTUPC.cbl 1220-EDIT-YESNO",
+      "setup": {
+        "CUSTDATA": {
+          "upsert": [
+            {
+              "CUST-ID": 1,
+              "CUST-FICO-CREDIT-SCORE": 700,
+              "CUST-ADDR-ZIP": "27601",
+              "CUST-PHONE-NUM-2": "(212)693-8684"
+            }
+          ]
+        }
+      },
+      "steps": [
+        {
+          "do": {
+            "transid": "CC00"
+          }
+        },
+        {
+          "do": {
+            "aid": "ENTER",
+            "fields": {
+              "USERID": "USER0001",
+              "PASSWD": "PASSWORD"
+            }
+          }
+        },
+        {
+          "do": {
+            "aid": "ENTER",
+            "fields": {
+              "OPTION": "2"
+            }
+          }
+        },
+        {
+          "do": {
+            "aid": "ENTER",
+            "fields": {
+              "ACCTSID": "00000000001"
+            }
+          }
+        },
+        {
+          "do": {
+            "aid": "ENTER",
+            "fields": {
+              "ACSTTUS": "X"
+            }
+          },
+          "expect": {
+            "map": "CACTUPA",
+            "fields": {
+              "TRNNAME": "CAUP",
+              "PGMNAME": "COACTUPC",
+              "ACCTSID": "00000000001",
+              "ACSTTUS": "X",
+              "OPNYEAR": "2014",
+              "OPNMON": "11",
+              "OPNDAY": "20",
+              "ACRDLIM": "+      2,020.00",
+              "EXPYEAR": "2025",
+              "EXPMON": "05",
+              "EXPDAY": "20",
+              "ACSHLIM": "+      1,020.00",
+              "RISYEAR": "2025",
+              "RISMON": "05",
+              "RISDAY": "20",
+              "ACURBAL": "+        194.00",
+              "ACRCYCR": "+           .00",
+              "ACRCYDB": "+           .00",
+              "ACSTNUM": "000000001",
+              "ACTSSN1": "020",
+              "ACTSSN2": "97",
+              "ACTSSN3": "3888",
+              "DOBYEAR": "1961",
+              "DOBMON": "06",
+              "DOBDAY": "08",
+              "ACSTFCO": "700",
+              "ACSFNAM": "Immanuel",
+              "ACSMNAM": "Madeline",
+              "ACSLNAM": "Kessler",
+              "ACSADL1": "618 Deshaun Route",
+              "ACSSTTE": "NC",
+              "ACSADL2": "Apt. 802",
+              "ACSZIPC": "27601",
+              "ACSCITY": "Altenwerthshire",
+              "ACSCTRY": "USA",
+              "ACSPH1A": "908",
+              "ACSPH1B": "119",
+              "ACSPH1C": "8310",
+              "ACSGOVT": "00000000000049368437",
+              "ACSPH2A": "212",
+              "ACSPH2B": "693",
+              "ACSPH2C": "8684",
+              "ACSEFTC": "0053581756",
+              "ACSPFLG": "Y",
+              "INFOMSG": "Update account details presented above.",
+              "ERRMSG": "Account Status must be Y or N.",
+              "FKEYS": "ENTER=Process F3=Exit",
+              "FKEY05": "F5=Save",
+              "FKEY12": "F12=Cancel"
+            },
+            "colors": {
+              "ACSTTUS": "RED"
+            },
+            "protected": [
+              "ACCTSID",
+              "ACSCTRY",
+              "ACSTNUM"
+            ],
+            "cursor": "ACSTTUS"
+          }
+        }
+      ]
+    },
+    {
+      "id": "account-update-status-blank",
+      "title": "Blank account status is 'must be supplied' and the field shows a red '*'",
+      "provenance": "observed",
+      "source": "app/cbl/COACTUPC.cbl 1220-EDIT-YESNO, CSSETATY",
+      "setup": {
+        "CUSTDATA": {
+          "upsert": [
+            {
+              "CUST-ID": 1,
+              "CUST-FICO-CREDIT-SCORE": 700,
+              "CUST-ADDR-ZIP": "27601",
+              "CUST-PHONE-NUM-2": "(212)693-8684"
+            }
+          ]
+        }
+      },
+      "steps": [
+        {
+          "do": {
+            "transid": "CC00"
+          }
+        },
+        {
+          "do": {
+            "aid": "ENTER",
+            "fields": {
+              "USERID": "USER0001",
+              "PASSWD": "PASSWORD"
+            }
+          }
+        },
+        {
+          "do": {
+            "aid": "ENTER",
+            "fields": {
+              "OPTION": "2"
+            }
+          }
+        },
+        {
+          "do": {
+            "aid": "ENTER",
+            "fields": {
+              "ACCTSID": "00000000001"
+            }
+          }
+        },
+        {
+          "do": {
+            "aid": "ENTER",
+            "fields": {
+              "ACSTTUS": ""
+            }
+          },
+          "expect": {
+            "map": "CACTUPA",
+            "fields": {
+              "TRNNAME": "CAUP",
+              "PGMNAME": "COACTUPC",
+              "ACCTSID": "00000000001",
+              "ACSTTUS": "*",
+              "OPNYEAR": "2014",
+              "OPNMON": "11",
+              "OPNDAY": "20",
+              "ACRDLIM": "+      2,020.00",
+              "EXPYEAR": "2025",
+              "EXPMON": "05",
+              "EXPDAY": "20",
+              "ACSHLIM": "+      1,020.00",
+              "RISYEAR": "2025",
+              "RISMON": "05",
+              "RISDAY": "20",
+              "ACURBAL": "+        194.00",
+              "ACRCYCR": "+           .00",
+              "ACRCYDB": "+           .00",
+              "ACSTNUM": "000000001",
+              "ACTSSN1": "020",
+              "ACTSSN2": "97",
+              "ACTSSN3": "3888",
+              "DOBYEAR": "1961",
+              "DOBMON": "06",
+              "DOBDAY": "08",
+              "ACSTFCO": "700",
+              "ACSFNAM": "Immanuel",
+              "ACSMNAM": "Madeline",
+              "ACSLNAM": "Kessler",
+              "ACSADL1": "618 Deshaun Route",
+              "ACSSTTE": "NC",
+              "ACSADL2": "Apt. 802",
+              "ACSZIPC": "27601",
+              "ACSCITY": "Altenwerthshire",
+              "ACSCTRY": "USA",
+              "ACSPH1A": "908",
+              "ACSPH1B": "119",
+              "ACSPH1C": "8310",
+              "ACSGOVT": "00000000000049368437",
+              "ACSPH2A": "212",
+              "ACSPH2B": "693",
+              "ACSPH2C": "8684",
+              "ACSEFTC": "0053581756",
+              "ACSPFLG": "Y",
+              "INFOMSG": "Update account details presented above.",
+              "ERRMSG": "Account Status must be supplied.",
+              "FKEYS": "ENTER=Process F3=Exit",
+              "FKEY05": "F5=Save",
+              "FKEY12": "F12=Cancel"
+            },
+            "colors": {
+              "ACSTTUS": "RED"
+            },
+            "protected": [
+              "ACCTSID",
+              "ACSCTRY",
+              "ACSTNUM"
+            ],
+            "cursor": "ACSTTUS"
+          }
+        }
+      ]
+    },
+    {
+      "id": "account-update-open-year-not-numeric",
+      "title": "A non-numeric open year is rejected as not a 4 digit number",
+      "provenance": "observed",
+      "source": "app/cbl/COACTUPC.cbl EDIT-DATE-CCYYMMDD (CSUTLDPY EDIT-YEAR-CCYY)",
+      "setup": {
+        "CUSTDATA": {
+          "upsert": [
+            {
+              "CUST-ID": 1,
+              "CUST-FICO-CREDIT-SCORE": 700,
+              "CUST-ADDR-ZIP": "27601",
+              "CUST-PHONE-NUM-2": "(212)693-8684"
+            }
+          ]
+        }
+      },
+      "steps": [
+        {
+          "do": {
+            "transid": "CC00"
+          }
+        },
+        {
+          "do": {
+            "aid": "ENTER",
+            "fields": {
+              "USERID": "USER0001",
+              "PASSWD": "PASSWORD"
+            }
+          }
+        },
+        {
+          "do": {
+            "aid": "ENTER",
+            "fields": {
+              "OPTION": "2"
+            }
+          }
+        },
+        {
+          "do": {
+            "aid": "ENTER",
+            "fields": {
+              "ACCTSID": "00000000001"
+            }
+          }
+        },
+        {
+          "do": {
+            "aid": "ENTER",
+            "fields": {
+              "OPNYEAR": "20AB"
+            }
+          },
+          "expect": {
+            "map": "CACTUPA",
+            "fields": {
+              "TRNNAME": "CAUP",
+              "PGMNAME": "COACTUPC",
+              "ACCTSID": "00000000001",
+              "ACSTTUS": "Y",
+              "OPNYEAR": "20AB",
+              "OPNMON": "11",
+              "OPNDAY": "20",
+              "ACRDLIM": "+      2,020.00",
+              "EXPYEAR": "2025",
+              "EXPMON": "05",
+              "EXPDAY": "20",
+              "ACSHLIM": "+      1,020.00",
+              "RISYEAR": "2025",
+              "RISMON": "05",
+              "RISDAY": "20",
+              "ACURBAL": "+        194.00",
+              "ACRCYCR": "+           .00",
+              "ACRCYDB": "+           .00",
+              "ACSTNUM": "000000001",
+              "ACTSSN1": "020",
+              "ACTSSN2": "97",
+              "ACTSSN3": "3888",
+              "DOBYEAR": "1961",
+              "DOBMON": "06",
+              "DOBDAY": "08",
+              "ACSTFCO": "700",
+              "ACSFNAM": "Immanuel",
+              "ACSMNAM": "Madeline",
+              "ACSLNAM": "Kessler",
+              "ACSADL1": "618 Deshaun Route",
+              "ACSSTTE": "NC",
+              "ACSADL2": "Apt. 802",
+              "ACSZIPC": "27601",
+              "ACSCITY": "Altenwerthshire",
+              "ACSCTRY": "USA",
+              "ACSPH1A": "908",
+              "ACSPH1B": "119",
+              "ACSPH1C": "8310",
+              "ACSGOVT": "00000000000049368437",
+              "ACSPH2A": "212",
+              "ACSPH2B": "693",
+              "ACSPH2C": "8684",
+              "ACSEFTC": "0053581756",
+              "ACSPFLG": "Y",
+              "INFOMSG": "Update account details presented above.",
+              "ERRMSG": "Open Date must be 4 digit number.",
+              "FKEYS": "ENTER=Process F3=Exit",
+              "FKEY05": "F5=Save",
+              "FKEY12": "F12=Cancel"
+            },
+            "colors": {
+              "OPNYEAR": "RED"
+            },
+            "protected": [
+              "ACCTSID",
+              "ACSCTRY",
+              "ACSTNUM"
+            ],
+            "cursor": "OPNYEAR"
+          }
+        }
+      ]
+    },
+    {
+      "id": "account-update-open-year-century",
+      "title": "An open year outside the 19xx/20xx centuries is rejected",
+      "provenance": "observed",
+      "source": "app/cbl/COACTUPC.cbl EDIT-DATE-CCYYMMDD (CSUTLDPY EDIT-YEAR-CCYY THIS-CENTURY/LAST-CENTURY)",
+      "setup": {
+        "CUSTDATA": {
+          "upsert": [
+            {
+              "CUST-ID": 1,
+              "CUST-FICO-CREDIT-SCORE": 700,
+              "CUST-ADDR-ZIP": "27601",
+              "CUST-PHONE-NUM-2": "(212)693-8684"
+            }
+          ]
+        }
+      },
+      "steps": [
+        {
+          "do": {
+            "transid": "CC00"
+          }
+        },
+        {
+          "do": {
+            "aid": "ENTER",
+            "fields": {
+              "USERID": "USER0001",
+              "PASSWD": "PASSWORD"
+            }
+          }
+        },
+        {
+          "do": {
+            "aid": "ENTER",
+            "fields": {
+              "OPTION": "2"
+            }
+          }
+        },
+        {
+          "do": {
+            "aid": "ENTER",
+            "fields": {
+              "ACCTSID": "00000000001"
+            }
+          }
+        },
+        {
+          "do": {
+            "aid": "ENTER",
+            "fields": {
+              "OPNYEAR": "1850"
+            }
+          },
+          "expect": {
+            "map": "CACTUPA",
+            "fields": {
+              "TRNNAME": "CAUP",
+              "PGMNAME": "COACTUPC",
+              "ACCTSID": "00000000001",
+              "ACSTTUS": "Y",
+              "OPNYEAR": "1850",
+              "OPNMON": "11",
+              "OPNDAY": "20",
+              "ACRDLIM": "+      2,020.00",
+              "EXPYEAR": "2025",
+              "EXPMON": "05",
+              "EXPDAY": "20",
+              "ACSHLIM": "+      1,020.00",
+              "RISYEAR": "2025",
+              "RISMON": "05",
+              "RISDAY": "20",
+              "ACURBAL": "+        194.00",
+              "ACRCYCR": "+           .00",
+              "ACRCYDB": "+           .00",
+              "ACSTNUM": "000000001",
+              "ACTSSN1": "020",
+              "ACTSSN2": "97",
+              "ACTSSN3": "3888",
+              "DOBYEAR": "1961",
+              "DOBMON": "06",
+              "DOBDAY": "08",
+              "ACSTFCO": "700",
+              "ACSFNAM": "Immanuel",
+              "ACSMNAM": "Madeline",
+              "ACSLNAM": "Kessler",
+              "ACSADL1": "618 Deshaun Route",
+              "ACSSTTE": "NC",
+              "ACSADL2": "Apt. 802",
+              "ACSZIPC": "27601",
+              "ACSCITY": "Altenwerthshire",
+              "ACSCTRY": "USA",
+              "ACSPH1A": "908",
+              "ACSPH1B": "119",
+              "ACSPH1C": "8310",
+              "ACSGOVT": "00000000000049368437",
+              "ACSPH2A": "212",
+              "ACSPH2B": "693",
+              "ACSPH2C": "8684",
+              "ACSEFTC": "0053581756",
+              "ACSPFLG": "Y",
+              "INFOMSG": "Update account details presented above.",
+              "ERRMSG": "Open Date : Century is not valid.",
+              "FKEYS": "ENTER=Process F3=Exit",
+              "FKEY05": "F5=Save",
+              "FKEY12": "F12=Cancel"
+            },
+            "colors": {
+              "OPNYEAR": "RED"
+            },
+            "protected": [
+              "ACCTSID",
+              "ACSCTRY",
+              "ACSTNUM"
+            ],
+            "cursor": "OPNYEAR"
+          }
+        }
+      ]
+    },
+    {
+      "id": "account-update-open-month-invalid",
+      "title": "Open month 13 is rejected as not between 1 and 12",
+      "provenance": "observed",
+      "source": "app/cbl/COACTUPC.cbl EDIT-DATE-CCYYMMDD (CSUTLDPY EDIT-MONTH)",
+      "setup": {
+        "CUSTDATA": {
+          "upsert": [
+            {
+              "CUST-ID": 1,
+              "CUST-FICO-CREDIT-SCORE": 700,
+              "CUST-ADDR-ZIP": "27601",
+              "CUST-PHONE-NUM-2": "(212)693-8684"
+            }
+          ]
+        }
+      },
+      "steps": [
+        {
+          "do": {
+            "transid": "CC00"
+          }
+        },
+        {
+          "do": {
+            "aid": "ENTER",
+            "fields": {
+              "USERID": "USER0001",
+              "PASSWD": "PASSWORD"
+            }
+          }
+        },
+        {
+          "do": {
+            "aid": "ENTER",
+            "fields": {
+              "OPTION": "2"
+            }
+          }
+        },
+        {
+          "do": {
+            "aid": "ENTER",
+            "fields": {
+              "ACCTSID": "00000000001"
+            }
+          }
+        },
+        {
+          "do": {
+            "aid": "ENTER",
+            "fields": {
+              "OPNMON": "13"
+            }
+          },
+          "expect": {
+            "map": "CACTUPA",
+            "fields": {
+              "TRNNAME": "CAUP",
+              "PGMNAME": "COACTUPC",
+              "ACCTSID": "00000000001",
+              "ACSTTUS": "Y",
+              "OPNYEAR": "2014",
+              "OPNMON": "13",
+              "OPNDAY": "20",
+              "ACRDLIM": "+      2,020.00",
+              "EXPYEAR": "2025",
+              "EXPMON": "05",
+              "EXPDAY": "20",
+              "ACSHLIM": "+      1,020.00",
+              "RISYEAR": "2025",
+              "RISMON": "05",
+              "RISDAY": "20",
+              "ACURBAL": "+        194.00",
+              "ACRCYCR": "+           .00",
+              "ACRCYDB": "+           .00",
+              "ACSTNUM": "000000001",
+              "ACTSSN1": "020",
+              "ACTSSN2": "97",
+              "ACTSSN3": "3888",
+              "DOBYEAR": "1961",
+              "DOBMON": "06",
+              "DOBDAY": "08",
+              "ACSTFCO": "700",
+              "ACSFNAM": "Immanuel",
+              "ACSMNAM": "Madeline",
+              "ACSLNAM": "Kessler",
+              "ACSADL1": "618 Deshaun Route",
+              "ACSSTTE": "NC",
+              "ACSADL2": "Apt. 802",
+              "ACSZIPC": "27601",
+              "ACSCITY": "Altenwerthshire",
+              "ACSCTRY": "USA",
+              "ACSPH1A": "908",
+              "ACSPH1B": "119",
+              "ACSPH1C": "8310",
+              "ACSGOVT": "00000000000049368437",
+              "ACSPH2A": "212",
+              "ACSPH2B": "693",
+              "ACSPH2C": "8684",
+              "ACSEFTC": "0053581756",
+              "ACSPFLG": "Y",
+              "INFOMSG": "Update account details presented above.",
+              "ERRMSG": "Open Date: Month must be a number between 1 and 12.",
+              "FKEYS": "ENTER=Process F3=Exit",
+              "FKEY05": "F5=Save",
+              "FKEY12": "F12=Cancel"
+            },
+            "colors": {
+              "OPNMON": "RED"
+            },
+            "protected": [
+              "ACCTSID",
+              "ACSCTRY",
+              "ACSTNUM"
+            ],
+            "cursor": "OPNMON"
+          }
+        }
+      ]
+    },
+    {
+      "id": "account-update-credit-limit-invalid",
+      "title": "A non-numeric credit limit is rejected as not valid",
+      "provenance": "observed",
+      "source": "app/cbl/COACTUPC.cbl 1250-EDIT-SIGNED-9V2",
+      "setup": {
+        "CUSTDATA": {
+          "upsert": [
+            {
+              "CUST-ID": 1,
+              "CUST-FICO-CREDIT-SCORE": 700,
+              "CUST-ADDR-ZIP": "27601",
+              "CUST-PHONE-NUM-2": "(212)693-8684"
+            }
+          ]
+        }
+      },
+      "steps": [
+        {
+          "do": {
+            "transid": "CC00"
+          }
+        },
+        {
+          "do": {
+            "aid": "ENTER",
+            "fields": {
+              "USERID": "USER0001",
+              "PASSWD": "PASSWORD"
+            }
+          }
+        },
+        {
+          "do": {
+            "aid": "ENTER",
+            "fields": {
+              "OPTION": "2"
+            }
+          }
+        },
+        {
+          "do": {
+            "aid": "ENTER",
+            "fields": {
+              "ACCTSID": "00000000001"
+            }
+          }
+        },
+        {
+          "do": {
+            "aid": "ENTER",
+            "fields": {
+              "ACRDLIM": "ABC"
+            }
+          },
+          "expect": {
+            "map": "CACTUPA",
+            "fields": {
+              "TRNNAME": "CAUP",
+              "PGMNAME": "COACTUPC",
+              "ACCTSID": "00000000001",
+              "ACSTTUS": "Y",
+              "OPNYEAR": "2014",
+              "OPNMON": "11",
+              "OPNDAY": "20",
+              "ACRDLIM": "ABC",
+              "EXPYEAR": "2025",
+              "EXPMON": "05",
+              "EXPDAY": "20",
+              "ACSHLIM": "+      1,020.00",
+              "RISYEAR": "2025",
+              "RISMON": "05",
+              "RISDAY": "20",
+              "ACURBAL": "+        194.00",
+              "ACRCYCR": "+           .00",
+              "ACRCYDB": "+           .00",
+              "ACSTNUM": "000000001",
+              "ACTSSN1": "020",
+              "ACTSSN2": "97",
+              "ACTSSN3": "3888",
+              "DOBYEAR": "1961",
+              "DOBMON": "06",
+              "DOBDAY": "08",
+              "ACSTFCO": "700",
+              "ACSFNAM": "Immanuel",
+              "ACSMNAM": "Madeline",
+              "ACSLNAM": "Kessler",
+              "ACSADL1": "618 Deshaun Route",
+              "ACSSTTE": "NC",
+              "ACSADL2": "Apt. 802",
+              "ACSZIPC": "27601",
+              "ACSCITY": "Altenwerthshire",
+              "ACSCTRY": "USA",
+              "ACSPH1A": "908",
+              "ACSPH1B": "119",
+              "ACSPH1C": "8310",
+              "ACSGOVT": "00000000000049368437",
+              "ACSPH2A": "212",
+              "ACSPH2B": "693",
+              "ACSPH2C": "8684",
+              "ACSEFTC": "0053581756",
+              "ACSPFLG": "Y",
+              "INFOMSG": "Update account details presented above.",
+              "ERRMSG": "Credit Limit is not valid",
+              "FKEYS": "ENTER=Process F3=Exit",
+              "FKEY05": "F5=Save",
+              "FKEY12": "F12=Cancel"
+            },
+            "colors": {
+              "ACRDLIM": "RED"
+            },
+            "protected": [
+              "ACCTSID",
+              "ACSCTRY",
+              "ACSTNUM"
+            ],
+            "cursor": "ACRDLIM"
+          }
+        }
+      ]
+    },
+    {
+      "id": "account-update-expiry-31-days",
+      "title": "Expiry 2025-04-31 is rejected: cannot have 31 days in this month",
+      "provenance": "observed",
+      "source": "app/cbl/COACTUPC.cbl EDIT-DATE-CCYYMMDD (CSUTLDPY EDIT-DAY-MONTH-YEAR)",
+      "setup": {
+        "CUSTDATA": {
+          "upsert": [
+            {
+              "CUST-ID": 1,
+              "CUST-FICO-CREDIT-SCORE": 700,
+              "CUST-ADDR-ZIP": "27601",
+              "CUST-PHONE-NUM-2": "(212)693-8684"
+            }
+          ]
+        }
+      },
+      "steps": [
+        {
+          "do": {
+            "transid": "CC00"
+          }
+        },
+        {
+          "do": {
+            "aid": "ENTER",
+            "fields": {
+              "USERID": "USER0001",
+              "PASSWD": "PASSWORD"
+            }
+          }
+        },
+        {
+          "do": {
+            "aid": "ENTER",
+            "fields": {
+              "OPTION": "2"
+            }
+          }
+        },
+        {
+          "do": {
+            "aid": "ENTER",
+            "fields": {
+              "ACCTSID": "00000000001"
+            }
+          }
+        },
+        {
+          "do": {
+            "aid": "ENTER",
+            "fields": {
+              "EXPMON": "04",
+              "EXPDAY": "31"
+            }
+          },
+          "expect": {
+            "map": "CACTUPA",
+            "fields": {
+              "TRNNAME": "CAUP",
+              "PGMNAME": "COACTUPC",
+              "ACCTSID": "00000000001",
+              "ACSTTUS": "Y",
+              "OPNYEAR": "2014",
+              "OPNMON": "11",
+              "OPNDAY": "20",
+              "ACRDLIM": "+      2,020.00",
+              "EXPYEAR": "2025",
+              "EXPMON": "04",
+              "EXPDAY": "31",
+              "ACSHLIM": "+      1,020.00",
+              "RISYEAR": "2025",
+              "RISMON": "05",
+              "RISDAY": "20",
+              "ACURBAL": "+        194.00",
+              "ACRCYCR": "+           .00",
+              "ACRCYDB": "+           .00",
+              "ACSTNUM": "000000001",
+              "ACTSSN1": "020",
+              "ACTSSN2": "97",
+              "ACTSSN3": "3888",
+              "DOBYEAR": "1961",
+              "DOBMON": "06",
+              "DOBDAY": "08",
+              "ACSTFCO": "700",
+              "ACSFNAM": "Immanuel",
+              "ACSMNAM": "Madeline",
+              "ACSLNAM": "Kessler",
+              "ACSADL1": "618 Deshaun Route",
+              "ACSSTTE": "NC",
+              "ACSADL2": "Apt. 802",
+              "ACSZIPC": "27601",
+              "ACSCITY": "Altenwerthshire",
+              "ACSCTRY": "USA",
+              "ACSPH1A": "908",
+              "ACSPH1B": "119",
+              "ACSPH1C": "8310",
+              "ACSGOVT": "00000000000049368437",
+              "ACSPH2A": "212",
+              "ACSPH2B": "693",
+              "ACSPH2C": "8684",
+              "ACSEFTC": "0053581756",
+              "ACSPFLG": "Y",
+              "INFOMSG": "Update account details presented above.",
+              "ERRMSG": "Expiry Date:Cannot have 31 days in this month.",
+              "FKEYS": "ENTER=Process F3=Exit",
+              "FKEY05": "F5=Save",
+              "FKEY12": "F12=Cancel"
+            },
+            "colors": {
+              "EXPMON": "RED",
+              "EXPDAY": "RED"
+            },
+            "protected": [
+              "ACCTSID",
+              "ACSCTRY",
+              "ACSTNUM"
+            ],
+            "cursor": "EXPMON"
+          }
+        }
+      ]
+    },
+    {
+      "id": "account-update-reissue-not-leap-year",
+      "title": "Reissue 2025-02-29 is rejected as not a leap year",
+      "provenance": "observed",
+      "source": "app/cbl/COACTUPC.cbl EDIT-DATE-CCYYMMDD (CSUTLDPY EDIT-DAY-MONTH-YEAR)",
+      "setup": {
+        "CUSTDATA": {
+          "upsert": [
+            {
+              "CUST-ID": 1,
+              "CUST-FICO-CREDIT-SCORE": 700,
+              "CUST-ADDR-ZIP": "27601",
+              "CUST-PHONE-NUM-2": "(212)693-8684"
+            }
+          ]
+        }
+      },
+      "steps": [
+        {
+          "do": {
+            "transid": "CC00"
+          }
+        },
+        {
+          "do": {
+            "aid": "ENTER",
+            "fields": {
+              "USERID": "USER0001",
+              "PASSWD": "PASSWORD"
+            }
+          }
+        },
+        {
+          "do": {
+            "aid": "ENTER",
+            "fields": {
+              "OPTION": "2"
+            }
+          }
+        },
+        {
+          "do": {
+            "aid": "ENTER",
+            "fields": {
+              "ACCTSID": "00000000001"
+            }
+          }
+        },
+        {
+          "do": {
+            "aid": "ENTER",
+            "fields": {
+              "RISMON": "02",
+              "RISDAY": "29"
+            }
+          },
+          "expect": {
+            "map": "CACTUPA",
+            "fields": {
+              "TRNNAME": "CAUP",
+              "PGMNAME": "COACTUPC",
+              "ACCTSID": "00000000001",
+              "ACSTTUS": "Y",
+              "OPNYEAR": "2014",
+              "OPNMON": "11",
+              "OPNDAY": "20",
+              "ACRDLIM": "+      2,020.00",
+              "EXPYEAR": "2025",
+              "EXPMON": "05",
+              "EXPDAY": "20",
+              "ACSHLIM": "+      1,020.00",
+              "RISYEAR": "2025",
+              "RISMON": "02",
+              "RISDAY": "29",
+              "ACURBAL": "+        194.00",
+              "ACRCYCR": "+           .00",
+              "ACRCYDB": "+           .00",
+              "ACSTNUM": "000000001",
+              "ACTSSN1": "020",
+              "ACTSSN2": "97",
+              "ACTSSN3": "3888",
+              "DOBYEAR": "1961",
+              "DOBMON": "06",
+              "DOBDAY": "08",
+              "ACSTFCO": "700",
+              "ACSFNAM": "Immanuel",
+              "ACSMNAM": "Madeline",
+              "ACSLNAM": "Kessler",
+              "ACSADL1": "618 Deshaun Route",
+              "ACSSTTE": "NC",
+              "ACSADL2": "Apt. 802",
+              "ACSZIPC": "27601",
+              "ACSCITY": "Altenwerthshire",
+              "ACSCTRY": "USA",
+              "ACSPH1A": "908",
+              "ACSPH1B": "119",
+              "ACSPH1C": "8310",
+              "ACSGOVT": "00000000000049368437",
+              "ACSPH2A": "212",
+              "ACSPH2B": "693",
+              "ACSPH2C": "8684",
+              "ACSEFTC": "0053581756",
+              "ACSPFLG": "Y",
+              "INFOMSG": "Update account details presented above.",
+              "ERRMSG": "Reissue Date:Not a leap year.Cannot have 29 days in this month.",
+              "FKEYS": "ENTER=Process F3=Exit",
+              "FKEY05": "F5=Save",
+              "FKEY12": "F12=Cancel"
+            },
+            "colors": {
+              "RISYEAR": "RED",
+              "RISMON": "RED",
+              "RISDAY": "RED"
+            },
+            "protected": [
+              "ACCTSID",
+              "ACSCTRY",
+              "ACSTNUM"
+            ],
+            "cursor": "RISYEAR"
+          }
+        }
+      ]
+    },
+    {
+      "id": "account-update-ssn-part1-666",
+      "title": "SSN first part 666 is rejected",
+      "provenance": "observed",
+      "source": "app/cbl/COACTUPC.cbl 1265-EDIT-US-SSN (INVALID-SSN-PART1)",
+      "setup": {
+        "CUSTDATA": {
+          "upsert": [
+            {
+              "CUST-ID": 1,
+              "CUST-FICO-CREDIT-SCORE": 700,
+              "CUST-ADDR-ZIP": "27601",
+              "CUST-PHONE-NUM-2": "(212)693-8684"
+            }
+          ]
+        }
+      },
+      "steps": [
+        {
+          "do": {
+            "transid": "CC00"
+          }
+        },
+        {
+          "do": {
+            "aid": "ENTER",
+            "fields": {
+              "USERID": "USER0001",
+              "PASSWD": "PASSWORD"
+            }
+          }
+        },
+        {
+          "do": {
+            "aid": "ENTER",
+            "fields": {
+              "OPTION": "2"
+            }
+          }
+        },
+        {
+          "do": {
+            "aid": "ENTER",
+            "fields": {
+              "ACCTSID": "00000000001"
+            }
+          }
+        },
+        {
+          "do": {
+            "aid": "ENTER",
+            "fields": {
+              "ACTSSN1": "666"
+            }
+          },
+          "expect": {
+            "map": "CACTUPA",
+            "fields": {
+              "TRNNAME": "CAUP",
+              "PGMNAME": "COACTUPC",
+              "ACCTSID": "00000000001",
+              "ACSTTUS": "Y",
+              "OPNYEAR": "2014",
+              "OPNMON": "11",
+              "OPNDAY": "20",
+              "ACRDLIM": "+      2,020.00",
+              "EXPYEAR": "2025",
+              "EXPMON": "05",
+              "EXPDAY": "20",
+              "ACSHLIM": "+      1,020.00",
+              "RISYEAR": "2025",
+              "RISMON": "05",
+              "RISDAY": "20",
+              "ACURBAL": "+        194.00",
+              "ACRCYCR": "+           .00",
+              "ACRCYDB": "+           .00",
+              "ACSTNUM": "000000001",
+              "ACTSSN1": "666",
+              "ACTSSN2": "97",
+              "ACTSSN3": "3888",
+              "DOBYEAR": "1961",
+              "DOBMON": "06",
+              "DOBDAY": "08",
+              "ACSTFCO": "700",
+              "ACSFNAM": "Immanuel",
+              "ACSMNAM": "Madeline",
+              "ACSLNAM": "Kessler",
+              "ACSADL1": "618 Deshaun Route",
+              "ACSSTTE": "NC",
+              "ACSADL2": "Apt. 802",
+              "ACSZIPC": "27601",
+              "ACSCITY": "Altenwerthshire",
+              "ACSCTRY": "USA",
+              "ACSPH1A": "908",
+              "ACSPH1B": "119",
+              "ACSPH1C": "8310",
+              "ACSGOVT": "00000000000049368437",
+              "ACSPH2A": "212",
+              "ACSPH2B": "693",
+              "ACSPH2C": "8684",
+              "ACSEFTC": "0053581756",
+              "ACSPFLG": "Y",
+              "INFOMSG": "Update account details presented above.",
+              "ERRMSG": "SSN: First 3 chars: should not be 000, 666, or between 900 and 999",
+              "FKEYS": "ENTER=Process F3=Exit",
+              "FKEY05": "F5=Save",
+              "FKEY12": "F12=Cancel"
+            },
+            "colors": {
+              "ACTSSN1": "RED"
+            },
+            "protected": [
+              "ACCTSID",
+              "ACSCTRY",
+              "ACSTNUM"
+            ],
+            "cursor": "ACTSSN1"
+          }
+        }
+      ]
+    },
+    {
+      "id": "account-update-dob-in-future",
+      "title": "A date of birth after the (fixed) current date is rejected",
+      "provenance": "observed",
+      "source": "app/cbl/COACTUPC.cbl EDIT-DATE-OF-BIRTH (CSUTLDPY)",
+      "setup": {
+        "CUSTDATA": {
+          "upsert": [
+            {
+              "CUST-ID": 1,
+              "CUST-FICO-CREDIT-SCORE": 700,
+              "CUST-ADDR-ZIP": "27601",
+              "CUST-PHONE-NUM-2": "(212)693-8684"
+            }
+          ]
+        }
+      },
+      "steps": [
+        {
+          "do": {
+            "transid": "CC00"
+          }
+        },
+        {
+          "do": {
+            "aid": "ENTER",
+            "fields": {
+              "USERID": "USER0001",
+              "PASSWD": "PASSWORD"
+            }
+          }
+        },
+        {
+          "do": {
+            "aid": "ENTER",
+            "fields": {
+              "OPTION": "2"
+            }
+          }
+        },
+        {
+          "do": {
+            "aid": "ENTER",
+            "fields": {
+              "ACCTSID": "00000000001"
+            }
+          }
+        },
+        {
+          "do": {
+            "aid": "ENTER",
+            "fields": {
+              "DOBYEAR": "2030"
+            }
+          },
+          "expect": {
+            "map": "CACTUPA",
+            "fields": {
+              "TRNNAME": "CAUP",
+              "PGMNAME": "COACTUPC",
+              "ACCTSID": "00000000001",
+              "ACSTTUS": "Y",
+              "OPNYEAR": "2014",
+              "OPNMON": "11",
+              "OPNDAY": "20",
+              "ACRDLIM": "+      2,020.00",
+              "EXPYEAR": "2025",
+              "EXPMON": "05",
+              "EXPDAY": "20",
+              "ACSHLIM": "+      1,020.00",
+              "RISYEAR": "2025",
+              "RISMON": "05",
+              "RISDAY": "20",
+              "ACURBAL": "+        194.00",
+              "ACRCYCR": "+           .00",
+              "ACRCYDB": "+           .00",
+              "ACSTNUM": "000000001",
+              "ACTSSN1": "020",
+              "ACTSSN2": "97",
+              "ACTSSN3": "3888",
+              "DOBYEAR": "2030",
+              "DOBMON": "06",
+              "DOBDAY": "08",
+              "ACSTFCO": "700",
+              "ACSFNAM": "Immanuel",
+              "ACSMNAM": "Madeline",
+              "ACSLNAM": "Kessler",
+              "ACSADL1": "618 Deshaun Route",
+              "ACSSTTE": "NC",
+              "ACSADL2": "Apt. 802",
+              "ACSZIPC": "27601",
+              "ACSCITY": "Altenwerthshire",
+              "ACSCTRY": "USA",
+              "ACSPH1A": "908",
+              "ACSPH1B": "119",
+              "ACSPH1C": "8310",
+              "ACSGOVT": "00000000000049368437",
+              "ACSPH2A": "212",
+              "ACSPH2B": "693",
+              "ACSPH2C": "8684",
+              "ACSEFTC": "0053581756",
+              "ACSPFLG": "Y",
+              "INFOMSG": "Update account details presented above.",
+              "ERRMSG": "Date of Birth:cannot be in the future",
+              "FKEYS": "ENTER=Process F3=Exit",
+              "FKEY05": "F5=Save",
+              "FKEY12": "F12=Cancel"
+            },
+            "colors": {
+              "DOBYEAR": "RED",
+              "DOBMON": "RED",
+              "DOBDAY": "RED"
+            },
+            "protected": [
+              "ACCTSID",
+              "ACSCTRY",
+              "ACSTNUM"
+            ],
+            "cursor": "DOBYEAR"
+          }
+        }
+      ]
+    },
+    {
+      "id": "account-update-first-name-digits",
+      "title": "A first name containing digits is rejected as alphabets only",
+      "provenance": "observed",
+      "source": "app/cbl/COACTUPC.cbl 1225-EDIT-ALPHA-REQD",
+      "setup": {
+        "CUSTDATA": {
+          "upsert": [
+            {
+              "CUST-ID": 1,
+              "CUST-FICO-CREDIT-SCORE": 700,
+              "CUST-ADDR-ZIP": "27601",
+              "CUST-PHONE-NUM-2": "(212)693-8684"
+            }
+          ]
+        }
+      },
+      "steps": [
+        {
+          "do": {
+            "transid": "CC00"
+          }
+        },
+        {
+          "do": {
+            "aid": "ENTER",
+            "fields": {
+              "USERID": "USER0001",
+              "PASSWD": "PASSWORD"
+            }
+          }
+        },
+        {
+          "do": {
+            "aid": "ENTER",
+            "fields": {
+              "OPTION": "2"
+            }
+          }
+        },
+        {
+          "do": {
+            "aid": "ENTER",
+            "fields": {
+              "ACCTSID": "00000000001"
+            }
+          }
+        },
+        {
+          "do": {
+            "aid": "ENTER",
+            "fields": {
+              "ACSFNAM": "J0hn"
+            }
+          },
+          "expect": {
+            "map": "CACTUPA",
+            "fields": {
+              "TRNNAME": "CAUP",
+              "PGMNAME": "COACTUPC",
+              "ACCTSID": "00000000001",
+              "ACSTTUS": "Y",
+              "OPNYEAR": "2014",
+              "OPNMON": "11",
+              "OPNDAY": "20",
+              "ACRDLIM": "+      2,020.00",
+              "EXPYEAR": "2025",
+              "EXPMON": "05",
+              "EXPDAY": "20",
+              "ACSHLIM": "+      1,020.00",
+              "RISYEAR": "2025",
+              "RISMON": "05",
+              "RISDAY": "20",
+              "ACURBAL": "+        194.00",
+              "ACRCYCR": "+           .00",
+              "ACRCYDB": "+           .00",
+              "ACSTNUM": "000000001",
+              "ACTSSN1": "020",
+              "ACTSSN2": "97",
+              "ACTSSN3": "3888",
+              "DOBYEAR": "1961",
+              "DOBMON": "06",
+              "DOBDAY": "08",
+              "ACSTFCO": "700",
+              "ACSFNAM": "J0hn",
+              "ACSMNAM": "Madeline",
+              "ACSLNAM": "Kessler",
+              "ACSADL1": "618 Deshaun Route",
+              "ACSSTTE": "NC",
+              "ACSADL2": "Apt. 802",
+              "ACSZIPC": "27601",
+              "ACSCITY": "Altenwerthshire",
+              "ACSCTRY": "USA",
+              "ACSPH1A": "908",
+              "ACSPH1B": "119",
+              "ACSPH1C": "8310",
+              "ACSGOVT": "00000000000049368437",
+              "ACSPH2A": "212",
+              "ACSPH2B": "693",
+              "ACSPH2C": "8684",
+              "ACSEFTC": "0053581756",
+              "ACSPFLG": "Y",
+              "INFOMSG": "Update account details presented above.",
+              "ERRMSG": "First Name can have alphabets only.",
+              "FKEYS": "ENTER=Process F3=Exit",
+              "FKEY05": "F5=Save",
+              "FKEY12": "F12=Cancel"
+            },
+            "colors": {
+              "ACSFNAM": "RED"
+            },
+            "protected": [
+              "ACCTSID",
+              "ACSCTRY",
+              "ACSTNUM"
+            ],
+            "cursor": "ACSFNAM"
+          }
+        }
+      ]
+    },
+    {
+      "id": "account-update-state-invalid",
+      "title": "An unknown state code is rejected",
+      "provenance": "observed",
+      "source": "app/cbl/COACTUPC.cbl 1270-EDIT-US-STATE-CD",
+      "setup": {
+        "CUSTDATA": {
+          "upsert": [
+            {
+              "CUST-ID": 1,
+              "CUST-FICO-CREDIT-SCORE": 700,
+              "CUST-ADDR-ZIP": "27601",
+              "CUST-PHONE-NUM-2": "(212)693-8684"
+            }
+          ]
+        }
+      },
+      "steps": [
+        {
+          "do": {
+            "transid": "CC00"
+          }
+        },
+        {
+          "do": {
+            "aid": "ENTER",
+            "fields": {
+              "USERID": "USER0001",
+              "PASSWD": "PASSWORD"
+            }
+          }
+        },
+        {
+          "do": {
+            "aid": "ENTER",
+            "fields": {
+              "OPTION": "2"
+            }
+          }
+        },
+        {
+          "do": {
+            "aid": "ENTER",
+            "fields": {
+              "ACCTSID": "00000000001"
+            }
+          }
+        },
+        {
+          "do": {
+            "aid": "ENTER",
+            "fields": {
+              "ACSSTTE": "XX"
+            }
+          },
+          "expect": {
+            "map": "CACTUPA",
+            "fields": {
+              "TRNNAME": "CAUP",
+              "PGMNAME": "COACTUPC",
+              "ACCTSID": "00000000001",
+              "ACSTTUS": "Y",
+              "OPNYEAR": "2014",
+              "OPNMON": "11",
+              "OPNDAY": "20",
+              "ACRDLIM": "+      2,020.00",
+              "EXPYEAR": "2025",
+              "EXPMON": "05",
+              "EXPDAY": "20",
+              "ACSHLIM": "+      1,020.00",
+              "RISYEAR": "2025",
+              "RISMON": "05",
+              "RISDAY": "20",
+              "ACURBAL": "+        194.00",
+              "ACRCYCR": "+           .00",
+              "ACRCYDB": "+           .00",
+              "ACSTNUM": "000000001",
+              "ACTSSN1": "020",
+              "ACTSSN2": "97",
+              "ACTSSN3": "3888",
+              "DOBYEAR": "1961",
+              "DOBMON": "06",
+              "DOBDAY": "08",
+              "ACSTFCO": "700",
+              "ACSFNAM": "Immanuel",
+              "ACSMNAM": "Madeline",
+              "ACSLNAM": "Kessler",
+              "ACSADL1": "618 Deshaun Route",
+              "ACSSTTE": "XX",
+              "ACSADL2": "Apt. 802",
+              "ACSZIPC": "27601",
+              "ACSCITY": "Altenwerthshire",
+              "ACSCTRY": "USA",
+              "ACSPH1A": "908",
+              "ACSPH1B": "119",
+              "ACSPH1C": "8310",
+              "ACSGOVT": "00000000000049368437",
+              "ACSPH2A": "212",
+              "ACSPH2B": "693",
+              "ACSPH2C": "8684",
+              "ACSEFTC": "0053581756",
+              "ACSPFLG": "Y",
+              "INFOMSG": "Update account details presented above.",
+              "ERRMSG": "State: is not a valid state code",
+              "FKEYS": "ENTER=Process F3=Exit",
+              "FKEY05": "F5=Save",
+              "FKEY12": "F12=Cancel"
+            },
+            "colors": {
+              "ACSSTTE": "RED"
+            },
+            "protected": [
+              "ACCTSID",
+              "ACSCTRY",
+              "ACSTNUM"
+            ],
+            "cursor": "ACSSTTE"
+          }
+        }
+      ]
+    },
+    {
+      "id": "account-update-zip-wrong-for-state",
+      "title": "A zip code whose first two digits do not match the state is rejected; state and zip both red",
+      "provenance": "observed",
+      "source": "app/cbl/COACTUPC.cbl 1280-EDIT-US-STATE-ZIP-CD",
+      "setup": {
+        "CUSTDATA": {
+          "upsert": [
+            {
+              "CUST-ID": 1,
+              "CUST-FICO-CREDIT-SCORE": 700,
+              "CUST-ADDR-ZIP": "27601",
+              "CUST-PHONE-NUM-2": "(212)693-8684"
+            }
+          ]
+        }
+      },
+      "steps": [
+        {
+          "do": {
+            "transid": "CC00"
+          }
+        },
+        {
+          "do": {
+            "aid": "ENTER",
+            "fields": {
+              "USERID": "USER0001",
+              "PASSWD": "PASSWORD"
+            }
+          }
+        },
+        {
+          "do": {
+            "aid": "ENTER",
+            "fields": {
+              "OPTION": "2"
+            }
+          }
+        },
+        {
+          "do": {
+            "aid": "ENTER",
+            "fields": {
+              "ACCTSID": "00000000001"
+            }
+          }
+        },
+        {
+          "do": {
+            "aid": "ENTER",
+            "fields": {
+              "ACSZIPC": "12546"
+            }
+          },
+          "expect": {
+            "map": "CACTUPA",
+            "fields": {
+              "TRNNAME": "CAUP",
+              "PGMNAME": "COACTUPC",
+              "ACCTSID": "00000000001",
+              "ACSTTUS": "Y",
+              "OPNYEAR": "2014",
+              "OPNMON": "11",
+              "OPNDAY": "20",
+              "ACRDLIM": "+      2,020.00",
+              "EXPYEAR": "2025",
+              "EXPMON": "05",
+              "EXPDAY": "20",
+              "ACSHLIM": "+      1,020.00",
+              "RISYEAR": "2025",
+              "RISMON": "05",
+              "RISDAY": "20",
+              "ACURBAL": "+        194.00",
+              "ACRCYCR": "+           .00",
+              "ACRCYDB": "+           .00",
+              "ACSTNUM": "000000001",
+              "ACTSSN1": "020",
+              "ACTSSN2": "97",
+              "ACTSSN3": "3888",
+              "DOBYEAR": "1961",
+              "DOBMON": "06",
+              "DOBDAY": "08",
+              "ACSTFCO": "700",
+              "ACSFNAM": "Immanuel",
+              "ACSMNAM": "Madeline",
+              "ACSLNAM": "Kessler",
+              "ACSADL1": "618 Deshaun Route",
+              "ACSSTTE": "NC",
+              "ACSADL2": "Apt. 802",
+              "ACSZIPC": "12546",
+              "ACSCITY": "Altenwerthshire",
+              "ACSCTRY": "USA",
+              "ACSPH1A": "908",
+              "ACSPH1B": "119",
+              "ACSPH1C": "8310",
+              "ACSGOVT": "00000000000049368437",
+              "ACSPH2A": "212",
+              "ACSPH2B": "693",
+              "ACSPH2C": "8684",
+              "ACSEFTC": "0053581756",
+              "ACSPFLG": "Y",
+              "INFOMSG": "Update account details presented above.",
+              "ERRMSG": "Invalid zip code for state",
+              "FKEYS": "ENTER=Process F3=Exit",
+              "FKEY05": "F5=Save",
+              "FKEY12": "F12=Cancel"
+            },
+            "colors": {
+              "ACSSTTE": "RED",
+              "ACSZIPC": "RED"
+            },
+            "protected": [
+              "ACCTSID",
+              "ACSCTRY",
+              "ACSTNUM"
+            ],
+            "cursor": "ACSSTTE"
+          }
+        }
+      ]
+    },
+    {
+      "id": "account-update-phone-area-code-invalid",
+      "title": "Phone 1 area code that is not a North America general purpose code is rejected",
+      "provenance": "observed",
+      "source": "app/cbl/COACTUPC.cbl 1260-EDIT-US-PHONE-NUM (EDIT-AREA-CODE VALID-GENERAL-PURP-CODE)",
+      "setup": {
+        "CUSTDATA": {
+          "upsert": [
+            {
+              "CUST-ID": 1,
+              "CUST-FICO-CREDIT-SCORE": 700,
+              "CUST-ADDR-ZIP": "27601",
+              "CUST-PHONE-NUM-2": "(212)693-8684"
+            }
+          ]
+        }
+      },
+      "steps": [
+        {
+          "do": {
+            "transid": "CC00"
+          }
+        },
+        {
+          "do": {
+            "aid": "ENTER",
+            "fields": {
+              "USERID": "USER0001",
+              "PASSWD": "PASSWORD"
+            }
+          }
+        },
+        {
+          "do": {
+            "aid": "ENTER",
+            "fields": {
+              "OPTION": "2"
+            }
+          }
+        },
+        {
+          "do": {
+            "aid": "ENTER",
+            "fields": {
+              "ACCTSID": "00000000001"
+            }
+          }
+        },
+        {
+          "do": {
+            "aid": "ENTER",
+            "fields": {
+              "ACSPH1A": "123"
+            }
+          },
+          "expect": {
+            "map": "CACTUPA",
+            "fields": {
+              "TRNNAME": "CAUP",
+              "PGMNAME": "COACTUPC",
+              "ACCTSID": "00000000001",
+              "ACSTTUS": "Y",
+              "OPNYEAR": "2014",
+              "OPNMON": "11",
+              "OPNDAY": "20",
+              "ACRDLIM": "+      2,020.00",
+              "EXPYEAR": "2025",
+              "EXPMON": "05",
+              "EXPDAY": "20",
+              "ACSHLIM": "+      1,020.00",
+              "RISYEAR": "2025",
+              "RISMON": "05",
+              "RISDAY": "20",
+              "ACURBAL": "+        194.00",
+              "ACRCYCR": "+           .00",
+              "ACRCYDB": "+           .00",
+              "ACSTNUM": "000000001",
+              "ACTSSN1": "020",
+              "ACTSSN2": "97",
+              "ACTSSN3": "3888",
+              "DOBYEAR": "1961",
+              "DOBMON": "06",
+              "DOBDAY": "08",
+              "ACSTFCO": "700",
+              "ACSFNAM": "Immanuel",
+              "ACSMNAM": "Madeline",
+              "ACSLNAM": "Kessler",
+              "ACSADL1": "618 Deshaun Route",
+              "ACSSTTE": "NC",
+              "ACSADL2": "Apt. 802",
+              "ACSZIPC": "27601",
+              "ACSCITY": "Altenwerthshire",
+              "ACSCTRY": "USA",
+              "ACSPH1A": "123",
+              "ACSPH1B": "119",
+              "ACSPH1C": "8310",
+              "ACSGOVT": "00000000000049368437",
+              "ACSPH2A": "212",
+              "ACSPH2B": "693",
+              "ACSPH2C": "8684",
+              "ACSEFTC": "0053581756",
+              "ACSPFLG": "Y",
+              "INFOMSG": "Update account details presented above.",
+              "ERRMSG": "Phone Number 1: Not valid North America general purpose area code",
+              "FKEYS": "ENTER=Process F3=Exit",
+              "FKEY05": "F5=Save",
+              "FKEY12": "F12=Cancel"
+            },
+            "colors": {
+              "ACSPH1A": "RED"
+            },
+            "protected": [
+              "ACCTSID",
+              "ACSCTRY",
+              "ACSTNUM"
+            ],
+            "cursor": "ACSPH1A"
+          }
+        }
+      ]
+    },
+    {
+      "id": "account-update-phone-partly-blank",
+      "title": "Phone 1 area code and prefix erased with the line number kept: area code must be supplied, both shown as red '*' (the blank test's NUMA/NUMC typo is masked because blank inputs become LOW-VALUES)",
+      "provenance": "observed",
+      "source": "app/cbl/COACTUPC.cbl 1260-EDIT-US-PHONE-NUM, EDIT-AREA-CODE, EDIT-US-PHONE-PREFIX",
+      "setup": {
+        "CUSTDATA": {
+          "upsert": [
+            {
+              "CUST-ID": 1,
+              "CUST-FICO-CREDIT-SCORE": 700,
+              "CUST-ADDR-ZIP": "27601",
+              "CUST-PHONE-NUM-2": "(212)693-8684"
+            }
+          ]
+        }
+      },
+      "steps": [
+        {
+          "do": {
+            "transid": "CC00"
+          }
+        },
+        {
+          "do": {
+            "aid": "ENTER",
+            "fields": {
+              "USERID": "USER0001",
+              "PASSWD": "PASSWORD"
+            }
+          }
+        },
+        {
+          "do": {
+            "aid": "ENTER",
+            "fields": {
+              "OPTION": "2"
+            }
+          }
+        },
+        {
+          "do": {
+            "aid": "ENTER",
+            "fields": {
+              "ACCTSID": "00000000001"
+            }
+          }
+        },
+        {
+          "do": {
+            "aid": "ENTER",
+            "fields": {
+              "ACSPH1A": "",
+              "ACSPH1B": ""
+            }
+          },
+          "expect": {
+            "map": "CACTUPA",
+            "fields": {
+              "TRNNAME": "CAUP",
+              "PGMNAME": "COACTUPC",
+              "ACCTSID": "00000000001",
+              "ACSTTUS": "Y",
+              "OPNYEAR": "2014",
+              "OPNMON": "11",
+              "OPNDAY": "20",
+              "ACRDLIM": "+      2,020.00",
+              "EXPYEAR": "2025",
+              "EXPMON": "05",
+              "EXPDAY": "20",
+              "ACSHLIM": "+      1,020.00",
+              "RISYEAR": "2025",
+              "RISMON": "05",
+              "RISDAY": "20",
+              "ACURBAL": "+        194.00",
+              "ACRCYCR": "+           .00",
+              "ACRCYDB": "+           .00",
+              "ACSTNUM": "000000001",
+              "ACTSSN1": "020",
+              "ACTSSN2": "97",
+              "ACTSSN3": "3888",
+              "DOBYEAR": "1961",
+              "DOBMON": "06",
+              "DOBDAY": "08",
+              "ACSTFCO": "700",
+              "ACSFNAM": "Immanuel",
+              "ACSMNAM": "Madeline",
+              "ACSLNAM": "Kessler",
+              "ACSADL1": "618 Deshaun Route",
+              "ACSSTTE": "NC",
+              "ACSADL2": "Apt. 802",
+              "ACSZIPC": "27601",
+              "ACSCITY": "Altenwerthshire",
+              "ACSCTRY": "USA",
+              "ACSPH1A": "*",
+              "ACSPH1B": "*",
+              "ACSPH1C": "8310",
+              "ACSGOVT": "00000000000049368437",
+              "ACSPH2A": "212",
+              "ACSPH2B": "693",
+              "ACSPH2C": "8684",
+              "ACSEFTC": "0053581756",
+              "ACSPFLG": "Y",
+              "INFOMSG": "Update account details presented above.",
+              "ERRMSG": "Phone Number 1: Area code must be supplied.",
+              "FKEYS": "ENTER=Process F3=Exit",
+              "FKEY05": "F5=Save",
+              "FKEY12": "F12=Cancel"
+            },
+            "colors": {
+              "ACSPH1A": "RED",
+              "ACSPH1B": "RED"
+            },
+            "protected": [
+              "ACCTSID",
+              "ACSCTRY",
+              "ACSTNUM"
+            ],
+            "cursor": "ACSPH1A"
+          }
+        }
+      ]
+    },
+    {
+      "id": "account-update-phone-all-blank-accepted",
+      "title": "Phone 1 fully erased is accepted (phone is optional) and the change goes to confirmation",
+      "provenance": "observed",
+      "source": "app/cbl/COACTUPC.cbl 1260-EDIT-US-PHONE-NUM (not mandatory)",
+      "setup": {
+        "CUSTDATA": {
+          "upsert": [
+            {
+              "CUST-ID": 1,
+              "CUST-FICO-CREDIT-SCORE": 700,
+              "CUST-ADDR-ZIP": "27601",
+              "CUST-PHONE-NUM-2": "(212)693-8684"
+            }
+          ]
+        }
+      },
+      "steps": [
+        {
+          "do": {
+            "transid": "CC00"
+          }
+        },
+        {
+          "do": {
+            "aid": "ENTER",
+            "fields": {
+              "USERID": "USER0001",
+              "PASSWD": "PASSWORD"
+            }
+          }
+        },
+        {
+          "do": {
+            "aid": "ENTER",
+            "fields": {
+              "OPTION": "2"
+            }
+          }
+        },
+        {
+          "do": {
+            "aid": "ENTER",
+            "fields": {
+              "ACCTSID": "00000000001"
+            }
+          }
+        },
+        {
+          "do": {
+            "aid": "ENTER",
+            "fields": {
+              "ACSPH1A": "",
+              "ACSPH1B": "",
+              "ACSPH1C": ""
+            }
+          },
+          "expect": {
+            "map": "CACTUPA",
+            "fields": {
+              "TRNNAME": "CAUP",
+              "PGMNAME": "COACTUPC",
+              "ACCTSID": "00000000001",
+              "ACSTTUS": "Y",
+              "OPNYEAR": "2014",
+              "OPNMON": "11",
+              "OPNDAY": "20",
+              "ACRDLIM": "+      2,020.00",
+              "EXPYEAR": "2025",
+              "EXPMON": "05",
+              "EXPDAY": "20",
+              "ACSHLIM": "+      1,020.00",
+              "RISYEAR": "2025",
+              "RISMON": "05",
+              "RISDAY": "20",
+              "ACURBAL": "+        194.00",
+              "ACRCYCR": "+           .00",
+              "ACRCYDB": "+           .00",
+              "ACSTNUM": "000000001",
+              "ACTSSN1": "020",
+              "ACTSSN2": "97",
+              "ACTSSN3": "3888",
+              "DOBYEAR": "1961",
+              "DOBMON": "06",
+              "DOBDAY": "08",
+              "ACSTFCO": "700",
+              "ACSFNAM": "Immanuel",
+              "ACSMNAM": "Madeline",
+              "ACSLNAM": "Kessler",
+              "ACSADL1": "618 Deshaun Route",
+              "ACSSTTE": "NC",
+              "ACSADL2": "Apt. 802",
+              "ACSZIPC": "27601",
+              "ACSCITY": "Altenwerthshire",
+              "ACSCTRY": "USA",
+              "ACSGOVT": "00000000000049368437",
+              "ACSPH2A": "212",
+              "ACSPH2B": "693",
+              "ACSPH2C": "8684",
+              "ACSEFTC": "0053581756",
+              "ACSPFLG": "Y",
+              "INFOMSG": "Changes validated.Press F5 to save",
+              "FKEYS": "ENTER=Process F3=Exit",
+              "FKEY05": "F5=Save",
+              "FKEY12": "F12=Cancel"
+            },
+            "protected": [
+              "AADDGRP",
+              "ACCTSID",
+              "ACRCYCR",
+              "ACRCYDB",
+              "ACRDLIM",
+              "ACSADL1",
+              "ACSADL2",
+              "ACSCITY",
+              "ACSCTRY",
+              "ACSEFTC",
+              "ACSFNAM",
+              "ACSGOVT",
+              "ACSHLIM",
+              "ACSLNAM",
+              "ACSMNAM",
+              "ACSPFLG",
+              "ACSPH1A",
+              "ACSPH1B",
+              "ACSPH1C",
+              "ACSPH2A",
+              "ACSPH2B",
+              "ACSPH2C",
+              "ACSSTTE",
+              "ACSTFCO",
+              "ACSTNUM",
+              "ACSTTUS",
+              "ACSZIPC",
+              "ACTSSN1",
+              "ACTSSN2",
+              "ACTSSN3",
+              "ACURBAL",
+              "DOBDAY",
+              "DOBMON",
+              "DOBYEAR",
+              "EXPDAY",
+              "EXPMON",
+              "EXPYEAR",
+              "OPNDAY",
+              "OPNMON",
+              "OPNYEAR",
+              "RISDAY",
+              "RISMON",
+              "RISYEAR"
+            ],
+            "cursor": "ACCTSID"
+          }
+        }
+      ]
+    },
+    {
+      "id": "account-update-eft-not-numeric",
+      "title": "A non-numeric EFT account id is rejected",
+      "provenance": "observed",
+      "source": "app/cbl/COACTUPC.cbl 1245-EDIT-NUM-REQD",
+      "setup": {
+        "CUSTDATA": {
+          "upsert": [
+            {
+              "CUST-ID": 1,
+              "CUST-FICO-CREDIT-SCORE": 700,
+              "CUST-ADDR-ZIP": "27601",
+              "CUST-PHONE-NUM-2": "(212)693-8684"
+            }
+          ]
+        }
+      },
+      "steps": [
+        {
+          "do": {
+            "transid": "CC00"
+          }
+        },
+        {
+          "do": {
+            "aid": "ENTER",
+            "fields": {
+              "USERID": "USER0001",
+              "PASSWD": "PASSWORD"
+            }
+          }
+        },
+        {
+          "do": {
+            "aid": "ENTER",
+            "fields": {
+              "OPTION": "2"
+            }
+          }
+        },
+        {
+          "do": {
+            "aid": "ENTER",
+            "fields": {
+              "ACCTSID": "00000000001"
+            }
+          }
+        },
+        {
+          "do": {
+            "aid": "ENTER",
+            "fields": {
+              "ACSEFTC": "ABC1234567"
+            }
+          },
+          "expect": {
+            "map": "CACTUPA",
+            "fields": {
+              "TRNNAME": "CAUP",
+              "PGMNAME": "COACTUPC",
+              "ACCTSID": "00000000001",
+              "ACSTTUS": "Y",
+              "OPNYEAR": "2014",
+              "OPNMON": "11",
+              "OPNDAY": "20",
+              "ACRDLIM": "+      2,020.00",
+              "EXPYEAR": "2025",
+              "EXPMON": "05",
+              "EXPDAY": "20",
+              "ACSHLIM": "+      1,020.00",
+              "RISYEAR": "2025",
+              "RISMON": "05",
+              "RISDAY": "20",
+              "ACURBAL": "+        194.00",
+              "ACRCYCR": "+           .00",
+              "ACRCYDB": "+           .00",
+              "ACSTNUM": "000000001",
+              "ACTSSN1": "020",
+              "ACTSSN2": "97",
+              "ACTSSN3": "3888",
+              "DOBYEAR": "1961",
+              "DOBMON": "06",
+              "DOBDAY": "08",
+              "ACSTFCO": "700",
+              "ACSFNAM": "Immanuel",
+              "ACSMNAM": "Madeline",
+              "ACSLNAM": "Kessler",
+              "ACSADL1": "618 Deshaun Route",
+              "ACSSTTE": "NC",
+              "ACSADL2": "Apt. 802",
+              "ACSZIPC": "27601",
+              "ACSCITY": "Altenwerthshire",
+              "ACSCTRY": "USA",
+              "ACSPH1A": "908",
+              "ACSPH1B": "119",
+              "ACSPH1C": "8310",
+              "ACSGOVT": "00000000000049368437",
+              "ACSPH2A": "212",
+              "ACSPH2B": "693",
+              "ACSPH2C": "8684",
+              "ACSEFTC": "ABC1234567",
+              "ACSPFLG": "Y",
+              "INFOMSG": "Update account details presented above.",
+              "ERRMSG": "EFT Account Id must be all numeric.",
+              "FKEYS": "ENTER=Process F3=Exit",
+              "FKEY05": "F5=Save",
+              "FKEY12": "F12=Cancel"
+            },
+            "colors": {
+              "ACSEFTC": "RED"
+            },
+            "protected": [
+              "ACCTSID",
+              "ACSCTRY",
+              "ACSTNUM"
+            ],
+            "cursor": "ACSEFTC"
+          }
+        }
+      ]
+    },
+    {
+      "id": "account-update-primary-holder-invalid",
+      "title": "Primary card holder flag other than Y/N is rejected",
+      "provenance": "observed",
+      "source": "app/cbl/COACTUPC.cbl 1220-EDIT-YESNO",
+      "setup": {
+        "CUSTDATA": {
+          "upsert": [
+            {
+              "CUST-ID": 1,
+              "CUST-FICO-CREDIT-SCORE": 700,
+              "CUST-ADDR-ZIP": "27601",
+              "CUST-PHONE-NUM-2": "(212)693-8684"
+            }
+          ]
+        }
+      },
+      "steps": [
+        {
+          "do": {
+            "transid": "CC00"
+          }
+        },
+        {
+          "do": {
+            "aid": "ENTER",
+            "fields": {
+              "USERID": "USER0001",
+              "PASSWD": "PASSWORD"
+            }
+          }
+        },
+        {
+          "do": {
+            "aid": "ENTER",
+            "fields": {
+              "OPTION": "2"
+            }
+          }
+        },
+        {
+          "do": {
+            "aid": "ENTER",
+            "fields": {
+              "ACCTSID": "00000000001"
+            }
+          }
+        },
+        {
+          "do": {
+            "aid": "ENTER",
+            "fields": {
+              "ACSPFLG": "X"
+            }
+          },
+          "expect": {
+            "map": "CACTUPA",
+            "fields": {
+              "TRNNAME": "CAUP",
+              "PGMNAME": "COACTUPC",
+              "ACCTSID": "00000000001",
+              "ACSTTUS": "Y",
+              "OPNYEAR": "2014",
+              "OPNMON": "11",
+              "OPNDAY": "20",
+              "ACRDLIM": "+      2,020.00",
+              "EXPYEAR": "2025",
+              "EXPMON": "05",
+              "EXPDAY": "20",
+              "ACSHLIM": "+      1,020.00",
+              "RISYEAR": "2025",
+              "RISMON": "05",
+              "RISDAY": "20",
+              "ACURBAL": "+        194.00",
+              "ACRCYCR": "+           .00",
+              "ACRCYDB": "+           .00",
+              "ACSTNUM": "000000001",
+              "ACTSSN1": "020",
+              "ACTSSN2": "97",
+              "ACTSSN3": "3888",
+              "DOBYEAR": "1961",
+              "DOBMON": "06",
+              "DOBDAY": "08",
+              "ACSTFCO": "700",
+              "ACSFNAM": "Immanuel",
+              "ACSMNAM": "Madeline",
+              "ACSLNAM": "Kessler",
+              "ACSADL1": "618 Deshaun Route",
+              "ACSSTTE": "NC",
+              "ACSADL2": "Apt. 802",
+              "ACSZIPC": "27601",
+              "ACSCITY": "Altenwerthshire",
+              "ACSCTRY": "USA",
+              "ACSPH1A": "908",
+              "ACSPH1B": "119",
+              "ACSPH1C": "8310",
+              "ACSGOVT": "00000000000049368437",
+              "ACSPH2A": "212",
+              "ACSPH2B": "693",
+              "ACSPH2C": "8684",
+              "ACSEFTC": "0053581756",
+              "ACSPFLG": "X",
+              "INFOMSG": "Update account details presented above.",
+              "ERRMSG": "Primary Card Holder must be Y or N.",
+              "FKEYS": "ENTER=Process F3=Exit",
+              "FKEY05": "F5=Save",
+              "FKEY12": "F12=Cancel"
+            },
+            "colors": {
+              "ACSPFLG": "RED"
+            },
+            "protected": [
+              "ACCTSID",
+              "ACSCTRY",
+              "ACSTNUM"
+            ],
+            "cursor": "ACSPFLG"
+          }
+        }
+      ]
+    },
+    {
+      "id": "account-update-multiple-errors",
+      "title": "With several bad fields only the first message (edit order) shows, but every failing field is red",
+      "provenance": "observed",
+      "source": "app/cbl/COACTUPC.cbl 1200-EDIT-MAP-INPUTS, 3300-SETUP-SCREEN-ATTRS",
+      "setup": {
+        "CUSTDATA": {
+          "upsert": [
+            {
+              "CUST-ID": 1,
+              "CUST-FICO-CREDIT-SCORE": 700,
+              "CUST-ADDR-ZIP": "27601",
+              "CUST-PHONE-NUM-2": "(212)693-8684"
+            }
+          ]
+        }
+      },
+      "steps": [
+        {
+          "do": {
+            "transid": "CC00"
+          }
+        },
+        {
+          "do": {
+            "aid": "ENTER",
+            "fields": {
+              "USERID": "USER0001",
+              "PASSWD": "PASSWORD"
+            }
+          }
+        },
+        {
+          "do": {
+            "aid": "ENTER",
+            "fields": {
+              "OPTION": "2"
+            }
+          }
+        },
+        {
+          "do": {
+            "aid": "ENTER",
+            "fields": {
+              "ACCTSID": "00000000001"
+            }
+          }
+        },
+        {
+          "do": {
+            "aid": "ENTER",
+            "fields": {
+              "ACSTTUS": "X",
+              "ACSFNAM": "J0hn",
+              "ACSPFLG": "Q"
+            }
+          },
+          "expect": {
+            "map": "CACTUPA",
+            "fields": {
+              "TRNNAME": "CAUP",
+              "PGMNAME": "COACTUPC",
+              "ACCTSID": "00000000001",
+              "ACSTTUS": "X",
+              "OPNYEAR": "2014",
+              "OPNMON": "11",
+              "OPNDAY": "20",
+              "ACRDLIM": "+      2,020.00",
+              "EXPYEAR": "2025",
+              "EXPMON": "05",
+              "EXPDAY": "20",
+              "ACSHLIM": "+      1,020.00",
+              "RISYEAR": "2025",
+              "RISMON": "05",
+              "RISDAY": "20",
+              "ACURBAL": "+        194.00",
+              "ACRCYCR": "+           .00",
+              "ACRCYDB": "+           .00",
+              "ACSTNUM": "000000001",
+              "ACTSSN1": "020",
+              "ACTSSN2": "97",
+              "ACTSSN3": "3888",
+              "DOBYEAR": "1961",
+              "DOBMON": "06",
+              "DOBDAY": "08",
+              "ACSTFCO": "700",
+              "ACSFNAM": "J0hn",
+              "ACSMNAM": "Madeline",
+              "ACSLNAM": "Kessler",
+              "ACSADL1": "618 Deshaun Route",
+              "ACSSTTE": "NC",
+              "ACSADL2": "Apt. 802",
+              "ACSZIPC": "27601",
+              "ACSCITY": "Altenwerthshire",
+              "ACSCTRY": "USA",
+              "ACSPH1A": "908",
+              "ACSPH1B": "119",
+              "ACSPH1C": "8310",
+              "ACSGOVT": "00000000000049368437",
+              "ACSPH2A": "212",
+              "ACSPH2B": "693",
+              "ACSPH2C": "8684",
+              "ACSEFTC": "0053581756",
+              "ACSPFLG": "Q",
+              "INFOMSG": "Update account details presented above.",
+              "ERRMSG": "Account Status must be Y or N.",
+              "FKEYS": "ENTER=Process F3=Exit",
+              "FKEY05": "F5=Save",
+              "FKEY12": "F12=Cancel"
+            },
+            "colors": {
+              "ACSTTUS": "RED",
+              "ACSFNAM": "RED",
+              "ACSPFLG": "RED"
+            },
+            "protected": [
+              "ACCTSID",
+              "ACSCTRY",
+              "ACSTNUM"
+            ],
+            "cursor": "ACSTTUS"
+          }
+        }
+      ]
+    },
+    {
+      "id": "account-update-pf12-discards-edits",
+      "title": "PF12 after typing a bad value re-reads the account and shows the stored values again",
+      "provenance": "observed",
+      "source": "app/cbl/COACTUPC.cbl 2000-DECIDE-ACTION (CCARD-AID-PFK12)",
+      "setup": {
+        "CUSTDATA": {
+          "upsert": [
+            {
+              "CUST-ID": 1,
+              "CUST-FICO-CREDIT-SCORE": 700,
+              "CUST-ADDR-ZIP": "27601",
+              "CUST-PHONE-NUM-2": "(212)693-8684"
+            }
+          ]
+        }
+      },
+      "steps": [
+        {
+          "do": {
+            "transid": "CC00"
+          }
+        },
+        {
+          "do": {
+            "aid": "ENTER",
+            "fields": {
+              "USERID": "USER0001",
+              "PASSWD": "PASSWORD"
+            }
+          }
+        },
+        {
+          "do": {
+            "aid": "ENTER",
+            "fields": {
+              "OPTION": "2"
+            }
+          }
+        },
+        {
+          "do": {
+            "aid": "ENTER",
+            "fields": {
+              "ACCTSID": "00000000001"
+            }
+          }
+        },
+        {
+          "do": {
+            "aid": "PF12",
+            "fields": {
+              "ACSTTUS": "X"
+            }
+          },
+          "expect": {
+            "map": "CACTUPA",
+            "fields": {
+              "TRNNAME": "CAUP",
+              "PGMNAME": "COACTUPC",
+              "ACCTSID": "00000000001",
+              "ACSTTUS": "Y",
+              "OPNYEAR": "2014",
+              "OPNMON": "11",
+              "OPNDAY": "20",
+              "ACRDLIM": "+      2,020.00",
+              "EXPYEAR": "2025",
+              "EXPMON": "05",
+              "EXPDAY": "20",
+              "ACSHLIM": "+      1,020.00",
+              "RISYEAR": "2025",
+              "RISMON": "05",
+              "RISDAY": "20",
+              "ACURBAL": "+        194.00",
+              "ACRCYCR": "+           .00",
+              "ACRCYDB": "+           .00",
+              "ACSTNUM": "000000001",
+              "ACTSSN1": "020",
+              "ACTSSN2": "97",
+              "ACTSSN3": "3888",
+              "DOBYEAR": "1961",
+              "DOBMON": "06",
+              "DOBDAY": "08",
+              "ACSTFCO": "700",
+              "ACSFNAM": "Immanuel",
+              "ACSMNAM": "Madeline",
+              "ACSLNAM": "Kessler",
+              "ACSADL1": "618 Deshaun Route",
+              "ACSSTTE": "NC",
+              "ACSADL2": "Apt. 802",
+              "ACSZIPC": "27601",
+              "ACSCITY": "Altenwerthshire",
+              "ACSCTRY": "USA",
+              "ACSPH1A": "908",
+              "ACSPH1B": "119",
+              "ACSPH1C": "8310",
+              "ACSGOVT": "00000000000049368437",
+              "ACSPH2A": "212",
+              "ACSPH2B": "693",
+              "ACSPH2C": "8684",
+              "ACSEFTC": "0053581756",
+              "ACSPFLG": "Y",
+              "INFOMSG": "Update account details presented above.",
+              "FKEYS": "ENTER=Process F3=Exit",
+              "FKEY05": "F5=Save",
+              "FKEY12": "F12=Cancel"
+            },
+            "protected": [
+              "ACCTSID",
+              "ACSCTRY",
+              "ACSTNUM"
+            ],
+            "cursor": "ACCTSID"
+          }
+        }
+      ]
+    },
+    {
+      "id": "account-update-valid-change-asks-confirmation",
+      "title": "A valid change is redisplayed fully protected with 'Changes validated.Press F5 to save' (F5/F12 brightening is not observable here)",
+      "provenance": "observed",
+      "source": "app/cbl/COACTUPC.cbl 1200-EDIT-MAP-INPUTS, 3203-SHOW-UPDATED-VALUES, 3390-SETUP-INFOMSG-ATTRS",
+      "setup": {
+        "CUSTDATA": {
+          "upsert": [
+            {
+              "CUST-ID": 1,
+              "CUST-FICO-CREDIT-SCORE": 700,
+              "CUST-ADDR-ZIP": "27601",
+              "CUST-PHONE-NUM-2": "(212)693-8684"
+            }
+          ]
+        }
+      },
+      "steps": [
+        {
+          "do": {
+            "transid": "CC00"
+          }
+        },
+        {
+          "do": {
+            "aid": "ENTER",
+            "fields": {
+              "USERID": "USER0001",
+              "PASSWD": "PASSWORD"
+            }
+          }
+        },
+        {
+          "do": {
+            "aid": "ENTER",
+            "fields": {
+              "OPTION": "2"
+            }
+          }
+        },
+        {
+          "do": {
+            "aid": "ENTER",
+            "fields": {
+              "ACCTSID": "00000000001"
+            }
+          }
+        },
+        {
+          "do": {
+            "aid": "ENTER",
+            "fields": {
+              "ACRDLIM": "3000"
+            }
+          },
+          "expect": {
+            "map": "CACTUPA",
+            "fields": {
+              "TRNNAME": "CAUP",
+              "PGMNAME": "COACTUPC",
+              "ACCTSID": "00000000001",
+              "ACSTTUS": "Y",
+              "OPNYEAR": "2014",
+              "OPNMON": "11",
+              "OPNDAY": "20",
+              "ACRDLIM": "+      3,000.00",
+              "EXPYEAR": "2025",
+              "EXPMON": "05",
+              "EXPDAY": "20",
+              "ACSHLIM": "+      1,020.00",
+              "RISYEAR": "2025",
+              "RISMON": "05",
+              "RISDAY": "20",
+              "ACURBAL": "+        194.00",
+              "ACRCYCR": "+           .00",
+              "ACRCYDB": "+           .00",
+              "ACSTNUM": "000000001",
+              "ACTSSN1": "020",
+              "ACTSSN2": "97",
+              "ACTSSN3": "3888",
+              "DOBYEAR": "1961",
+              "DOBMON": "06",
+              "DOBDAY": "08",
+              "ACSTFCO": "700",
+              "ACSFNAM": "Immanuel",
+              "ACSMNAM": "Madeline",
+              "ACSLNAM": "Kessler",
+              "ACSADL1": "618 Deshaun Route",
+              "ACSSTTE": "NC",
+              "ACSADL2": "Apt. 802",
+              "ACSZIPC": "27601",
+              "ACSCITY": "Altenwerthshire",
+              "ACSCTRY": "USA",
+              "ACSPH1A": "908",
+              "ACSPH1B": "119",
+              "ACSPH1C": "8310",
+              "ACSGOVT": "00000000000049368437",
+              "ACSPH2A": "212",
+              "ACSPH2B": "693",
+              "ACSPH2C": "8684",
+              "ACSEFTC": "0053581756",
+              "ACSPFLG": "Y",
+              "INFOMSG": "Changes validated.Press F5 to save",
+              "FKEYS": "ENTER=Process F3=Exit",
+              "FKEY05": "F5=Save",
+              "FKEY12": "F12=Cancel"
+            },
+            "protected": [
+              "AADDGRP",
+              "ACCTSID",
+              "ACRCYCR",
+              "ACRCYDB",
+              "ACRDLIM",
+              "ACSADL1",
+              "ACSADL2",
+              "ACSCITY",
+              "ACSCTRY",
+              "ACSEFTC",
+              "ACSFNAM",
+              "ACSGOVT",
+              "ACSHLIM",
+              "ACSLNAM",
+              "ACSMNAM",
+              "ACSPFLG",
+              "ACSPH1A",
+              "ACSPH1B",
+              "ACSPH1C",
+              "ACSPH2A",
+              "ACSPH2B",
+              "ACSPH2C",
+              "ACSSTTE",
+              "ACSTFCO",
+              "ACSTNUM",
+              "ACSTTUS",
+              "ACSZIPC",
+              "ACTSSN1",
+              "ACTSSN2",
+              "ACTSSN3",
+              "ACURBAL",
+              "DOBDAY",
+              "DOBMON",
+              "DOBYEAR",
+              "EXPDAY",
+              "EXPMON",
+              "EXPYEAR",
+              "OPNDAY",
+              "OPNMON",
+              "OPNYEAR",
+              "RISDAY",
+              "RISMON",
+              "RISYEAR"
+            ],
+            "cursor": "ACCTSID"
+          }
+        }
+      ]
+    },
+    {
+      "id": "account-update-pf5-before-confirmation",
+      "title": "PF5 with a fresh change and no pending confirmation is treated as ENTER: it validates and asks for confirmation, nothing is written",
+      "provenance": "observed",
+      "source": "app/cbl/COACTUPC.cbl 0000-MAIN (PFK05 AND ACUP-CHANGES-OK-NOT-CONFIRMED)",
+      "setup": {
+        "CUSTDATA": {
+          "upsert": [
+            {
+              "CUST-ID": 1,
+              "CUST-FICO-CREDIT-SCORE": 700,
+              "CUST-ADDR-ZIP": "27601",
+              "CUST-PHONE-NUM-2": "(212)693-8684"
+            }
+          ]
+        }
+      },
+      "steps": [
+        {
+          "do": {
+            "transid": "CC00"
+          }
+        },
+        {
+          "do": {
+            "aid": "ENTER",
+            "fields": {
+              "USERID": "USER0001",
+              "PASSWD": "PASSWORD"
+            }
+          }
+        },
+        {
+          "do": {
+            "aid": "ENTER",
+            "fields": {
+              "OPTION": "2"
+            }
+          }
+        },
+        {
+          "do": {
+            "aid": "ENTER",
+            "fields": {
+              "ACCTSID": "00000000001"
+            }
+          }
+        },
+        {
+          "do": {
+            "aid": "PF5",
+            "fields": {
+              "ACRDLIM": "3000"
+            }
+          },
+          "expect": {
+            "map": "CACTUPA",
+            "fields": {
+              "TRNNAME": "CAUP",
+              "PGMNAME": "COACTUPC",
+              "ACCTSID": "00000000001",
+              "ACSTTUS": "Y",
+              "OPNYEAR": "2014",
+              "OPNMON": "11",
+              "OPNDAY": "20",
+              "ACRDLIM": "+      3,000.00",
+              "EXPYEAR": "2025",
+              "EXPMON": "05",
+              "EXPDAY": "20",
+              "ACSHLIM": "+      1,020.00",
+              "RISYEAR": "2025",
+              "RISMON": "05",
+              "RISDAY": "20",
+              "ACURBAL": "+        194.00",
+              "ACRCYCR": "+           .00",
+              "ACRCYDB": "+           .00",
+              "ACSTNUM": "000000001",
+              "ACTSSN1": "020",
+              "ACTSSN2": "97",
+              "ACTSSN3": "3888",
+              "DOBYEAR": "1961",
+              "DOBMON": "06",
+              "DOBDAY": "08",
+              "ACSTFCO": "700",
+              "ACSFNAM": "Immanuel",
+              "ACSMNAM": "Madeline",
+              "ACSLNAM": "Kessler",
+              "ACSADL1": "618 Deshaun Route",
+              "ACSSTTE": "NC",
+              "ACSADL2": "Apt. 802",
+              "ACSZIPC": "27601",
+              "ACSCITY": "Altenwerthshire",
+              "ACSCTRY": "USA",
+              "ACSPH1A": "908",
+              "ACSPH1B": "119",
+              "ACSPH1C": "8310",
+              "ACSGOVT": "00000000000049368437",
+              "ACSPH2A": "212",
+              "ACSPH2B": "693",
+              "ACSPH2C": "8684",
+              "ACSEFTC": "0053581756",
+              "ACSPFLG": "Y",
+              "INFOMSG": "Changes validated.Press F5 to save",
+              "FKEYS": "ENTER=Process F3=Exit",
+              "FKEY05": "F5=Save",
+              "FKEY12": "F12=Cancel"
+            },
+            "protected": [
+              "AADDGRP",
+              "ACCTSID",
+              "ACRCYCR",
+              "ACRCYDB",
+              "ACRDLIM",
+              "ACSADL1",
+              "ACSADL2",
+              "ACSCITY",
+              "ACSCTRY",
+              "ACSEFTC",
+              "ACSFNAM",
+              "ACSGOVT",
+              "ACSHLIM",
+              "ACSLNAM",
+              "ACSMNAM",
+              "ACSPFLG",
+              "ACSPH1A",
+              "ACSPH1B",
+              "ACSPH1C",
+              "ACSPH2A",
+              "ACSPH2B",
+              "ACSPH2C",
+              "ACSSTTE",
+              "ACSTFCO",
+              "ACSTNUM",
+              "ACSTTUS",
+              "ACSZIPC",
+              "ACTSSN1",
+              "ACTSSN2",
+              "ACTSSN3",
+              "ACURBAL",
+              "DOBDAY",
+              "DOBMON",
+              "DOBYEAR",
+              "EXPDAY",
+              "EXPMON",
+              "EXPYEAR",
+              "OPNDAY",
+              "OPNMON",
+              "OPNYEAR",
+              "RISDAY",
+              "RISMON",
+              "RISYEAR"
+            ],
+            "cursor": "ACCTSID"
+          }
+        }
+      ]
+    },
+    {
+      "id": "account-update-confirm-enter-stays",
+      "title": "ENTER while confirmation is pending keeps the confirmation screen and writes nothing",
+      "provenance": "observed",
+      "source": "app/cbl/COACTUPC.cbl 2000-DECIDE-ACTION (ACUP-CHANGES-OK-NOT-CONFIRMED)",
+      "setup": {
+        "CUSTDATA": {
+          "upsert": [
+            {
+              "CUST-ID": 1,
+              "CUST-FICO-CREDIT-SCORE": 700,
+              "CUST-ADDR-ZIP": "27601",
+              "CUST-PHONE-NUM-2": "(212)693-8684"
+            }
+          ]
+        }
+      },
+      "steps": [
+        {
+          "do": {
+            "transid": "CC00"
+          }
+        },
+        {
+          "do": {
+            "aid": "ENTER",
+            "fields": {
+              "USERID": "USER0001",
+              "PASSWD": "PASSWORD"
+            }
+          }
+        },
+        {
+          "do": {
+            "aid": "ENTER",
+            "fields": {
+              "OPTION": "2"
+            }
+          }
+        },
+        {
+          "do": {
+            "aid": "ENTER",
+            "fields": {
+              "ACCTSID": "00000000001"
+            }
+          }
+        },
+        {
+          "do": {
+            "aid": "ENTER",
+            "fields": {
+              "ACRDLIM": "3000"
+            }
+          }
+        },
+        {
+          "do": {
+            "aid": "ENTER"
+          },
+          "expect": {
+            "map": "CACTUPA",
+            "fields": {
+              "TRNNAME": "CAUP",
+              "PGMNAME": "COACTUPC",
+              "ACCTSID": "00000000001",
+              "ACSTTUS": "Y",
+              "OPNYEAR": "2014",
+              "OPNMON": "11",
+              "OPNDAY": "20",
+              "ACRDLIM": "+      3,000.00",
+              "EXPYEAR": "2025",
+              "EXPMON": "05",
+              "EXPDAY": "20",
+              "ACSHLIM": "+      1,020.00",
+              "RISYEAR": "2025",
+              "RISMON": "05",
+              "RISDAY": "20",
+              "ACURBAL": "+        194.00",
+              "ACRCYCR": "+           .00",
+              "ACRCYDB": "+           .00",
+              "ACSTNUM": "000000001",
+              "ACTSSN1": "020",
+              "ACTSSN2": "97",
+              "ACTSSN3": "3888",
+              "DOBYEAR": "1961",
+              "DOBMON": "06",
+              "DOBDAY": "08",
+              "ACSTFCO": "700",
+              "ACSFNAM": "Immanuel",
+              "ACSMNAM": "Madeline",
+              "ACSLNAM": "Kessler",
+              "ACSADL1": "618 Deshaun Route",
+              "ACSSTTE": "NC",
+              "ACSADL2": "Apt. 802",
+              "ACSZIPC": "27601",
+              "ACSCITY": "Altenwerthshire",
+              "ACSCTRY": "USA",
+              "ACSPH1A": "908",
+              "ACSPH1B": "119",
+              "ACSPH1C": "8310",
+              "ACSGOVT": "00000000000049368437",
+              "ACSPH2A": "212",
+              "ACSPH2B": "693",
+              "ACSPH2C": "8684",
+              "ACSEFTC": "0053581756",
+              "ACSPFLG": "Y",
+              "INFOMSG": "Changes validated.Press F5 to save",
+              "FKEYS": "ENTER=Process F3=Exit",
+              "FKEY05": "F5=Save",
+              "FKEY12": "F12=Cancel"
+            },
+            "protected": [
+              "AADDGRP",
+              "ACCTSID",
+              "ACRCYCR",
+              "ACRCYDB",
+              "ACRDLIM",
+              "ACSADL1",
+              "ACSADL2",
+              "ACSCITY",
+              "ACSCTRY",
+              "ACSEFTC",
+              "ACSFNAM",
+              "ACSGOVT",
+              "ACSHLIM",
+              "ACSLNAM",
+              "ACSMNAM",
+              "ACSPFLG",
+              "ACSPH1A",
+              "ACSPH1B",
+              "ACSPH1C",
+              "ACSPH2A",
+              "ACSPH2B",
+              "ACSPH2C",
+              "ACSSTTE",
+              "ACSTFCO",
+              "ACSTNUM",
+              "ACSTTUS",
+              "ACSZIPC",
+              "ACTSSN1",
+              "ACTSSN2",
+              "ACTSSN3",
+              "ACURBAL",
+              "DOBDAY",
+              "DOBMON",
+              "DOBYEAR",
+              "EXPDAY",
+              "EXPMON",
+              "EXPYEAR",
+              "OPNDAY",
+              "OPNMON",
+              "OPNYEAR",
+              "RISDAY",
+              "RISMON",
+              "RISYEAR"
+            ],
+            "cursor": "ACCTSID"
+          }
+        }
+      ]
+    },
+    {
+      "id": "account-update-confirm-pf12-cancels",
+      "title": "PF12 while confirmation is pending discards the change and shows the stored values",
+      "provenance": "observed",
+      "source": "app/cbl/COACTUPC.cbl 2000-DECIDE-ACTION (CCARD-AID-PFK12)",
+      "setup": {
+        "CUSTDATA": {
+          "upsert": [
+            {
+              "CUST-ID": 1,
+              "CUST-FICO-CREDIT-SCORE": 700,
+              "CUST-ADDR-ZIP": "27601",
+              "CUST-PHONE-NUM-2": "(212)693-8684"
+            }
+          ]
+        }
+      },
+      "steps": [
+        {
+          "do": {
+            "transid": "CC00"
+          }
+        },
+        {
+          "do": {
+            "aid": "ENTER",
+            "fields": {
+              "USERID": "USER0001",
+              "PASSWD": "PASSWORD"
+            }
+          }
+        },
+        {
+          "do": {
+            "aid": "ENTER",
+            "fields": {
+              "OPTION": "2"
+            }
+          }
+        },
+        {
+          "do": {
+            "aid": "ENTER",
+            "fields": {
+              "ACCTSID": "00000000001"
+            }
+          }
+        },
+        {
+          "do": {
+            "aid": "ENTER",
+            "fields": {
+              "ACRDLIM": "3000"
+            }
+          }
+        },
+        {
+          "do": {
+            "aid": "PF12"
+          },
+          "expect": {
+            "map": "CACTUPA",
+            "fields": {
+              "TRNNAME": "CAUP",
+              "PGMNAME": "COACTUPC",
+              "ACCTSID": "00000000001",
+              "ACSTTUS": "Y",
+              "OPNYEAR": "2014",
+              "OPNMON": "11",
+              "OPNDAY": "20",
+              "ACRDLIM": "+      2,020.00",
+              "EXPYEAR": "2025",
+              "EXPMON": "05",
+              "EXPDAY": "20",
+              "ACSHLIM": "+      1,020.00",
+              "RISYEAR": "2025",
+              "RISMON": "05",
+              "RISDAY": "20",
+              "ACURBAL": "+        194.00",
+              "ACRCYCR": "+           .00",
+              "ACRCYDB": "+           .00",
+              "ACSTNUM": "000000001",
+              "ACTSSN1": "020",
+              "ACTSSN2": "97",
+              "ACTSSN3": "3888",
+              "DOBYEAR": "1961",
+              "DOBMON": "06",
+              "DOBDAY": "08",
+              "ACSTFCO": "700",
+              "ACSFNAM": "Immanuel",
+              "ACSMNAM": "Madeline",
+              "ACSLNAM": "Kessler",
+              "ACSADL1": "618 Deshaun Route",
+              "ACSSTTE": "NC",
+              "ACSADL2": "Apt. 802",
+              "ACSZIPC": "27601",
+              "ACSCITY": "Altenwerthshire",
+              "ACSCTRY": "USA",
+              "ACSPH1A": "908",
+              "ACSPH1B": "119",
+              "ACSPH1C": "8310",
+              "ACSGOVT": "00000000000049368437",
+              "ACSPH2A": "212",
+              "ACSPH2B": "693",
+              "ACSPH2C": "8684",
+              "ACSEFTC": "0053581756",
+              "ACSPFLG": "Y",
+              "INFOMSG": "Update account details presented above.",
+              "FKEYS": "ENTER=Process F3=Exit",
+              "FKEY05": "F5=Save",
+              "FKEY12": "F12=Cancel"
+            },
+            "protected": [
+              "ACCTSID",
+              "ACSCTRY",
+              "ACSTNUM"
+            ],
+            "cursor": "ACCTSID"
+          }
+        }
+      ]
+    },
+    {
+      "id": "account-update-save",
+      "title": "PF5 after confirmation rewrites account and customer: the blank group id is written as LOW-VALUES into ACCT-ADDR-ZIP because the update record has no zip field, and ACCT-GROUP-ID plus both record FILLERs take the never-initialized update-record FILLER (x'00' under the harness) (legacy bugs)",
+      "provenance": "observed",
+      "source": "app/cbl/COACTUPC.cbl 9600-WRITE-PROCESSING, ACCT-UPDATE-RECORD layout",
+      "setup": {
+        "CUSTDATA": {
+          "upsert": [
+            {
+              "CUST-ID": 1,
+              "CUST-FICO-CREDIT-SCORE": 700,
+              "CUST-ADDR-ZIP": "27601",
+              "CUST-PHONE-NUM-2": "(212)693-8684"
+            }
+          ]
+        }
+      },
+      "steps": [
+        {
+          "do": {
+            "transid": "CC00"
+          }
+        },
+        {
+          "do": {
+            "aid": "ENTER",
+            "fields": {
+              "USERID": "USER0001",
+              "PASSWD": "PASSWORD"
+            }
+          }
+        },
+        {
+          "do": {
+            "aid": "ENTER",
+            "fields": {
+              "OPTION": "2"
+            }
+          }
+        },
+        {
+          "do": {
+            "aid": "ENTER",
+            "fields": {
+              "ACCTSID": "00000000001"
+            }
+          }
+        },
+        {
+          "do": {
+            "aid": "ENTER",
+            "fields": {
+              "ACRDLIM": "3000"
+            }
+          }
+        },
+        {
+          "do": {
+            "aid": "PF5"
+          },
+          "expect": {
+            "map": "CACTUPA",
+            "fields": {
+              "TRNNAME": "CAUP",
+              "PGMNAME": "COACTUPC",
+              "ACCTSID": "00000000001",
+              "ACSTTUS": "Y",
+              "OPNYEAR": "2014",
+              "OPNMON": "11",
+              "OPNDAY": "20",
+              "ACRDLIM": "+      3,000.00",
+              "EXPYEAR": "2025",
+              "EXPMON": "05",
+              "EXPDAY": "20",
+              "ACSHLIM": "+      1,020.00",
+              "RISYEAR": "2025",
+              "RISMON": "05",
+              "RISDAY": "20",
+              "ACURBAL": "+        194.00",
+              "ACRCYCR": "+           .00",
+              "ACRCYDB": "+           .00",
+              "ACSTNUM": "000000001",
+              "ACTSSN1": "020",
+              "ACTSSN2": "97",
+              "ACTSSN3": "3888",
+              "DOBYEAR": "1961",
+              "DOBMON": "06",
+              "DOBDAY": "08",
+              "ACSTFCO": "700",
+              "ACSFNAM": "Immanuel",
+              "ACSMNAM": "Madeline",
+              "ACSLNAM": "Kessler",
+              "ACSADL1": "618 Deshaun Route",
+              "ACSSTTE": "NC",
+              "ACSADL2": "Apt. 802",
+              "ACSZIPC": "27601",
+              "ACSCITY": "Altenwerthshire",
+              "ACSCTRY": "USA",
+              "ACSPH1A": "908",
+              "ACSPH1B": "119",
+              "ACSPH1C": "8310",
+              "ACSGOVT": "00000000000049368437",
+              "ACSPH2A": "212",
+              "ACSPH2B": "693",
+              "ACSPH2C": "8684",
+              "ACSEFTC": "0053581756",
+              "ACSPFLG": "Y",
+              "INFOMSG": "Changes committed to database",
+              "FKEYS": "ENTER=Process F3=Exit",
+              "FKEY05": "F5=Save",
+              "FKEY12": "F12=Cancel"
+            },
+            "protected": [
+              "AADDGRP",
+              "ACCTSID",
+              "ACRCYCR",
+              "ACRCYDB",
+              "ACRDLIM",
+              "ACSADL1",
+              "ACSADL2",
+              "ACSCITY",
+              "ACSCTRY",
+              "ACSEFTC",
+              "ACSFNAM",
+              "ACSGOVT",
+              "ACSHLIM",
+              "ACSLNAM",
+              "ACSMNAM",
+              "ACSPFLG",
+              "ACSPH1A",
+              "ACSPH1B",
+              "ACSPH1C",
+              "ACSPH2A",
+              "ACSPH2B",
+              "ACSPH2C",
+              "ACSSTTE",
+              "ACSTFCO",
+              "ACSTNUM",
+              "ACSTTUS",
+              "ACSZIPC",
+              "ACTSSN1",
+              "ACTSSN2",
+              "ACTSSN3",
+              "ACURBAL",
+              "DOBDAY",
+              "DOBMON",
+              "DOBYEAR",
+              "EXPDAY",
+              "EXPMON",
+              "EXPYEAR",
+              "OPNDAY",
+              "OPNMON",
+              "OPNYEAR",
+              "RISDAY",
+              "RISMON",
+              "RISYEAR"
+            ],
+            "cursor": "ACCTSID",
+            "files": {
+              "ACCTDATA": {
+                "updated": [
+                  {
+                    "key": "00000000001",
+                    "changed": {
+                      "ACCT-CREDIT-LIMIT": [
+                        "2020.00",
+                        "3000.00"
+                      ],
+                      "ACCT-ADDR-ZIP": [
+                        "A000000000",
+                        "\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000"
+                      ],
+                      "ACCT-GROUP-ID": [
+                        "",
+                        "\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000"
+                      ]
+                    }
+                  }
+                ]
+              },
+              "CUSTDATA": {
+                "updated": [
+                  {
+                    "key": "000000001",
+                    "changed": {}
+                  }
+                ]
+              }
+            }
+          }
+        }
+      ]
+    },
+    {
+      "id": "account-update-save-group-and-customer",
+      "title": "Saving a new group id, status and first name: the group id lands in ACCT-ADDR-ZIP and ACCT-GROUP-ID gets x'00' FILLER bytes (legacy bug); status and name are stored as typed",
+      "provenance": "observed",
+      "source": "app/cbl/COACTUPC.cbl 9600-WRITE-PROCESSING, ACCT-UPDATE-RECORD layout",
+      "setup": {
+        "CUSTDATA": {
+          "upsert": [
+            {
+              "CUST-ID": 1,
+              "CUST-FICO-CREDIT-SCORE": 700,
+              "CUST-ADDR-ZIP": "27601",
+              "CUST-PHONE-NUM-2": "(212)693-8684"
+            }
+          ]
+        }
+      },
+      "steps": [
+        {
+          "do": {
+            "transid": "CC00"
+          }
+        },
+        {
+          "do": {
+            "aid": "ENTER",
+            "fields": {
+              "USERID": "USER0001",
+              "PASSWD": "PASSWORD"
+            }
+          }
+        },
+        {
+          "do": {
+            "aid": "ENTER",
+            "fields": {
+              "OPTION": "2"
+            }
+          }
+        },
+        {
+          "do": {
+            "aid": "ENTER",
+            "fields": {
+              "ACCTSID": "00000000001"
+            }
+          }
+        },
+        {
+          "do": {
+            "aid": "ENTER",
+            "fields": {
+              "AADDGRP": "GOLD",
+              "ACSFNAM": "Emmanuel",
+              "ACSTTUS": "N"
+            }
+          }
+        },
+        {
+          "do": {
+            "aid": "PF5"
+          },
+          "expect": {
+            "map": "CACTUPA",
+            "fields": {
+              "TRNNAME": "CAUP",
+              "PGMNAME": "COACTUPC",
+              "ACCTSID": "00000000001",
+              "ACSTTUS": "N",
+              "OPNYEAR": "2014",
+              "OPNMON": "11",
+              "OPNDAY": "20",
+              "ACRDLIM": "+      2,020.00",
+              "EXPYEAR": "2025",
+              "EXPMON": "05",
+              "EXPDAY": "20",
+              "ACSHLIM": "+      1,020.00",
+              "RISYEAR": "2025",
+              "RISMON": "05",
+              "RISDAY": "20",
+              "ACURBAL": "+        194.00",
+              "ACRCYCR": "+           .00",
+              "AADDGRP": "GOLD",
+              "ACRCYDB": "+           .00",
+              "ACSTNUM": "000000001",
+              "ACTSSN1": "020",
+              "ACTSSN2": "97",
+              "ACTSSN3": "3888",
+              "DOBYEAR": "1961",
+              "DOBMON": "06",
+              "DOBDAY": "08",
+              "ACSTFCO": "700",
+              "ACSFNAM": "Emmanuel",
+              "ACSMNAM": "Madeline",
+              "ACSLNAM": "Kessler",
+              "ACSADL1": "618 Deshaun Route",
+              "ACSSTTE": "NC",
+              "ACSADL2": "Apt. 802",
+              "ACSZIPC": "27601",
+              "ACSCITY": "Altenwerthshire",
+              "ACSCTRY": "USA",
+              "ACSPH1A": "908",
+              "ACSPH1B": "119",
+              "ACSPH1C": "8310",
+              "ACSGOVT": "00000000000049368437",
+              "ACSPH2A": "212",
+              "ACSPH2B": "693",
+              "ACSPH2C": "8684",
+              "ACSEFTC": "0053581756",
+              "ACSPFLG": "Y",
+              "INFOMSG": "Changes committed to database",
+              "FKEYS": "ENTER=Process F3=Exit",
+              "FKEY05": "F5=Save",
+              "FKEY12": "F12=Cancel"
+            },
+            "protected": [
+              "AADDGRP",
+              "ACCTSID",
+              "ACRCYCR",
+              "ACRCYDB",
+              "ACRDLIM",
+              "ACSADL1",
+              "ACSADL2",
+              "ACSCITY",
+              "ACSCTRY",
+              "ACSEFTC",
+              "ACSFNAM",
+              "ACSGOVT",
+              "ACSHLIM",
+              "ACSLNAM",
+              "ACSMNAM",
+              "ACSPFLG",
+              "ACSPH1A",
+              "ACSPH1B",
+              "ACSPH1C",
+              "ACSPH2A",
+              "ACSPH2B",
+              "ACSPH2C",
+              "ACSSTTE",
+              "ACSTFCO",
+              "ACSTNUM",
+              "ACSTTUS",
+              "ACSZIPC",
+              "ACTSSN1",
+              "ACTSSN2",
+              "ACTSSN3",
+              "ACURBAL",
+              "DOBDAY",
+              "DOBMON",
+              "DOBYEAR",
+              "EXPDAY",
+              "EXPMON",
+              "EXPYEAR",
+              "OPNDAY",
+              "OPNMON",
+              "OPNYEAR",
+              "RISDAY",
+              "RISMON",
+              "RISYEAR"
+            ],
+            "cursor": "ACCTSID",
+            "files": {
+              "ACCTDATA": {
+                "updated": [
+                  {
+                    "key": "00000000001",
+                    "changed": {
+                      "ACCT-ACTIVE-STATUS": [
+                        "Y",
+                        "N"
+                      ],
+                      "ACCT-ADDR-ZIP": [
+                        "A000000000",
+                        "GOLD"
+                      ],
+                      "ACCT-GROUP-ID": [
+                        "",
+                        "\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000"
+                      ]
+                    }
+                  }
+                ]
+              },
+              "CUSTDATA": {
+                "updated": [
+                  {
+                    "key": "000000001",
+                    "changed": {
+                      "CUST-FIRST-NAME": [
+                        "Immanuel",
+                        "Emmanuel"
+                      ]
+                    }
+                  }
+                ]
+              }
+            }
+          }
+        }
+      ]
+    },
+    {
+      "id": "account-update-after-save-enter-resets",
+      "title": "ENTER after a successful save clears the screen back to the account search",
+      "provenance": "observed",
+      "source": "app/cbl/COACTUPC.cbl 0000-MAIN (ACUP-CHANGES-OKAYED-AND-DONE)",
+      "setup": {
+        "CUSTDATA": {
+          "upsert": [
+            {
+              "CUST-ID": 1,
+              "CUST-FICO-CREDIT-SCORE": 700,
+              "CUST-ADDR-ZIP": "27601",
+              "CUST-PHONE-NUM-2": "(212)693-8684"
+            }
+          ]
+        }
+      },
+      "steps": [
+        {
+          "do": {
+            "transid": "CC00"
+          }
+        },
+        {
+          "do": {
+            "aid": "ENTER",
+            "fields": {
+              "USERID": "USER0001",
+              "PASSWD": "PASSWORD"
+            }
+          }
+        },
+        {
+          "do": {
+            "aid": "ENTER",
+            "fields": {
+              "OPTION": "2"
+            }
+          }
+        },
+        {
+          "do": {
+            "aid": "ENTER",
+            "fields": {
+              "ACCTSID": "00000000001"
+            }
+          }
+        },
+        {
+          "do": {
+            "aid": "ENTER",
+            "fields": {
+              "ACRDLIM": "3000"
+            }
+          }
+        },
+        {
+          "do": {
+            "aid": "PF5"
+          }
+        },
+        {
+          "do": {
+            "aid": "ENTER"
+          },
+          "expect": {
+            "map": "CACTUPA",
+            "fields": {
+              "TRNNAME": "CAUP",
+              "PGMNAME": "COACTUPC",
+              "ACTSSN1": "999",
+              "ACTSSN2": "99",
+              "ACTSSN3": "9999",
+              "INFOMSG": "Enter or update id of account to update",
+              "FKEYS": "ENTER=Process F3=Exit",
+              "FKEY05": "F5=Save",
+              "FKEY12": "F12=Cancel"
+            },
+            "protected": [
+              "AADDGRP",
+              "ACRCYCR",
+              "ACRCYDB",
+              "ACRDLIM",
+              "ACSADL1",
+              "ACSADL2",
+              "ACSCITY",
+              "ACSCTRY",
+              "ACSEFTC",
+              "ACSFNAM",
+              "ACSGOVT",
+              "ACSHLIM",
+              "ACSLNAM",
+              "ACSMNAM",
+              "ACSPFLG",
+              "ACSPH1A",
+              "ACSPH1B",
+              "ACSPH1C",
+              "ACSPH2A",
+              "ACSPH2B",
+              "ACSPH2C",
+              "ACSSTTE",
+              "ACSTFCO",
+              "ACSTNUM",
+              "ACSTTUS",
+              "ACSZIPC",
+              "ACTSSN1",
+              "ACTSSN2",
+              "ACTSSN3",
+              "ACURBAL",
+              "DOBDAY",
+              "DOBMON",
+              "DOBYEAR",
+              "EXPDAY",
+              "EXPMON",
+              "EXPYEAR",
+              "OPNDAY",
+              "OPNMON",
+              "OPNYEAR",
+              "RISDAY",
+              "RISMON",
+              "RISYEAR"
+            ],
+            "cursor": "ACCTSID"
+          }
+        }
+      ]
+    },
+    {
+      "id": "account-update-pf3-to-menu",
+      "title": "PF3 returns to the main menu without saving pending changes",
+      "provenance": "observed",
+      "source": "app/cbl/COACTUPC.cbl 0000-MAIN (CCARD-AID-PFK03)",
+      "setup": {
+        "CUSTDATA": {
+          "upsert": [
+            {
+              "CUST-ID": 1,
+              "CUST-FICO-CREDIT-SCORE": 700,
+              "CUST-ADDR-ZIP": "27601",
+              "CUST-PHONE-NUM-2": "(212)693-8684"
+            }
+          ]
+        }
+      },
+      "steps": [
+        {
+          "do": {
+            "transid": "CC00"
+          }
+        },
+        {
+          "do": {
+            "aid": "ENTER",
+            "fields": {
+              "USERID": "USER0001",
+              "PASSWD": "PASSWORD"
+            }
+          }
+        },
+        {
+          "do": {
+            "aid": "ENTER",
+            "fields": {
+              "OPTION": "2"
+            }
+          }
+        },
+        {
+          "do": {
+            "aid": "ENTER",
+            "fields": {
+              "ACCTSID": "00000000001"
+            }
+          }
+        },
+        {
+          "do": {
+            "aid": "ENTER",
+            "fields": {
+              "ACRDLIM": "3000"
+            }
+          }
+        },
+        {
+          "do": {
+            "aid": "PF3"
+          },
+          "expect": {
+            "map": "COMEN1A",
+            "fields": {
+              "TRNNAME": "CM00",
+              "PGMNAME": "COMEN01C",
+              "OPTN001": "01. Account View",
+              "OPTN002": "02. Account Update",
+              "OPTN003": "03. Credit Card List",
+              "OPTN004": "04. Credit Card View",
+              "OPTN005": "05. Credit Card Update",
+              "OPTN006": "06. Transaction List",
+              "OPTN007": "07. Transaction View",
+              "OPTN008": "08. Transaction Add",
+              "OPTN009": "09. Transaction Reports",
+              "OPTN010": "10. Bill Payment",
+              "OPTN011": "11. Pending Authorization View"
+            },
+            "cursor": "OPTION"
+          }
+        }
+      ]
+    }
+  ]
+}
