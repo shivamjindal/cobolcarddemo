@@ -8,12 +8,15 @@ import java.util.SequencedMap;
 import java.util.function.Function;
 import java.util.stream.Collectors;
 
+import org.springframework.batch.core.ExitStatus;
 import org.springframework.batch.core.Job;
 import org.springframework.batch.core.JobExecution;
 import org.springframework.batch.core.JobExecutionException;
 import org.springframework.batch.core.JobParameters;
 import org.springframework.batch.core.JobParametersBuilder;
 import org.springframework.batch.core.Step;
+import org.springframework.batch.core.StepExecution;
+import org.springframework.batch.core.StepExecutionListener;
 import org.springframework.batch.core.job.builder.JobBuilder;
 import org.springframework.batch.core.job.builder.SimpleJobBuilder;
 import org.springframework.batch.core.launch.JobLauncher;
@@ -92,6 +95,13 @@ public final class BatchRuntime {
         for (StepDef def : job.steps()) {
             Step step = new StepBuilder(def.path(), repository)
                     .tasklet(new StepTasklet(def, run, programs, jdbc, store, spool, clock), transactions)
+                    .listener(new StepExecutionListener() {
+                        @Override
+                        public ExitStatus afterStep(StepExecution stepExecution) {
+                            Completion completion = run.completions().get(def.path());
+                            return completion == null ? null : new ExitStatus(completion.label());
+                        }
+                    })
                     .transactionAttribute(NO_TRANSACTION)
                     .build();
             builder = builder == null ? new JobBuilder(job.name(), repository).start(step) : builder.next(step);

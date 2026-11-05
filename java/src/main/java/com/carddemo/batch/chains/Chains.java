@@ -17,8 +17,6 @@ import com.carddemo.batch.library.LibraryJob;
 @Component
 public final class Chains {
 
-    private static final String RELOAD = "reference data reload, outside the batch slice";
-
     static final Chain CA7_030_POSTING = new Chain("CA7_030_POSTING", Chain.Scheduler.CA7, "030", List.of(
             job(LibraryJob.CLOSEFIL), new Member.Optional("CBPAUP0J", "IMS"), job(LibraryJob.POSTTRAN),
             job(LibraryJob.WAITSTEP), job(LibraryJob.OPENFIL)),
@@ -36,13 +34,13 @@ public final class Chains {
 
     /** SCHID 030, then the 031 and 032 tails its WAITSTEP triggers; no step of the walk opens the files again. */
     static final Chain CA7_030_REFERENCE = new Chain("CA7_030_REFERENCE", Chain.Scheduler.CA7, "030", List.of(
-            job(LibraryJob.CLOSEFIL), new Member.Unported("TRANTYPE", RELOAD), job(LibraryJob.WAITSTEP),
-            job(LibraryJob.CLOSEFIL), new Member.Unported("TRANCATG", RELOAD), job(LibraryJob.WAITSTEP),
-            job(LibraryJob.CLOSEFIL), new Member.Unported("TCATBALF", RELOAD), job(LibraryJob.WAITSTEP)),
+            job(LibraryJob.CLOSEFIL), job(LibraryJob.TRANTYPE), job(LibraryJob.WAITSTEP),
+            job(LibraryJob.CLOSEFIL), job(LibraryJob.TRANCATG), job(LibraryJob.WAITSTEP),
+            job(LibraryJob.CLOSEFIL), job(LibraryJob.TCATBALF), job(LibraryJob.WAITSTEP)),
             "CA-7 SCHID 030, then 031 and 032; QTM=0100; the export has no days", Optional.empty());
 
     static final Chain CA7_031_CATBAL = new Chain("CA7_031_CATBAL", Chain.Scheduler.CA7, "031", List.of(
-            job(LibraryJob.CLOSEFIL), new Member.Unported("PRTCATBL", "category balance print, outside the batch slice"),
+            job(LibraryJob.CLOSEFIL), job(LibraryJob.PRTCATBL),
             job(LibraryJob.WAITSTEP), job(LibraryJob.OPENFIL)),
             "CA-7 SCHID 031; QTM=0100; the export has no days", Optional.empty());
 
@@ -61,7 +59,7 @@ public final class Chains {
     static final Chain CONTROLM_WEEKLY_DISCLOSURE = new Chain("CONTROLM_WEEKLY_DISCLOSURE", Chain.Scheduler.CONTROL_M,
             "WEEKLY-DisclosureGroupsRefresh", List.of(
             new Member.Optional("MNTTRDB2", "Db2"), new Member.Optional("TRANEXTR", "Db2"),
-            job(LibraryJob.CLOSEFIL), new Member.Unported("DISCGRP", RELOAD), job(LibraryJob.WAITSTEP),
+            job(LibraryJob.CLOSEFIL), job(LibraryJob.DISCGRP), job(LibraryJob.WAITSTEP),
             job(LibraryJob.OPENFIL)),
             "Control-M smart folder DAYS=SA after MNTTRDB2, which has no DAYS; TIMETO=23:00",
             Optional.of("0 0 0 * * SAT"));

@@ -157,6 +157,8 @@ class BatchRuntimeIT {
                 copy("STEP02", instream("C"))));
 
         assertEquals(Map.of("STEP01", "JCL ERROR", "STEP02", "FLUSH"), labels(ran));
+        assertEquals("JCL ERROR", jdbc.sql("select exit_code from batch_step_execution where job_execution_id = ?"
+                        + " and step_name = 'STEP01'").param(ran.jobExecutionId()).query(String.class).single());
         assertEquals(0, jdbc.sql("select count(*) from datasets").query(Integer.class).single());
     }
 

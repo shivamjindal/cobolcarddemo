@@ -126,12 +126,12 @@ class ChainRunnerIT {
 
     @Test
     void aChainWithAnUnportedMemberDoesNotStart() {
-        Chain chain = chain("UNPORTED", job(LibraryJob.CLOSEFIL), new Member.Unported("PRTCATBL", "not ported"),
+        Chain chain = chain("UNPORTED", job(LibraryJob.CLOSEFIL), new Member.Unported("NOTREAL", "not ported"),
                 job(LibraryJob.WAITSTEP), job(LibraryJob.OPENFIL));
 
         ChainRunner.Refused refused = assertThrows(ChainRunner.Refused.class, () -> runner.start(chain, ORDER_DATE));
 
-        assertTrue(refused.getMessage().contains("PRTCATBL"), refused.getMessage());
+        assertTrue(refused.getMessage().contains("NOTREAL"), refused.getMessage());
         assertEquals(Set.of(), region.closed(), "CLOSEFIL did not run");
         assertEquals(Optional.empty(), runner.run(chain, ORDER_DATE));
     }

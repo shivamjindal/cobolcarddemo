@@ -10,6 +10,7 @@ import java.util.Map;
 
 import org.springframework.stereotype.Component;
 
+import com.carddemo.LegacyDefect;
 import com.carddemo.batch.step.BatchProgram;
 import com.carddemo.batch.step.FileStatus;
 import com.carddemo.batch.step.OpenMode;
@@ -20,8 +21,10 @@ import com.carddemo.batch.step.Step;
 import com.carddemo.records.Fields;
 
 /**
- * DFSORT for the control statements TRANREPT, COMBTRAN and CREASTMT actually code. Anything else ends RC 12.
+ * DFSORT for the control statements the library actually codes. Anything else ends RC 12.
  * Equal keys keep input order, which is one of the orders DFSORT may produce when EQUALS is not coded.
+ * A ZD sort field compares as a signed number. OUTREC may name a SYMNAMES field, write {@code X} or {@code nX},
+ * and edit a zoned field. A record longer than SORTOUT's LRECL is truncated and the step still ends 0.
  */
 @Component
 public final class Sort implements BatchProgram {
@@ -197,7 +200,7 @@ public final class Sort implements BatchProgram {
                     if (outrec != null || !rest.startsWith("FIELDS=")) {
                         throw new ControlError("unsupported statement " + text);
                     }
-                    outrec = outrec(inside(rest.substring("FIELDS=".length()), text));
+                    outrec = outrec(inside(rest.substring("FIELDS=".length()), text), symbols);
                 }
                 default -> throw new ControlError("unsupported statement " + text);
             }
@@ -322,33 +325,91 @@ public final class Sort implements BatchProgram {
                 Integer.parseInt(tokens.get(index + 1)), format(tokens.get(index + 2))), index + 3);
     }
 
-    private static Outrec outrec(String list) {
+    private static Outrec outrec(String list, Map<String, Symbol> symbols) {
         List<String> tokens = tokens(list);
-        List<Slice> slices = new ArrayList<>();
-        for (int i = 0; i < tokens.size(); i += 2) {
-            String placed = tokens.get(i);
-            int colon = placed.indexOf(':');
+        List<Piece> pieces = new ArrayList<>();
+        int cursor = 0;
+        for (int i = 0; i < tokens.size();) {
+            String token = tokens.get(i);
+            int spaces = spaces(token);
+            if (spaces >= 0) {
+                pieces.add(new Piece.Blank(cursor, spaces));
+                cursor += spaces;
+                i++;
+                continue;
+            }
+            Symbol symbol = symbols.get(token);
+            if (symbol instanceof Symbol.Field field) {
+                if (i + 1 < tokens.size() && tokens.get(i + 1).startsWith("EDIT=")) {
+                    String mask = editMask(tokens.get(i + 1));
+                    pieces.add(new Piece.Edited(cursor, field.offset(), field.length(), mask));
+                    cursor += mask.length();
+                    i += 2;
+                } else {
+                    pieces.add(new Piece.Copied(cursor, field.offset(), field.length()));
+                    cursor += field.length();
+                    i++;
+                }
+                continue;
+            }
+            if (symbol != null) {
+                throw new ControlError("OUTREC cannot name constant " + token);
+            }
+            int colon = token.indexOf(':');
             if (colon <= 0 || i + 1 >= tokens.size()) {
                 throw new ControlError("unsupported OUTREC FIELDS (" + list + ")");
             }
-            slices.add(new Slice(Integer.parseInt(placed.substring(0, colon)) - 1,
-                    Integer.parseInt(placed.substring(colon + 1)) - 1, Integer.parseInt(tokens.get(i + 1))));
+            int column = Integer.parseInt(token.substring(0, colon)) - 1;
+            int offset = Integer.parseInt(token.substring(colon + 1)) - 1;
+            int length = Integer.parseInt(tokens.get(i + 1));
+            pieces.add(new Piece.Copied(column, offset, length));
+            cursor = column + length;
+            i += 2;
         }
-        if (slices.isEmpty()) {
+        if (pieces.isEmpty()) {
             throw new ControlError("unsupported OUTREC FIELDS (" + list + ")");
         }
-        return new Outrec(slices);
+        return new Outrec(pieces);
     }
 
     private static List<String> tokens(String list) {
         List<String> tokens = new ArrayList<>();
-        for (String token : list.split(",")) {
-            String text = token.strip();
-            if (!text.isEmpty()) {
-                tokens.add(text);
+        int depth = 0;
+        int start = 0;
+        for (int i = 0; i <= list.length(); i++) {
+            char c = i == list.length() ? ',' : list.charAt(i);
+            if (i < list.length() && c == '(') {
+                depth++;
+            } else if (i < list.length() && c == ')') {
+                depth--;
+            } else if (depth == 0 && c == ',') {
+                String text = list.substring(start, i).strip();
+                if (!text.isEmpty()) {
+                    tokens.add(text);
+                }
+                start = i + 1;
             }
         }
         return tokens;
+    }
+
+    /** {@code X} is one space and {@code nX} is n spaces. Anything else is not a space item. */
+    private static int spaces(String token) {
+        if (token.equals("X")) {
+            return 1;
+        }
+        if (token.length() > 1 && token.charAt(token.length() - 1) == 'X'
+                && token.substring(0, token.length() - 1).chars().allMatch(Character::isDigit)) {
+            return Integer.parseInt(token.substring(0, token.length() - 1));
+        }
+        return -1;
+    }
+
+    private static String editMask(String token) {
+        if (!token.startsWith("EDIT=(") || !token.endsWith(")")) {
+            throw new ControlError("unsupported EDIT " + token);
+        }
+        return token.substring("EDIT=(".length(), token.length() - 1);
     }
 
     private static String order(List<String> tokens, int index) {
@@ -422,25 +483,92 @@ public final class Sort implements BatchProgram {
         }
     }
 
-    private record Slice(int column, int offset, int length) {}
+    private sealed interface Piece {
+        int column();
 
-    private record Outrec(List<Slice> slices) {
-        byte[] apply(byte[] record) {
-            int end = 0;
-            for (Slice slice : slices) {
-                end = Math.max(end, slice.column() + slice.length());
-                if (slice.offset() < 0 || slice.length() < 0 || slice.offset() + slice.length() > record.length) {
-                    throw new ControlError("OUTREC field " + (slice.offset() + 1) + "," + slice.length()
+        int width();
+
+        void write(byte[] record, byte[] out);
+
+        record Copied(int column, int offset, int length) implements Piece {
+            @Override
+            public int width() {
+                return length;
+            }
+
+            @Override
+            public void write(byte[] record, byte[] out) {
+                if (offset < 0 || length < 0 || offset + length > record.length) {
+                    throw new ControlError("OUTREC field " + (offset + 1) + "," + length
                             + " is outside a " + record.length + " byte record");
                 }
+                System.arraycopy(record, offset, out, column, length);
+            }
+        }
+
+        record Blank(int column, int length) implements Piece {
+            @Override
+            public int width() {
+                return length;
+            }
+
+            @Override
+            public void write(byte[] record, byte[] out) {
+            }
+        }
+
+        record Edited(int column, int offset, int length, String mask) implements Piece {
+            @Override
+            public int width() {
+                return mask.length();
+            }
+
+            @Override
+            public void write(byte[] record, byte[] out) {
+                byte[] edited = edit(slice(record, offset, length), mask);
+                System.arraycopy(edited, 0, out, column, edited.length);
+            }
+        }
+    }
+
+    private record Outrec(List<Piece> pieces) {
+        byte[] apply(byte[] record) {
+            int end = 0;
+            for (Piece piece : pieces) {
+                end = Math.max(end, piece.column() + piece.width());
             }
             byte[] out = new byte[end];
             Arrays.fill(out, (byte) ' ');
-            for (Slice slice : slices) {
-                System.arraycopy(record, slice.offset(), out, slice.column(), slice.length());
+            for (Piece piece : pieces) {
+                piece.write(record, out);
             }
             return out;
         }
+    }
+
+    @LegacyDefect(id = "PRTCATBL-edit-drops-balance-sign",
+            goldens = "catbal-print-drops-balance-sign",
+            behavior = "PRTCATBL's OUTREC mask EDIT=(TTTTTTTTT.TT) prints a zoned balance's digits and a decimal point "
+                    + "and no sign, so a negative balance appears positive",
+            fix = "print the sign when the mask asks for one")
+    private static byte[] edit(byte[] raw, String mask) {
+        if (!Fields.isZoned(raw, 0, raw.length, true)) {
+            throw new ControlError("EDIT field is not zoned decimal");
+        }
+        String digits = Fields.zoned(raw, 0, raw.length, 0).abs().toBigInteger().toString();
+        int count = (int) mask.chars().filter(ch -> ch == 'T').count();
+        if (digits.length() < count) {
+            digits = "0".repeat(count - digits.length()) + digits;
+        } else if (digits.length() > count) {
+            digits = digits.substring(digits.length() - count);
+        }
+        byte[] out = new byte[mask.length()];
+        int used = 0;
+        for (int i = 0; i < mask.length(); i++) {
+            char ch = mask.charAt(i);
+            out[i] = (byte) (ch == 'T' ? digits.charAt(used++) : ch);
+        }
+        return out;
     }
 
     private record Request(List<Key> keyList, Condition include, Outrec outrec) {

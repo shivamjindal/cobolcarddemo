@@ -138,7 +138,10 @@ class OperatorIT {
         String listed = capture(() -> assertEquals(0, operator.execute(List.of("chains"))));
         assertTrue(listed.contains("CA7_030_POSTING runnable"), listed);
         assertTrue(listed.contains("CONTROLM_MONTHLY_INTEREST runnable"), listed);
-        assertTrue(listed.contains("CA7_031_CATBAL cannot run: PRTCATBL"), listed);
+        assertTrue(listed.contains("CA7_030_REFERENCE runnable"), listed);
+        assertTrue(listed.contains("CA7_031_CATBAL runnable"), listed);
+        assertTrue(listed.contains("CONTROLM_WEEKLY_DISCLOSURE runnable"), listed);
+        assertFalse(listed.contains("cannot run"), listed);
         assertEquals(chains.all().size(), listed.strip().lines().count());
         String absent = LocalDate.of(2099, 1, 1).plusDays(Math.floorMod(System.nanoTime(), 3000)).toString();
         String refused = captureErr(() -> assertEquals(4, operator.execute(List.of("abandon", "CA7_030_POSTING", absent))));

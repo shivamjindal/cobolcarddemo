@@ -4,6 +4,7 @@ import static java.nio.charset.StandardCharsets.ISO_8859_1;
 
 import java.util.ArrayList;
 import java.util.Arrays;
+import java.util.HashSet;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
@@ -26,13 +27,15 @@ import com.carddemo.records.KeyedTable;
 import com.carddemo.vsam.KeyRange;
 
 /**
- * IDCAMS for the statements REPROC, TRANBKP, COMBTRAN and CREASTMT code. Anything else ends RC 12.
+ * IDCAMS for REPROC, TRANBKP, COMBTRAN, CREASTMT and the reference reloads. Anything else ends RC 12.
  *
- * <p>REPRO into a KSDS without REPLACE counts duplicate keys and stops at ERRORLIMIT. z/OS DFSMS documents
- * that limit as 4: the command ends with condition code 12 once four records have been rejected, and a smaller
- * number of duplicates completes with condition code 8. DEFINE CLUSTER empties the named cluster and returns 0,
- * including when the cluster already exists, because these clusters are tables that stay in the schema.
- * DELETE ALTERNATEINDEX of a known alternate index returns 0 and leaves the SQL index in place.
+ * <p>REPRO into a KSDS without REPLACE counts rejected records and stops at ERRORLIMIT. z/OS DFSMS documents
+ * that limit as 4: the command ends with condition code 12 once four records have been rejected, and fewer
+ * rejections complete with condition code 8. A duplicate key is rejected. When the KSDS is empty at the start
+ * of the command, a key that is not above the last one written is rejected too, as out of sequence. DEFINE
+ * CLUSTER empties the named cluster and returns 0, including when the cluster already exists, because these
+ * clusters are tables that stay in the schema. DELETE ALTERNATEINDEX of a known alternate index returns 0 and
+ * leaves the SQL index in place.
  */
 @Component
 public final class Idcams implements BatchProgram {
@@ -191,8 +194,8 @@ public final class Idcams implements BatchProgram {
     private static int writeDd(Step step, DatasetStore datasets, String dd, List<byte[]> source, List<String> messages) {
         Optional<KeyedTable> table = tableOn(dd, step);
         if (table.isPresent()) {
-            return loadTable(record -> datasets.insertCluster(table.get(), record), table.get().recordLength(), source,
-                    messages);
+            return loadTable(record -> datasets.insertCluster(table.get(), record), table.get(),
+                    datasets.readNamed(table.get().dsn()).orElse(List.of()).isEmpty(), source, messages);
         }
         Optional<KeyRange> key = step.key(dd);
         if (key.isPresent()) {
@@ -222,8 +225,8 @@ public final class Idcams implements BatchProgram {
     private static int writeDataset(DatasetStore datasets, String name, List<byte[]> source, List<String> messages) {
         Optional<KeyedTable> table = KeyedTable.byDsn(name);
         if (table.isPresent()) {
-            return loadTable(record -> datasets.insertCluster(table.get(), record), table.get().recordLength(), source,
-                    messages);
+            return loadTable(record -> datasets.insertCluster(table.get(), record), table.get(),
+                    datasets.readNamed(table.get().dsn()).orElse(List.of()).isEmpty(), source, messages);
         }
         Optional<KeyRange> key = datasets.keyOf(name);
         if (key.isPresent()) {
@@ -241,6 +244,8 @@ public final class Idcams implements BatchProgram {
         for (byte[] existing : datasets.readNamed(name).orElse(List.of())) {
             records.put(new Key(Arrays.copyOfRange(existing, key.offset(), key.offset() + key.length())), existing);
         }
+        boolean sequence = records.isEmpty();
+        byte[] last = null;
         int errors = 0;
         int rc = 0;
         int lrecl = datasets.lreclOf(name);
@@ -249,14 +254,10 @@ public final class Idcams implements BatchProgram {
             if (record == null || record.length < key.offset() + key.length()) {
                 errors++;
                 messages.add("IDC3314I RECORD " + (i + 1) + " NOT WRITTEN, WRONG LENGTH");
+            } else if (!accept(records, sequence, last, key, record, i, messages)) {
+                errors++;
             } else {
-                Key id = new Key(Arrays.copyOfRange(record, key.offset(), key.offset() + key.length()));
-                if (records.containsKey(id)) {
-                    errors++;
-                    messages.add("IDC3314I RECORD " + (i + 1) + " NOT WRITTEN, DUPLICATE KEY");
-                } else {
-                    records.put(id, record);
-                }
+                last = keyBytes(record, key);
             }
             if (errors >= ERROR_LIMIT) {
                 rc = FAILED;
@@ -275,17 +276,31 @@ public final class Idcams implements BatchProgram {
         boolean insert(byte[] record);
     }
 
-    private static int loadTable(Insert insert, int lrecl, List<byte[]> source, List<String> messages) {
+    private static int loadTable(Insert insert, KeyedTable table, boolean empty, List<byte[]> source,
+            List<String> messages) {
+        Set<Key> written = new HashSet<>();
+        byte[] last = null;
         int errors = 0;
         int rc = 0;
+        KeyRange key = table.key();
         for (int i = 0; i < source.size(); i++) {
-            byte[] record = fit(source.get(i), lrecl);
+            byte[] record = fit(source.get(i), table.recordLength());
             if (record == null) {
                 errors++;
                 messages.add("IDC3314I RECORD " + (i + 1) + " NOT WRITTEN, WRONG LENGTH");
-            } else if (!insert.insert(record)) {
-                errors++;
-                messages.add("IDC3314I RECORD " + (i + 1) + " NOT WRITTEN, DUPLICATE KEY");
+            } else {
+                byte[] id = keyBytes(record, key);
+                String reason = rejection(empty, last, id, written.contains(new Key(id)));
+                if (reason == null && !insert.insert(record)) {
+                    reason = "DUPLICATE KEY";
+                }
+                if (reason != null) {
+                    errors++;
+                    messages.add("IDC3314I RECORD " + (i + 1) + " NOT WRITTEN, " + reason);
+                } else {
+                    written.add(new Key(id));
+                    last = id;
+                }
             }
             if (errors >= ERROR_LIMIT) {
                 return FAILED;
@@ -300,6 +315,8 @@ public final class Idcams implements BatchProgram {
         for (byte[] existing : readDd(step, dd)) {
             records.put(new Key(Arrays.copyOfRange(existing, key.offset(), key.offset() + key.length())), existing);
         }
+        boolean sequence = records.isEmpty();
+        byte[] last = null;
         int errors = 0;
         int rc = 0;
         int lrecl = step.lrecl(dd);
@@ -308,14 +325,10 @@ public final class Idcams implements BatchProgram {
             if (record == null || record.length < key.offset() + key.length()) {
                 errors++;
                 messages.add("IDC3314I RECORD " + (i + 1) + " NOT WRITTEN, WRONG LENGTH");
+            } else if (!accept(records, sequence, last, key, record, i, messages)) {
+                errors++;
             } else {
-                Key id = new Key(Arrays.copyOfRange(record, key.offset(), key.offset() + key.length()));
-                if (records.containsKey(id)) {
-                    errors++;
-                    messages.add("IDC3314I RECORD " + (i + 1) + " NOT WRITTEN, DUPLICATE KEY");
-                } else {
-                    records.put(id, record);
-                }
+                last = keyBytes(record, key);
             }
             if (errors >= ERROR_LIMIT) {
                 rc = FAILED;
@@ -325,6 +338,35 @@ public final class Idcams implements BatchProgram {
         }
         writeSequential(step, dd, List.copyOf(records.values()));
         return rc;
+    }
+
+    /**
+     * Keeps {@code record} when its key may follow the records already accepted. A rejection message is recorded
+     * and the method returns false.
+     */
+    private static boolean accept(Map<Key, byte[]> records, boolean sequence, byte[] last, KeyRange key, byte[] record,
+            int index, List<String> messages) {
+        byte[] id = keyBytes(record, key);
+        Key wrapped = new Key(id);
+        String reason = rejection(sequence, last, id, records.containsKey(wrapped));
+        if (reason != null) {
+            messages.add("IDC3314I RECORD " + (index + 1) + " NOT WRITTEN, " + reason);
+            return false;
+        }
+        records.put(wrapped, record);
+        return true;
+    }
+
+    /** An empty KSDS accepts only a key above the last one this command wrote. */
+    private static String rejection(boolean sequence, byte[] last, byte[] id, boolean present) {
+        if (sequence && last != null && Arrays.compareUnsigned(id, last) <= 0) {
+            return present ? "DUPLICATE KEY" : "OUT OF SEQUENCE";
+        }
+        return present ? "DUPLICATE KEY" : null;
+    }
+
+    private static byte[] keyBytes(byte[] record, KeyRange key) {
+        return Arrays.copyOfRange(record, key.offset(), key.offset() + key.length());
     }
 
     private static int recordLength(Map<Key, byte[]> records) {

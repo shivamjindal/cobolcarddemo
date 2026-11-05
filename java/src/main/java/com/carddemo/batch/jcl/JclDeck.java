@@ -13,8 +13,10 @@ import java.util.regex.Pattern;
  * The JCL the internal reader accepts: what CORPT00C submits and what the characterization adapter writes. JOB
  * (continued over cards), comments, JCLLIB, {@code EXEC PGM=} with PARM and COND, {@code EXEC PROC=} with
  * {@code procstep.dd} overrides, DD with DSN, DISP, DCB, SYSOUT, DUMMY or instream data, concatenation, and the
- * {@code /*} and {@code /*EOF} delimiters. STEPLIB and JOBLIB DDs are ignored: programs come from the program
- * library. An override DD replaces the procedure's DD whole rather than merging parameters.
+ * {@code /*} and {@code /*EOF} delimiters. A {@code DD *} also ends at the next {@code //} statement. Instream
+ * cards are stored without trailing blanks; a read pads each one to 80. UNIT, SPACE and BLKSIZE are ignored.
+ * STEPLIB and JOBLIB DDs are ignored: programs come from the program library. An override DD replaces the
+ * procedure's DD whole rather than merging parameters.
  */
 public final class JclDeck {
 
@@ -89,7 +91,7 @@ public final class JclDeck {
             if (operation.equals("DD") && (operands.toString().equals("*") || operands.toString().equals("DATA")
                     || operands.toString().startsWith("*,") || operands.toString().startsWith("DATA,"))) {
                 while (i < cards.size() && !cards.get(i).startsWith("//") && !cards.get(i).startsWith("/*")) {
-                    data.add(cards.get(i++));
+                    data.add(cards.get(i++).stripTrailing());
                 }
                 if (i < cards.size() && cards.get(i).startsWith("/*") && !cards.get(i).startsWith("/*EOF")) {
                     i++;
