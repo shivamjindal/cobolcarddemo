@@ -9,7 +9,6 @@ import java.time.ZoneId;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
-import java.util.Set;
 import java.util.TreeSet;
 import java.util.stream.Stream;
 
@@ -33,7 +32,6 @@ import com.fasterxml.jackson.databind.node.ArrayNode;
 import com.fasterxml.jackson.databind.node.ObjectNode;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
-import static org.junit.jupiter.api.Assumptions.assumeFalse;
 
 /**
  * Every batch golden through {@link BatchCase} and the internal reader of this context, compared as
@@ -44,9 +42,6 @@ import static org.junit.jupiter.api.Assumptions.assumeFalse;
         properties = {"carddemo.batch.drivers.enabled=true", "carddemo.batch.reader.poll=PT0.05S"})
 @DirtiesContext
 class BatchGoldensIT {
-
-    /** Programs whose port has not landed; their cases are skipped. */
-    private static final Set<String> PENDING_PROGRAMS = Set.of();
 
     private static final ObjectMapper JSON = new ObjectMapper();
     private static final Path CASES = Path.of("..", "characterization", "cases", "batch");
@@ -88,8 +83,6 @@ class BatchGoldensIT {
     }
 
     private void golden(JsonNode suite, JsonNode testCase) throws Exception {
-        String program = testCase.get("job").get("program").asText();
-        assumeFalse(PENDING_PROGRAMS.contains(program), program + " is not ported yet");
         ObjectNode request = JSON.createObjectNode()
                 .put("kind", suite.get("kind").asText())
                 .put("feature", suite.get("feature").asText())

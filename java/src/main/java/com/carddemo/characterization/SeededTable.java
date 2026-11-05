@@ -30,7 +30,7 @@ import com.fasterxml.jackson.databind.JsonNode;
  * {@code characterization/harness/datasets.py}: records are keyed by their latin-1 key characters, and the
  * diff decodes fields the way the harness does, so the two compare equal.
  */
-final class SeededTable {
+public final class SeededTable {
 
     /** Every keyed dataset of the registry. */
     static final List<String> SEEDED = List.of("USRSEC", "ACCTDATA", "CUSTDATA", "CARDDATA", "CARDXREF", "TRANSACT",
@@ -58,7 +58,7 @@ final class SeededTable {
         return new SeededTable(name, table, HarnessLayout.of(repo, registry, name), repo.resolve(entry.get("source").asText()));
     }
 
-    static List<SeededTable> all(JsonNode registry, Path repo) throws IOException {
+    public static List<SeededTable> all(JsonNode registry, Path repo) throws IOException {
         List<SeededTable> tables = new ArrayList<>();
         for (String name : SEEDED) {
             tables.add(of(registry, repo, name));
@@ -71,7 +71,7 @@ final class SeededTable {
      * cataloged and every CICS file open, in one transaction. A case may delete a record others refer to, as the
      * harness's text files allow, so foreign-key triggers are off while seeding, and with them the cascades.
      */
-    static void seed(Connection db, List<SeededTable> tables, JsonNode setup) throws IOException, SQLException {
+    public static void seed(Connection db, List<SeededTable> tables, JsonNode setup) throws IOException, SQLException {
         db.setAutoCommit(false);
         try (Statement replica = db.createStatement()) {
             replica.execute("SET LOCAL session_replication_role = replica");

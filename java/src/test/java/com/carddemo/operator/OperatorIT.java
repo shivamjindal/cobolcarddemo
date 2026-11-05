@@ -4,6 +4,7 @@ import static java.nio.charset.StandardCharsets.ISO_8859_1;
 
 import java.io.ByteArrayOutputStream;
 import java.io.PrintStream;
+import java.time.LocalDate;
 import java.time.LocalDateTime;
 import java.util.List;
 import java.util.Optional;
@@ -18,6 +19,7 @@ import org.springframework.test.context.DynamicPropertyRegistry;
 import org.springframework.test.context.DynamicPropertySource;
 
 import com.carddemo.TestDatabase;
+import com.carddemo.batch.chains.Chains;
 import com.carddemo.batch.jcl.Dcb;
 import com.carddemo.batch.jcl.Dd;
 import com.carddemo.batch.jcl.DdSource;
@@ -32,8 +34,11 @@ import com.carddemo.batch.runtime.Ran;
 import com.carddemo.batch.runtime.RunIdentity;
 import com.carddemo.jobs.JobQueue;
 import com.carddemo.batch.utilities.Idcams;
+import com.carddemo.cics.CicsFile;
+import com.carddemo.cics.CicsRegion;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
 @SpringBootTest(webEnvironment = SpringBootTest.WebEnvironment.NONE)
@@ -59,6 +64,12 @@ class OperatorIT {
 
     @Autowired
     private JobQueue queue;
+
+    @Autowired
+    private CicsRegion region;
+
+    @Autowired
+    private Chains chains;
 
     @Test
     void outputShowsTheClaimTheStepsAndTheSpoolAndPrintShowsLatin1Records() {
@@ -96,7 +107,29 @@ class OperatorIT {
                 operator.execute(List.of("print", Gdg.TRANREPT.base() + "(0)"))));
         assertTrue(newest.contains("OPERATOR-LINE"), newest);
         assertEquals(4, operator.execute(List.of("print", "TEST.OPERATOR.MISSING")));
-        assertEquals(8, operator.execute(List.of("cemt", "close", "TRANSACT")));
+    }
+
+    @Test
+    void cemtClosesAndOpensAFileAndChainsListsWhatCanRun() {
+        try {
+            assertEquals(0, operator.execute(List.of("cemt", "close", "TRANSACT")));
+            assertTrue(region.closed().contains(CicsFile.TRANSACT));
+            assertEquals(0, operator.execute(List.of("cemt", "open", "TRANSACT")));
+            assertFalse(region.closed().contains(CicsFile.TRANSACT));
+        } finally {
+            region.open(CicsFile.TRANSACT);
+        }
+        assertEquals(8, operator.execute(List.of("cemt", "close", "NOTAFILE")));
+
+        String listed = capture(() -> assertEquals(0, operator.execute(List.of("chains"))));
+        assertTrue(listed.contains("CA7_030_POSTING runnable"), listed);
+        assertTrue(listed.contains("CONTROLM_MONTHLY_INTEREST runnable"), listed);
+        assertTrue(listed.contains("CA7_031_CATBAL cannot run: PRTCATBL"), listed);
+        assertEquals(chains.all().size(), listed.strip().lines().count());
+        String absent = LocalDate.of(2099, 1, 1).plusDays(Math.floorMod(System.nanoTime(), 3000)).toString();
+        String refused = captureErr(() -> assertEquals(4, operator.execute(List.of("abandon", "CA7_030_POSTING", absent))));
+        assertTrue(refused.contains("has not started"), refused);
+        assertEquals(8, operator.execute(List.of("restart", "CA7_030_POSTING")));
     }
 
     private long submit() {
@@ -109,14 +142,31 @@ class OperatorIT {
     }
 
     private static String capture(Runnable action) {
-        PrintStream previous = System.out;
+        return capture(action, false);
+    }
+
+    private static String captureErr(Runnable action) {
+        return capture(action, true);
+    }
+
+    private static String capture(Runnable action, boolean error) {
+        PrintStream previous = error ? System.err : System.out;
         ByteArrayOutputStream buffer = new ByteArrayOutputStream();
-        System.setOut(new PrintStream(buffer, true, ISO_8859_1));
+        PrintStream captured = new PrintStream(buffer, true, ISO_8859_1);
+        if (error) {
+            System.setErr(captured);
+        } else {
+            System.setOut(captured);
+        }
         try {
             action.run();
             return buffer.toString(ISO_8859_1);
         } finally {
-            System.setOut(previous);
+            if (error) {
+                System.setErr(previous);
+            } else {
+                System.setOut(previous);
+            }
         }
     }
 }
