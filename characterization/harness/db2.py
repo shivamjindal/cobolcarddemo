@@ -85,6 +85,8 @@ def reset(data, run_dir):
         for row in _rows(name, data.read(run_dir, name) or []):
             sql.append(f"INSERT INTO {table} ({cols}) VALUES ({', '.join(map(_quote, row))});")
     psql("\n".join(sql))
+    # A setup row may omit the length; the first snapshot must already show the length Db2 holds.
+    dump(data, run_dir)
 
 
 def dump(data, run_dir):
