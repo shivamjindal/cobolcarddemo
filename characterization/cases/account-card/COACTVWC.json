@@ -1,0 +1,841 @@
+{
+  "feature": "account-view",
+  "kind": "online",
+  "programs": [
+    "COACTVWC"
+  ],
+  "cases": [
+    {
+      "id": "account-view-first-display",
+      "title": "Menu option 1 shows the empty account view with the input prompt and the cursor on the account field",
+      "provenance": "observed",
+      "source": "app/cbl/COACTVWC.cbl 0000-MAIN (CDEMO-PGM-ENTER), 1000-SEND-MAP",
+      "steps": [
+        {
+          "do": {
+            "transid": "CC00"
+          }
+        },
+        {
+          "do": {
+            "aid": "ENTER",
+            "fields": {
+              "USERID": "USER0001",
+              "PASSWD": "PASSWORD"
+            }
+          }
+        },
+        {
+          "do": {
+            "aid": "ENTER",
+            "fields": {
+              "OPTION": "1"
+            }
+          },
+          "expect": {
+            "map": "CACTVWA",
+            "fields": {
+              "TRNNAME": "CAVW",
+              "PGMNAME": "COACTVWC",
+              "INFOMSG": "Enter or update id of account to display"
+            },
+            "cursor": "ACCTSID"
+          }
+        }
+      ]
+    },
+    {
+      "id": "account-view-blank-account",
+      "title": "ENTER with no account: 'Account number not provided' is overwritten by 'No input received' and the field shows a red '*' (legacy quirk)",
+      "provenance": "observed",
+      "source": "app/cbl/COACTVWC.cbl 2200-EDIT-MAP-INPUTS, 2210-EDIT-ACCOUNT, 1300-SETUP-SCREEN-ATTRS",
+      "steps": [
+        {
+          "do": {
+            "transid": "CC00"
+          }
+        },
+        {
+          "do": {
+            "aid": "ENTER",
+            "fields": {
+              "USERID": "USER0001",
+              "PASSWD": "PASSWORD"
+            }
+          }
+        },
+        {
+          "do": {
+            "aid": "ENTER",
+            "fields": {
+              "OPTION": "1"
+            }
+          }
+        },
+        {
+          "do": {
+            "aid": "ENTER"
+          },
+          "expect": {
+            "map": "CACTVWA",
+            "fields": {
+              "TRNNAME": "CAVW",
+              "PGMNAME": "COACTVWC",
+              "ACCTSID": "*",
+              "INFOMSG": "Enter or update id of account to display",
+              "ERRMSG": "No input received"
+            },
+            "colors": {
+              "ACCTSID": "RED"
+            },
+            "cursor": "ACCTSID"
+          }
+        }
+      ]
+    },
+    {
+      "id": "account-view-star-account",
+      "title": "An account of '*' is treated the same as a blank account",
+      "provenance": "observed",
+      "source": "app/cbl/COACTVWC.cbl 2200-EDIT-MAP-INPUTS (REPLACE * WITH LOW-VALUES)",
+      "steps": [
+        {
+          "do": {
+            "transid": "CC00"
+          }
+        },
+        {
+          "do": {
+            "aid": "ENTER",
+            "fields": {
+              "USERID": "USER0001",
+              "PASSWD": "PASSWORD"
+            }
+          }
+        },
+        {
+          "do": {
+            "aid": "ENTER",
+            "fields": {
+              "OPTION": "1"
+            }
+          }
+        },
+        {
+          "do": {
+            "aid": "ENTER",
+            "fields": {
+              "ACCTSID": "*"
+            }
+          },
+          "expect": {
+            "map": "CACTVWA",
+            "fields": {
+              "TRNNAME": "CAVW",
+              "PGMNAME": "COACTVWC",
+              "ACCTSID": "*",
+              "INFOMSG": "Enter or update id of account to display",
+              "ERRMSG": "No input received"
+            },
+            "colors": {
+              "ACCTSID": "RED"
+            },
+            "cursor": "ACCTSID"
+          }
+        }
+      ]
+    },
+    {
+      "id": "account-view-non-numeric",
+      "title": "A non-numeric account is rejected in red with the non-zero 11 digit message (double space in 'must  be' is legacy text)",
+      "provenance": "observed",
+      "source": "app/cbl/COACTVWC.cbl 2210-EDIT-ACCOUNT",
+      "steps": [
+        {
+          "do": {
+            "transid": "CC00"
+          }
+        },
+        {
+          "do": {
+            "aid": "ENTER",
+            "fields": {
+              "USERID": "USER0001",
+              "PASSWD": "PASSWORD"
+            }
+          }
+        },
+        {
+          "do": {
+            "aid": "ENTER",
+            "fields": {
+              "OPTION": "1"
+            }
+          }
+        },
+        {
+          "do": {
+            "aid": "ENTER",
+            "fields": {
+              "ACCTSID": "ABC"
+            }
+          },
+          "expect": {
+            "map": "CACTVWA",
+            "fields": {
+              "TRNNAME": "CAVW",
+              "PGMNAME": "COACTVWC",
+              "ACCTSID": "ABC",
+              "INFOMSG": "Enter or update id of account to display",
+              "ERRMSG": "Account Filter must  be a non-zero 11 digit number"
+            },
+            "colors": {
+              "ACCTSID": "RED"
+            },
+            "cursor": "ACCTSID"
+          }
+        }
+      ]
+    },
+    {
+      "id": "account-view-zero-account",
+      "title": "An all-zero account is rejected with the same message as non-numeric",
+      "provenance": "observed",
+      "source": "app/cbl/COACTVWC.cbl 2210-EDIT-ACCOUNT (CC-ACCT-ID EQUAL ZEROES)",
+      "steps": [
+        {
+          "do": {
+            "transid": "CC00"
+          }
+        },
+        {
+          "do": {
+            "aid": "ENTER",
+            "fields": {
+              "USERID": "USER0001",
+              "PASSWD": "PASSWORD"
+            }
+          }
+        },
+        {
+          "do": {
+            "aid": "ENTER",
+            "fields": {
+              "OPTION": "1"
+            }
+          }
+        },
+        {
+          "do": {
+            "aid": "ENTER",
+            "fields": {
+              "ACCTSID": "00000000000"
+            }
+          },
+          "expect": {
+            "map": "CACTVWA",
+            "fields": {
+              "TRNNAME": "CAVW",
+              "PGMNAME": "COACTVWC",
+              "ACCTSID": "00000000000",
+              "INFOMSG": "Enter or update id of account to display",
+              "ERRMSG": "Account Filter must  be a non-zero 11 digit number"
+            },
+            "colors": {
+              "ACCTSID": "RED"
+            },
+            "cursor": "ACCTSID"
+          }
+        }
+      ]
+    },
+    {
+      "id": "account-view-short-account",
+      "title": "A short account number '1' (not zero padded) is rejected as not an 11 digit number",
+      "provenance": "observed",
+      "source": "app/cbl/COACTVWC.cbl 2210-EDIT-ACCOUNT (IS NOT NUMERIC)",
+      "steps": [
+        {
+          "do": {
+            "transid": "CC00"
+          }
+        },
+        {
+          "do": {
+            "aid": "ENTER",
+            "fields": {
+              "USERID": "USER0001",
+              "PASSWD": "PASSWORD"
+            }
+          }
+        },
+        {
+          "do": {
+            "aid": "ENTER",
+            "fields": {
+              "OPTION": "1"
+            }
+          }
+        },
+        {
+          "do": {
+            "aid": "ENTER",
+            "fields": {
+              "ACCTSID": "1"
+            }
+          },
+          "expect": {
+            "map": "CACTVWA",
+            "fields": {
+              "TRNNAME": "CAVW",
+              "PGMNAME": "COACTVWC",
+              "ACCTSID": "1",
+              "INFOMSG": "Enter or update id of account to display",
+              "ERRMSG": "Account Filter must  be a non-zero 11 digit number"
+            },
+            "colors": {
+              "ACCTSID": "RED"
+            },
+            "cursor": "ACCTSID"
+          }
+        }
+      ]
+    },
+    {
+      "id": "account-view-not-in-xref",
+      "title": "An account with no card cross-reference reports 'not found in Cross ref file' with the RESP/RESP2 codes",
+      "provenance": "observed",
+      "source": "app/cbl/COACTVWC.cbl 9000-READ-ACCT, 9200-GETCARDXREF-BYACCT (NOTFND)",
+      "steps": [
+        {
+          "do": {
+            "transid": "CC00"
+          }
+        },
+        {
+          "do": {
+            "aid": "ENTER",
+            "fields": {
+              "USERID": "USER0001",
+              "PASSWD": "PASSWORD"
+            }
+          }
+        },
+        {
+          "do": {
+            "aid": "ENTER",
+            "fields": {
+              "OPTION": "1"
+            }
+          }
+        },
+        {
+          "do": {
+            "aid": "ENTER",
+            "fields": {
+              "ACCTSID": "00000000099"
+            }
+          },
+          "expect": {
+            "map": "CACTVWA",
+            "fields": {
+              "TRNNAME": "CAVW",
+              "PGMNAME": "COACTVWC",
+              "ACCTSID": "00000000099",
+              "INFOMSG": "Enter or update id of account to display",
+              "ERRMSG": "Account:00000000099 not found in Cross ref file.  Resp:000000013  Reas:0000"
+            },
+            "colors": {
+              "ACCTSID": "RED"
+            },
+            "cursor": "ACCTSID"
+          }
+        }
+      ]
+    },
+    {
+      "id": "account-view-not-in-acctdat",
+      "title": "Account missing from the account master: the error shows but the customer is still read and displayed because the DID-NOT-FIND flag is commented out (legacy quirk); amounts come from never-read storage and are not pinned",
+      "provenance": "observed",
+      "source": "app/cbl/COACTVWC.cbl 9300-GETACCTDATA-BYACCT (NOTFND), 9000-READ-ACCT, 1200-SETUP-SCREEN-VARS",
+      "setup": {
+        "ACCTDATA": {
+          "delete": [
+            "00000000001"
+          ]
+        }
+      },
+      "steps": [
+        {
+          "do": {
+            "transid": "CC00"
+          }
+        },
+        {
+          "do": {
+            "aid": "ENTER",
+            "fields": {
+              "USERID": "USER0001",
+              "PASSWD": "PASSWORD"
+            }
+          }
+        },
+        {
+          "do": {
+            "aid": "ENTER",
+            "fields": {
+              "OPTION": "1"
+            }
+          }
+        },
+        {
+          "do": {
+            "aid": "ENTER",
+            "fields": {
+              "ACCTSID": "00000000001"
+            }
+          },
+          "expect": {
+            "map": "CACTVWA",
+            "fields": {
+              "TRNNAME": "CAVW",
+              "PGMNAME": "COACTVWC",
+              "ACCTSID": "00000000001",
+              "ACSTNUM": "000000001",
+              "ACSTSSN": "020-97-3888",
+              "ACSTDOB": "1961-06-08",
+              "ACSTFCO": "274",
+              "ACSFNAM": "Immanuel",
+              "ACSMNAM": "Madeline",
+              "ACSLNAM": "Kessler",
+              "ACSADL1": "618 Deshaun Route",
+              "ACSSTTE": "NC",
+              "ACSADL2": "Apt. 802",
+              "ACSZIPC": "12546",
+              "ACSCITY": "Altenwerthshire",
+              "ACSCTRY": "USA",
+              "ACSPHN1": "(908)119-8310",
+              "ACSGOVT": "00000000000049368437",
+              "ACSPHN2": "(373)693-8684",
+              "ACSEFTC": "0053581756",
+              "ACSPFLG": "Y",
+              "INFOMSG": "Enter or update id of account to display",
+              "ERRMSG": "Account:00000000001 not found in Acct Master file.Resp:000000013  Reas:0000"
+            },
+            "colors": {
+              "ACCTSID": "RED"
+            },
+            "cursor": "ACCTSID"
+          },
+          "match": "subset"
+        }
+      ]
+    },
+    {
+      "id": "account-view-cust-not-found",
+      "title": "Account found but customer missing: account fields are shown with the 'not found in customer master' error",
+      "provenance": "observed",
+      "source": "app/cbl/COACTVWC.cbl 9400-GETCUSTDATA-BYCUST (NOTFND), 1200-SETUP-SCREEN-VARS (FOUND-ACCT-IN-MASTER)",
+      "setup": {
+        "CUSTDATA": {
+          "delete": [
+            "000000001"
+          ]
+        }
+      },
+      "steps": [
+        {
+          "do": {
+            "transid": "CC00"
+          }
+        },
+        {
+          "do": {
+            "aid": "ENTER",
+            "fields": {
+              "USERID": "USER0001",
+              "PASSWD": "PASSWORD"
+            }
+          }
+        },
+        {
+          "do": {
+            "aid": "ENTER",
+            "fields": {
+              "OPTION": "1"
+            }
+          }
+        },
+        {
+          "do": {
+            "aid": "ENTER",
+            "fields": {
+              "ACCTSID": "00000000001"
+            }
+          },
+          "expect": {
+            "map": "CACTVWA",
+            "fields": {
+              "TRNNAME": "CAVW",
+              "PGMNAME": "COACTVWC",
+              "ACCTSID": "00000000001",
+              "ACSTTUS": "Y",
+              "ADTOPEN": "2014-11-20",
+              "ACRDLIM": "+      2,020.00",
+              "AEXPDT": "2025-05-20",
+              "ACSHLIM": "+      1,020.00",
+              "AREISDT": "2025-05-20",
+              "ACURBAL": "+        194.00",
+              "ACRCYCR": "+           .00",
+              "ACRCYDB": "+           .00",
+              "INFOMSG": "Enter or update id of account to display",
+              "ERRMSG": "CustId:000000001 not found in customer master.Resp: 000000013  REAS:0000000"
+            },
+            "cursor": "ACCTSID"
+          }
+        }
+      ]
+    },
+    {
+      "id": "account-view-success",
+      "title": "A valid account shows account and customer details; the info line stays on the input prompt, never 'Displaying details' (legacy quirk)",
+      "provenance": "observed",
+      "source": "app/cbl/COACTVWC.cbl 9000-READ-ACCT, 1200-SETUP-SCREEN-VARS",
+      "steps": [
+        {
+          "do": {
+            "transid": "CC00"
+          }
+        },
+        {
+          "do": {
+            "aid": "ENTER",
+            "fields": {
+              "USERID": "USER0001",
+              "PASSWD": "PASSWORD"
+            }
+          }
+        },
+        {
+          "do": {
+            "aid": "ENTER",
+            "fields": {
+              "OPTION": "1"
+            }
+          }
+        },
+        {
+          "do": {
+            "aid": "ENTER",
+            "fields": {
+              "ACCTSID": "00000000001"
+            }
+          },
+          "expect": {
+            "map": "CACTVWA",
+            "fields": {
+              "TRNNAME": "CAVW",
+              "PGMNAME": "COACTVWC",
+              "ACCTSID": "00000000001",
+              "ACSTTUS": "Y",
+              "ADTOPEN": "2014-11-20",
+              "ACRDLIM": "+      2,020.00",
+              "AEXPDT": "2025-05-20",
+              "ACSHLIM": "+      1,020.00",
+              "AREISDT": "2025-05-20",
+              "ACURBAL": "+        194.00",
+              "ACRCYCR": "+           .00",
+              "ACRCYDB": "+           .00",
+              "ACSTNUM": "000000001",
+              "ACSTSSN": "020-97-3888",
+              "ACSTDOB": "1961-06-08",
+              "ACSTFCO": "274",
+              "ACSFNAM": "Immanuel",
+              "ACSMNAM": "Madeline",
+              "ACSLNAM": "Kessler",
+              "ACSADL1": "618 Deshaun Route",
+              "ACSSTTE": "NC",
+              "ACSADL2": "Apt. 802",
+              "ACSZIPC": "12546",
+              "ACSCITY": "Altenwerthshire",
+              "ACSCTRY": "USA",
+              "ACSPHN1": "(908)119-8310",
+              "ACSGOVT": "00000000000049368437",
+              "ACSPHN2": "(373)693-8684",
+              "ACSEFTC": "0053581756",
+              "ACSPFLG": "Y",
+              "INFOMSG": "Enter or update id of account to display"
+            },
+            "cursor": "ACCTSID"
+          }
+        }
+      ]
+    },
+    {
+      "id": "account-view-success-unpadded",
+      "title": "Account 50 shows details for the last account; the SSN is formatted NNN-NN-NNNN",
+      "provenance": "observed",
+      "source": "app/cbl/COACTVWC.cbl 9000-READ-ACCT, 1200-SETUP-SCREEN-VARS (STRING CUST-SSN)",
+      "steps": [
+        {
+          "do": {
+            "transid": "CC00"
+          }
+        },
+        {
+          "do": {
+            "aid": "ENTER",
+            "fields": {
+              "USERID": "USER0001",
+              "PASSWD": "PASSWORD"
+            }
+          }
+        },
+        {
+          "do": {
+            "aid": "ENTER",
+            "fields": {
+              "OPTION": "1"
+            }
+          }
+        },
+        {
+          "do": {
+            "aid": "ENTER",
+            "fields": {
+              "ACCTSID": "00000000050"
+            }
+          },
+          "expect": {
+            "map": "CACTVWA",
+            "fields": {
+              "TRNNAME": "CAVW",
+              "PGMNAME": "COACTVWC",
+              "ACCTSID": "00000000050",
+              "ACSTTUS": "Y",
+              "ADTOPEN": "2011-04-22",
+              "ACRDLIM": "+      6,169.00",
+              "AEXPDT": "2023-03-09",
+              "ACSHLIM": "+      4,587.00",
+              "AREISDT": "2023-03-09",
+              "ACURBAL": "+        492.00",
+              "ACRCYCR": "+           .00",
+              "ACRCYDB": "+           .00",
+              "ACSTNUM": "000000050",
+              "ACSTSSN": "931-24-8469",
+              "ACSTDOB": "1960-12-01",
+              "ACSTFCO": "623",
+              "ACSFNAM": "Aniya",
+              "ACSMNAM": "Alba",
+              "ACSLNAM": "Von",
+              "ACSADL1": "1588 Nienow Cape",
+              "ACSSTTE": "OR",
+              "ACSADL2": "Suite 187",
+              "ACSZIPC": "04257",
+              "ACSCITY": "New Aricchester",
+              "ACSCTRY": "USA",
+              "ACSPHN1": "(325)301-0827",
+              "ACSGOVT": "00000000000030387824",
+              "ACSPHN2": "(493)985-9283",
+              "ACSEFTC": "0074883577",
+              "ACSPFLG": "Y",
+              "INFOMSG": "Enter or update id of account to display"
+            },
+            "cursor": "ACCTSID"
+          }
+        }
+      ]
+    },
+    {
+      "id": "account-view-pf3-to-menu",
+      "title": "PF3 returns to the main menu",
+      "provenance": "observed",
+      "source": "app/cbl/COACTVWC.cbl 0000-MAIN (CCARD-AID-PFK03 XCTL)",
+      "steps": [
+        {
+          "do": {
+            "transid": "CC00"
+          }
+        },
+        {
+          "do": {
+            "aid": "ENTER",
+            "fields": {
+              "USERID": "USER0001",
+              "PASSWD": "PASSWORD"
+            }
+          }
+        },
+        {
+          "do": {
+            "aid": "ENTER",
+            "fields": {
+              "OPTION": "1"
+            }
+          }
+        },
+        {
+          "do": {
+            "aid": "PF3"
+          },
+          "expect": {
+            "map": "COMEN1A",
+            "fields": {
+              "TRNNAME": "CM00",
+              "PGMNAME": "COMEN01C",
+              "OPTN001": "01. Account View",
+              "OPTN002": "02. Account Update",
+              "OPTN003": "03. Credit Card List",
+              "OPTN004": "04. Credit Card View",
+              "OPTN005": "05. Credit Card Update",
+              "OPTN006": "06. Transaction List",
+              "OPTN007": "07. Transaction View",
+              "OPTN008": "08. Transaction Add",
+              "OPTN009": "09. Transaction Reports",
+              "OPTN010": "10. Bill Payment",
+              "OPTN011": "11. Pending Authorization View"
+            },
+            "cursor": "OPTION"
+          }
+        }
+      ]
+    },
+    {
+      "id": "account-view-pf3-after-view",
+      "title": "PF3 after viewing an account returns to the main menu",
+      "provenance": "observed",
+      "source": "app/cbl/COACTVWC.cbl 0000-MAIN (CCARD-AID-PFK03 XCTL)",
+      "steps": [
+        {
+          "do": {
+            "transid": "CC00"
+          }
+        },
+        {
+          "do": {
+            "aid": "ENTER",
+            "fields": {
+              "USERID": "USER0001",
+              "PASSWD": "PASSWORD"
+            }
+          }
+        },
+        {
+          "do": {
+            "aid": "ENTER",
+            "fields": {
+              "OPTION": "1"
+            }
+          }
+        },
+        {
+          "do": {
+            "aid": "ENTER",
+            "fields": {
+              "ACCTSID": "00000000001"
+            }
+          }
+        },
+        {
+          "do": {
+            "aid": "PF3"
+          },
+          "expect": {
+            "map": "COMEN1A",
+            "fields": {
+              "TRNNAME": "CM00",
+              "PGMNAME": "COMEN01C",
+              "OPTN001": "01. Account View",
+              "OPTN002": "02. Account Update",
+              "OPTN003": "03. Credit Card List",
+              "OPTN004": "04. Credit Card View",
+              "OPTN005": "05. Credit Card Update",
+              "OPTN006": "06. Transaction List",
+              "OPTN007": "07. Transaction View",
+              "OPTN008": "08. Transaction Add",
+              "OPTN009": "09. Transaction Reports",
+              "OPTN010": "10. Bill Payment",
+              "OPTN011": "11. Pending Authorization View"
+            },
+            "cursor": "OPTION"
+          }
+        }
+      ]
+    },
+    {
+      "id": "account-view-invalid-key-acts-as-enter",
+      "title": "An unsupported key (PF5) is treated as ENTER and looks up the typed account (legacy quirk)",
+      "provenance": "observed",
+      "source": "app/cbl/COACTVWC.cbl 0000-MAIN (PFK-INVALID -> CCARD-AID-ENTER)",
+      "steps": [
+        {
+          "do": {
+            "transid": "CC00"
+          }
+        },
+        {
+          "do": {
+            "aid": "ENTER",
+            "fields": {
+              "USERID": "USER0001",
+              "PASSWD": "PASSWORD"
+            }
+          }
+        },
+        {
+          "do": {
+            "aid": "ENTER",
+            "fields": {
+              "OPTION": "1"
+            }
+          }
+        },
+        {
+          "do": {
+            "aid": "PF5",
+            "fields": {
+              "ACCTSID": "00000000002"
+            }
+          },
+          "expect": {
+            "map": "CACTVWA",
+            "fields": {
+              "TRNNAME": "CAVW",
+              "PGMNAME": "COACTVWC",
+              "ACCTSID": "00000000002",
+              "ACSTTUS": "Y",
+              "ADTOPEN": "2013-06-19",
+              "ACRDLIM": "+      6,130.00",
+              "AEXPDT": "2024-08-11",
+              "ACSHLIM": "+      5,448.00",
+              "AREISDT": "2024-08-11",
+              "ACURBAL": "+        158.00",
+              "ACRCYCR": "+           .00",
+              "ACRCYDB": "+           .00",
+              "ACSTNUM": "000000002",
+              "ACSTSSN": "587-51-8382",
+              "ACSTDOB": "1961-10-08",
+              "ACSTFCO": "268",
+              "ACSFNAM": "Enrico",
+              "ACSMNAM": "April",
+              "ACSLNAM": "Rosenbaum",
+              "ACSADL1": "4917 Myrna Flats",
+              "ACSSTTE": "IN",
+              "ACSADL2": "Apt. 453",
+              "ACSZIPC": "22770",
+              "ACSCITY": "West Bernita",
+              "ACSCTRY": "USA",
+              "ACSPHN1": "(429)706-9510",
+              "ACSGOVT": "00000000000506210371",
+              "ACSPHN2": "(744)950-5272",
+              "ACSEFTC": "0069194009",
+              "ACSPFLG": "Y",
+              "INFOMSG": "Enter or update id of account to display"
+            },
+            "cursor": "ACCTSID"
+          }
+        }
+      ]
+    }
+  ]
+}

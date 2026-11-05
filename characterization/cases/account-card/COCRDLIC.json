@@ -1,0 +1,1266 @@
+{
+  "feature": "card-list",
+  "kind": "online",
+  "programs": [
+    "COCRDLIC"
+  ],
+  "cases": [
+    {
+      "id": "card-list-first-page",
+      "title": "Menu option 3 lists the first 7 cards in card-number order for any user (no per-user account filtering despite the header comment; legacy quirk)",
+      "provenance": "observed",
+      "source": "app/cbl/COCRDLIC.cbl 0000-MAIN (WHEN OTHER), 9000-READ-FORWARD, 1400-SETUP-MESSAGE",
+      "steps": [
+        {
+          "do": {
+            "transid": "CC00"
+          }
+        },
+        {
+          "do": {
+            "aid": "ENTER",
+            "fields": {
+              "USERID": "USER0001",
+              "PASSWD": "PASSWORD"
+            }
+          }
+        },
+        {
+          "do": {
+            "aid": "ENTER",
+            "fields": {
+              "OPTION": "3"
+            }
+          },
+          "expect": {
+            "map": "CCRDLIA",
+            "fields": {
+              "TRNNAME": "CCLI",
+              "PGMNAME": "COCRDLIC",
+              "PAGENO": "1",
+              "ACCTNO1": "00000000050",
+              "CRDNUM1": "0500024453765740",
+              "CRDSTS1": "Y",
+              "ACCTNO2": "00000000027",
+              "CRDNUM2": "0683586198171516",
+              "CRDSTS2": "Y",
+              "ACCTNO3": "00000000002",
+              "CRDNUM3": "0923877193247330",
+              "CRDSTS3": "Y",
+              "ACCTNO4": "00000000020",
+              "CRDNUM4": "0927987108636232",
+              "CRDSTS4": "Y",
+              "ACCTNO5": "00000000012",
+              "CRDNUM5": "0982496213629795",
+              "CRDSTS5": "Y",
+              "ACCTNO6": "00000000044",
+              "CRDNUM6": "1014086565224350",
+              "CRDSTS6": "Y",
+              "ACCTNO7": "00000000037",
+              "CRDNUM7": "1142167692878931",
+              "CRDSTS7": "Y",
+              "INFOMSG": "TYPE S FOR DETAIL, U TO UPDATE ANY RECORD"
+            },
+            "unprotected": [
+              "CRDSEL1",
+              "CRDSEL2",
+              "CRDSEL3",
+              "CRDSEL4",
+              "CRDSEL5",
+              "CRDSEL6",
+              "CRDSEL7"
+            ],
+            "cursor": "ACCTSID"
+          }
+        }
+      ]
+    },
+    {
+      "id": "card-list-page-down",
+      "title": "PF8 shows the next 7 cards as page 2",
+      "provenance": "observed",
+      "source": "app/cbl/COCRDLIC.cbl 0000-MAIN (PFK08 AND CA-NEXT-PAGE-EXISTS), 9000-READ-FORWARD",
+      "steps": [
+        {
+          "do": {
+            "transid": "CC00"
+          }
+        },
+        {
+          "do": {
+            "aid": "ENTER",
+            "fields": {
+              "USERID": "USER0001",
+              "PASSWD": "PASSWORD"
+            }
+          }
+        },
+        {
+          "do": {
+            "aid": "ENTER",
+            "fields": {
+              "OPTION": "3"
+            }
+          }
+        },
+        {
+          "do": {
+            "aid": "PF8"
+          },
+          "expect": {
+            "map": "CCRDLIA",
+            "fields": {
+              "TRNNAME": "CCLI",
+              "PGMNAME": "COCRDLIC",
+              "PAGENO": "2",
+              "ACCTNO1": "00000000035",
+              "CRDNUM1": "1561409106491600",
+              "CRDSTS1": "Y",
+              "ACCTNO2": "00000000039",
+              "CRDNUM2": "2745303720002090",
+              "CRDSTS2": "Y",
+              "ACCTNO3": "00000000024",
+              "CRDNUM3": "2760836797107565",
+              "CRDSTS3": "Y",
+              "ACCTNO4": "00000000006",
+              "CRDNUM4": "2871968252812490",
+              "CRDSTS4": "Y",
+              "ACCTNO5": "00000000022",
+              "CRDNUM5": "2940139362300449",
+              "CRDSTS5": "Y",
+              "ACCTNO6": "00000000004",
+              "CRDNUM6": "2988091353094312",
+              "CRDSTS6": "Y",
+              "ACCTNO7": "00000000010",
+              "CRDNUM7": "3260763612337560",
+              "CRDSTS7": "Y",
+              "INFOMSG": "TYPE S FOR DETAIL, U TO UPDATE ANY RECORD"
+            },
+            "unprotected": [
+              "CRDSEL1",
+              "CRDSEL2",
+              "CRDSEL3",
+              "CRDSEL4",
+              "CRDSEL5",
+              "CRDSEL6",
+              "CRDSEL7"
+            ],
+            "cursor": "ACCTSID"
+          }
+        }
+      ]
+    },
+    {
+      "id": "card-list-page-up-from-page-2",
+      "title": "PF7 on page 2 reads backwards and shows page 1, but also shows 'NO PREVIOUS PAGES TO DISPLAY' and drops the info line because the page counter is already 1 when the message is built (legacy quirk)",
+      "provenance": "observed",
+      "source": "app/cbl/COCRDLIC.cbl 0000-MAIN (PFK07 AND NOT CA-FIRST-PAGE), 9100-READ-BACKWARDS",
+      "steps": [
+        {
+          "do": {
+            "transid": "CC00"
+          }
+        },
+        {
+          "do": {
+            "aid": "ENTER",
+            "fields": {
+              "USERID": "USER0001",
+              "PASSWD": "PASSWORD"
+            }
+          }
+        },
+        {
+          "do": {
+            "aid": "ENTER",
+            "fields": {
+              "OPTION": "3"
+            }
+          }
+        },
+        {
+          "do": {
+            "aid": "PF8"
+          }
+        },
+        {
+          "do": {
+            "aid": "PF7"
+          },
+          "expect": {
+            "map": "CCRDLIA",
+            "fields": {
+              "TRNNAME": "CCLI",
+              "PGMNAME": "COCRDLIC",
+              "PAGENO": "1",
+              "ACCTNO1": "00000000050",
+              "CRDNUM1": "0500024453765740",
+              "CRDSTS1": "Y",
+              "ACCTNO2": "00000000027",
+              "CRDNUM2": "0683586198171516",
+              "CRDSTS2": "Y",
+              "ACCTNO3": "00000000002",
+              "CRDNUM3": "0923877193247330",
+              "CRDSTS3": "Y",
+              "ACCTNO4": "00000000020",
+              "CRDNUM4": "0927987108636232",
+              "CRDSTS4": "Y",
+              "ACCTNO5": "00000000012",
+              "CRDNUM5": "0982496213629795",
+              "CRDSTS5": "Y",
+              "ACCTNO6": "00000000044",
+              "CRDNUM6": "1014086565224350",
+              "CRDSTS6": "Y",
+              "ACCTNO7": "00000000037",
+              "CRDNUM7": "1142167692878931",
+              "CRDSTS7": "Y",
+              "ERRMSG": "NO PREVIOUS PAGES TO DISPLAY"
+            },
+            "unprotected": [
+              "CRDSEL1",
+              "CRDSEL2",
+              "CRDSEL3",
+              "CRDSEL4",
+              "CRDSEL5",
+              "CRDSEL6",
+              "CRDSEL7"
+            ],
+            "cursor": "ACCTSID"
+          }
+        }
+      ]
+    },
+    {
+      "id": "card-list-page-up-on-first-page",
+      "title": "PF7 on page 1 redisplays page 1 with 'NO PREVIOUS PAGES TO DISPLAY'",
+      "provenance": "observed",
+      "source": "app/cbl/COCRDLIC.cbl 0000-MAIN (PFK07 AND CA-FIRST-PAGE), 1400-SETUP-MESSAGE",
+      "steps": [
+        {
+          "do": {
+            "transid": "CC00"
+          }
+        },
+        {
+          "do": {
+            "aid": "ENTER",
+            "fields": {
+              "USERID": "USER0001",
+              "PASSWD": "PASSWORD"
+            }
+          }
+        },
+        {
+          "do": {
+            "aid": "ENTER",
+            "fields": {
+              "OPTION": "3"
+            }
+          }
+        },
+        {
+          "do": {
+            "aid": "PF7"
+          },
+          "expect": {
+            "map": "CCRDLIA",
+            "fields": {
+              "TRNNAME": "CCLI",
+              "PGMNAME": "COCRDLIC",
+              "PAGENO": "1",
+              "ACCTNO1": "00000000050",
+              "CRDNUM1": "0500024453765740",
+              "CRDSTS1": "Y",
+              "ACCTNO2": "00000000027",
+              "CRDNUM2": "0683586198171516",
+              "CRDSTS2": "Y",
+              "ACCTNO3": "00000000002",
+              "CRDNUM3": "0923877193247330",
+              "CRDSTS3": "Y",
+              "ACCTNO4": "00000000020",
+              "CRDNUM4": "0927987108636232",
+              "CRDSTS4": "Y",
+              "ACCTNO5": "00000000012",
+              "CRDNUM5": "0982496213629795",
+              "CRDSTS5": "Y",
+              "ACCTNO6": "00000000044",
+              "CRDNUM6": "1014086565224350",
+              "CRDSTS6": "Y",
+              "ACCTNO7": "00000000037",
+              "CRDNUM7": "1142167692878931",
+              "CRDSTS7": "Y",
+              "ERRMSG": "NO PREVIOUS PAGES TO DISPLAY"
+            },
+            "unprotected": [
+              "CRDSEL1",
+              "CRDSEL2",
+              "CRDSEL3",
+              "CRDSEL4",
+              "CRDSEL5",
+              "CRDSEL6",
+              "CRDSEL7"
+            ],
+            "cursor": "ACCTSID"
+          }
+        }
+      ]
+    },
+    {
+      "id": "card-list-last-page",
+      "title": "Paging to page 8 shows the single remaining card with 'NO MORE RECORDS TO SHOW' and protects the empty rows' selection fields",
+      "provenance": "observed",
+      "source": "app/cbl/COCRDLIC.cbl 9000-READ-FORWARD (DFHRESP(ENDFILE))",
+      "steps": [
+        {
+          "do": {
+            "transid": "CC00"
+          }
+        },
+        {
+          "do": {
+            "aid": "ENTER",
+            "fields": {
+              "USERID": "USER0001",
+              "PASSWD": "PASSWORD"
+            }
+          }
+        },
+        {
+          "do": {
+            "aid": "ENTER",
+            "fields": {
+              "OPTION": "3"
+            }
+          }
+        },
+        {
+          "do": {
+            "aid": "PF8"
+          }
+        },
+        {
+          "do": {
+            "aid": "PF8"
+          }
+        },
+        {
+          "do": {
+            "aid": "PF8"
+          }
+        },
+        {
+          "do": {
+            "aid": "PF8"
+          }
+        },
+        {
+          "do": {
+            "aid": "PF8"
+          }
+        },
+        {
+          "do": {
+            "aid": "PF8"
+          }
+        },
+        {
+          "do": {
+            "aid": "PF8"
+          },
+          "expect": {
+            "map": "CCRDLIA",
+            "fields": {
+              "TRNNAME": "CCLI",
+              "PGMNAME": "COCRDLIC",
+              "PAGENO": "8",
+              "ACCTNO1": "00000000040",
+              "CRDNUM1": "9805583408996588",
+              "CRDSTS1": "Y",
+              "INFOMSG": "TYPE S FOR DETAIL, U TO UPDATE ANY RECORD",
+              "ERRMSG": "NO MORE RECORDS TO SHOW"
+            },
+            "unprotected": [
+              "CRDSEL1"
+            ],
+            "cursor": "ACCTSID"
+          }
+        }
+      ]
+    },
+    {
+      "id": "card-list-page-down-past-end",
+      "title": "PF8 on the last page re-reads the same last page, keeps page number 8, and reports 'NO MORE PAGES TO DISPLAY' with no info line",
+      "provenance": "observed",
+      "source": "app/cbl/COCRDLIC.cbl 0000-MAIN (PFK08), 1400-SETUP-MESSAGE (CA-LAST-PAGE-SHOWN)",
+      "steps": [
+        {
+          "do": {
+            "transid": "CC00"
+          }
+        },
+        {
+          "do": {
+            "aid": "ENTER",
+            "fields": {
+              "USERID": "USER0001",
+              "PASSWD": "PASSWORD"
+            }
+          }
+        },
+        {
+          "do": {
+            "aid": "ENTER",
+            "fields": {
+              "OPTION": "3"
+            }
+          }
+        },
+        {
+          "do": {
+            "aid": "PF8"
+          }
+        },
+        {
+          "do": {
+            "aid": "PF8"
+          }
+        },
+        {
+          "do": {
+            "aid": "PF8"
+          }
+        },
+        {
+          "do": {
+            "aid": "PF8"
+          }
+        },
+        {
+          "do": {
+            "aid": "PF8"
+          }
+        },
+        {
+          "do": {
+            "aid": "PF8"
+          }
+        },
+        {
+          "do": {
+            "aid": "PF8"
+          }
+        },
+        {
+          "do": {
+            "aid": "PF8"
+          },
+          "expect": {
+            "map": "CCRDLIA",
+            "fields": {
+              "TRNNAME": "CCLI",
+              "PGMNAME": "COCRDLIC",
+              "PAGENO": "8",
+              "ACCTNO1": "00000000040",
+              "CRDNUM1": "9805583408996588",
+              "CRDSTS1": "Y",
+              "ERRMSG": "NO MORE PAGES TO DISPLAY"
+            },
+            "unprotected": [
+              "CRDSEL1"
+            ],
+            "cursor": "ACCTSID"
+          }
+        }
+      ]
+    },
+    {
+      "id": "card-list-filter-account",
+      "title": "An account filter lists only that account's card",
+      "provenance": "observed",
+      "source": "app/cbl/COCRDLIC.cbl 2210-EDIT-ACCOUNT, 9500-FILTER-RECORDS",
+      "steps": [
+        {
+          "do": {
+            "transid": "CC00"
+          }
+        },
+        {
+          "do": {
+            "aid": "ENTER",
+            "fields": {
+              "USERID": "USER0001",
+              "PASSWD": "PASSWORD"
+            }
+          }
+        },
+        {
+          "do": {
+            "aid": "ENTER",
+            "fields": {
+              "OPTION": "3"
+            }
+          }
+        },
+        {
+          "do": {
+            "aid": "ENTER",
+            "fields": {
+              "ACCTSID": "00000000001"
+            }
+          },
+          "expect": {
+            "map": "CCRDLIA",
+            "fields": {
+              "TRNNAME": "CCLI",
+              "PGMNAME": "COCRDLIC",
+              "PAGENO": "1",
+              "ACCTSID": "00000000001",
+              "ACCTNO1": "00000000001",
+              "CRDNUM1": "9680294154603697",
+              "CRDSTS1": "Y",
+              "INFOMSG": "TYPE S FOR DETAIL, U TO UPDATE ANY RECORD",
+              "ERRMSG": "NO MORE RECORDS TO SHOW"
+            },
+            "unprotected": [
+              "CRDSEL1"
+            ],
+            "cursor": "ACCTSID"
+          }
+        }
+      ]
+    },
+    {
+      "id": "card-list-filter-card",
+      "title": "A card number filter lists only that card",
+      "provenance": "observed",
+      "source": "app/cbl/COCRDLIC.cbl 2220-EDIT-CARD, 9500-FILTER-RECORDS",
+      "steps": [
+        {
+          "do": {
+            "transid": "CC00"
+          }
+        },
+        {
+          "do": {
+            "aid": "ENTER",
+            "fields": {
+              "USERID": "USER0001",
+              "PASSWD": "PASSWORD"
+            }
+          }
+        },
+        {
+          "do": {
+            "aid": "ENTER",
+            "fields": {
+              "OPTION": "3"
+            }
+          }
+        },
+        {
+          "do": {
+            "aid": "ENTER",
+            "fields": {
+              "CARDSID": "0500024453765740"
+            }
+          },
+          "expect": {
+            "map": "CCRDLIA",
+            "fields": {
+              "TRNNAME": "CCLI",
+              "PGMNAME": "COCRDLIC",
+              "PAGENO": "1",
+              "CARDSID": "0500024453765740",
+              "ACCTNO1": "00000000050",
+              "CRDNUM1": "0500024453765740",
+              "CRDSTS1": "Y",
+              "INFOMSG": "TYPE S FOR DETAIL, U TO UPDATE ANY RECORD",
+              "ERRMSG": "NO MORE RECORDS TO SHOW"
+            },
+            "unprotected": [
+              "CRDSEL1"
+            ],
+            "cursor": "ACCTSID"
+          }
+        }
+      ]
+    },
+    {
+      "id": "card-list-filter-no-match",
+      "title": "A filter that matches nothing shows 'NO RECORDS FOUND FOR THIS SEARCH CONDITION.' and no info line",
+      "provenance": "observed",
+      "source": "app/cbl/COCRDLIC.cbl 9000-READ-FORWARD (WS-NO-RECORDS-FOUND), 1400-SETUP-MESSAGE",
+      "steps": [
+        {
+          "do": {
+            "transid": "CC00"
+          }
+        },
+        {
+          "do": {
+            "aid": "ENTER",
+            "fields": {
+              "USERID": "USER0001",
+              "PASSWD": "PASSWORD"
+            }
+          }
+        },
+        {
+          "do": {
+            "aid": "ENTER",
+            "fields": {
+              "OPTION": "3"
+            }
+          }
+        },
+        {
+          "do": {
+            "aid": "ENTER",
+            "fields": {
+              "ACCTSID": "00000000099"
+            }
+          },
+          "expect": {
+            "map": "CCRDLIA",
+            "fields": {
+              "TRNNAME": "CCLI",
+              "PGMNAME": "COCRDLIC",
+              "PAGENO": "1",
+              "ACCTSID": "00000000099",
+              "ERRMSG": "NO RECORDS FOUND FOR THIS SEARCH CONDITION."
+            },
+            "cursor": "ACCTSID"
+          }
+        }
+      ]
+    },
+    {
+      "id": "card-list-account-not-numeric",
+      "title": "A non-numeric account filter is rejected in red; no browse happens but the previous page's rows are redisplayed from the commarea with all selection fields protected (legacy quirk)",
+      "provenance": "observed",
+      "source": "app/cbl/COCRDLIC.cbl 2210-EDIT-ACCOUNT, 0000-MAIN (INPUT-ERROR)",
+      "steps": [
+        {
+          "do": {
+            "transid": "CC00"
+          }
+        },
+        {
+          "do": {
+            "aid": "ENTER",
+            "fields": {
+              "USERID": "USER0001",
+              "PASSWD": "PASSWORD"
+            }
+          }
+        },
+        {
+          "do": {
+            "aid": "ENTER",
+            "fields": {
+              "OPTION": "3"
+            }
+          }
+        },
+        {
+          "do": {
+            "aid": "ENTER",
+            "fields": {
+              "ACCTSID": "ABC"
+            }
+          },
+          "expect": {
+            "map": "CCRDLIA",
+            "fields": {
+              "TRNNAME": "CCLI",
+              "PGMNAME": "COCRDLIC",
+              "PAGENO": "1",
+              "ACCTSID": "ABC",
+              "ACCTNO1": "00000000050",
+              "CRDNUM1": "0500024453765740",
+              "CRDSTS1": "Y",
+              "ACCTNO2": "00000000027",
+              "CRDNUM2": "0683586198171516",
+              "CRDSTS2": "Y",
+              "ACCTNO3": "00000000002",
+              "CRDNUM3": "0923877193247330",
+              "CRDSTS3": "Y",
+              "ACCTNO4": "00000000020",
+              "CRDNUM4": "0927987108636232",
+              "CRDSTS4": "Y",
+              "ACCTNO5": "00000000012",
+              "CRDNUM5": "0982496213629795",
+              "CRDSTS5": "Y",
+              "ACCTNO6": "00000000044",
+              "CRDNUM6": "1014086565224350",
+              "CRDSTS6": "Y",
+              "ACCTNO7": "00000000037",
+              "CRDNUM7": "1142167692878931",
+              "CRDSTS7": "Y",
+              "ERRMSG": "ACCOUNT FILTER,IF SUPPLIED MUST BE A 11 DIGIT NUMBER"
+            },
+            "colors": {
+              "ACCTSID": "RED"
+            },
+            "cursor": "ACCTSID"
+          }
+        }
+      ]
+    },
+    {
+      "id": "card-list-card-not-numeric",
+      "title": "A non-numeric card filter is rejected in red; the previous page's rows are redisplayed from the commarea with all selection fields protected (legacy quirk)",
+      "provenance": "observed",
+      "source": "app/cbl/COCRDLIC.cbl 2220-EDIT-CARD",
+      "steps": [
+        {
+          "do": {
+            "transid": "CC00"
+          }
+        },
+        {
+          "do": {
+            "aid": "ENTER",
+            "fields": {
+              "USERID": "USER0001",
+              "PASSWD": "PASSWORD"
+            }
+          }
+        },
+        {
+          "do": {
+            "aid": "ENTER",
+            "fields": {
+              "OPTION": "3"
+            }
+          }
+        },
+        {
+          "do": {
+            "aid": "ENTER",
+            "fields": {
+              "CARDSID": "12345678ABCD"
+            }
+          },
+          "expect": {
+            "map": "CCRDLIA",
+            "fields": {
+              "TRNNAME": "CCLI",
+              "PGMNAME": "COCRDLIC",
+              "PAGENO": "1",
+              "CARDSID": "12345678ABCD",
+              "ACCTNO1": "00000000050",
+              "CRDNUM1": "0500024453765740",
+              "CRDSTS1": "Y",
+              "ACCTNO2": "00000000027",
+              "CRDNUM2": "0683586198171516",
+              "CRDSTS2": "Y",
+              "ACCTNO3": "00000000002",
+              "CRDNUM3": "0923877193247330",
+              "CRDSTS3": "Y",
+              "ACCTNO4": "00000000020",
+              "CRDNUM4": "0927987108636232",
+              "CRDSTS4": "Y",
+              "ACCTNO5": "00000000012",
+              "CRDNUM5": "0982496213629795",
+              "CRDSTS5": "Y",
+              "ACCTNO6": "00000000044",
+              "CRDNUM6": "1014086565224350",
+              "CRDSTS6": "Y",
+              "ACCTNO7": "00000000037",
+              "CRDNUM7": "1142167692878931",
+              "CRDSTS7": "Y",
+              "ERRMSG": "CARD ID FILTER,IF SUPPLIED MUST BE A 16 DIGIT NUMBER"
+            },
+            "colors": {
+              "CARDSID": "RED"
+            },
+            "cursor": "CARDSID"
+          }
+        }
+      ]
+    },
+    {
+      "id": "card-list-two-selections",
+      "title": "Selecting two rows is rejected with 'PLEASE SELECT ONLY ONE RECORD TO VIEW OR UPDATE' and both rows red",
+      "provenance": "observed",
+      "source": "app/cbl/COCRDLIC.cbl 2250-EDIT-ARRAY (I > 1), 1250-SETUP-ARRAY-ATTRIBS",
+      "steps": [
+        {
+          "do": {
+            "transid": "CC00"
+          }
+        },
+        {
+          "do": {
+            "aid": "ENTER",
+            "fields": {
+              "USERID": "USER0001",
+              "PASSWD": "PASSWORD"
+            }
+          }
+        },
+        {
+          "do": {
+            "aid": "ENTER",
+            "fields": {
+              "OPTION": "3"
+            }
+          }
+        },
+        {
+          "do": {
+            "aid": "ENTER",
+            "fields": {
+              "CRDSEL2": "S",
+              "CRDSEL3": "U"
+            }
+          },
+          "expect": {
+            "map": "CCRDLIA",
+            "fields": {
+              "TRNNAME": "CCLI",
+              "PGMNAME": "COCRDLIC",
+              "PAGENO": "1",
+              "ACCTNO1": "00000000050",
+              "CRDNUM1": "0500024453765740",
+              "CRDSTS1": "Y",
+              "CRDSEL2": "S",
+              "ACCTNO2": "00000000027",
+              "CRDNUM2": "0683586198171516",
+              "CRDSTS2": "Y",
+              "CRDSEL3": "U",
+              "ACCTNO3": "00000000002",
+              "CRDNUM3": "0923877193247330",
+              "CRDSTS3": "Y",
+              "ACCTNO4": "00000000020",
+              "CRDNUM4": "0927987108636232",
+              "CRDSTS4": "Y",
+              "ACCTNO5": "00000000012",
+              "CRDNUM5": "0982496213629795",
+              "CRDSTS5": "Y",
+              "ACCTNO6": "00000000044",
+              "CRDNUM6": "1014086565224350",
+              "CRDSTS6": "Y",
+              "ACCTNO7": "00000000037",
+              "CRDNUM7": "1142167692878931",
+              "CRDSTS7": "Y",
+              "INFOMSG": "TYPE S FOR DETAIL, U TO UPDATE ANY RECORD",
+              "ERRMSG": "PLEASE SELECT ONLY ONE RECORD TO VIEW OR UPDATE"
+            },
+            "colors": {
+              "CRDSEL2": "RED",
+              "CRDSEL3": "RED"
+            },
+            "unprotected": [
+              "CRDSEL1",
+              "CRDSEL2",
+              "CRDSEL3",
+              "CRDSEL4",
+              "CRDSEL5",
+              "CRDSEL6",
+              "CRDSEL7"
+            ],
+            "cursor": "CRDSEL2"
+          }
+        }
+      ]
+    },
+    {
+      "id": "card-list-invalid-action-row1",
+      "title": "An invalid action code on row 1 shows 'INVALID ACTION CODE' in red; row 1 never sets its cursor length unlike rows 2-7, so the cursor falls back to the map's IC field ACCTSID (legacy quirk)",
+      "provenance": "observed",
+      "source": "app/cbl/COCRDLIC.cbl 2250-EDIT-ARRAY (WHEN OTHER), 1250-SETUP-ARRAY-ATTRIBS (row 1)",
+      "steps": [
+        {
+          "do": {
+            "transid": "CC00"
+          }
+        },
+        {
+          "do": {
+            "aid": "ENTER",
+            "fields": {
+              "USERID": "USER0001",
+              "PASSWD": "PASSWORD"
+            }
+          }
+        },
+        {
+          "do": {
+            "aid": "ENTER",
+            "fields": {
+              "OPTION": "3"
+            }
+          }
+        },
+        {
+          "do": {
+            "aid": "ENTER",
+            "fields": {
+              "CRDSEL1": "X"
+            }
+          },
+          "expect": {
+            "map": "CCRDLIA",
+            "fields": {
+              "TRNNAME": "CCLI",
+              "PGMNAME": "COCRDLIC",
+              "PAGENO": "1",
+              "CRDSEL1": "X",
+              "ACCTNO1": "00000000050",
+              "CRDNUM1": "0500024453765740",
+              "CRDSTS1": "Y",
+              "ACCTNO2": "00000000027",
+              "CRDNUM2": "0683586198171516",
+              "CRDSTS2": "Y",
+              "ACCTNO3": "00000000002",
+              "CRDNUM3": "0923877193247330",
+              "CRDSTS3": "Y",
+              "ACCTNO4": "00000000020",
+              "CRDNUM4": "0927987108636232",
+              "CRDSTS4": "Y",
+              "ACCTNO5": "00000000012",
+              "CRDNUM5": "0982496213629795",
+              "CRDSTS5": "Y",
+              "ACCTNO6": "00000000044",
+              "CRDNUM6": "1014086565224350",
+              "CRDSTS6": "Y",
+              "ACCTNO7": "00000000037",
+              "CRDNUM7": "1142167692878931",
+              "CRDSTS7": "Y",
+              "INFOMSG": "TYPE S FOR DETAIL, U TO UPDATE ANY RECORD",
+              "ERRMSG": "INVALID ACTION CODE"
+            },
+            "colors": {
+              "CRDSEL1": "RED"
+            },
+            "unprotected": [
+              "CRDSEL1",
+              "CRDSEL2",
+              "CRDSEL3",
+              "CRDSEL4",
+              "CRDSEL5",
+              "CRDSEL6",
+              "CRDSEL7"
+            ],
+            "cursor": "ACCTSID"
+          }
+        }
+      ]
+    },
+    {
+      "id": "card-list-invalid-action-row4",
+      "title": "An invalid action code on row 4 shows 'INVALID ACTION CODE' with the row red and the cursor on it",
+      "provenance": "observed",
+      "source": "app/cbl/COCRDLIC.cbl 2250-EDIT-ARRAY (WHEN OTHER), 1250-SETUP-ARRAY-ATTRIBS (row 4)",
+      "steps": [
+        {
+          "do": {
+            "transid": "CC00"
+          }
+        },
+        {
+          "do": {
+            "aid": "ENTER",
+            "fields": {
+              "USERID": "USER0001",
+              "PASSWD": "PASSWORD"
+            }
+          }
+        },
+        {
+          "do": {
+            "aid": "ENTER",
+            "fields": {
+              "OPTION": "3"
+            }
+          }
+        },
+        {
+          "do": {
+            "aid": "ENTER",
+            "fields": {
+              "CRDSEL4": "X"
+            }
+          },
+          "expect": {
+            "map": "CCRDLIA",
+            "fields": {
+              "TRNNAME": "CCLI",
+              "PGMNAME": "COCRDLIC",
+              "PAGENO": "1",
+              "ACCTNO1": "00000000050",
+              "CRDNUM1": "0500024453765740",
+              "CRDSTS1": "Y",
+              "ACCTNO2": "00000000027",
+              "CRDNUM2": "0683586198171516",
+              "CRDSTS2": "Y",
+              "ACCTNO3": "00000000002",
+              "CRDNUM3": "0923877193247330",
+              "CRDSTS3": "Y",
+              "CRDSEL4": "X",
+              "ACCTNO4": "00000000020",
+              "CRDNUM4": "0927987108636232",
+              "CRDSTS4": "Y",
+              "ACCTNO5": "00000000012",
+              "CRDNUM5": "0982496213629795",
+              "CRDSTS5": "Y",
+              "ACCTNO6": "00000000044",
+              "CRDNUM6": "1014086565224350",
+              "CRDSTS6": "Y",
+              "ACCTNO7": "00000000037",
+              "CRDNUM7": "1142167692878931",
+              "CRDSTS7": "Y",
+              "INFOMSG": "TYPE S FOR DETAIL, U TO UPDATE ANY RECORD",
+              "ERRMSG": "INVALID ACTION CODE"
+            },
+            "colors": {
+              "CRDSEL4": "RED"
+            },
+            "unprotected": [
+              "CRDSEL1",
+              "CRDSEL2",
+              "CRDSEL3",
+              "CRDSEL4",
+              "CRDSEL5",
+              "CRDSEL6",
+              "CRDSEL7"
+            ],
+            "cursor": "CRDSEL4"
+          }
+        }
+      ]
+    },
+    {
+      "id": "card-list-select-view",
+      "title": "'S' on a row transfers to the card detail program, which shows that card",
+      "provenance": "observed",
+      "source": "app/cbl/COCRDLIC.cbl 0000-MAIN (VIEW-REQUESTED-ON XCTL COCRDSLC)",
+      "steps": [
+        {
+          "do": {
+            "transid": "CC00"
+          }
+        },
+        {
+          "do": {
+            "aid": "ENTER",
+            "fields": {
+              "USERID": "USER0001",
+              "PASSWD": "PASSWORD"
+            }
+          }
+        },
+        {
+          "do": {
+            "aid": "ENTER",
+            "fields": {
+              "OPTION": "3"
+            }
+          }
+        },
+        {
+          "do": {
+            "aid": "ENTER",
+            "fields": {
+              "CRDSEL2": "S"
+            }
+          },
+          "expect": {
+            "map": "CCRDSLA",
+            "fields": {
+              "TRNNAME": "CCDL",
+              "PGMNAME": "COCRDSLC",
+              "ACCTSID": "00000000027",
+              "CARDSID": "0683586198171516",
+              "CRDNAME": "Ward Jones",
+              "CRDSTCD": "Y",
+              "EXPMON": "07",
+              "EXPYEAR": "2025",
+              "INFOMSG": "   Displaying requested details",
+              "FKEYS": "ENTER=Search Cards  F3=Exit"
+            },
+            "protected": [
+              "ACCTSID",
+              "CARDSID"
+            ],
+            "cursor": "ACCTSID"
+          }
+        }
+      ]
+    },
+    {
+      "id": "card-list-select-update",
+      "title": "'U' on a row transfers to the card update program, which shows that card for editing",
+      "provenance": "observed",
+      "source": "app/cbl/COCRDLIC.cbl 0000-MAIN (UPDATE-REQUESTED-ON XCTL COCRDUPC)",
+      "steps": [
+        {
+          "do": {
+            "transid": "CC00"
+          }
+        },
+        {
+          "do": {
+            "aid": "ENTER",
+            "fields": {
+              "USERID": "USER0001",
+              "PASSWD": "PASSWORD"
+            }
+          }
+        },
+        {
+          "do": {
+            "aid": "ENTER",
+            "fields": {
+              "OPTION": "3"
+            }
+          }
+        },
+        {
+          "do": {
+            "aid": "ENTER",
+            "fields": {
+              "CRDSEL1": "U"
+            }
+          },
+          "expect": {
+            "map": "CCRDUPA",
+            "fields": {
+              "TRNNAME": "CCUP",
+              "PGMNAME": "COCRDUPC",
+              "ACCTSID": "00000000050",
+              "CARDSID": "0500024453765740",
+              "CRDNAME": "ANIYA VON",
+              "CRDSTCD": "Y",
+              "EXPMON": "03",
+              "EXPYEAR": "2023",
+              "EXPDAY": "09",
+              "INFOMSG": "Details of selected card shown above",
+              "FKEYS": "ENTER=Process F3=Exit",
+              "FKEYSC": "F5=Save F12=Cancel"
+            },
+            "protected": [
+              "CARDSID"
+            ],
+            "unprotected": [
+              "INFOMSG"
+            ],
+            "cursor": "CRDNAME"
+          }
+        }
+      ]
+    },
+    {
+      "id": "card-list-pf3-to-menu",
+      "title": "PF3 returns to the main menu",
+      "provenance": "observed",
+      "source": "app/cbl/COCRDLIC.cbl 0000-MAIN (CCARD-AID-PFK03)",
+      "steps": [
+        {
+          "do": {
+            "transid": "CC00"
+          }
+        },
+        {
+          "do": {
+            "aid": "ENTER",
+            "fields": {
+              "USERID": "USER0001",
+              "PASSWD": "PASSWORD"
+            }
+          }
+        },
+        {
+          "do": {
+            "aid": "ENTER",
+            "fields": {
+              "OPTION": "3"
+            }
+          }
+        },
+        {
+          "do": {
+            "aid": "PF3"
+          },
+          "expect": {
+            "map": "COMEN1A",
+            "fields": {
+              "TRNNAME": "CM00",
+              "PGMNAME": "COMEN01C",
+              "OPTN001": "01. Account View",
+              "OPTN002": "02. Account Update",
+              "OPTN003": "03. Credit Card List",
+              "OPTN004": "04. Credit Card View",
+              "OPTN005": "05. Credit Card Update",
+              "OPTN006": "06. Transaction List",
+              "OPTN007": "07. Transaction View",
+              "OPTN008": "08. Transaction Add",
+              "OPTN009": "09. Transaction Reports",
+              "OPTN010": "10. Bill Payment",
+              "OPTN011": "11. Pending Authorization View"
+            },
+            "cursor": "OPTION"
+          }
+        }
+      ]
+    },
+    {
+      "id": "card-list-invalid-key-acts-as-enter",
+      "title": "An unsupported key (PF5) is treated as ENTER and applies the typed account filter",
+      "provenance": "observed",
+      "source": "app/cbl/COCRDLIC.cbl 0000-MAIN (PFK-INVALID -> CCARD-AID-ENTER)",
+      "steps": [
+        {
+          "do": {
+            "transid": "CC00"
+          }
+        },
+        {
+          "do": {
+            "aid": "ENTER",
+            "fields": {
+              "USERID": "USER0001",
+              "PASSWD": "PASSWORD"
+            }
+          }
+        },
+        {
+          "do": {
+            "aid": "ENTER",
+            "fields": {
+              "OPTION": "3"
+            }
+          }
+        },
+        {
+          "do": {
+            "aid": "PF5",
+            "fields": {
+              "ACCTSID": "00000000002"
+            }
+          },
+          "expect": {
+            "map": "CCRDLIA",
+            "fields": {
+              "TRNNAME": "CCLI",
+              "PGMNAME": "COCRDLIC",
+              "PAGENO": "1",
+              "ACCTSID": "00000000002",
+              "ACCTNO1": "00000000002",
+              "CRDNUM1": "0923877193247330",
+              "CRDSTS1": "Y",
+              "INFOMSG": "TYPE S FOR DETAIL, U TO UPDATE ANY RECORD",
+              "ERRMSG": "NO MORE RECORDS TO SHOW"
+            },
+            "unprotected": [
+              "CRDSEL1"
+            ],
+            "cursor": "ACCTSID"
+          }
+        }
+      ]
+    }
+  ]
+}

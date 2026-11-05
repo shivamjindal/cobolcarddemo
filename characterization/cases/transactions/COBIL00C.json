@@ -1,0 +1,891 @@
+{
+  "feature": "bill-pay",
+  "kind": "online",
+  "programs": [
+    "COBIL00C"
+  ],
+  "cases": [
+    {
+      "id": "bill-pay-first-display",
+      "title": "Menu option 10 shows the bill-pay screen with the cursor on Account ID",
+      "provenance": "observed",
+      "source": "app/cbl/COBIL00C.cbl MAIN-PARA (first entry)",
+      "steps": [
+        {
+          "do": {
+            "transid": "CC00"
+          }
+        },
+        {
+          "do": {
+            "aid": "ENTER",
+            "fields": {
+              "USERID": "USER0001",
+              "PASSWD": "PASSWORD"
+            }
+          }
+        },
+        {
+          "do": {
+            "aid": "ENTER",
+            "fields": {
+              "OPTION": "10"
+            }
+          },
+          "expect": {
+            "map": "COBIL0A",
+            "fields": {
+              "TRNNAME": "CB00",
+              "PGMNAME": "COBIL00C"
+            },
+            "cursor": "ACTIDIN"
+          }
+        }
+      ]
+    },
+    {
+      "id": "bill-pay-blank-account",
+      "title": "ENTER with no Account ID",
+      "provenance": "observed",
+      "source": "app/cbl/COBIL00C.cbl PROCESS-ENTER-KEY",
+      "steps": [
+        {
+          "do": {
+            "transid": "CC00"
+          }
+        },
+        {
+          "do": {
+            "aid": "ENTER",
+            "fields": {
+              "USERID": "USER0001",
+              "PASSWD": "PASSWORD"
+            }
+          }
+        },
+        {
+          "do": {
+            "aid": "ENTER",
+            "fields": {
+              "OPTION": "10"
+            }
+          }
+        },
+        {
+          "do": {
+            "aid": "ENTER"
+          },
+          "expect": {
+            "map": "COBIL0A",
+            "fields": {
+              "TRNNAME": "CB00",
+              "PGMNAME": "COBIL00C",
+              "ERRMSG": "Acct ID can NOT be empty..."
+            },
+            "cursor": "ACTIDIN"
+          }
+        }
+      ]
+    },
+    {
+      "id": "bill-pay-account-not-found",
+      "title": "Unknown Account ID",
+      "provenance": "observed",
+      "source": "app/cbl/COBIL00C.cbl READ-ACCTDAT-FILE (NOTFND)",
+      "steps": [
+        {
+          "do": {
+            "transid": "CC00"
+          }
+        },
+        {
+          "do": {
+            "aid": "ENTER",
+            "fields": {
+              "USERID": "USER0001",
+              "PASSWD": "PASSWORD"
+            }
+          }
+        },
+        {
+          "do": {
+            "aid": "ENTER",
+            "fields": {
+              "OPTION": "10"
+            }
+          }
+        },
+        {
+          "do": {
+            "aid": "ENTER",
+            "fields": {
+              "ACTIDIN": "99999999999"
+            }
+          },
+          "expect": {
+            "map": "COBIL0A",
+            "fields": {
+              "TRNNAME": "CB00",
+              "PGMNAME": "COBIL00C",
+              "ACTIDIN": "99999999999",
+              "ERRMSG": "Account ID NOT found..."
+            },
+            "cursor": "ACTIDIN"
+          }
+        }
+      ]
+    },
+    {
+      "id": "bill-pay-short-account-not-found",
+      "title": "Legacy quirk: an Account ID typed without leading zeros moves into ACCT-ID PIC 9(11) unpadded (Enterprise COBOL alphanumeric-to-numeric MOVE) and is not found",
+      "provenance": "source-derived",
+      "source": "app/cbl/COBIL00C.cbl PROCESS-ENTER-KEY (MOVE ACTIDINI TO ACCT-ID), READ-ACCTDAT-FILE (NOTFND)",
+      "steps": [
+        {
+          "do": {
+            "transid": "CC00"
+          }
+        },
+        {
+          "do": {
+            "aid": "ENTER",
+            "fields": {
+              "USERID": "USER0001",
+              "PASSWD": "PASSWORD"
+            }
+          }
+        },
+        {
+          "do": {
+            "aid": "ENTER",
+            "fields": {
+              "OPTION": "10"
+            }
+          }
+        },
+        {
+          "do": {
+            "aid": "ENTER",
+            "fields": {
+              "ACTIDIN": "1"
+            }
+          },
+          "expect": {
+            "map": "COBIL0A",
+            "fields": {
+              "TRNNAME": "CB00",
+              "PGMNAME": "COBIL00C",
+              "ACTIDIN": "1",
+              "ERRMSG": "Account ID NOT found..."
+            },
+            "cursor": "ACTIDIN"
+          }
+        }
+      ]
+    },
+    {
+      "id": "bill-pay-show-balance",
+      "title": "Valid account, confirm blank: shows the balance and asks to confirm",
+      "provenance": "observed",
+      "source": "app/cbl/COBIL00C.cbl PROCESS-ENTER-KEY, READ-ACCTDAT-FILE",
+      "steps": [
+        {
+          "do": {
+            "transid": "CC00"
+          }
+        },
+        {
+          "do": {
+            "aid": "ENTER",
+            "fields": {
+              "USERID": "USER0001",
+              "PASSWD": "PASSWORD"
+            }
+          }
+        },
+        {
+          "do": {
+            "aid": "ENTER",
+            "fields": {
+              "OPTION": "10"
+            }
+          }
+        },
+        {
+          "do": {
+            "aid": "ENTER",
+            "fields": {
+              "ACTIDIN": "00000000001"
+            }
+          },
+          "expect": {
+            "map": "COBIL0A",
+            "fields": {
+              "TRNNAME": "CB00",
+              "PGMNAME": "COBIL00C",
+              "ACTIDIN": "00000000001",
+              "CURBAL": "+0000000194.00",
+              "ERRMSG": "Confirm to make a bill payment..."
+            },
+            "cursor": "CONFIRM"
+          }
+        }
+      ]
+    },
+    {
+      "id": "bill-pay-confirm-invalid",
+      "title": "Confirm value other than Y/N",
+      "provenance": "observed",
+      "source": "app/cbl/COBIL00C.cbl PROCESS-ENTER-KEY (WHEN OTHER)",
+      "steps": [
+        {
+          "do": {
+            "transid": "CC00"
+          }
+        },
+        {
+          "do": {
+            "aid": "ENTER",
+            "fields": {
+              "USERID": "USER0001",
+              "PASSWD": "PASSWORD"
+            }
+          }
+        },
+        {
+          "do": {
+            "aid": "ENTER",
+            "fields": {
+              "OPTION": "10"
+            }
+          }
+        },
+        {
+          "do": {
+            "aid": "ENTER",
+            "fields": {
+              "ACTIDIN": "00000000001"
+            }
+          }
+        },
+        {
+          "do": {
+            "aid": "ENTER",
+            "fields": {
+              "CONFIRM": "X"
+            }
+          },
+          "expect": {
+            "map": "COBIL0A",
+            "fields": {
+              "TRNNAME": "CB00",
+              "PGMNAME": "COBIL00C",
+              "ACTIDIN": "00000000001",
+              "CURBAL": "+0000000194.00",
+              "CONFIRM": "X",
+              "ERRMSG": "Invalid value. Valid values are (Y/N)..."
+            },
+            "cursor": "CONFIRM"
+          }
+        }
+      ]
+    },
+    {
+      "id": "bill-pay-confirm-n-clears",
+      "title": "Confirm N clears the screen without paying",
+      "provenance": "observed",
+      "source": "app/cbl/COBIL00C.cbl PROCESS-ENTER-KEY (WHEN 'N'), CLEAR-CURRENT-SCREEN",
+      "steps": [
+        {
+          "do": {
+            "transid": "CC00"
+          }
+        },
+        {
+          "do": {
+            "aid": "ENTER",
+            "fields": {
+              "USERID": "USER0001",
+              "PASSWD": "PASSWORD"
+            }
+          }
+        },
+        {
+          "do": {
+            "aid": "ENTER",
+            "fields": {
+              "OPTION": "10"
+            }
+          }
+        },
+        {
+          "do": {
+            "aid": "ENTER",
+            "fields": {
+              "ACTIDIN": "00000000001"
+            }
+          }
+        },
+        {
+          "do": {
+            "aid": "ENTER",
+            "fields": {
+              "CONFIRM": "N"
+            }
+          },
+          "expect": {
+            "map": "COBIL0A",
+            "fields": {
+              "TRNNAME": "CB00",
+              "PGMNAME": "COBIL00C"
+            },
+            "cursor": "ACTIDIN"
+          }
+        }
+      ]
+    },
+    {
+      "id": "bill-pay-confirm-y-pays",
+      "title": "Confirm Y writes a bill-payment TRANSACT record for the full balance and zeroes the account balance",
+      "provenance": "observed",
+      "source": "app/cbl/COBIL00C.cbl PROCESS-ENTER-KEY (CONF-PAY-YES), WRITE-TRANSACT-FILE, UPDATE-ACCTDAT-FILE, GET-CURRENT-TIMESTAMP",
+      "steps": [
+        {
+          "do": {
+            "transid": "CC00"
+          }
+        },
+        {
+          "do": {
+            "aid": "ENTER",
+            "fields": {
+              "USERID": "USER0001",
+              "PASSWD": "PASSWORD"
+            }
+          }
+        },
+        {
+          "do": {
+            "aid": "ENTER",
+            "fields": {
+              "OPTION": "10"
+            }
+          }
+        },
+        {
+          "do": {
+            "aid": "ENTER",
+            "fields": {
+              "ACTIDIN": "00000000001"
+            }
+          }
+        },
+        {
+          "do": {
+            "aid": "ENTER",
+            "fields": {
+              "CONFIRM": "Y"
+            }
+          },
+          "expect": {
+            "map": "COBIL0A",
+            "fields": {
+              "TRNNAME": "CB00",
+              "PGMNAME": "COBIL00C",
+              "ERRMSG": "Payment successful.  Your Transaction ID is 0000000996722788."
+            },
+            "colors": {
+              "ERRMSG": "GREEN"
+            },
+            "cursor": "ACTIDIN",
+            "files": {
+              "ACCTDATA": {
+                "updated": [
+                  {
+                    "key": "00000000001",
+                    "changed": {
+                      "ACCT-CURR-BAL": [
+                        "194.00",
+                        "0.00"
+                      ]
+                    }
+                  }
+                ]
+              },
+              "TRANSACT": {
+                "inserted": [
+                  {
+                    "TRAN-ID": "0000000996722788",
+                    "TRAN-TYPE-CD": "02",
+                    "TRAN-CAT-CD": "2",
+                    "TRAN-SOURCE": "POS TERM",
+                    "TRAN-DESC": "BILL PAYMENT - ONLINE",
+                    "TRAN-AMT": "194.00",
+                    "TRAN-MERCHANT-ID": "999999999",
+                    "TRAN-MERCHANT-NAME": "BILL PAYMENT",
+                    "TRAN-MERCHANT-CITY": "N/A",
+                    "TRAN-MERCHANT-ZIP": "N/A",
+                    "TRAN-CARD-NUM": "9680294154603697",
+                    "TRAN-ORIG-TS": "2026-11-05 10:00:00.000000",
+                    "TRAN-PROC-TS": "2026-11-05 10:00:00.000000"
+                  }
+                ]
+              }
+            }
+          }
+        }
+      ]
+    },
+    {
+      "id": "bill-pay-confirm-y-first-time",
+      "title": "Account and Y typed together on the first ENTER pay immediately",
+      "provenance": "observed",
+      "source": "app/cbl/COBIL00C.cbl PROCESS-ENTER-KEY (CONF-PAY-YES)",
+      "steps": [
+        {
+          "do": {
+            "transid": "CC00"
+          }
+        },
+        {
+          "do": {
+            "aid": "ENTER",
+            "fields": {
+              "USERID": "USER0001",
+              "PASSWD": "PASSWORD"
+            }
+          }
+        },
+        {
+          "do": {
+            "aid": "ENTER",
+            "fields": {
+              "OPTION": "10"
+            }
+          }
+        },
+        {
+          "do": {
+            "aid": "ENTER",
+            "fields": {
+              "ACTIDIN": "00000000001",
+              "CONFIRM": "y"
+            }
+          },
+          "expect": {
+            "map": "COBIL0A",
+            "fields": {
+              "TRNNAME": "CB00",
+              "PGMNAME": "COBIL00C",
+              "ERRMSG": "Payment successful.  Your Transaction ID is 0000000996722788."
+            },
+            "colors": {
+              "ERRMSG": "GREEN"
+            },
+            "cursor": "ACTIDIN",
+            "files": {
+              "ACCTDATA": {
+                "updated": [
+                  {
+                    "key": "00000000001",
+                    "changed": {
+                      "ACCT-CURR-BAL": [
+                        "194.00",
+                        "0.00"
+                      ]
+                    }
+                  }
+                ]
+              },
+              "TRANSACT": {
+                "inserted": [
+                  {
+                    "TRAN-ID": "0000000996722788",
+                    "TRAN-TYPE-CD": "02",
+                    "TRAN-CAT-CD": "2",
+                    "TRAN-SOURCE": "POS TERM",
+                    "TRAN-DESC": "BILL PAYMENT - ONLINE",
+                    "TRAN-AMT": "194.00",
+                    "TRAN-MERCHANT-ID": "999999999",
+                    "TRAN-MERCHANT-NAME": "BILL PAYMENT",
+                    "TRAN-MERCHANT-CITY": "N/A",
+                    "TRAN-MERCHANT-ZIP": "N/A",
+                    "TRAN-CARD-NUM": "9680294154603697",
+                    "TRAN-ORIG-TS": "2026-11-05 10:00:00.000000",
+                    "TRAN-PROC-TS": "2026-11-05 10:00:00.000000"
+                  }
+                ]
+              }
+            }
+          }
+        }
+      ]
+    },
+    {
+      "id": "bill-pay-zero-balance",
+      "title": "Balance zero: nothing to pay",
+      "provenance": "observed",
+      "source": "app/cbl/COBIL00C.cbl PROCESS-ENTER-KEY (ACCT-CURR-BAL <= ZEROS)",
+      "setup": {
+        "ACCTDATA": {
+          "upsert": [
+            {
+              "ACCT-ID": 1,
+              "ACCT-CURR-BAL": "0.00"
+            }
+          ]
+        }
+      },
+      "steps": [
+        {
+          "do": {
+            "transid": "CC00"
+          }
+        },
+        {
+          "do": {
+            "aid": "ENTER",
+            "fields": {
+              "USERID": "USER0001",
+              "PASSWD": "PASSWORD"
+            }
+          }
+        },
+        {
+          "do": {
+            "aid": "ENTER",
+            "fields": {
+              "OPTION": "10"
+            }
+          }
+        },
+        {
+          "do": {
+            "aid": "ENTER",
+            "fields": {
+              "ACTIDIN": "00000000001"
+            }
+          },
+          "expect": {
+            "map": "COBIL0A",
+            "fields": {
+              "TRNNAME": "CB00",
+              "PGMNAME": "COBIL00C",
+              "ACTIDIN": "00000000001",
+              "CURBAL": "+0000000000.00",
+              "ERRMSG": "You have nothing to pay..."
+            },
+            "cursor": "ACTIDIN"
+          }
+        }
+      ]
+    },
+    {
+      "id": "bill-pay-credit-balance",
+      "title": "Negative (credit) balance: nothing to pay",
+      "provenance": "observed",
+      "source": "app/cbl/COBIL00C.cbl PROCESS-ENTER-KEY (ACCT-CURR-BAL <= ZEROS)",
+      "setup": {
+        "ACCTDATA": {
+          "upsert": [
+            {
+              "ACCT-ID": 1,
+              "ACCT-CURR-BAL": "-25.00"
+            }
+          ]
+        }
+      },
+      "steps": [
+        {
+          "do": {
+            "transid": "CC00"
+          }
+        },
+        {
+          "do": {
+            "aid": "ENTER",
+            "fields": {
+              "USERID": "USER0001",
+              "PASSWD": "PASSWORD"
+            }
+          }
+        },
+        {
+          "do": {
+            "aid": "ENTER",
+            "fields": {
+              "OPTION": "10"
+            }
+          }
+        },
+        {
+          "do": {
+            "aid": "ENTER",
+            "fields": {
+              "ACTIDIN": "00000000001"
+            }
+          },
+          "expect": {
+            "map": "COBIL0A",
+            "fields": {
+              "TRNNAME": "CB00",
+              "PGMNAME": "COBIL00C",
+              "ACTIDIN": "00000000001",
+              "CURBAL": "-0000000025.00",
+              "ERRMSG": "You have nothing to pay..."
+            },
+            "cursor": "ACTIDIN"
+          }
+        }
+      ]
+    },
+    {
+      "id": "bill-pay-no-xref-still-pays",
+      "title": "Legacy bug: with no card xref for the account the AIX NOTFND is ignored; the payment is still written (card number = uninitialised XREF-CARD-NUM, low-values here) and the balance zeroed, and the success message replaces the error",
+      "provenance": "observed",
+      "source": "app/cbl/COBIL00C.cbl PROCESS-ENTER-KEY (READ-CXACAIX-FILE result not checked before WRITE)",
+      "setup": {
+        "CARDXREF": {
+          "delete": [
+            "9680294154603697"
+          ]
+        }
+      },
+      "steps": [
+        {
+          "do": {
+            "transid": "CC00"
+          }
+        },
+        {
+          "do": {
+            "aid": "ENTER",
+            "fields": {
+              "USERID": "USER0001",
+              "PASSWD": "PASSWORD"
+            }
+          }
+        },
+        {
+          "do": {
+            "aid": "ENTER",
+            "fields": {
+              "OPTION": "10"
+            }
+          }
+        },
+        {
+          "do": {
+            "aid": "ENTER",
+            "fields": {
+              "ACTIDIN": "00000000001"
+            }
+          }
+        },
+        {
+          "do": {
+            "aid": "ENTER",
+            "fields": {
+              "CONFIRM": "Y"
+            }
+          },
+          "expect": {
+            "map": "COBIL0A",
+            "fields": {
+              "TRNNAME": "CB00",
+              "PGMNAME": "COBIL00C",
+              "ERRMSG": "Payment successful.  Your Transaction ID is 0000000996722788."
+            },
+            "colors": {
+              "ERRMSG": "GREEN"
+            },
+            "cursor": "ACTIDIN",
+            "files": {
+              "ACCTDATA": {
+                "updated": [
+                  {
+                    "key": "00000000001",
+                    "changed": {
+                      "ACCT-CURR-BAL": [
+                        "194.00",
+                        "0.00"
+                      ]
+                    }
+                  }
+                ]
+              },
+              "TRANSACT": {
+                "inserted": [
+                  {
+                    "TRAN-ID": "0000000996722788",
+                    "TRAN-TYPE-CD": "02",
+                    "TRAN-CAT-CD": "2",
+                    "TRAN-SOURCE": "POS TERM",
+                    "TRAN-DESC": "BILL PAYMENT - ONLINE",
+                    "TRAN-AMT": "194.00",
+                    "TRAN-MERCHANT-ID": "999999999",
+                    "TRAN-MERCHANT-NAME": "BILL PAYMENT",
+                    "TRAN-MERCHANT-CITY": "N/A",
+                    "TRAN-MERCHANT-ZIP": "N/A",
+                    "TRAN-CARD-NUM": "\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000",
+                    "TRAN-ORIG-TS": "2026-11-05 10:00:00.000000",
+                    "TRAN-PROC-TS": "2026-11-05 10:00:00.000000"
+                  }
+                ]
+              }
+            }
+          }
+        }
+      ]
+    },
+    {
+      "id": "bill-pay-pf4-clear",
+      "title": "PF4 clears the screen",
+      "provenance": "observed",
+      "source": "app/cbl/COBIL00C.cbl CLEAR-CURRENT-SCREEN",
+      "steps": [
+        {
+          "do": {
+            "transid": "CC00"
+          }
+        },
+        {
+          "do": {
+            "aid": "ENTER",
+            "fields": {
+              "USERID": "USER0001",
+              "PASSWD": "PASSWORD"
+            }
+          }
+        },
+        {
+          "do": {
+            "aid": "ENTER",
+            "fields": {
+              "OPTION": "10"
+            }
+          }
+        },
+        {
+          "do": {
+            "aid": "ENTER",
+            "fields": {
+              "ACTIDIN": "00000000001"
+            }
+          }
+        },
+        {
+          "do": {
+            "aid": "PF4"
+          },
+          "expect": {
+            "map": "COBIL0A",
+            "fields": {
+              "TRNNAME": "CB00",
+              "PGMNAME": "COBIL00C"
+            },
+            "cursor": "ACTIDIN"
+          }
+        }
+      ]
+    },
+    {
+      "id": "bill-pay-pf3-menu",
+      "title": "PF3 returns to the main menu",
+      "provenance": "observed",
+      "source": "app/cbl/COBIL00C.cbl MAIN-PARA (DFHPF3)",
+      "steps": [
+        {
+          "do": {
+            "transid": "CC00"
+          }
+        },
+        {
+          "do": {
+            "aid": "ENTER",
+            "fields": {
+              "USERID": "USER0001",
+              "PASSWD": "PASSWORD"
+            }
+          }
+        },
+        {
+          "do": {
+            "aid": "ENTER",
+            "fields": {
+              "OPTION": "10"
+            }
+          }
+        },
+        {
+          "do": {
+            "aid": "PF3"
+          },
+          "expect": {
+            "map": "COMEN1A",
+            "fields": {
+              "TRNNAME": "CM00",
+              "PGMNAME": "COMEN01C",
+              "OPTN001": "01. Account View",
+              "OPTN002": "02. Account Update",
+              "OPTN003": "03. Credit Card List",
+              "OPTN004": "04. Credit Card View",
+              "OPTN005": "05. Credit Card Update",
+              "OPTN006": "06. Transaction List",
+              "OPTN007": "07. Transaction View",
+              "OPTN008": "08. Transaction Add",
+              "OPTN009": "09. Transaction Reports",
+              "OPTN010": "10. Bill Payment",
+              "OPTN011": "11. Pending Authorization View"
+            },
+            "cursor": "OPTION"
+          }
+        }
+      ]
+    },
+    {
+      "id": "bill-pay-invalid-key",
+      "title": "Any other key shows the invalid-key message",
+      "provenance": "observed",
+      "source": "app/cbl/COBIL00C.cbl MAIN-PARA (WHEN OTHER)",
+      "steps": [
+        {
+          "do": {
+            "transid": "CC00"
+          }
+        },
+        {
+          "do": {
+            "aid": "ENTER",
+            "fields": {
+              "USERID": "USER0001",
+              "PASSWD": "PASSWORD"
+            }
+          }
+        },
+        {
+          "do": {
+            "aid": "ENTER",
+            "fields": {
+              "OPTION": "10"
+            }
+          }
+        },
+        {
+          "do": {
+            "aid": "PF5"
+          },
+          "expect": {
+            "map": "COBIL0A",
+            "fields": {
+              "TRNNAME": "CB00",
+              "PGMNAME": "COBIL00C",
+              "ERRMSG": "Invalid key pressed. Please see below..."
+            },
+            "cursor": "ACTIDIN"
+          }
+        }
+      ]
+    }
+  ]
+}

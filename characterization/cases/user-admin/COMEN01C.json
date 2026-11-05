@@ -1,0 +1,637 @@
+{
+  "feature": "main-menu",
+  "kind": "online",
+  "programs": [
+    "COMEN01C"
+  ],
+  "cases": [
+    {
+      "id": "main-menu-first-display",
+      "title": "A regular user lands on the main menu listing 11 options",
+      "provenance": "observed",
+      "source": "COMEN01C MAIN-PARA, SEND-MENU-SCREEN",
+      "steps": [
+        {
+          "do": {
+            "transid": "CC00"
+          }
+        },
+        {
+          "do": {
+            "aid": "ENTER",
+            "fields": {
+              "USERID": "USER0001",
+              "PASSWD": "PASSWORD"
+            }
+          },
+          "expect": {
+            "map": "COMEN1A",
+            "fields": {
+              "TRNNAME": "CM00",
+              "PGMNAME": "COMEN01C",
+              "OPTN001": "01. Account View",
+              "OPTN002": "02. Account Update",
+              "OPTN003": "03. Credit Card List",
+              "OPTN004": "04. Credit Card View",
+              "OPTN005": "05. Credit Card Update",
+              "OPTN006": "06. Transaction List",
+              "OPTN007": "07. Transaction View",
+              "OPTN008": "08. Transaction Add",
+              "OPTN009": "09. Transaction Reports",
+              "OPTN010": "10. Bill Payment",
+              "OPTN011": "11. Pending Authorization View"
+            },
+            "cursor": "OPTION"
+          }
+        }
+      ]
+    },
+    {
+      "id": "main-menu-blank-option",
+      "title": "ENTER with no option asks for a valid option number",
+      "provenance": "observed",
+      "source": "COMEN01C PROCESS-ENTER-KEY",
+      "steps": [
+        {
+          "do": {
+            "transid": "CC00"
+          }
+        },
+        {
+          "do": {
+            "aid": "ENTER",
+            "fields": {
+              "USERID": "USER0001",
+              "PASSWD": "PASSWORD"
+            }
+          },
+          "expect": {
+            "map": "COMEN1A",
+            "fields": {
+              "TRNNAME": "CM00",
+              "PGMNAME": "COMEN01C",
+              "OPTN001": "01. Account View",
+              "OPTN002": "02. Account Update",
+              "OPTN003": "03. Credit Card List",
+              "OPTN004": "04. Credit Card View",
+              "OPTN005": "05. Credit Card Update",
+              "OPTN006": "06. Transaction List",
+              "OPTN007": "07. Transaction View",
+              "OPTN008": "08. Transaction Add",
+              "OPTN009": "09. Transaction Reports",
+              "OPTN010": "10. Bill Payment",
+              "OPTN011": "11. Pending Authorization View"
+            },
+            "cursor": "OPTION"
+          }
+        },
+        {
+          "do": {
+            "aid": "ENTER",
+            "fields": {}
+          },
+          "expect": {
+            "map": "COMEN1A",
+            "fields": {
+              "TRNNAME": "CM00",
+              "PGMNAME": "COMEN01C",
+              "OPTN001": "01. Account View",
+              "OPTN002": "02. Account Update",
+              "OPTN003": "03. Credit Card List",
+              "OPTN004": "04. Credit Card View",
+              "OPTN005": "05. Credit Card Update",
+              "OPTN006": "06. Transaction List",
+              "OPTN007": "07. Transaction View",
+              "OPTN008": "08. Transaction Add",
+              "OPTN009": "09. Transaction Reports",
+              "OPTN010": "10. Bill Payment",
+              "OPTN011": "11. Pending Authorization View",
+              "OPTION": "00",
+              "ERRMSG": "Please enter a valid option number..."
+            },
+            "cursor": "OPTION"
+          }
+        }
+      ]
+    },
+    {
+      "id": "main-menu-option-zero",
+      "title": "Option 0 is rejected",
+      "provenance": "observed",
+      "source": "COMEN01C PROCESS-ENTER-KEY",
+      "steps": [
+        {
+          "do": {
+            "transid": "CC00"
+          }
+        },
+        {
+          "do": {
+            "aid": "ENTER",
+            "fields": {
+              "USERID": "USER0001",
+              "PASSWD": "PASSWORD"
+            }
+          },
+          "expect": {
+            "map": "COMEN1A",
+            "fields": {
+              "TRNNAME": "CM00",
+              "PGMNAME": "COMEN01C",
+              "OPTN001": "01. Account View",
+              "OPTN002": "02. Account Update",
+              "OPTN003": "03. Credit Card List",
+              "OPTN004": "04. Credit Card View",
+              "OPTN005": "05. Credit Card Update",
+              "OPTN006": "06. Transaction List",
+              "OPTN007": "07. Transaction View",
+              "OPTN008": "08. Transaction Add",
+              "OPTN009": "09. Transaction Reports",
+              "OPTN010": "10. Bill Payment",
+              "OPTN011": "11. Pending Authorization View"
+            },
+            "cursor": "OPTION"
+          }
+        },
+        {
+          "do": {
+            "aid": "ENTER",
+            "fields": {
+              "OPTION": "0"
+            }
+          },
+          "expect": {
+            "map": "COMEN1A",
+            "fields": {
+              "TRNNAME": "CM00",
+              "PGMNAME": "COMEN01C",
+              "OPTN001": "01. Account View",
+              "OPTN002": "02. Account Update",
+              "OPTN003": "03. Credit Card List",
+              "OPTN004": "04. Credit Card View",
+              "OPTN005": "05. Credit Card Update",
+              "OPTN006": "06. Transaction List",
+              "OPTN007": "07. Transaction View",
+              "OPTN008": "08. Transaction Add",
+              "OPTN009": "09. Transaction Reports",
+              "OPTN010": "10. Bill Payment",
+              "OPTN011": "11. Pending Authorization View",
+              "OPTION": "00",
+              "ERRMSG": "Please enter a valid option number..."
+            },
+            "cursor": "OPTION"
+          }
+        }
+      ]
+    },
+    {
+      "id": "main-menu-option-too-high",
+      "title": "Option 12 (above CDEMO-MENU-OPT-COUNT) is rejected",
+      "provenance": "observed",
+      "source": "COMEN01C PROCESS-ENTER-KEY",
+      "steps": [
+        {
+          "do": {
+            "transid": "CC00"
+          }
+        },
+        {
+          "do": {
+            "aid": "ENTER",
+            "fields": {
+              "USERID": "USER0001",
+              "PASSWD": "PASSWORD"
+            }
+          },
+          "expect": {
+            "map": "COMEN1A",
+            "fields": {
+              "TRNNAME": "CM00",
+              "PGMNAME": "COMEN01C",
+              "OPTN001": "01. Account View",
+              "OPTN002": "02. Account Update",
+              "OPTN003": "03. Credit Card List",
+              "OPTN004": "04. Credit Card View",
+              "OPTN005": "05. Credit Card Update",
+              "OPTN006": "06. Transaction List",
+              "OPTN007": "07. Transaction View",
+              "OPTN008": "08. Transaction Add",
+              "OPTN009": "09. Transaction Reports",
+              "OPTN010": "10. Bill Payment",
+              "OPTN011": "11. Pending Authorization View"
+            },
+            "cursor": "OPTION"
+          }
+        },
+        {
+          "do": {
+            "aid": "ENTER",
+            "fields": {
+              "OPTION": "12"
+            }
+          },
+          "expect": {
+            "map": "COMEN1A",
+            "fields": {
+              "TRNNAME": "CM00",
+              "PGMNAME": "COMEN01C",
+              "OPTN001": "01. Account View",
+              "OPTN002": "02. Account Update",
+              "OPTN003": "03. Credit Card List",
+              "OPTN004": "04. Credit Card View",
+              "OPTN005": "05. Credit Card Update",
+              "OPTN006": "06. Transaction List",
+              "OPTN007": "07. Transaction View",
+              "OPTN008": "08. Transaction Add",
+              "OPTN009": "09. Transaction Reports",
+              "OPTN010": "10. Bill Payment",
+              "OPTN011": "11. Pending Authorization View",
+              "OPTION": "12",
+              "ERRMSG": "Please enter a valid option number..."
+            },
+            "cursor": "OPTION"
+          }
+        }
+      ]
+    },
+    {
+      "id": "main-menu-option-non-numeric",
+      "title": "A non-numeric option is rejected",
+      "provenance": "observed",
+      "source": "COMEN01C PROCESS-ENTER-KEY",
+      "steps": [
+        {
+          "do": {
+            "transid": "CC00"
+          }
+        },
+        {
+          "do": {
+            "aid": "ENTER",
+            "fields": {
+              "USERID": "USER0001",
+              "PASSWD": "PASSWORD"
+            }
+          },
+          "expect": {
+            "map": "COMEN1A",
+            "fields": {
+              "TRNNAME": "CM00",
+              "PGMNAME": "COMEN01C",
+              "OPTN001": "01. Account View",
+              "OPTN002": "02. Account Update",
+              "OPTN003": "03. Credit Card List",
+              "OPTN004": "04. Credit Card View",
+              "OPTN005": "05. Credit Card Update",
+              "OPTN006": "06. Transaction List",
+              "OPTN007": "07. Transaction View",
+              "OPTN008": "08. Transaction Add",
+              "OPTN009": "09. Transaction Reports",
+              "OPTN010": "10. Bill Payment",
+              "OPTN011": "11. Pending Authorization View"
+            },
+            "cursor": "OPTION"
+          }
+        },
+        {
+          "do": {
+            "aid": "ENTER",
+            "fields": {
+              "OPTION": "A"
+            }
+          },
+          "expect": {
+            "map": "COMEN1A",
+            "fields": {
+              "TRNNAME": "CM00",
+              "PGMNAME": "COMEN01C",
+              "OPTN001": "01. Account View",
+              "OPTN002": "02. Account Update",
+              "OPTN003": "03. Credit Card List",
+              "OPTN004": "04. Credit Card View",
+              "OPTN005": "05. Credit Card Update",
+              "OPTN006": "06. Transaction List",
+              "OPTN007": "07. Transaction View",
+              "OPTN008": "08. Transaction Add",
+              "OPTN009": "09. Transaction Reports",
+              "OPTN010": "10. Bill Payment",
+              "OPTN011": "11. Pending Authorization View",
+              "OPTION": "00",
+              "ERRMSG": "Please enter a valid option number..."
+            },
+            "cursor": "OPTION"
+          }
+        }
+      ]
+    },
+    {
+      "id": "main-menu-option-right-justified",
+      "title": "A one-digit option typed with a trailing blank is padded with zeros and accepted",
+      "provenance": "observed",
+      "source": "COMEN01C PROCESS-ENTER-KEY",
+      "steps": [
+        {
+          "do": {
+            "transid": "CC00"
+          }
+        },
+        {
+          "do": {
+            "aid": "ENTER",
+            "fields": {
+              "USERID": "USER0001",
+              "PASSWD": "PASSWORD"
+            }
+          },
+          "expect": {
+            "map": "COMEN1A",
+            "fields": {
+              "TRNNAME": "CM00",
+              "PGMNAME": "COMEN01C",
+              "OPTN001": "01. Account View",
+              "OPTN002": "02. Account Update",
+              "OPTN003": "03. Credit Card List",
+              "OPTN004": "04. Credit Card View",
+              "OPTN005": "05. Credit Card Update",
+              "OPTN006": "06. Transaction List",
+              "OPTN007": "07. Transaction View",
+              "OPTN008": "08. Transaction Add",
+              "OPTN009": "09. Transaction Reports",
+              "OPTN010": "10. Bill Payment",
+              "OPTN011": "11. Pending Authorization View"
+            },
+            "cursor": "OPTION"
+          }
+        },
+        {
+          "do": {
+            "aid": "ENTER",
+            "fields": {
+              "OPTION": "1 "
+            }
+          },
+          "expect": {
+            "map": "CACTVWA",
+            "fields": {
+              "TRNNAME": "CAVW",
+              "PGMNAME": "COACTVWC",
+              "INFOMSG": "Enter or update id of account to display"
+            },
+            "cursor": "ACCTSID"
+          }
+        }
+      ]
+    },
+    {
+      "id": "main-menu-option-1-account-view",
+      "title": "Option 1 transfers to the account view screen",
+      "provenance": "observed",
+      "source": "COMEN01C PROCESS-ENTER-KEY",
+      "steps": [
+        {
+          "do": {
+            "transid": "CC00"
+          }
+        },
+        {
+          "do": {
+            "aid": "ENTER",
+            "fields": {
+              "USERID": "USER0001",
+              "PASSWD": "PASSWORD"
+            }
+          },
+          "expect": {
+            "map": "COMEN1A",
+            "fields": {
+              "TRNNAME": "CM00",
+              "PGMNAME": "COMEN01C",
+              "OPTN001": "01. Account View",
+              "OPTN002": "02. Account Update",
+              "OPTN003": "03. Credit Card List",
+              "OPTN004": "04. Credit Card View",
+              "OPTN005": "05. Credit Card Update",
+              "OPTN006": "06. Transaction List",
+              "OPTN007": "07. Transaction View",
+              "OPTN008": "08. Transaction Add",
+              "OPTN009": "09. Transaction Reports",
+              "OPTN010": "10. Bill Payment",
+              "OPTN011": "11. Pending Authorization View"
+            },
+            "cursor": "OPTION"
+          }
+        },
+        {
+          "do": {
+            "aid": "ENTER",
+            "fields": {
+              "OPTION": "1"
+            }
+          },
+          "expect": {
+            "map": "CACTVWA",
+            "fields": {
+              "TRNNAME": "CAVW",
+              "PGMNAME": "COACTVWC",
+              "INFOMSG": "Enter or update id of account to display"
+            },
+            "cursor": "ACCTSID"
+          }
+        }
+      ]
+    },
+    {
+      "id": "main-menu-option-11-not-installed",
+      "title": "Option 11 (pending authorizations) reports not installed when COPAUS0C is absent",
+      "provenance": "observed",
+      "source": "COMEN01C PROCESS-ENTER-KEY (INQUIRE PROGRAM)",
+      "steps": [
+        {
+          "do": {
+            "transid": "CC00"
+          }
+        },
+        {
+          "do": {
+            "aid": "ENTER",
+            "fields": {
+              "USERID": "USER0001",
+              "PASSWD": "PASSWORD"
+            }
+          },
+          "expect": {
+            "map": "COMEN1A",
+            "fields": {
+              "TRNNAME": "CM00",
+              "PGMNAME": "COMEN01C",
+              "OPTN001": "01. Account View",
+              "OPTN002": "02. Account Update",
+              "OPTN003": "03. Credit Card List",
+              "OPTN004": "04. Credit Card View",
+              "OPTN005": "05. Credit Card Update",
+              "OPTN006": "06. Transaction List",
+              "OPTN007": "07. Transaction View",
+              "OPTN008": "08. Transaction Add",
+              "OPTN009": "09. Transaction Reports",
+              "OPTN010": "10. Bill Payment",
+              "OPTN011": "11. Pending Authorization View"
+            },
+            "cursor": "OPTION"
+          }
+        },
+        {
+          "do": {
+            "aid": "ENTER",
+            "fields": {
+              "OPTION": "11"
+            }
+          },
+          "expect": {
+            "map": "COMEN1A",
+            "fields": {
+              "TRNNAME": "CM00",
+              "PGMNAME": "COMEN01C",
+              "OPTN001": "01. Account View",
+              "OPTN002": "02. Account Update",
+              "OPTN003": "03. Credit Card List",
+              "OPTN004": "04. Credit Card View",
+              "OPTN005": "05. Credit Card Update",
+              "OPTN006": "06. Transaction List",
+              "OPTN007": "07. Transaction View",
+              "OPTN008": "08. Transaction Add",
+              "OPTN009": "09. Transaction Reports",
+              "OPTN010": "10. Bill Payment",
+              "OPTN011": "11. Pending Authorization View",
+              "OPTION": "11",
+              "ERRMSG": "This option Pending Authorization View is not installed..."
+            },
+            "cursor": "OPTION"
+          }
+        }
+      ]
+    },
+    {
+      "id": "main-menu-pf3-signs-off",
+      "title": "PF3 returns to the sign-on screen",
+      "provenance": "observed",
+      "source": "COMEN01C MAIN-PARA",
+      "steps": [
+        {
+          "do": {
+            "transid": "CC00"
+          }
+        },
+        {
+          "do": {
+            "aid": "ENTER",
+            "fields": {
+              "USERID": "USER0001",
+              "PASSWD": "PASSWORD"
+            }
+          },
+          "expect": {
+            "map": "COMEN1A",
+            "fields": {
+              "TRNNAME": "CM00",
+              "PGMNAME": "COMEN01C",
+              "OPTN001": "01. Account View",
+              "OPTN002": "02. Account Update",
+              "OPTN003": "03. Credit Card List",
+              "OPTN004": "04. Credit Card View",
+              "OPTN005": "05. Credit Card Update",
+              "OPTN006": "06. Transaction List",
+              "OPTN007": "07. Transaction View",
+              "OPTN008": "08. Transaction Add",
+              "OPTN009": "09. Transaction Reports",
+              "OPTN010": "10. Bill Payment",
+              "OPTN011": "11. Pending Authorization View"
+            },
+            "cursor": "OPTION"
+          }
+        },
+        {
+          "do": {
+            "aid": "PF3",
+            "fields": {}
+          },
+          "expect": {
+            "map": "COSGN0A",
+            "fields": {
+              "TRNNAME": "CC00",
+              "PGMNAME": "COSGN00C",
+              "PASSWD": "________"
+            },
+            "cursor": "USERID"
+          }
+        }
+      ]
+    },
+    {
+      "id": "main-menu-invalid-key",
+      "title": "An unassigned PF key shows the invalid key message",
+      "provenance": "observed",
+      "source": "COMEN01C MAIN-PARA",
+      "steps": [
+        {
+          "do": {
+            "transid": "CC00"
+          }
+        },
+        {
+          "do": {
+            "aid": "ENTER",
+            "fields": {
+              "USERID": "USER0001",
+              "PASSWD": "PASSWORD"
+            }
+          },
+          "expect": {
+            "map": "COMEN1A",
+            "fields": {
+              "TRNNAME": "CM00",
+              "PGMNAME": "COMEN01C",
+              "OPTN001": "01. Account View",
+              "OPTN002": "02. Account Update",
+              "OPTN003": "03. Credit Card List",
+              "OPTN004": "04. Credit Card View",
+              "OPTN005": "05. Credit Card Update",
+              "OPTN006": "06. Transaction List",
+              "OPTN007": "07. Transaction View",
+              "OPTN008": "08. Transaction Add",
+              "OPTN009": "09. Transaction Reports",
+              "OPTN010": "10. Bill Payment",
+              "OPTN011": "11. Pending Authorization View"
+            },
+            "cursor": "OPTION"
+          }
+        },
+        {
+          "do": {
+            "aid": "PF5",
+            "fields": {}
+          },
+          "expect": {
+            "map": "COMEN1A",
+            "fields": {
+              "TRNNAME": "CM00",
+              "PGMNAME": "COMEN01C",
+              "OPTN001": "01. Account View",
+              "OPTN002": "02. Account Update",
+              "OPTN003": "03. Credit Card List",
+              "OPTN004": "04. Credit Card View",
+              "OPTN005": "05. Credit Card Update",
+              "OPTN006": "06. Transaction List",
+              "OPTN007": "07. Transaction View",
+              "OPTN008": "08. Transaction Add",
+              "OPTN009": "09. Transaction Reports",
+              "OPTN010": "10. Bill Payment",
+              "OPTN011": "11. Pending Authorization View",
+              "ERRMSG": "Invalid key pressed. Please see below..."
+            },
+            "cursor": "OPTION"
+          }
+        }
+      ]
+    }
+  ]
+}

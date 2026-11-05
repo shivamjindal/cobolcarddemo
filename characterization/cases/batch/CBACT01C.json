@@ -1,0 +1,122 @@
+{
+  "feature": "batch-extracts",
+  "kind": "batch",
+  "programs": [
+    "CBACT01C"
+  ],
+  "cases": [
+    {
+      "id": "acct-extract-two-accounts",
+      "title": "Account file to fixed, array and variable-length extract files",
+      "provenance": "observed",
+      "source": "CBACT01C 1000-ACCTFILE-GET-NEXT .. 1500-WRITE-VBRC",
+      "setup": {
+        "ACCTDATA": {
+          "replace": [
+            {
+              "ACCT-ID": 1,
+              "ACCT-ACTIVE-STATUS": "Y",
+              "ACCT-CURR-BAL": "194.00",
+              "ACCT-CREDIT-LIMIT": "2020.00",
+              "ACCT-CASH-CREDIT-LIMIT": "1020.00",
+              "ACCT-OPEN-DATE": "2014-11-20",
+              "ACCT-EXPIRAION-DATE": "2025-05-20",
+              "ACCT-REISSUE-DATE": "2025-05-20",
+              "ACCT-CURR-CYC-CREDIT": "0",
+              "ACCT-CURR-CYC-DEBIT": "0",
+              "ACCT-ADDR-ZIP": "A000000000",
+              "ACCT-GROUP-ID": ""
+            },
+            {
+              "ACCT-ID": 2,
+              "ACCT-ACTIVE-STATUS": "N",
+              "ACCT-CURR-BAL": "-58.25",
+              "ACCT-CREDIT-LIMIT": "6130.00",
+              "ACCT-CASH-CREDIT-LIMIT": "5448.00",
+              "ACCT-OPEN-DATE": "2013-06-19",
+              "ACCT-EXPIRAION-DATE": "2024-08-11",
+              "ACCT-REISSUE-DATE": "",
+              "ACCT-CURR-CYC-CREDIT": "12.34",
+              "ACCT-CURR-CYC-DEBIT": "-5.00",
+              "ACCT-ADDR-ZIP": "",
+              "ACCT-GROUP-ID": "A000000000"
+            }
+          ]
+        }
+      },
+      "job": {
+        "program": "CBACT01C",
+        "dd": {
+          "ACCTFILE": "ACCTDATA",
+          "OUTFILE": {
+            "output": "OUTFILE",
+            "reclen": 107,
+            "hex": true
+          },
+          "ARRYFILE": {
+            "output": "ARRYFILE",
+            "reclen": 110,
+            "hex": true
+          },
+          "VBRCFILE": {
+            "output": "VBRCFILE",
+            "recfm": "V"
+          }
+        }
+      },
+      "expect": {
+        "completion": "RC=0",
+        "sysout": [
+          "START OF EXECUTION OF PROGRAM CBACT01C",
+          "ACCT-ID                 :00000000001",
+          "ACCT-ACTIVE-STATUS      :Y",
+          "ACCT-CURR-BAL           :000000019400+",
+          "ACCT-CREDIT-LIMIT       :000000202000+",
+          "ACCT-CASH-CREDIT-LIMIT  :000000102000+",
+          "ACCT-OPEN-DATE          :2014-11-20",
+          "ACCT-EXPIRAION-DATE     :2025-05-20",
+          "ACCT-REISSUE-DATE       :2025-05-20",
+          "ACCT-CURR-CYC-CREDIT    :000000000000+",
+          "ACCT-CURR-CYC-DEBIT     :000000000000+",
+          "ACCT-GROUP-ID           :",
+          "-------------------------------------------------",
+          "VBRC-REC1:00000000001Y",
+          "VBRC-REC2:0000000000100000001940{00000020200{2025",
+          "00000000001Y00000001940{00000020200{00000010200{2014-11-202025-05-202025-05-2000000000000{00000000000{A000000000",
+          "ACCT-ID                 :00000000002",
+          "ACCT-ACTIVE-STATUS      :N",
+          "ACCT-CURR-BAL           :000000005825-",
+          "ACCT-CREDIT-LIMIT       :000000613000+",
+          "ACCT-CASH-CREDIT-LIMIT  :000000544800+",
+          "ACCT-OPEN-DATE          :2013-06-19",
+          "ACCT-EXPIRAION-DATE     :2024-08-11",
+          "ACCT-REISSUE-DATE       :",
+          "ACCT-CURR-CYC-CREDIT    :000000001234+",
+          "ACCT-CURR-CYC-DEBIT     :000000000500-",
+          "ACCT-GROUP-ID           :A000000000",
+          "-------------------------------------------------",
+          "VBRC-REC1:00000000002N",
+          "VBRC-REC2:0000000000200000000582N00000061300{",
+          "00000000002N00000000582N00000061300{00000054480{2013-06-192024-08-11          00000000123D00000000050}          A000000000",
+          "END OF EXECUTION OF PROGRAM CBACT01C"
+        ],
+        "outputs": {
+          "OUTFILE": [
+            "30303030303030303030315930303030303030313934307b30303030303032303230307b30303030303031303230307b323031342d31312d3230323032352d30352d32303230323530353230000030303030303030303030307b0000000252500c20202020202020202020",
+            "30303030303030303030324e30303030303030303538324e30303030303036313330307b30303030303035343438307b323031332d30362d3139323032342d30382d3131202020202020202000003030303030303030313233440000000252500c41303030303030303030"
+          ],
+          "ARRYFILE": [
+            "303030303030303030303130303030303030313934307b0000000100500c30303030303030313934307b0000000152500c30303030303031303235307d0000000250000d3030303030303030303030300000000000000c3030303030303030303030300000000000000c20202020",
+            "303030303030303030303230303030303030303538324e0000000100500c30303030303030303538324e0000000152500c30303030303031303235307d0000000250000d3030303030303030303030300000000000000c3030303030303030303030300000000000000c20202020"
+          ],
+          "VBRCFILE": [
+            "00000000001Y",
+            "0000000000100000001940{00000020200{2025",
+            "00000000002N",
+            "0000000000200000000582N00000061300{"
+          ]
+        }
+      }
+    }
+  ]
+}
