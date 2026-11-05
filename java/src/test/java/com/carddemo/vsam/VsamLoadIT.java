@@ -92,6 +92,13 @@ class VsamLoadIT {
         assertEquals("date", columnType("accounts", "acct_open_date"));
         assertEquals("timestamp without time zone", columnType("transactions", "tran_orig_ts"));
         assertEquals("character varying", columnType("transactions", "tran_proc_ts"));
+
+        jdbc.update("UPDATE accounts SET acct_curr_bal = acct_curr_bal + 0.01 WHERE acct_id = 1");
+        jdbc.update("DELETE FROM users WHERE sec_usr_id = 'USER0005'");
+        RoundTripCheck.Report drifted = check.check(appRoot, generated.tables());
+        assertEquals(1, drifted.fieldMismatches(), drifted.toString());
+        assertEquals("ACCT-CURR-BAL", drifted.tables().get(0).mismatches().get(0).field());
+        assertEquals(1, drifted.countMismatches(), drifted.toString());
     }
 
     private String columnType(String table, String column) {
