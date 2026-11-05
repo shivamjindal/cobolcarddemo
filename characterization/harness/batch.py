@@ -147,7 +147,9 @@ def run_job(case, run_dir):
                 proc = subprocess.run([str(exe)], env=dict(env, KSDSMODE="LOAD",
                                       DD_FLATFILE=str(run_dir / f"{spec}.dat"), DD_KSDSFILE=str(path)),
                                       capture_output=True, text=True)
-                if proc.returncode or proc.stderr.strip():
+                bad = [line for line in proc.stderr.splitlines()
+                       if line.strip() and not line.startswith("LOAD STATUS 02 ")]
+                if proc.returncode or bad:
                     raise RuntimeError(f"loading {spec}: {proc.stdout}{proc.stderr}")
                 keyed[dd] = (spec, exe)
             else:
