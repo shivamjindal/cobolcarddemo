@@ -52,6 +52,11 @@ class StoredKsds extends KeyedFile {
     }
 
     @Override
+    void clear() {
+        records.clear();
+    }
+
+    @Override
     boolean remove(byte[] key) {
         throw new IllegalStateException("read-only");
     }

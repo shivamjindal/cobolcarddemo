@@ -107,6 +107,11 @@ final class TableDataset extends KeyedFile {
     }
 
     @Override
+    void clear() {
+        jdbc.sql("delete from " + table.table()).update();
+    }
+
+    @Override
     boolean remove(byte[] key) {
         return RecordImage.key(table, key)
                 .map(values -> jdbc.sql("delete from " + table.table() + " where " + keyEquals).params(values)

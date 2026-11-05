@@ -55,6 +55,9 @@ abstract class KeyedFile implements KeyedDataset {
 
     abstract boolean remove(byte[] key);
 
+    /** OPEN OUTPUT replaces the file. */
+    abstract void clear();
+
     @Override
     public FileStatus open(OpenMode mode) {
         if (this.mode != null) {
@@ -62,6 +65,9 @@ abstract class KeyedFile implements KeyedDataset {
         }
         if (mode != OpenMode.INPUT && !writable()) {
             return FileStatus.MODE_NOT_SUPPORTED;
+        }
+        if (mode == OpenMode.OUTPUT) {
+            clear();
         }
         this.mode = mode;
         position = START;
