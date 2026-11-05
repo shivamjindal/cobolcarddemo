@@ -4,6 +4,132 @@ The Java port reproduces these CardDemo defects so that it behaves as the COBOL 
 
 `LegacyDefectRegisterTest` writes this file from the `@LegacyDefect` annotations during `mvn verify`. Edit the annotations, not this file.
 
+## `COACTUPC-any-other-key-is-enter`
+
+A key 0000-MAIN does not accept at this point, such as PF12 before an account is fetched or PF5 with no change waiting for confirmation, is taken as ENTER and processes the screen.
+
+- Lives in [`AccountUpdateScreen.anyOtherKeyIsEnter`](../src/main/java/com/carddemo/account/AccountUpdateScreen.java).
+- Comes from the program logic.
+- Pinned by `account-update-pf12-before-fetch`, `account-update-pf5-before-confirmation`.
+- Fix: redisplay the screen with the invalid key message, as the menus do.
+
+## `COACTUPC-blank-account-message`
+
+A blank or '*' account sets 'Account number not provided', then 1200 overwrites it with 'No input received'.
+
+- Lives in [`AccountUpdateScreen.Task.noSearchCriteriaReceived`](../src/main/java/com/carddemo/account/AccountUpdateScreen.java).
+- Comes from the program logic.
+- Pinned by `account-update-blank-account`, `account-update-pf12-before-fetch`.
+- Fix: keep 'Account number not provided'.
+
+## `COACTUPC-blank-never-unchanged`
+
+1100 turns a blank field into LOW-VALUES and 1205 compares that with the stored SPACES, so a record with any blank field, such as an empty group id, counts as changed on every ENTER.
+
+- Lives in [`FetchedDetails.blankMatches`](../src/main/java/com/carddemo/account/FetchedDetails.java).
+- Comes from the program logic.
+- Pinned by `account-update-blank-group-always-changed`.
+- Fix: compare a blank field as SPACES.
+
+## `COACTUPC-cursor-on-protected-account`
+
+With the details open for changes and nothing to flag, the cursor goes to the account number, which is protected by then, through the WHEN OTHER of 3300's cursor EVALUATE.
+
+- Lives in [`AccountUpdateScreen.Task.cursorOtherwise`](../src/main/java/com/carddemo/account/AccountUpdateScreen.java).
+- Comes from the program logic.
+- Pinned by `account-update-fetch`, `account-update-pf12-discards-edits`, `account-update-confirm-pf12-cancels`.
+- Fix: put the cursor on the account status while the details are open for changes.
+
+## `COACTUPC-customer-lock-failure-committed`
+
+When the account locks but the customer READ UPDATE fails, 2000-DECIDE-ACTION has no WHEN for 'Could not lock customer record for update', so the screen says 'Changes committed to database' although nothing was written.
+
+- Lives in [`AccountUpdateScreen.Task.customerNotLocked`](../src/main/java/com/carddemo/account/AccountUpdateScreen.java).
+- Comes from the program logic.
+- No golden pins it yet. It is read from the source.
+- Fix: treat it as a lock error, as for the account.
+
+## `COACTUPC-customer-without-account`
+
+An account missing from ACCTDAT, or whose READ fails, still reads its customer and opens the details for changes, because 9000-READ-ACCT tests a message 88 that nothing sets; COACTUPC also shows and compares account fields from a record it never read, which this port leaves blank.
+
+- Lives in [`AccountUpdateScreen.Task.readAccountAndCustomer`](../src/main/java/com/carddemo/account/AccountUpdateScreen.java).
+- Comes from the program logic.
+- No golden pins it yet. It is read from the source.
+- Fix: stop after the failed account READ.
+
+## `COACTUPC-edits-unchanged-fields`
+
+Once anything changed, every field is edited, changed or not, so stored data that breaks an edit blocks every save; seed account 1 fails on its FICO score 274, its NC zip 12546 and its phone 2 area code 373.
+
+- Lives in [`AccountEdits.run`](../src/main/java/com/carddemo/account/AccountEdits.java).
+- Comes from the program logic.
+- Pinned by `account-update-seed-customer-unchanged-fails`.
+- Fix: edit only the fields that changed, or clean the seed data.
+
+## `COACTUPC-group-id-into-zip`
+
+ACCT-UPDATE-RECORD has no ACCT-ADDR-ZIP, so the group id is written over the zip, and ACCT-GROUP-ID and the FILLER get the update record's FILLER, which nothing initializes (LOW-VALUES under the harness); a blank group id writes LOW-VALUES.
+
+- Lives in [`AccountUpdateScreen.Task.groupIdIntoZip`](../src/main/java/com/carddemo/account/AccountUpdateScreen.java).
+- Comes from the program logic.
+- Pinned by `account-update-save`, `account-update-save-group-and-customer`.
+- Fix: lay ACCT-UPDATE-RECORD out like CVACT01Y and keep the stored zip.
+
+## `COACTUPC-ssn-parts-skipped`
+
+A missing END-IF in 1265-EDIT-US-SSN nests the edits of the 4th-5th and last four SSN characters under the first part's IF, so they are skipped when the first three are blank or not numeric.
+
+- Lives in [`AccountEdits.Run.editsRestOfSsn`](../src/main/java/com/carddemo/account/AccountEdits.java).
+- Comes from the program logic.
+- No golden pins it yet. It is read from the source.
+- Fix: close the IF after the 000/666/9xx check of the first part.
+
+## `COACTVWC-any-key-looks-up`
+
+A key other than ENTER and PF3 is taken as ENTER and looks the typed account up.
+
+- Lives in [`AccountViewScreen.anyKeyLooksUp`](../src/main/java/com/carddemo/account/AccountViewScreen.java).
+- Comes from the program logic.
+- Pinned by `account-view-invalid-key-acts-as-enter`.
+- Fix: redisplay the screen with the invalid key message, as the menus do.
+
+## `COACTVWC-blank-account-message`
+
+A blank or '*' account sets 'Account number not provided', then the cross-field edit overwrites it with 'No input received'.
+
+- Lives in [`AccountViewScreen.blankAccountMessage`](../src/main/java/com/carddemo/account/AccountViewScreen.java).
+- Comes from the program logic.
+- Pinned by `account-view-blank-account`, `account-view-star-account`.
+- Fix: keep 'Account number not provided'.
+
+## `COACTVWC-customer-without-account`
+
+An account missing from ACCTDAT, or whose READ fails, still reads and shows its customer, because 9000-READ-ACCT tests a message 88 that nothing sets; COACTVWC also shows account fields from a record it never read, which this port leaves blank.
+
+- Lives in [`AccountViewScreen.readAccountAndCustomer`](../src/main/java/com/carddemo/account/AccountViewScreen.java).
+- Comes from the program logic.
+- Pinned by `account-view-not-in-acctdat`.
+- Fix: stop after the failed account READ.
+
+## `COACTVWC-filter-message-double-space`
+
+The message for an account id that is not 11 digits has two spaces in 'must  be'.
+
+- Lives in [`AccountViewScreen.notAnAccountNumber`](../src/main/java/com/carddemo/account/AccountViewScreen.java).
+- Comes from the program logic.
+- Pinned by `account-view-non-numeric`, `account-view-zero-account`, `account-view-short-account`.
+- Fix: one space.
+
+## `COACTVWC-info-line-never-informs`
+
+The info line keeps asking for an account id after a lookup that found it; 9000-READ-ACCT clears WS-INFO-MSG and nothing sets 'Displaying details of given Account'.
+
+- Lives in [`AccountViewScreen.infoLine`](../src/main/java/com/carddemo/account/AccountViewScreen.java).
+- Comes from the program logic.
+- Pinned by `account-view-success`.
+- Fix: show 'Displaying details of given Account' when the account was found.
+
 ## `COSGN00C-untouched-password`
 
 PASSWD has BMS INITIAL '________' and FSET, so an untouched field transmits the underscores; the program does not treat them as blank and answers Wrong Password.
