@@ -1,0 +1,46 @@
+{
+  "feature": "mq-system-date",
+  "kind": "online",
+  "programs": [
+    "CODATE01"
+  ],
+  "install": [
+    "vsam-mq"
+  ],
+  "notes": "Trigger transaction CDRD replies on CARD.DEMO.REPLY.DATE with the CICS date and time (fixed harness clock).",
+  "cases": [
+    {
+      "id": "mq-system-date",
+      "title": "Any request gets the system date and time",
+      "provenance": "observed",
+      "source": "CODATE01 4000-PROCESS-REQUEST-REPLY, 4100-PUT-REPLY",
+      "steps": [
+        {
+          "do": {
+            "mq": {
+              "queue": "CARDDEMO.REQUEST.QUEUE",
+              "trigger": "CDRD",
+              "messages": [
+                {
+                  "data": "DATE",
+                  "reply_to": "",
+                  "correl_id": "DATE0001"
+                }
+              ]
+            }
+          },
+          "expect": {
+            "mq": {
+              "CARD.DEMO.REPLY.DATE": [
+                {
+                  "data": "SYSTEM DATE : 11-05-2026SYSTEM TIME : 10:00:00",
+                  "correl_id": "DATE0001"
+                }
+              ]
+            }
+          }
+        }
+      ]
+    }
+  ]
+}

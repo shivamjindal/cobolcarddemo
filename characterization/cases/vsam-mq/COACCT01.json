@@ -1,0 +1,112 @@
+{
+  "feature": "mq-account-inquiry",
+  "kind": "online",
+  "programs": [
+    "COACCT01"
+  ],
+  "install": [
+    "vsam-mq"
+  ],
+  "notes": "Trigger transaction CDRA reads the trigger queue and replies on CARD.DEMO.REPLY.ACCT. The request is 'INQA' plus an 11-digit account id (REQUEST-MSG-COPY); the module README's 'ACCT' plus request id layout does not match the code. Signed amounts are moved to zoned S9(10)V99 fields, so the reply shows the overpunched last digit ('{' is +0). Pinned but not observable here: 2300-OPEN-INPUT-QUEUE sets REPLY-QUEUE-OPEN and 2400 sets RESP-QUEUE-OPEN (lines 245 and 279, swapped flag names), and the error text is 'CICS RETREIVE' (line 200).",
+  "cases": [
+    {
+      "id": "mq-account-inquiry-valid",
+      "title": "INQA for account 1 returns the account fields",
+      "provenance": "observed",
+      "source": "COACCT01 4000-PROCESS-REQUEST-REPLY NORMAL, 4100-PUT-REPLY",
+      "steps": [
+        {
+          "do": {
+            "mq": {
+              "queue": "CARDDEMO.REQUEST.QUEUE",
+              "trigger": "CDRA",
+              "messages": [
+                {
+                  "data": "INQA00000000001",
+                  "reply_to": "",
+                  "correl_id": "ACCT0001"
+                }
+              ]
+            }
+          },
+          "expect": {
+            "mq": {
+              "CARD.DEMO.REPLY.ACCT": [
+                {
+                  "data": "ACCOUNT ID : 00000000001ACCOUNT STATUS : YBALANCE : 00000001940{CREDIT LIMIT : 00000020200{CASH LIMIT : 00000010200{OPEN DATE : 2014-11-20EXPR DATE : 2025-05-20REIS DATE : 2025-05-20CREDIT BAL : 00000000000{DEBIT BAL : 00000000000{GROUP ID :",
+                  "correl_id": "ACCT0001"
+                }
+              ]
+            }
+          }
+        }
+      ]
+    },
+    {
+      "id": "mq-account-inquiry-not-found",
+      "title": "INQA for a missing account replies INVALID REQUEST PARAMETERS",
+      "provenance": "observed",
+      "source": "COACCT01 4000-PROCESS-REQUEST-REPLY NOTFND",
+      "steps": [
+        {
+          "do": {
+            "mq": {
+              "queue": "CARDDEMO.REQUEST.QUEUE",
+              "trigger": "CDRA",
+              "messages": [
+                {
+                  "data": "INQA99999999999",
+                  "reply_to": "",
+                  "correl_id": "ACCT0002"
+                }
+              ]
+            }
+          },
+          "expect": {
+            "mq": {
+              "CARD.DEMO.REPLY.ACCT": [
+                {
+                  "data": "INVALID REQUEST PARAMETERS ACCT ID : 99999999999",
+                  "correl_id": "ACCT0002"
+                }
+              ]
+            }
+          }
+        }
+      ]
+    },
+    {
+      "id": "mq-account-inquiry-invalid-function",
+      "title": "A function other than INQA replies with the account id and function",
+      "provenance": "observed",
+      "source": "COACCT01 4000-PROCESS-REQUEST-REPLY ELSE",
+      "steps": [
+        {
+          "do": {
+            "mq": {
+              "queue": "CARDDEMO.REQUEST.QUEUE",
+              "trigger": "CDRA",
+              "messages": [
+                {
+                  "data": "ACCT00000000001",
+                  "reply_to": "",
+                  "correl_id": "ACCT0003"
+                }
+              ]
+            }
+          },
+          "expect": {
+            "mq": {
+              "CARD.DEMO.REPLY.ACCT": [
+                {
+                  "data": "INVALID REQUEST PARAMETERS ACCT ID : 00000000001FUNCTION : ACCT",
+                  "correl_id": "ACCT0003"
+                }
+              ]
+            }
+          }
+        }
+      ]
+    }
+  ]
+}

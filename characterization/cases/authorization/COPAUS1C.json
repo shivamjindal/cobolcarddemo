@@ -1,0 +1,1220 @@
+{
+  "feature": "pending-auth-detail",
+  "kind": "online",
+  "programs": [
+    "COPAUS1C",
+    "COPAUS2C"
+  ],
+  "install": [
+    "pending-authorizations"
+  ],
+  "notes": "Pinned legacy behavior: AUTHCD shows PA-PROCESSING-CODE (COPAUS1C line 331), not the authorization id code. COPAUS2C builds AUTH-TS from PA-AUTH-ORIG-DATE and the complement of PA-AUTH-TIME-9C, so the AUTHFRDS timestamp time differs from AUTHTM, which shows PA-AUTH-ORIG-TIME. Marking fraud a second time removes it: COPAUS2C's INSERT gets SQLCODE -803 and falls back to UPDATE.",
+  "cases": [
+    {
+      "id": "pending-auth-detail-display",
+      "title": "The selected authorization's detail screen",
+      "provenance": "observed",
+      "source": "COPAUS1C PROCESS-ENTER-KEY, POPULATE-AUTH-DETAILS",
+      "steps": [
+        {
+          "do": {
+            "transid": "CC00"
+          }
+        },
+        {
+          "do": {
+            "aid": "ENTER",
+            "fields": {
+              "USERID": "USER0001",
+              "PASSWD": "PASSWORD"
+            }
+          }
+        },
+        {
+          "do": {
+            "aid": "ENTER",
+            "fields": {
+              "OPTION": "11"
+            }
+          },
+          "expect": {
+            "map": "COPAU0A",
+            "fields": {
+              "TRNNAME": "CPVS",
+              "PGMNAME": "COPAUS0C"
+            },
+            "cursor": "ACCTID"
+          }
+        },
+        {
+          "do": {
+            "aid": "ENTER",
+            "fields": {
+              "ACCTID": "00000000001"
+            }
+          },
+          "expect": {
+            "map": "COPAU0A",
+            "fields": {
+              "TRNNAME": "CPVS",
+              "PGMNAME": "COPAUS0C",
+              "ACCTID": "00000000001",
+              "CNAME": "Immanuel M Kessler",
+              "CUSTID": "000000001",
+              "ADDR001": "618 Deshaun Route,Apt. 80",
+              "ADDR002": "Altenwerthshire,NC,12546",
+              "PHONE1": "(908)119-8310",
+              "APPRCNT": "006",
+              "DECLCNT": "000",
+              "CREDLIM": "     2020.00",
+              "CASHLIM": "  1020.00",
+              "APPRAMT": "     9.44",
+              "CREDBAL": "        9.44",
+              "CASHBAL": "     0.00",
+              "DECLAMT": "     0.00",
+              "TRNID01": "960b9b5480d045a",
+              "PDATE01": "10/27/23",
+              "PTIME01": "04:12:52",
+              "PTYPE01": "0100",
+              "PAPRV01": "A",
+              "PSTAT01": "P",
+              "PAMT001": "        1.24",
+              "TRNID02": "735c258a680d415",
+              "PDATE02": "10/27/23",
+              "PTIME02": "04:12:51",
+              "PTYPE02": "0100",
+              "PAPRV02": "A",
+              "PSTAT02": "P",
+              "PAMT002": "        1.24",
+              "TRNID03": "c55b7da992ce4ee",
+              "PDATE03": "10/27/23",
+              "PTIME03": "03:09:10",
+              "PTYPE03": "0100",
+              "PAPRV03": "A",
+              "PSTAT03": "P",
+              "PAMT003": "        1.99",
+              "TRNID04": "a777dea31c174a1",
+              "PDATE04": "10/27/23",
+              "PTIME04": "03:09:09",
+              "PTYPE04": "0100",
+              "PAPRV04": "A",
+              "PSTAT04": "P",
+              "PAMT004": "        1.99",
+              "TRNID05": "a0bd7e4b348b469",
+              "PDATE05": "10/27/23",
+              "PTIME05": "03:09:08",
+              "PTYPE05": "0100",
+              "PAPRV05": "A",
+              "PSTAT05": "P",
+              "PAMT005": "        1.99"
+            },
+            "cursor": "ACCTID"
+          }
+        },
+        {
+          "do": {
+            "aid": "ENTER",
+            "fields": {
+              "SEL0001": "S"
+            }
+          },
+          "expect": {
+            "map": "COPAU1A",
+            "fields": {
+              "TRNNAME": "CPVD",
+              "PGMNAME": "COPAUS1C",
+              "CARDNUM": "9680294154603697",
+              "AUTHDT": "10/27/23",
+              "AUTHTM": "04:12:52",
+              "AUTHRSP": "A",
+              "AUTHRSN": "0000-APPROVED",
+              "AUTHCD": "000000",
+              "AUTHAMT": "        1.24",
+              "POSEMD": "00",
+              "AUTHSRC": "102030",
+              "MCCCD": "5442",
+              "CRDEXP": "11/22",
+              "AUTHTYP": "0100",
+              "TRNID": "960b9b5480d045a",
+              "AUTHMTC": "P",
+              "AUTHFRD": "-",
+              "MERNAME": "Amazon.com",
+              "MERID": "123501000675423",
+              "MERCITY": "Wilmington",
+              "MERST": "DE",
+              "MERZIP": "19801"
+            },
+            "colors": {
+              "AUTHRSP": "GREEN"
+            },
+            "cursor": "CARDNUM"
+          }
+        }
+      ]
+    },
+    {
+      "id": "pending-auth-detail-next",
+      "title": "PF8 moves to the next authorization of the account",
+      "provenance": "observed",
+      "source": "COPAUS1C PROCESS-PF8-KEY",
+      "steps": [
+        {
+          "do": {
+            "transid": "CC00"
+          }
+        },
+        {
+          "do": {
+            "aid": "ENTER",
+            "fields": {
+              "USERID": "USER0001",
+              "PASSWD": "PASSWORD"
+            }
+          }
+        },
+        {
+          "do": {
+            "aid": "ENTER",
+            "fields": {
+              "OPTION": "11"
+            }
+          },
+          "expect": {
+            "map": "COPAU0A",
+            "fields": {
+              "TRNNAME": "CPVS",
+              "PGMNAME": "COPAUS0C"
+            },
+            "cursor": "ACCTID"
+          }
+        },
+        {
+          "do": {
+            "aid": "ENTER",
+            "fields": {
+              "ACCTID": "00000000001"
+            }
+          },
+          "expect": {
+            "map": "COPAU0A",
+            "fields": {
+              "TRNNAME": "CPVS",
+              "PGMNAME": "COPAUS0C",
+              "ACCTID": "00000000001",
+              "CNAME": "Immanuel M Kessler",
+              "CUSTID": "000000001",
+              "ADDR001": "618 Deshaun Route,Apt. 80",
+              "ADDR002": "Altenwerthshire,NC,12546",
+              "PHONE1": "(908)119-8310",
+              "APPRCNT": "006",
+              "DECLCNT": "000",
+              "CREDLIM": "     2020.00",
+              "CASHLIM": "  1020.00",
+              "APPRAMT": "     9.44",
+              "CREDBAL": "        9.44",
+              "CASHBAL": "     0.00",
+              "DECLAMT": "     0.00",
+              "TRNID01": "960b9b5480d045a",
+              "PDATE01": "10/27/23",
+              "PTIME01": "04:12:52",
+              "PTYPE01": "0100",
+              "PAPRV01": "A",
+              "PSTAT01": "P",
+              "PAMT001": "        1.24",
+              "TRNID02": "735c258a680d415",
+              "PDATE02": "10/27/23",
+              "PTIME02": "04:12:51",
+              "PTYPE02": "0100",
+              "PAPRV02": "A",
+              "PSTAT02": "P",
+              "PAMT002": "        1.24",
+              "TRNID03": "c55b7da992ce4ee",
+              "PDATE03": "10/27/23",
+              "PTIME03": "03:09:10",
+              "PTYPE03": "0100",
+              "PAPRV03": "A",
+              "PSTAT03": "P",
+              "PAMT003": "        1.99",
+              "TRNID04": "a777dea31c174a1",
+              "PDATE04": "10/27/23",
+              "PTIME04": "03:09:09",
+              "PTYPE04": "0100",
+              "PAPRV04": "A",
+              "PSTAT04": "P",
+              "PAMT004": "        1.99",
+              "TRNID05": "a0bd7e4b348b469",
+              "PDATE05": "10/27/23",
+              "PTIME05": "03:09:08",
+              "PTYPE05": "0100",
+              "PAPRV05": "A",
+              "PSTAT05": "P",
+              "PAMT005": "        1.99"
+            },
+            "cursor": "ACCTID"
+          }
+        },
+        {
+          "do": {
+            "aid": "ENTER",
+            "fields": {
+              "SEL0001": "S"
+            }
+          },
+          "expect": {
+            "map": "COPAU1A",
+            "fields": {
+              "TRNNAME": "CPVD",
+              "PGMNAME": "COPAUS1C",
+              "CARDNUM": "9680294154603697",
+              "AUTHDT": "10/27/23",
+              "AUTHTM": "04:12:52",
+              "AUTHRSP": "A",
+              "AUTHRSN": "0000-APPROVED",
+              "AUTHCD": "000000",
+              "AUTHAMT": "        1.24",
+              "POSEMD": "00",
+              "AUTHSRC": "102030",
+              "MCCCD": "5442",
+              "CRDEXP": "11/22",
+              "AUTHTYP": "0100",
+              "TRNID": "960b9b5480d045a",
+              "AUTHMTC": "P",
+              "AUTHFRD": "-",
+              "MERNAME": "Amazon.com",
+              "MERID": "123501000675423",
+              "MERCITY": "Wilmington",
+              "MERST": "DE",
+              "MERZIP": "19801"
+            },
+            "colors": {
+              "AUTHRSP": "GREEN"
+            },
+            "cursor": "CARDNUM"
+          }
+        },
+        {
+          "do": {
+            "aid": "PF8"
+          },
+          "expect": {
+            "map": "COPAU1A",
+            "fields": {
+              "TRNNAME": "CPVD",
+              "PGMNAME": "COPAUS1C",
+              "CARDNUM": "9680294154603697",
+              "AUTHDT": "10/27/23",
+              "AUTHTM": "04:12:51",
+              "AUTHRSP": "A",
+              "AUTHRSN": "0000-APPROVED",
+              "AUTHCD": "000000",
+              "AUTHAMT": "        1.24",
+              "POSEMD": "00",
+              "AUTHSRC": "102030",
+              "MCCCD": "5442",
+              "CRDEXP": "11/22",
+              "AUTHTYP": "0100",
+              "TRNID": "735c258a680d415",
+              "AUTHMTC": "P",
+              "AUTHFRD": "-",
+              "MERNAME": "Amazon.com",
+              "MERID": "123501000675423",
+              "MERCITY": "Wilmington",
+              "MERST": "DE",
+              "MERZIP": "19801"
+            },
+            "colors": {
+              "AUTHRSP": "GREEN"
+            },
+            "cursor": "CARDNUM"
+          }
+        }
+      ]
+    },
+    {
+      "id": "pending-auth-detail-next-at-last",
+      "title": "PF8 on the only authorization of account 5",
+      "provenance": "observed",
+      "source": "COPAUS1C PROCESS-PF8-KEY, READ-NEXT-AUTH-RECORD GE",
+      "steps": [
+        {
+          "do": {
+            "transid": "CC00"
+          }
+        },
+        {
+          "do": {
+            "aid": "ENTER",
+            "fields": {
+              "USERID": "USER0001",
+              "PASSWD": "PASSWORD"
+            }
+          }
+        },
+        {
+          "do": {
+            "aid": "ENTER",
+            "fields": {
+              "OPTION": "11"
+            }
+          },
+          "expect": {
+            "map": "COPAU0A",
+            "fields": {
+              "TRNNAME": "CPVS",
+              "PGMNAME": "COPAUS0C"
+            },
+            "cursor": "ACCTID"
+          }
+        },
+        {
+          "do": {
+            "aid": "ENTER",
+            "fields": {
+              "ACCTID": "00000000005"
+            }
+          },
+          "expect": {
+            "map": "COPAU0A",
+            "fields": {
+              "TRNNAME": "CPVS",
+              "PGMNAME": "COPAUS0C",
+              "ACCTID": "00000000005",
+              "CNAME": "Treva M Schowalter",
+              "CUSTID": "000000005",
+              "ADDR001": "5653 Legros Plaza,Apt. 96",
+              "ADDR002": "Alvinaport,MI,02251",
+              "PHONE1": "(978)775-4633",
+              "APPRCNT": "001",
+              "DECLCNT": "000",
+              "CREDLIM": "     3819.00",
+              "CASHLIM": "  2430.00",
+              "APPRAMT": "     1.31",
+              "CREDBAL": "        1.31",
+              "CASHBAL": "     0.00",
+              "DECLAMT": "     0.00",
+              "TRNID01": "3ec1336761a3482",
+              "PDATE01": "10/26/23",
+              "PTIME01": "20:48:46",
+              "PTYPE01": "0100",
+              "PAPRV01": "A",
+              "PSTAT01": "P",
+              "PAMT001": "        1.31"
+            },
+            "protected": [
+              "SEL0002",
+              "SEL0003",
+              "SEL0004",
+              "SEL0005"
+            ],
+            "cursor": "ACCTID"
+          }
+        },
+        {
+          "do": {
+            "aid": "ENTER",
+            "fields": {
+              "SEL0001": "S"
+            }
+          },
+          "expect": {
+            "map": "COPAU1A",
+            "fields": {
+              "TRNNAME": "CPVD",
+              "PGMNAME": "COPAUS1C",
+              "CARDNUM": "6009619150674526",
+              "AUTHDT": "10/26/23",
+              "AUTHTM": "20:48:46",
+              "AUTHRSP": "A",
+              "AUTHRSN": "0000-APPROVED",
+              "AUTHCD": "000000",
+              "AUTHAMT": "        1.31",
+              "POSEMD": "00",
+              "AUTHSRC": "102030",
+              "MCCCD": "5442",
+              "CRDEXP": "11/23",
+              "AUTHTYP": "0100",
+              "TRNID": "3ec1336761a3482",
+              "AUTHMTC": "P",
+              "AUTHFRD": "-",
+              "MERNAME": "Best Buy",
+              "MERID": "123501000675423",
+              "MERCITY": "Newark",
+              "MERST": "DE",
+              "MERZIP": "19881"
+            },
+            "colors": {
+              "AUTHRSP": "GREEN"
+            },
+            "cursor": "CARDNUM"
+          }
+        },
+        {
+          "do": {
+            "aid": "PF8"
+          },
+          "expect": {
+            "map": "COPAU1A",
+            "fields": {
+              "TRNNAME": "CPVD",
+              "PGMNAME": "COPAUS1C",
+              "CARDNUM": "6009619150674526",
+              "AUTHDT": "10/26/23",
+              "AUTHTM": "20:48:46",
+              "AUTHRSP": "A",
+              "AUTHRSN": "0000-APPROVED",
+              "AUTHCD": "000000",
+              "AUTHAMT": "        1.31",
+              "POSEMD": "00",
+              "AUTHSRC": "102030",
+              "MCCCD": "5442",
+              "CRDEXP": "11/23",
+              "AUTHTYP": "0100",
+              "TRNID": "3ec1336761a3482",
+              "AUTHMTC": "P",
+              "AUTHFRD": "-",
+              "MERNAME": "Best Buy",
+              "MERID": "123501000675423",
+              "MERCITY": "Newark",
+              "MERST": "DE",
+              "MERZIP": "19881",
+              "ERRMSG": "Already at the last Authorization..."
+            },
+            "colors": {
+              "AUTHRSP": "GREEN"
+            },
+            "cursor": "CARDNUM"
+          }
+        }
+      ]
+    },
+    {
+      "id": "pending-auth-detail-mark-fraud",
+      "title": "PF5 reports the authorization as fraud: AUTHFRDS row inserted and the IMS detail flagged F",
+      "provenance": "observed",
+      "source": "COPAUS1C MARK-AUTH-FRAUD, LINK COPAUS2C, UPDATE-AUTH-DETAILS; COPAUS2C INSERT",
+      "steps": [
+        {
+          "do": {
+            "transid": "CC00"
+          }
+        },
+        {
+          "do": {
+            "aid": "ENTER",
+            "fields": {
+              "USERID": "USER0001",
+              "PASSWD": "PASSWORD"
+            }
+          }
+        },
+        {
+          "do": {
+            "aid": "ENTER",
+            "fields": {
+              "OPTION": "11"
+            }
+          },
+          "expect": {
+            "map": "COPAU0A",
+            "fields": {
+              "TRNNAME": "CPVS",
+              "PGMNAME": "COPAUS0C"
+            },
+            "cursor": "ACCTID"
+          }
+        },
+        {
+          "do": {
+            "aid": "ENTER",
+            "fields": {
+              "ACCTID": "00000000001"
+            }
+          },
+          "expect": {
+            "map": "COPAU0A",
+            "fields": {
+              "TRNNAME": "CPVS",
+              "PGMNAME": "COPAUS0C",
+              "ACCTID": "00000000001",
+              "CNAME": "Immanuel M Kessler",
+              "CUSTID": "000000001",
+              "ADDR001": "618 Deshaun Route,Apt. 80",
+              "ADDR002": "Altenwerthshire,NC,12546",
+              "PHONE1": "(908)119-8310",
+              "APPRCNT": "006",
+              "DECLCNT": "000",
+              "CREDLIM": "     2020.00",
+              "CASHLIM": "  1020.00",
+              "APPRAMT": "     9.44",
+              "CREDBAL": "        9.44",
+              "CASHBAL": "     0.00",
+              "DECLAMT": "     0.00",
+              "TRNID01": "960b9b5480d045a",
+              "PDATE01": "10/27/23",
+              "PTIME01": "04:12:52",
+              "PTYPE01": "0100",
+              "PAPRV01": "A",
+              "PSTAT01": "P",
+              "PAMT001": "        1.24",
+              "TRNID02": "735c258a680d415",
+              "PDATE02": "10/27/23",
+              "PTIME02": "04:12:51",
+              "PTYPE02": "0100",
+              "PAPRV02": "A",
+              "PSTAT02": "P",
+              "PAMT002": "        1.24",
+              "TRNID03": "c55b7da992ce4ee",
+              "PDATE03": "10/27/23",
+              "PTIME03": "03:09:10",
+              "PTYPE03": "0100",
+              "PAPRV03": "A",
+              "PSTAT03": "P",
+              "PAMT003": "        1.99",
+              "TRNID04": "a777dea31c174a1",
+              "PDATE04": "10/27/23",
+              "PTIME04": "03:09:09",
+              "PTYPE04": "0100",
+              "PAPRV04": "A",
+              "PSTAT04": "P",
+              "PAMT004": "        1.99",
+              "TRNID05": "a0bd7e4b348b469",
+              "PDATE05": "10/27/23",
+              "PTIME05": "03:09:08",
+              "PTYPE05": "0100",
+              "PAPRV05": "A",
+              "PSTAT05": "P",
+              "PAMT005": "        1.99"
+            },
+            "cursor": "ACCTID"
+          }
+        },
+        {
+          "do": {
+            "aid": "ENTER",
+            "fields": {
+              "SEL0001": "S"
+            }
+          },
+          "expect": {
+            "map": "COPAU1A",
+            "fields": {
+              "TRNNAME": "CPVD",
+              "PGMNAME": "COPAUS1C",
+              "CARDNUM": "9680294154603697",
+              "AUTHDT": "10/27/23",
+              "AUTHTM": "04:12:52",
+              "AUTHRSP": "A",
+              "AUTHRSN": "0000-APPROVED",
+              "AUTHCD": "000000",
+              "AUTHAMT": "        1.24",
+              "POSEMD": "00",
+              "AUTHSRC": "102030",
+              "MCCCD": "5442",
+              "CRDEXP": "11/22",
+              "AUTHTYP": "0100",
+              "TRNID": "960b9b5480d045a",
+              "AUTHMTC": "P",
+              "AUTHFRD": "-",
+              "MERNAME": "Amazon.com",
+              "MERID": "123501000675423",
+              "MERCITY": "Wilmington",
+              "MERST": "DE",
+              "MERZIP": "19801"
+            },
+            "colors": {
+              "AUTHRSP": "GREEN"
+            },
+            "cursor": "CARDNUM"
+          }
+        },
+        {
+          "do": {
+            "aid": "PF5"
+          },
+          "expect": {
+            "map": "COPAU1A",
+            "fields": {
+              "TRNNAME": "CPVD",
+              "PGMNAME": "COPAUS1C",
+              "CARDNUM": "9680294154603697",
+              "AUTHDT": "10/27/23",
+              "AUTHTM": "04:12:52",
+              "AUTHRSP": "A",
+              "AUTHRSN": "0000-APPROVED",
+              "AUTHCD": "000000",
+              "AUTHAMT": "        1.24",
+              "POSEMD": "00",
+              "AUTHSRC": "102030",
+              "MCCCD": "5442",
+              "CRDEXP": "11/22",
+              "AUTHTYP": "0100",
+              "TRNID": "960b9b5480d045a",
+              "AUTHMTC": "P",
+              "AUTHFRD": "F-11/05/26",
+              "MERNAME": "Amazon.com",
+              "MERID": "123501000675423",
+              "MERCITY": "Wilmington",
+              "MERST": "DE",
+              "MERZIP": "19801",
+              "ERRMSG": "AUTH MARKED FRAUD..."
+            },
+            "colors": {
+              "AUTHRSP": "GREEN"
+            },
+            "cursor": "CARDNUM",
+            "files": {
+              "PAUTDTL1": {
+                "updated": [
+                  {
+                    "key": "1/76699/998747444",
+                    "changed": {
+                      "PA-AUTH-FRAUD": [
+                        "",
+                        "F"
+                      ],
+                      "PA-FRAUD-RPT-DATE": [
+                        "",
+                        "11/05/26"
+                      ]
+                    }
+                  }
+                ]
+              },
+              "AUTHFRDS": {
+                "inserted": [
+                  {
+                    "CARD-NUM": "9680294154603697",
+                    "AUTH-TS": "2023-10-27-00.12.52.555000",
+                    "AUTH-TYPE": "0100",
+                    "CARD-EXPIRY-DATE": "1122",
+                    "MESSAGE-TYPE": "1234",
+                    "MESSAGE-SOURCE": "102030",
+                    "AUTH-ID-CODE": "041252",
+                    "AUTH-RESP-CODE": "00",
+                    "AUTH-RESP-REASON": "0000",
+                    "PROCESSING-CODE": "000000",
+                    "TRANSACTION-AMT": "1.24",
+                    "APPROVED-AMT": "1.24",
+                    "MERCHANT-CATAGORY-CODE": "5442",
+                    "ACQR-COUNTRY-CODE": "USA",
+                    "POS-ENTRY-MODE": "0",
+                    "MERCHANT-ID": "123501000675423",
+                    "MERCHANT-NAME": "Amazon.com",
+                    "MERCHANT-CITY": "Wilmington",
+                    "MERCHANT-STATE": "DE",
+                    "MERCHANT-ZIP": "19801",
+                    "TRANSACTION-ID": "960b9b5480d045a",
+                    "MATCH-STATUS": "P",
+                    "AUTH-FRAUD": "F",
+                    "FRAUD-RPT-DATE": "2026-11-05",
+                    "ACCT-ID": "1",
+                    "CUST-ID": "1"
+                  }
+                ]
+              }
+            }
+          }
+        }
+      ]
+    },
+    {
+      "id": "pending-auth-detail-remove-fraud",
+      "title": "PF5 again removes the fraud flag: AUTHFRDS updated to R and the IMS detail flagged R",
+      "provenance": "observed",
+      "source": "COPAUS1C MARK-AUTH-FRAUD; COPAUS2C INSERT -803 then UPDATE",
+      "steps": [
+        {
+          "do": {
+            "transid": "CC00"
+          }
+        },
+        {
+          "do": {
+            "aid": "ENTER",
+            "fields": {
+              "USERID": "USER0001",
+              "PASSWD": "PASSWORD"
+            }
+          }
+        },
+        {
+          "do": {
+            "aid": "ENTER",
+            "fields": {
+              "OPTION": "11"
+            }
+          },
+          "expect": {
+            "map": "COPAU0A",
+            "fields": {
+              "TRNNAME": "CPVS",
+              "PGMNAME": "COPAUS0C"
+            },
+            "cursor": "ACCTID"
+          }
+        },
+        {
+          "do": {
+            "aid": "ENTER",
+            "fields": {
+              "ACCTID": "00000000001"
+            }
+          },
+          "expect": {
+            "map": "COPAU0A",
+            "fields": {
+              "TRNNAME": "CPVS",
+              "PGMNAME": "COPAUS0C",
+              "ACCTID": "00000000001",
+              "CNAME": "Immanuel M Kessler",
+              "CUSTID": "000000001",
+              "ADDR001": "618 Deshaun Route,Apt. 80",
+              "ADDR002": "Altenwerthshire,NC,12546",
+              "PHONE1": "(908)119-8310",
+              "APPRCNT": "006",
+              "DECLCNT": "000",
+              "CREDLIM": "     2020.00",
+              "CASHLIM": "  1020.00",
+              "APPRAMT": "     9.44",
+              "CREDBAL": "        9.44",
+              "CASHBAL": "     0.00",
+              "DECLAMT": "     0.00",
+              "TRNID01": "960b9b5480d045a",
+              "PDATE01": "10/27/23",
+              "PTIME01": "04:12:52",
+              "PTYPE01": "0100",
+              "PAPRV01": "A",
+              "PSTAT01": "P",
+              "PAMT001": "        1.24",
+              "TRNID02": "735c258a680d415",
+              "PDATE02": "10/27/23",
+              "PTIME02": "04:12:51",
+              "PTYPE02": "0100",
+              "PAPRV02": "A",
+              "PSTAT02": "P",
+              "PAMT002": "        1.24",
+              "TRNID03": "c55b7da992ce4ee",
+              "PDATE03": "10/27/23",
+              "PTIME03": "03:09:10",
+              "PTYPE03": "0100",
+              "PAPRV03": "A",
+              "PSTAT03": "P",
+              "PAMT003": "        1.99",
+              "TRNID04": "a777dea31c174a1",
+              "PDATE04": "10/27/23",
+              "PTIME04": "03:09:09",
+              "PTYPE04": "0100",
+              "PAPRV04": "A",
+              "PSTAT04": "P",
+              "PAMT004": "        1.99",
+              "TRNID05": "a0bd7e4b348b469",
+              "PDATE05": "10/27/23",
+              "PTIME05": "03:09:08",
+              "PTYPE05": "0100",
+              "PAPRV05": "A",
+              "PSTAT05": "P",
+              "PAMT005": "        1.99"
+            },
+            "cursor": "ACCTID"
+          }
+        },
+        {
+          "do": {
+            "aid": "ENTER",
+            "fields": {
+              "SEL0001": "S"
+            }
+          },
+          "expect": {
+            "map": "COPAU1A",
+            "fields": {
+              "TRNNAME": "CPVD",
+              "PGMNAME": "COPAUS1C",
+              "CARDNUM": "9680294154603697",
+              "AUTHDT": "10/27/23",
+              "AUTHTM": "04:12:52",
+              "AUTHRSP": "A",
+              "AUTHRSN": "0000-APPROVED",
+              "AUTHCD": "000000",
+              "AUTHAMT": "        1.24",
+              "POSEMD": "00",
+              "AUTHSRC": "102030",
+              "MCCCD": "5442",
+              "CRDEXP": "11/22",
+              "AUTHTYP": "0100",
+              "TRNID": "960b9b5480d045a",
+              "AUTHMTC": "P",
+              "AUTHFRD": "-",
+              "MERNAME": "Amazon.com",
+              "MERID": "123501000675423",
+              "MERCITY": "Wilmington",
+              "MERST": "DE",
+              "MERZIP": "19801"
+            },
+            "colors": {
+              "AUTHRSP": "GREEN"
+            },
+            "cursor": "CARDNUM"
+          }
+        },
+        {
+          "do": {
+            "aid": "PF5"
+          },
+          "expect": {
+            "map": "COPAU1A",
+            "fields": {
+              "TRNNAME": "CPVD",
+              "PGMNAME": "COPAUS1C",
+              "CARDNUM": "9680294154603697",
+              "AUTHDT": "10/27/23",
+              "AUTHTM": "04:12:52",
+              "AUTHRSP": "A",
+              "AUTHRSN": "0000-APPROVED",
+              "AUTHCD": "000000",
+              "AUTHAMT": "        1.24",
+              "POSEMD": "00",
+              "AUTHSRC": "102030",
+              "MCCCD": "5442",
+              "CRDEXP": "11/22",
+              "AUTHTYP": "0100",
+              "TRNID": "960b9b5480d045a",
+              "AUTHMTC": "P",
+              "AUTHFRD": "F-11/05/26",
+              "MERNAME": "Amazon.com",
+              "MERID": "123501000675423",
+              "MERCITY": "Wilmington",
+              "MERST": "DE",
+              "MERZIP": "19801",
+              "ERRMSG": "AUTH MARKED FRAUD..."
+            },
+            "colors": {
+              "AUTHRSP": "GREEN"
+            },
+            "cursor": "CARDNUM",
+            "files": {
+              "PAUTDTL1": {
+                "updated": [
+                  {
+                    "key": "1/76699/998747444",
+                    "changed": {
+                      "PA-AUTH-FRAUD": [
+                        "",
+                        "F"
+                      ],
+                      "PA-FRAUD-RPT-DATE": [
+                        "",
+                        "11/05/26"
+                      ]
+                    }
+                  }
+                ]
+              },
+              "AUTHFRDS": {
+                "inserted": [
+                  {
+                    "CARD-NUM": "9680294154603697",
+                    "AUTH-TS": "2023-10-27-00.12.52.555000",
+                    "AUTH-TYPE": "0100",
+                    "CARD-EXPIRY-DATE": "1122",
+                    "MESSAGE-TYPE": "1234",
+                    "MESSAGE-SOURCE": "102030",
+                    "AUTH-ID-CODE": "041252",
+                    "AUTH-RESP-CODE": "00",
+                    "AUTH-RESP-REASON": "0000",
+                    "PROCESSING-CODE": "000000",
+                    "TRANSACTION-AMT": "1.24",
+                    "APPROVED-AMT": "1.24",
+                    "MERCHANT-CATAGORY-CODE": "5442",
+                    "ACQR-COUNTRY-CODE": "USA",
+                    "POS-ENTRY-MODE": "0",
+                    "MERCHANT-ID": "123501000675423",
+                    "MERCHANT-NAME": "Amazon.com",
+                    "MERCHANT-CITY": "Wilmington",
+                    "MERCHANT-STATE": "DE",
+                    "MERCHANT-ZIP": "19801",
+                    "TRANSACTION-ID": "960b9b5480d045a",
+                    "MATCH-STATUS": "P",
+                    "AUTH-FRAUD": "F",
+                    "FRAUD-RPT-DATE": "2026-11-05",
+                    "ACCT-ID": "1",
+                    "CUST-ID": "1"
+                  }
+                ]
+              }
+            }
+          }
+        },
+        {
+          "do": {
+            "aid": "PF5"
+          },
+          "expect": {
+            "map": "COPAU1A",
+            "fields": {
+              "TRNNAME": "CPVD",
+              "PGMNAME": "COPAUS1C",
+              "CARDNUM": "9680294154603697",
+              "AUTHDT": "10/27/23",
+              "AUTHTM": "04:12:52",
+              "AUTHRSP": "A",
+              "AUTHRSN": "0000-APPROVED",
+              "AUTHCD": "000000",
+              "AUTHAMT": "        1.24",
+              "POSEMD": "00",
+              "AUTHSRC": "102030",
+              "MCCCD": "5442",
+              "CRDEXP": "11/22",
+              "AUTHTYP": "0100",
+              "TRNID": "960b9b5480d045a",
+              "AUTHMTC": "P",
+              "AUTHFRD": "R-11/05/26",
+              "MERNAME": "Amazon.com",
+              "MERID": "123501000675423",
+              "MERCITY": "Wilmington",
+              "MERST": "DE",
+              "MERZIP": "19801",
+              "ERRMSG": "AUTH FRAUD REMOVED..."
+            },
+            "colors": {
+              "AUTHRSP": "GREEN"
+            },
+            "cursor": "CARDNUM",
+            "files": {
+              "PAUTDTL1": {
+                "updated": [
+                  {
+                    "key": "1/76699/998747444",
+                    "changed": {
+                      "PA-AUTH-FRAUD": [
+                        "F",
+                        "R"
+                      ]
+                    }
+                  }
+                ]
+              },
+              "AUTHFRDS": {
+                "updated": [
+                  {
+                    "key": "96802941546036972023-10-27-00.12.52.555000",
+                    "changed": {
+                      "AUTH-FRAUD": [
+                        "F",
+                        "R"
+                      ]
+                    }
+                  }
+                ]
+              }
+            }
+          }
+        }
+      ]
+    },
+    {
+      "id": "pending-auth-detail-pf3",
+      "title": "PF3 returns to the summary screen",
+      "provenance": "observed",
+      "source": "COPAUS1C MAIN-PARA DFHPF3, XCTL COPAUS0C",
+      "steps": [
+        {
+          "do": {
+            "transid": "CC00"
+          }
+        },
+        {
+          "do": {
+            "aid": "ENTER",
+            "fields": {
+              "USERID": "USER0001",
+              "PASSWD": "PASSWORD"
+            }
+          }
+        },
+        {
+          "do": {
+            "aid": "ENTER",
+            "fields": {
+              "OPTION": "11"
+            }
+          },
+          "expect": {
+            "map": "COPAU0A",
+            "fields": {
+              "TRNNAME": "CPVS",
+              "PGMNAME": "COPAUS0C"
+            },
+            "cursor": "ACCTID"
+          }
+        },
+        {
+          "do": {
+            "aid": "ENTER",
+            "fields": {
+              "ACCTID": "00000000001"
+            }
+          },
+          "expect": {
+            "map": "COPAU0A",
+            "fields": {
+              "TRNNAME": "CPVS",
+              "PGMNAME": "COPAUS0C",
+              "ACCTID": "00000000001",
+              "CNAME": "Immanuel M Kessler",
+              "CUSTID": "000000001",
+              "ADDR001": "618 Deshaun Route,Apt. 80",
+              "ADDR002": "Altenwerthshire,NC,12546",
+              "PHONE1": "(908)119-8310",
+              "APPRCNT": "006",
+              "DECLCNT": "000",
+              "CREDLIM": "     2020.00",
+              "CASHLIM": "  1020.00",
+              "APPRAMT": "     9.44",
+              "CREDBAL": "        9.44",
+              "CASHBAL": "     0.00",
+              "DECLAMT": "     0.00",
+              "TRNID01": "960b9b5480d045a",
+              "PDATE01": "10/27/23",
+              "PTIME01": "04:12:52",
+              "PTYPE01": "0100",
+              "PAPRV01": "A",
+              "PSTAT01": "P",
+              "PAMT001": "        1.24",
+              "TRNID02": "735c258a680d415",
+              "PDATE02": "10/27/23",
+              "PTIME02": "04:12:51",
+              "PTYPE02": "0100",
+              "PAPRV02": "A",
+              "PSTAT02": "P",
+              "PAMT002": "        1.24",
+              "TRNID03": "c55b7da992ce4ee",
+              "PDATE03": "10/27/23",
+              "PTIME03": "03:09:10",
+              "PTYPE03": "0100",
+              "PAPRV03": "A",
+              "PSTAT03": "P",
+              "PAMT003": "        1.99",
+              "TRNID04": "a777dea31c174a1",
+              "PDATE04": "10/27/23",
+              "PTIME04": "03:09:09",
+              "PTYPE04": "0100",
+              "PAPRV04": "A",
+              "PSTAT04": "P",
+              "PAMT004": "        1.99",
+              "TRNID05": "a0bd7e4b348b469",
+              "PDATE05": "10/27/23",
+              "PTIME05": "03:09:08",
+              "PTYPE05": "0100",
+              "PAPRV05": "A",
+              "PSTAT05": "P",
+              "PAMT005": "        1.99"
+            },
+            "cursor": "ACCTID"
+          }
+        },
+        {
+          "do": {
+            "aid": "ENTER",
+            "fields": {
+              "SEL0001": "S"
+            }
+          },
+          "expect": {
+            "map": "COPAU1A",
+            "fields": {
+              "TRNNAME": "CPVD",
+              "PGMNAME": "COPAUS1C",
+              "CARDNUM": "9680294154603697",
+              "AUTHDT": "10/27/23",
+              "AUTHTM": "04:12:52",
+              "AUTHRSP": "A",
+              "AUTHRSN": "0000-APPROVED",
+              "AUTHCD": "000000",
+              "AUTHAMT": "        1.24",
+              "POSEMD": "00",
+              "AUTHSRC": "102030",
+              "MCCCD": "5442",
+              "CRDEXP": "11/22",
+              "AUTHTYP": "0100",
+              "TRNID": "960b9b5480d045a",
+              "AUTHMTC": "P",
+              "AUTHFRD": "-",
+              "MERNAME": "Amazon.com",
+              "MERID": "123501000675423",
+              "MERCITY": "Wilmington",
+              "MERST": "DE",
+              "MERZIP": "19801"
+            },
+            "colors": {
+              "AUTHRSP": "GREEN"
+            },
+            "cursor": "CARDNUM"
+          }
+        },
+        {
+          "do": {
+            "aid": "PF3"
+          },
+          "expect": {
+            "map": "COPAU0A",
+            "fields": {
+              "TRNNAME": "CPVS",
+              "PGMNAME": "COPAUS0C",
+              "ACCTID": "00000000001",
+              "CNAME": "Immanuel M Kessler",
+              "CUSTID": "000000001",
+              "ADDR001": "618 Deshaun Route,Apt. 80",
+              "ADDR002": "Altenwerthshire,NC,12546",
+              "PHONE1": "(908)119-8310",
+              "APPRCNT": "006",
+              "DECLCNT": "000",
+              "CREDLIM": "     2020.00",
+              "CASHLIM": "  1020.00",
+              "APPRAMT": "     9.44",
+              "CREDBAL": "        9.44",
+              "CASHBAL": "     0.00",
+              "DECLAMT": "     0.00",
+              "TRNID01": "960b9b5480d045a",
+              "PDATE01": "10/27/23",
+              "PTIME01": "04:12:52",
+              "PTYPE01": "0100",
+              "PAPRV01": "A",
+              "PSTAT01": "P",
+              "PAMT001": "        1.24",
+              "TRNID02": "735c258a680d415",
+              "PDATE02": "10/27/23",
+              "PTIME02": "04:12:51",
+              "PTYPE02": "0100",
+              "PAPRV02": "A",
+              "PSTAT02": "P",
+              "PAMT002": "        1.24",
+              "TRNID03": "c55b7da992ce4ee",
+              "PDATE03": "10/27/23",
+              "PTIME03": "03:09:10",
+              "PTYPE03": "0100",
+              "PAPRV03": "A",
+              "PSTAT03": "P",
+              "PAMT003": "        1.99",
+              "TRNID04": "a777dea31c174a1",
+              "PDATE04": "10/27/23",
+              "PTIME04": "03:09:09",
+              "PTYPE04": "0100",
+              "PAPRV04": "A",
+              "PSTAT04": "P",
+              "PAMT004": "        1.99",
+              "TRNID05": "a0bd7e4b348b469",
+              "PDATE05": "10/27/23",
+              "PTIME05": "03:09:08",
+              "PTYPE05": "0100",
+              "PAPRV05": "A",
+              "PSTAT05": "P",
+              "PAMT005": "        1.99"
+            },
+            "cursor": "ACCTID"
+          }
+        }
+      ]
+    }
+  ]
+}
