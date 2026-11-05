@@ -34,7 +34,7 @@ import com.fasterxml.jackson.databind.node.ObjectNode;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 
 /**
- * Every batch golden through {@link BatchCase} and the internal reader of this context, compared as
+ * Every batch golden under {@code characterization/cases} through {@link BatchCase} and the internal reader of this context, compared as
  * {@code characterization/run.py} compares them: the whole observation unless the case matches a subset, and
  * keys starting with {@code _} dropped.
  */
@@ -44,7 +44,7 @@ import static org.junit.jupiter.api.Assertions.assertEquals;
 class BatchGoldensIT {
 
     private static final ObjectMapper JSON = new ObjectMapper();
-    private static final Path CASES = Path.of("..", "characterization", "cases", "batch");
+    private static final Path CASES = Path.of("..", "characterization", "cases");
     private static final Path REGISTRY = Path.of("..", "characterization", "fixtures", "datasets.json");
     private static final LocalDateTime HARNESS_CLOCK = LocalDateTime.of(2026, 11, 5, 10, 0);
 
@@ -71,9 +71,12 @@ class BatchGoldensIT {
     @TestFactory
     Stream<DynamicTest> goldens() throws IOException {
         List<DynamicTest> tests = new ArrayList<>();
-        try (Stream<Path> files = Files.list(CASES)) {
+        try (Stream<Path> files = Files.walk(CASES)) {
             for (Path file : files.filter(f -> f.toString().endsWith(".json")).sorted().toList()) {
                 JsonNode suite = JSON.readTree(file.toFile());
+                if (!suite.path("kind").asText().equals("batch")) {
+                    continue;
+                }
                 for (JsonNode testCase : suite.get("cases")) {
                     tests.add(DynamicTest.dynamicTest(testCase.get("id").asText(), () -> golden(suite, testCase)));
                 }

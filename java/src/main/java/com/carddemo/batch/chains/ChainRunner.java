@@ -15,6 +15,7 @@ import org.springframework.batch.core.JobInstance;
 import org.springframework.batch.core.JobParameters;
 import org.springframework.batch.core.JobParametersBuilder;
 import org.springframework.batch.core.Step;
+import org.springframework.batch.core.StepContribution;
 import org.springframework.batch.core.StepExecution;
 import org.springframework.batch.core.job.builder.JobBuilder;
 import org.springframework.batch.core.job.builder.SimpleJobBuilder;
@@ -29,10 +30,12 @@ import org.springframework.transaction.PlatformTransactionManager;
 import org.springframework.transaction.TransactionDefinition;
 import org.springframework.transaction.interceptor.DefaultTransactionAttribute;
 
+import com.carddemo.batch.library.LibraryJob;
 import com.carddemo.batch.runtime.BatchRuntime;
 import com.carddemo.batch.runtime.Completion;
 import com.carddemo.batch.runtime.Ran;
 import com.carddemo.batch.runtime.RunIdentity;
+import com.carddemo.cics.CicsRegion;
 
 /**
  * Runs chains. A chain run is one Spring Batch job named after the chain and identified by its order date, with a
@@ -69,14 +72,16 @@ public final class ChainRunner {
     private final PlatformTransactionManager transactions;
     private final BatchRuntime runtime;
     private final JdbcClient jdbc;
+    private final CicsRegion region;
 
     ChainRunner(JobRepository repository, JobLauncher launcher, PlatformTransactionManager transactions,
-            BatchRuntime runtime, JdbcClient jdbc) {
+            BatchRuntime runtime, JdbcClient jdbc, CicsRegion region) {
         this.repository = repository;
         this.launcher = launcher;
         this.transactions = transactions;
         this.runtime = runtime;
         this.jdbc = jdbc;
+        this.region = region;
     }
 
     /** Runs the chain for {@code orderDate} to its end on this thread, once per order date. */
@@ -193,22 +198,29 @@ public final class ChainRunner {
 
     private Tasklet tasklet(int position, Member member) {
         return switch (member) {
-            case Member.Job job -> (contribution, chunk) -> {
-                StepExecution step = contribution.getStepExecution();
-                Ran ran = runtime.run(job.job().job(), new RunIdentity.Chained(step.getJobExecutionId(), position));
-                step.getExecutionContext().putLong(JOB_EXECUTION, ran.jobExecutionId());
-                contribution.setExitStatus(new ExitStatus(ran.completion().label()));
-                if (!ChainRun.endedOk(ran.completion())) {
-                    throw new MemberFailed(step.getStepName(), ran.completion());
-                }
-                return RepeatStatus.FINISHED;
-            };
-            case Member.Optional optional -> (contribution, chunk) -> {
-                contribution.setExitStatus(new ExitStatus(new Completion.Bypassed().label()));
-                return RepeatStatus.FINISHED;
-            };
+            case Member.Job job -> (contribution, chunk) -> run(contribution, position, job.job());
+            case Member.ExtensionJob job -> (contribution, chunk) -> region.installed().contains(job.extension())
+                    ? run(contribution, position, job.job())
+                    : bypass(contribution);
+            case Member.Optional optional -> (contribution, chunk) -> bypass(contribution);
             case Member.Unported unported -> throw new IllegalArgumentException(unported.name() + " is not ported");
         };
+    }
+
+    private RepeatStatus run(StepContribution contribution, int position, LibraryJob job) {
+        StepExecution step = contribution.getStepExecution();
+        Ran ran = runtime.run(job.job(), new RunIdentity.Chained(step.getJobExecutionId(), position));
+        step.getExecutionContext().putLong(JOB_EXECUTION, ran.jobExecutionId());
+        contribution.setExitStatus(new ExitStatus(ran.completion().label()));
+        if (!ChainRun.endedOk(ran.completion())) {
+            throw new MemberFailed(step.getStepName(), ran.completion());
+        }
+        return RepeatStatus.FINISHED;
+    }
+
+    private static RepeatStatus bypass(StepContribution contribution) {
+        contribution.setExitStatus(new ExitStatus(new Completion.Bypassed().label()));
+        return RepeatStatus.FINISHED;
     }
 
     private static Optional<Completion> completion(StepExecution step) {

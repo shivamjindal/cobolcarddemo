@@ -1,6 +1,7 @@
 package com.carddemo.batch.chains;
 
 import com.carddemo.batch.library.LibraryJob;
+import com.carddemo.cics.Extension;
 
 /** One job of a chain, in the order the scheduler export triggers it. */
 public sealed interface Member {
@@ -14,7 +15,14 @@ public sealed interface Member {
         }
     }
 
-    /** A job of an optional module this slice does not install (IMS, Db2, REXX): bypassed, and the chain goes on. */
+    /** A library job of an optional extension: run while the region has it installed, bypassed otherwise. */
+    record ExtensionJob(LibraryJob job, Extension extension) implements Member {
+        public String name() {
+            return job.name();
+        }
+    }
+
+    /** A job of an optional module this slice does not install (Db2, REXX): bypassed, and the chain goes on. */
     record Optional(String name, String module) implements Member {}
 
     /** A base job this slice has not ported. A chain holding one cannot start. */

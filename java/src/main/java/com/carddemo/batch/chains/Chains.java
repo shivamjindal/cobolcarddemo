@@ -9,6 +9,7 @@ import java.util.Optional;
 import org.springframework.stereotype.Component;
 
 import com.carddemo.batch.library.LibraryJob;
+import com.carddemo.cics.Extension;
 
 /**
  * The chains of {@code app/scheduler}, by name. A CA-7 chain is one walk of the LJOB export with its loop edges
@@ -20,7 +21,8 @@ public final class Chains {
     private static final String RELOAD = "reference data reload, outside the batch slice";
 
     static final Chain CA7_030_POSTING = new Chain("CA7_030_POSTING", Chain.Scheduler.CA7, "030", List.of(
-            job(LibraryJob.CLOSEFIL), new Member.Optional("CBPAUP0J", "IMS"), job(LibraryJob.POSTTRAN),
+            job(LibraryJob.CLOSEFIL), new Member.ExtensionJob(LibraryJob.CBPAUP0J, Extension.PENDING_AUTHORIZATIONS),
+            job(LibraryJob.POSTTRAN),
             job(LibraryJob.WAITSTEP), job(LibraryJob.OPENFIL)),
             "CA-7 SCHID 030; QTM=0100; the export has no days", Optional.empty());
 

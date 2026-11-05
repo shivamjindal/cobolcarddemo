@@ -8,6 +8,7 @@ import java.util.Arrays;
 import java.util.List;
 import java.util.Optional;
 
+import com.carddemo.batch.ims.Dfsrrc00;
 import com.carddemo.batch.jcl.Cond;
 import com.carddemo.batch.jcl.Dcb;
 import com.carddemo.batch.jcl.Dd;
@@ -21,6 +22,10 @@ import com.carddemo.batch.programs.Cbact02c;
 import com.carddemo.batch.programs.Cbact03c;
 import com.carddemo.batch.programs.Cbact04c;
 import com.carddemo.batch.programs.Cbcus01c;
+import com.carddemo.batch.programs.Cbpaup0c;
+import com.carddemo.batch.programs.Dbunldgs;
+import com.carddemo.batch.programs.Paudblod;
+import com.carddemo.batch.programs.Paudbunl;
 import com.carddemo.batch.programs.Cbstm03a;
 import com.carddemo.batch.programs.Cbtrn02c;
 import com.carddemo.batch.programs.Iefbr14;
@@ -174,7 +179,35 @@ public enum LibraryJob {
             sysout("SYSTSPRT"), shr("INPFILE", "INPFILE"),
             instream("SYSTSIN",
                     "     DSN SYSTEM(DAZ1)",
-                    "          RUN PROGRAM(COBTUPDT) PLAN(CARDDEMO)"))));
+                    "          RUN PROGRAM(COBTUPDT) PLAN(CARDDEMO)")))),
+    /**
+     * The IMS jobs of app-authorization-ims-db2-mq start here. Their IMS system DDs (DFSRESLB, PROCLIB, DFSSEL,
+     * IMS, DFSVSAMP, DDPAUTP0, DDPAUTX0, IEFRDER, IMSLOGR) are left out with STEPLIB: DFSRRC00 is a bean and
+     * DBPAUTP0 is V20's tables.
+     */
+    CBPAUP0J(JobDef.of("CBPAUP0J", program("STEP01", Dfsrrc00.NAME,
+            instream("SYSIN", "00,00001,00001,Y"),
+            sysout("SYSOUX"), sysout("SYSOUT"), sysout("SYSABOUT"), sysout("ABENDAID"), sysout("SYSPRINT"),
+            sysout("SYSUDUMP"), sysout("IMSERR")).parm("BMP," + Cbpaup0c.NAME + "," + Cbpaup0c.PSB))),
+    /** STEP0 deletes the last unload, and DISP=OLD fails the job with a JCL error when there is none. */
+    UNLDPADB(JobDef.of("UNLDPADB",
+            program("STEP0", Iefbr14.NAME, sysout("SYSPRINT"), sysout("SYSOUT"), sysout("SYSDUMP"),
+                    dataset("DD1", "AWS.M2.CARDDEMO.PAUTDB.ROOT.FILEO", oldThen(Disposition.End.DELETE), Optional.empty()),
+                    dataset("DD2", "AWS.M2.CARDDEMO.PAUTDB.CHILD.FILEO", oldThen(Disposition.End.DELETE), Optional.empty())),
+            program("STEP01", Dfsrrc00.NAME,
+                    created("OUTFIL1", "AWS.M2.CARDDEMO.PAUTDB.ROOT.FILEO", new Dcb(Dcb.Recfm.F, 100)),
+                    created("OUTFIL2", "AWS.M2.CARDDEMO.PAUTDB.CHILD.FILEO", new Dcb(Dcb.Recfm.F, 206)),
+                    sysout("SYSPRINT"), sysout("SYSUDUMP"), sysout("IMSERR"))
+                    .parm("DLI," + Paudbunl.NAME + "," + Paudbunl.PSB + ",,,,,,,,,,,N"))),
+    LOADPADB(JobDef.of("LOADPADB", program("STEP01", Dfsrrc00.NAME,
+            shr("INFILE1", "AWS.M2.CARDDEMO.PAUTDB.ROOT.FILEO"), shr("INFILE2", "AWS.M2.CARDDEMO.PAUTDB.CHILD.FILEO"),
+            sysout("SYSPRINT"), sysout("SYSUDUMP"), sysout("IMSERR")).parm("BMP," + Paudblod.NAME + "," + Paudblod.PSB))),
+    /** The GSAM data sets are DISP=OLD, so they must be cataloged before the first run. */
+    UNLDGSAM(JobDef.of("UNLDGSAM", program("STEP01", Dfsrrc00.NAME,
+            dataset("PASFILOP", "AWS.M2.CARDDEMO.PAUTDB.ROOT.GSAM", oldThen(Disposition.End.KEEP), Optional.empty()),
+            dataset("PADFILOP", "AWS.M2.CARDDEMO.PAUTDB.CHILD.GSAM", oldThen(Disposition.End.KEEP), Optional.empty()),
+            sysout("SYSPRINT"), sysout("SYSUDUMP"), sysout("IMSERR"))
+            .parm("DLI," + Dbunldgs.NAME + "," + Dbunldgs.PSB + ",,,,,,,,,,,N")));
 
     private final JobDef job;
 
@@ -215,6 +248,10 @@ public enum LibraryJob {
     private static Dd modDelete(String name, String dsn) {
         return dataset(name, dsn, Disposition.of(Disposition.Status.MOD, Disposition.End.DELETE, Disposition.End.DELETE),
                 Optional.empty());
+    }
+
+    private static Disposition oldThen(Disposition.End end) {
+        return Disposition.of(Disposition.Status.OLD, end, end);
     }
 
     private static Dd created(String name, String dsn, Dcb dcb) {
