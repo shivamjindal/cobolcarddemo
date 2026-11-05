@@ -1,7 +1,7 @@
 import { useEffect, useRef, useState } from "react";
 import type { KeyboardEvent as ReactKeyboardEvent, MouseEvent as ReactMouseEvent } from "react";
 import type { ScreenReply, TextReply } from "./api";
-import { keyOf, label } from "./keys";
+import { label, takeAidKey } from "./keys";
 import type { ActionRef, Key } from "./keys";
 import { colorClass, displayValue, gridPlacement, rememberTyped } from "./model";
 import type { MapLayout } from "./model";
@@ -25,12 +25,7 @@ export function BmsScreen(props: {
   }, [reply.cursor, reply.turn]);
 
   function onKeyDown(event: ReactKeyboardEvent) {
-    const key = keyOf(event);
-    if (!key) return;
-    // Capture runs before the browser handles F-keys and before a focused button activates.
-    event.preventDefault();
-    if (busy) return;
-    onAction(key, typed);
+    takeAidKey(event, busy, (key) => onAction(key, typed));
   }
 
   return (
@@ -107,11 +102,7 @@ export function TextScreen(props: {
   }, [reply.turn]);
 
   function onKeyDown(event: ReactKeyboardEvent) {
-    const key = keyOf(event);
-    if (!key) return;
-    event.preventDefault();
-    if (busy) return;
-    onAction(key, {});
+    takeAidKey(event, busy, (key) => onAction(key, {}));
   }
 
   return (

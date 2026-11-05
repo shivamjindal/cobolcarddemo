@@ -1,5 +1,5 @@
 import { expect, test } from "vitest";
-import { parseMap, parseReply, readCookie } from "./api";
+import { parseMap, parseReply, problemMessage, readCookie } from "./api";
 import { cosgnMap, cosgnReply } from "./cosgn0a.fixture";
 import { actionFor, keyOf, label } from "./keys";
 import { buildActBody, displayValue, gridPlacement, rememberTyped } from "./model";
@@ -148,11 +148,17 @@ test("parses screen, text and ended replies, and map color aliases", () => {
       { name: "TITLE01", row: 1, col: 22, length: 40, attributes: ["ASKIP"], color: "YELLO" },
       { name: "X", row: 1, col: 1, length: 1, attributes: [] },
     ],
-    literals: [{ row: 1, col: 2, text: "Tran :", color: "TURQ" }],
+    literals: [
+      { row: 1, col: 1, length: 6, initial: "Tran :", color: "TURQ" },
+      { row: 19, col: 52, length: 0, initial: "" },
+    ],
   });
   expect(aliased.fields[0]?.color).toBe("YELLOW");
   expect(aliased.fields[1]?.color).toBe("DEFAULT");
   expect(aliased.literals[0]?.color).toBe("TURQUOISE");
+  expect(aliased.literals[0]?.col).toBe(2);
+  expect(aliased.literals[1]?.text).toBe("");
+  expect(aliased.literals[1]?.col).toBe(53);
   expect(() =>
     parseMap({
       mapset: "COSGN00",
@@ -161,6 +167,22 @@ test("parses screen, text and ended replies, and map color aliases", () => {
       literals: [],
     }),
   ).toThrow();
+});
+
+test("reads a problem detail and Spring Security's forbidden body", () => {
+  expect(
+    problemMessage(
+      '{"type":"about:blank","title":"Bad Request","status":400,"detail":"invalid-key needs the key that was pressed"}',
+      400,
+    ),
+  ).toBe("invalid-key needs the key that was pressed");
+  expect(
+    problemMessage(
+      '{"timestamp":"2026-11-05T07:33:07.742+00:00","status":403,"error":"Forbidden","path":"/api/screens/user-list/browse"}',
+      403,
+    ),
+  ).toBe("Forbidden");
+  expect(problemMessage("", 403)).toBe("HTTP 403");
 });
 
 test("reads the XSRF cookie", () => {

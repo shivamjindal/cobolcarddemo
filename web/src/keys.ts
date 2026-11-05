@@ -57,6 +57,18 @@ export function keyOf(event: { key: string; shiftKey: boolean }): Key | null {
   return isKey(name) ? name : null;
 }
 
+/** Capture runs before the browser handles F-keys and before a focused button activates. */
+export function takeAidKey(
+  event: { key: string; shiftKey: boolean; preventDefault(): void },
+  busy: boolean,
+  onAction: (key: Key) => void,
+): void {
+  const key = keyOf(event);
+  if (!key) return;
+  event.preventDefault();
+  if (!busy) onAction(key);
+}
+
 export function actionFor(actions: readonly ActionRef[], key: Key): string {
   for (const action of actions) {
     if (action.key === key) return action.name;

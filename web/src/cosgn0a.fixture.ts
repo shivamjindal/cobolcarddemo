@@ -1,6 +1,5 @@
-// Data cells for COSGN0A in app/bms/COSGN00.bms.
-// BMS POS is the attribute byte, so col = POS column + 1.
-// USERID POS=(19,43) -> row 19, col 44. ERRMSG POS=(23,1) -> row 23, col 2.
+// COSGN0A as GET /api/maps sends it. col is the attribute byte.
+// USERID POS=(19,43). ERRMSG POS=(23,1). The parser paints one column to the right.
 
 export const cosgnMap = {
   mapset: "COSGN00",
@@ -9,7 +8,7 @@ export const cosgnMap = {
     {
       name: "TRNNAME",
       row: 1,
-      col: 9,
+      col: 8,
       length: 4,
       attributes: ["ASKIP", "FSET", "NORM"],
       color: "BLUE",
@@ -17,7 +16,7 @@ export const cosgnMap = {
     {
       name: "SYSID",
       row: 3,
-      col: 72,
+      col: 71,
       length: 8,
       attributes: ["FSET", "NORM", "PROT"],
       initial: "        ",
@@ -26,7 +25,7 @@ export const cosgnMap = {
     {
       name: "USERID",
       row: 19,
-      col: 44,
+      col: 43,
       length: 8,
       attributes: ["FSET", "IC", "NORM", "UNPROT"],
       color: "GREEN",
@@ -34,7 +33,7 @@ export const cosgnMap = {
     {
       name: "PASSWD",
       row: 20,
-      col: 44,
+      col: 43,
       length: 8,
       attributes: ["DRK", "FSET", "UNPROT"],
       initial: "________",
@@ -43,17 +42,18 @@ export const cosgnMap = {
     {
       name: "ERRMSG",
       row: 23,
-      col: 2,
+      col: 1,
       length: 78,
       attributes: ["ASKIP", "BRT", "FSET"],
       color: "RED",
     },
   ],
   literals: [
-    { row: 1, col: 2, text: "Tran :", color: "BLUE" },
-    { row: 19, col: 30, text: "User ID     :", color: "TURQUOISE" },
-    { row: 20, col: 30, text: "Password    :", color: "TURQUOISE" },
-    { row: 24, col: 2, text: "ENTER=Sign-on  F3=Exit", color: "YELLOW" },
+    { row: 1, col: 1, length: 6, initial: "Tran :", color: "BLUE" },
+    { row: 19, col: 29, length: 13, initial: "User ID     :", color: "TURQUOISE" },
+    { row: 20, col: 29, length: 13, initial: "Password    :", color: "TURQUOISE" },
+    { row: 24, col: 1, length: 22, initial: "ENTER=Sign-on  F3=Exit", color: "YELLOW" },
+    { row: 19, col: 52, length: 0, initial: "", color: "GREEN" },
   ],
 };
 

@@ -176,14 +176,19 @@ async function readJson(res: Response): Promise<unknown> {
 }
 
 async function readProblem(res: Response): Promise<string> {
-  const text = await res.text();
-  if (!text) return `HTTP ${res.status}`;
+  return problemMessage(await res.text(), res.status);
+}
+
+/** ProblemDetail uses detail. Spring Security's 403 uses error and has no detail. */
+export function problemMessage(text: string, status: number): string {
+  if (!text) return `HTTP ${status}`;
   try {
     const json: unknown = JSON.parse(text);
     if (isRecord(json)) {
       if (typeof json.detail === "string" && json.detail) return json.detail;
-      if (typeof json.title === "string" && json.title) return json.title;
       if (typeof json.message === "string" && json.message) return json.message;
+      if (typeof json.error === "string" && json.error) return json.error;
+      if (typeof json.title === "string" && json.title) return json.title;
     }
   } catch {
     return text;
@@ -226,7 +231,7 @@ function parseField(value: unknown): MapField {
   return {
     name: requiredName(value, "name"),
     row: parseCell(value.row, "row"),
-    col: parseCell(value.col, "col"),
+    col: dataColumn(value.col),
     length: parseCell(value.length, "length"),
     initial: optionalString(value, "initial"),
     color: optionalColor(value, "color"),
@@ -237,8 +242,8 @@ function parseLiteral(value: unknown): MapLiteral {
   if (!isRecord(value)) throw new Error("literal");
   return {
     row: parseCell(value.row, "row"),
-    col: parseCell(value.col, "col"),
-    text: requiredText(value, "text"),
+    col: dataColumn(value.col),
+    text: optionalString(value, "initial"),
     color: optionalColor(value, "color"),
   };
 }
@@ -296,6 +301,11 @@ function parseTurn(value: unknown): number {
 function parseCell(value: unknown, label: string): number {
   if (typeof value !== "number" || !Number.isInteger(value) || value < 1) throw new Error(label);
   return value;
+}
+
+/** Map JSON col is the attribute byte. The painted column is the data cell, one to the right. */
+function dataColumn(value: unknown): number {
+  return parseCell(value, "col") + 1;
 }
 
 function optionalString(obj: Record<string, unknown>, key: string): string {

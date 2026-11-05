@@ -49,13 +49,19 @@ test("takes protection from the reply, not from the map", () => {
   const html = renderToStaticMarkup(
     <BmsScreen
       layout={layout}
-      reply={{ ...reply, protectedFields: [...reply.protectedFields, "USERID"], hiddenFields: [] }}
+      reply={{
+        ...reply,
+        protectedFields: ["TRNNAME", "SYSID", "USERID"],
+        hiddenFields: [],
+      }}
       busy={false}
       onAction={() => undefined}
     />,
   );
   expect(html).not.toContain('aria-label="USERID"');
   expect(html).toContain('data-field="USERID"');
+  expect(html).toContain('aria-label="ERRMSG"');
+  expect(html).toContain('aria-label="PASSWD"');
   expect(html).not.toContain('type="password"');
 });
 
