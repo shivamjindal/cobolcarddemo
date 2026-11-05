@@ -22,9 +22,11 @@ Preconditions: baseline; cases in `characterization/cases/user-admin/COMEN01C.js
 - **Main menu.** Run `python3 characterization/run.py --feature main-menu`. Expect 10 PASS.
 - **Admin menu.** Run `--feature admin-menu`. Expect 10 PASS.
 - **One route.** Run `--case admin-menu-option-1-user-list`. The golden's map is `COUSR0A` with ten users listed.
+- **Java slice.** Add `--target java` to either command. Expect `java: 10 PASS` for each. In the React app, sign on, type the option in `OPTION` and press Enter. Over HTTP the menu actions are `select` (ENTER) and `sign-off` (PF3), on screens `main-menu` and `admin-menu`.
 
 ## Gotchas
 
 - The main menu's admin-only check (`No access - Admin Only option...`) is unreachable with the shipped option table: every option is type U. It is not characterized.
 - Option 11's message depends on whether COPAUS0C is installed. The harness does not build the optional IMS/MQ authorization modules, so the golden shows not installed.
 - Admin option 5 goes through `HANDLE CONDITION PGMIDERR`; the message is green, not red.
+- Java: "installed" means "ported" (`ProgramCatalog`). Main options 2-10 transfer to `PendingProgramScreen`, a text reply naming the unported program, with PF3 back to the menu. The golden for option 1 pins only the first display of `COACTVW`, which `AccountViewScreen` serves. ENTER or any other key on it goes to `PendingProgramScreen`, and PF3 returns to the menu, until the account slice lands. Options 11 and admin 5-6 keep the legacy not-installed messages.

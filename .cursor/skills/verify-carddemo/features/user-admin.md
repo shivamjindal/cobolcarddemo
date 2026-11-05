@@ -22,6 +22,7 @@ Preconditions: baseline; cases in `characterization/cases/user-admin/COUSR0[0-3]
 - **All of it.** Run `python3 characterization/run.py --feature user-list --feature user-add --feature user-update --feature user-delete`. Expect 49 PASS.
 - **A write.** Run `--case user-add-success`. The golden's `files.USRSEC.inserted` holds the new record and `ERRMSG` reads `User GHOPPER has been added ...` in green.
 - **End-to-end effect.** Run `--case user-update-promote-routes-to-admin-menu`. The journey promotes USER0002 to type A, signs off, signs on as USER0002 and lands on `COADM1A`.
+- **Java slice.** Add `--target java`. Expect `java: 49 PASS`. The `files.USRSEC` diff comes from the Postgres `usrsec` table before and after the case, so a pass proves the write. The screens are `user-list` (`continue`, `back`, `backward`, `forward`), `user-add` (`add-user`, `back`, `clear`), `user-update` (`fetch`, `save-and-exit`, `clear`, `save`, `cancel`) and `user-delete` (`fetch`, `back`, `clear`, `delete`, `cancel`). To check a write by hand, run `psql -h localhost -U carddemo carddemo -c "select * from usrsec order by sec_usr_id collate \"C\""`.
 
 ## Gotchas
 
@@ -29,3 +30,6 @@ Preconditions: baseline; cases in `characterization/cases/user-admin/COUSR0[0-3]
 - With the seed's 10 users, an invalid select letter's message is overwritten by `You have reached the bottom of the page...`; the message only shows when the page does not reach end of file. Both are pinned.
 - The update and delete screens' fields are BMS `FSET`, so fields the user does not touch are still sent. Erasing a field (`""`) is how to test the empty-field messages.
 - User IDs are stored as typed (no upper-casing), but sign-on upper-cases what it reads, so a lower-case user ID cannot sign on.
+- Java: list order is the Postgres `COLLATE "C"` byte order, owned by `KeyedBrowse`. It matches the EBCDIC KSDS order only for upper-case letters and digits within the same class. EBCDIC puts lower case before upper case before digits; ASCII puts digits first. A case that mixes `user1` with `USER1` would page differently. No golden does that yet.
+- Java: every pinned defect on these screens (select message lost at the bottom, ENDBR after NOTFND, ID stored as typed, password shown on fetch, save or delete of a missing user, delete without a fetch, any user-type character) is one `@LegacyDefect` method. `java/docs/legacy-defects.md` lists them with their locations.
+- Java: an unhandled CICS condition, such as the list's AEIP, comes back as an `ended` reply with `DFHAC2206`. It signs the user off and rolls back the request's transaction, where VSAM with `RECOVERY(NONE)` kept the writes. The list's paging position is not carried through update and delete. No golden pins either difference.

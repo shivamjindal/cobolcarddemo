@@ -23,13 +23,28 @@ python3 characterization/harness/build.py
 
 Ready means the command exits 0 and prints `built ... online programs` and `built ... batch programs`. `run.py` also builds before running, so this step is only needed to see build errors on their own. There is no server: each screen task runs as one short-lived `cicsrun` process, and each batch job is one `jobrun` process. Each case gets a fresh copy of the seed data under `characterization/.build/runs/<case-id>/`, so runs never share state and two runs of different cases can go side by side. Two concurrent runs of the *same* case id clobber each other's run directory; give each a distinct `--evidence` path and do not run the same case twice at once.
 
+### Java slice
+
+Prerequisites: JDK 21, Maven 3.9, Postgres 16 with role and database `carddemo` (password `carddemo`, allowed to create databases), Node 22 for the React client. On a fresh Ubuntu VM: `sudo apt-get install -y postgresql && sudo service postgresql start`, then `sudo -u postgres psql -c "CREATE ROLE carddemo LOGIN SUPERUSER PASSWORD 'carddemo'" -c "CREATE DATABASE carddemo OWNER carddemo"`.
+
+The `java` target needs no manual launch. `java/characterization-adapter` rebuilds the jar when a source is newer, creates database `carddemo_characterization` if it is missing, and keeps one warm server on `127.0.0.1:18080` (profile `characterization`, clock fixed at `2026-11-05 10:00`). It reseeds USRSEC from `characterization/fixtures` before every case, so cases never share state. Do not run two `--target java` runs at once: they share that database. The server stops after ten idle minutes.
+
+To drive the slice by hand (API and React screens), use two long-lived tmux sessions:
+
+```bash
+cd java && mvn -q spring-boot:run -Dspring-boot.run.profiles=load -Dspring-boot.run.arguments=--carddemo.load.app-root=/workspace/app  # once: load database carddemo
+cd java && mvn -q spring-boot:run          # API on 127.0.0.1:8080, ready when GET /api/maps/COSGN0A answers 200
+cd web && npm install && npm run dev -- --host 127.0.0.1 --port 5173   # React on http://127.0.0.1:5173, proxies /api to 8080
+```
+
 ## Doctor
 
 ```bash
-python3 characterization/doctor.py
+python3 characterization/doctor.py                 # legacy harness
+python3 characterization/doctor.py --target java   # Java slice
 ```
 
-Read-only. Checks GnuCOBOL and gcc, that all online and batch modules are built, and that `CC00` paints the sign-on map `COSGN0A`. Every line must start with `ok`. Run it first whenever a case errors unexpectedly.
+The legacy doctor is read-only. It checks GnuCOBOL and gcc, that all online and batch modules are built, and that `CC00` paints the sign-on map `COSGN0A`. The Java doctor checks the JDK, Maven and Postgres, then sends a one-step `CC00` case through the adapter, which starts the warm server if needed and must answer `COSGN0A`. Every line must start with `ok`. Run it first whenever a case errors unexpectedly.
 
 ## Drive
 
@@ -93,6 +108,15 @@ Respond with `{"steps": [observation, ...]}`, one observation per step in the fo
 
 `characterization/reference_adapter.py` is a working adapter (it answers with the legacy harness) and the template to copy. `python3 characterization/run.py --target legacy-adapter` proves the protocol plumbing; build first, since `run.py` only builds for the `legacy` target.
 
+The first Java slice is registered: `java/characterization-adapter` (launcher) and `com.carddemo.characterization.Adapter` (the client). The client turns each step into the same HTTP calls the React app makes (`POST /api/session`, then `POST /api/screens/{screen}/{action}` or `invalid-key`), so a pass proves the API, not a test double. Its `features` are `signon`, `main-menu`, `admin-menu`, `user-list`, `user-add`, `user-update`, `user-delete`:
+
+```bash
+python3 characterization/run.py --target java --feature signon --feature main-menu --feature admin-menu \
+  --feature user-list --feature user-add --feature user-update --feature user-delete
+```
+
+Ready means `java: 78 PASS` (signon 9, main-menu 10, admin-menu 10, user admin 49). The first run builds the jar and starts the server, which takes about 30 seconds more. To port the next feature, add a `Screen` bean for each program, copying `useradmin/UserDeleteScreen` (a `Screen` returns an `Outcome`; the `Terminal` owns every 3270 rule, so a screen never touches attributes or cursor bytes), seed its files in `SeededTable`, and add the feature name to `features` once its cases pass. Pinned legacy defects are reproduced in methods annotated `@LegacyDefect`. `java/docs/legacy-defects.md` is generated from those annotations, and `mvn verify` fails when the file is stale.
+
 ## Evidence
 
 Every run writes `characterization/.evidence/<timestamp>-<target>/` (or `--evidence DIR`): `report.json` (status per case with diffs), `<case-id>.json` (the actual observations), and `runs/<case-id>/` (the seeded `.dat` files after the run, `task.in`, `events.NN.jsonl` per CICS task with every CICS command issued, and batch `dd/` files). Proof standard: the case drives the user path (transid and keys, or the job's DD bindings), and the golden pins both the screen and the file side effects. A screen message alone does not prove a write; the `files` diff does.
@@ -104,13 +128,14 @@ characterization/cleanup.sh          # remove run directories
 characterization/cleanup.sh --all    # also remove compiled modules
 ```
 
-Cleanup never touches `characterization/.evidence/` or a custom `--evidence` directory. Nothing runs in the background, so there are no processes to kill.
+Cleanup never touches `characterization/.evidence/` or a custom `--evidence` directory. The legacy target runs nothing in the background. The `java` target leaves its warm server on `127.0.0.1:18080`; stop it with `characterization/cleanup.sh stop`. Stop hand-driving sessions with `tmux kill-session -t <name>`.
 
 ## Helpers
 
 - `characterization/run.py`: run, compare, record (usage above; `--help`).
-- `characterization/doctor.py`: read-only health check.
-- `characterization/cleanup.sh`: teardown that keeps evidence.
+- `characterization/doctor.py`: health check (`--target java` for the slice).
+- `characterization/cleanup.sh`: teardown that keeps evidence; `stop` ends the Java warm server.
+- `java/characterization-adapter`: Java target launcher (warm server, database, jar rebuild).
 - `characterization/reference_adapter.py`: external-target adapter template (`--target legacy-adapter`).
 - `characterization/harness/build.py`: compile programs, the CICS stub and the LE stand-ins.
 - Inside `characterization/harness/`: `cicsprep.py` (EXEC CICS translator), `runtime/cicsstub.c` (CICS commands supported: SEND/RECEIVE MAP, SEND TEXT, RETURN, XCTL, READ/WRITE/REWRITE/DELETE, STARTBR/READNEXT/READPREV/ENDBR, ASKTIME, FORMATTIME, ASSIGN, INQUIRE, WRITEQ TD, SYNCPOINT, ABEND; an unhandled condition abends with its CICS code, such as AEIM for NOTFND or AEIP for INVREQ; a command the stub lacks logs an `unsupported` event and abends `HUNS`, which a golden must never contain), `screen.py` (3270 model), `online.py`, `batch.py`, `datasets.py`, `copybook.py`.
