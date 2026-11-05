@@ -134,7 +134,10 @@ public class RoundTripCheck {
             case SqlType.BigInt ignored -> rs.getObject(index, Long.class);
             case SqlType.Numeric ignored -> rs.getBigDecimal(index);
             case SqlType.Date ignored -> rs.getObject(index, LocalDate.class);
-            case SqlType.Timestamp ignored -> rs.getObject(index, LocalDateTime.class);
+            case SqlType.Timestamp ignored -> {
+                String text = rs.getString(index);
+                yield text == null ? null : LocalDateTime.parse(text, SqlTypes.TIMESTAMP);
+            }
         };
         if (value == null) {
             throw new IllegalArgumentException(column.name() + " is null");

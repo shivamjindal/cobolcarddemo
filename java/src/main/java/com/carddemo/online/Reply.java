@@ -35,9 +35,13 @@ record ScreenReply(long turn, String screen, MapRef map, Map<String, String> fie
 @JsonTypeName("text")
 record TextReply(long turn, String screen, String text, List<ActionRef> actions) implements Reply {}
 
-/** SEND TEXT and RETURN without a transaction id: the conversation is over and the session signed off. */
+/**
+ * SEND TEXT and RETURN without a transaction id: the conversation is over and the session signed off.
+ * {@code abend} is the CICS abend code when the task abended, and absent otherwise.
+ */
 @JsonTypeName("ended")
-record EndedReply(long turn, String text) implements Reply {}
+@JsonInclude(JsonInclude.Include.NON_NULL)
+record EndedReply(long turn, String text, String abend) implements Reply {}
 
 record MapRef(String mapset, String name) implements Serializable {}
 

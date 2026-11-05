@@ -94,12 +94,14 @@ class VsamLoadIT {
                 WHERE schemaname = 'public' AND indexname LIKE '%\\_aix' ESCAPE '\\'
                 ORDER BY indexname
                 """, String.class));
-        assertEquals(10L, jdbc.queryForObject("""
+        assertEquals(9L, jdbc.queryForObject("""
                 SELECT count(*) FROM information_schema.table_constraints
                 WHERE constraint_schema = 'public' AND constraint_type = 'FOREIGN KEY'
                 """, Long.class));
         assertEquals("date", columnType("accounts", "acct_open_date"));
-        assertEquals("timestamp without time zone", columnType("transactions", "tran_orig_ts"));
+        assertEquals("character varying", columnType("transactions", "tran_orig_ts"));
+        assertEquals("2022-06-10 19:27:53.000000", jdbc.queryForObject(
+                "SELECT tran_orig_ts FROM transactions WHERE tran_id = '0000000000683580'", String.class));
         assertEquals("character varying", columnType("transactions", "tran_proc_ts"));
 
         jdbc.update("UPDATE accounts SET acct_curr_bal = acct_curr_bal + 0.01 WHERE acct_id = 1");
