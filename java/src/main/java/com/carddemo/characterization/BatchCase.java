@@ -4,6 +4,7 @@ import static java.nio.charset.StandardCharsets.ISO_8859_1;
 
 import java.io.ByteArrayOutputStream;
 import java.io.IOException;
+import java.nio.file.Files;
 import java.nio.file.Path;
 import java.sql.Connection;
 import java.sql.SQLException;
@@ -39,10 +40,10 @@ import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
 
 /**
- * One batch case through the production path. It seeds the tables, stages what
- * {@code characterization/harness/batch.py} prepares before {@code jobrun}, submits a one-step deck to TD queue
- * JOBS, waits for the internal reader to end it, and observes what the harness observes. The Adapter's batch
- * branch and BatchGoldensIT both run this class.
+ * One batch case through the production path. It seeds the tables, stages what the harness prepares, submits
+ * a deck to TD queue JOBS, waits for the internal reader to end it, and observes what the harness observes.
+ * A library case submits {@code app/jcl/MEMBER.jcl}. A program case submits a one-step deck. The Adapter's
+ * batch branch and BatchGoldensIT both run this class.
  */
 final class BatchCase {
 
@@ -89,12 +90,15 @@ final class BatchCase {
         List<SeededTable> tables = SeededTable.all(registry, repo);
         try (Connection connection = db.getConnection()) {
             SeededTable.seed(connection, tables, setup);
-            List<String> deck = stage(job, setup, connection, tables, datasets);
+            boolean library = job.has("library");
+            List<String> deck = library ? libraryDeck(job, datasets) : stage(job, setup, connection, tables, datasets);
             List<TreeMap<String, byte[]>> before = new ArrayList<>();
             for (SeededTable table : tables) {
                 before.add(table.snapshot(connection));
             }
-            if (!new JdbcJobSubmissions(jdbc, clock).submit(new SubmittedJob("JOBS", JOB, null, null, null, deck, JOB))) {
+            String submitted = library ? job.get("library").asText() : JOB;
+            if (!new JdbcJobSubmissions(jdbc, clock).submit(
+                    new SubmittedJob("JOBS", submitted, null, null, null, deck, submitted))) {
                 throw new IllegalStateException("TD queue JOBS refused the deck");
             }
             JobQueue.Run ended = await(new JobQueue(jdbc, clock),
@@ -104,11 +108,19 @@ final class BatchCase {
             observation.put("completion", ended.completion().orElseThrow());
             Spool spool = new Spool(jdbc, template);
             OptionalLong execution = ended.jobExecutionId();
-            StringBuilder stdout = new StringBuilder();
-            for (byte[] line : spooled(spool, execution, Spool.DISPLAY)) {
-                stdout.append(new String(line, ISO_8859_1)).append('\n');
+            if (!library) {
+                StringBuilder stdout = new StringBuilder();
+                for (byte[] line : spooled(spool, execution, Spool.DISPLAY)) {
+                    stdout.append(new String(line, ISO_8859_1)).append('\n');
+                }
+                observation.put("sysout", Python.splitlines(stdout.toString()).stream().map(Python::rstrip).toList());
+            } else {
+                if (execution.isEmpty()) {
+                    throw new IllegalStateException(submitted + " ended " + ended.completion().orElse("without a completion")
+                            + " before a job execution");
+                }
+                observation.put("steps", steps(jdbc, execution.getAsLong()));
             }
-            observation.put("sysout", Python.splitlines(stdout.toString()).stream().map(Python::rstrip).toList());
             Map<String, Object> files = new LinkedHashMap<>();
             for (int i = 0; i < tables.size(); i++) {
                 SeededTable table = tables.get(i);
@@ -118,10 +130,16 @@ final class BatchCase {
                 observation.put("files", files);
             }
             Map<String, Object> outputs = new LinkedHashMap<>();
-            for (Map.Entry<String, JsonNode> dd : job.get("dd").properties()) {
-                if (dd.getValue().has("output")) {
-                    outputs.put(dd.getValue().get("output").asText(),
-                            output(dd.getValue(), spooled(spool, execution, dd.getKey())));
+            if (library) {
+                for (Map.Entry<String, JsonNode> observed : job.path("observe").properties()) {
+                    outputs.put(observed.getKey(), observed(observed.getKey(), observed.getValue(), datasets));
+                }
+            } else {
+                for (Map.Entry<String, JsonNode> dd : job.get("dd").properties()) {
+                    if (dd.getValue().has("output")) {
+                        outputs.put(dd.getValue().get("output").asText(),
+                                output(dd.getValue(), spooled(spool, execution, dd.getKey())));
+                    }
                 }
             }
             if (!outputs.isEmpty()) {
@@ -129,6 +147,71 @@ final class BatchCase {
             }
             return observation;
         }
+    }
+
+    /** The member's own deck, after each {@code job.datasets} entry is cataloged as a fixed sequential file. */
+    private List<String> libraryDeck(JsonNode job, DatasetStore datasets) throws IOException {
+        for (Map.Entry<String, JsonNode> entry : job.path("datasets").properties()) {
+            JsonNode spec = entry.getValue();
+            List<byte[]> records = new ArrayList<>();
+            int reclen;
+            if (spec.has("lines")) {
+                reclen = spec.get("reclen").asInt();
+                for (JsonNode line : spec.get("lines")) {
+                    byte[] record = new byte[reclen];
+                    Arrays.fill(record, (byte) ' ');
+                    byte[] text = line.asText().getBytes(ISO_8859_1);
+                    System.arraycopy(text, 0, record, 0, Math.min(text.length, reclen));
+                    records.add(record);
+                }
+            } else {
+                String layout = spec.get("layout").asText();
+                HarnessLayout harness = HarnessLayout.of(repo, registry, layout);
+                reclen = harness.recordLength();
+                if (spec.path("seed").asBoolean(false)) {
+                    records.addAll(SeededTable.seedRecords(repo.resolve(registry.path("datasets").path(layout)
+                            .get("source").asText()), reclen));
+                }
+                for (JsonNode record : spec.path("records")) {
+                    records.add(harness.encode(record, null));
+                }
+            }
+            datasets.stage(entry.getKey(), new Dcb(Dcb.Recfm.F, reclen), Optional.empty(), records);
+        }
+        return Files.readAllLines(repo.resolve("app/jcl").resolve(job.get("library").asText() + ".jcl"), ISO_8859_1);
+    }
+
+    private Map<String, String> steps(JdbcClient jdbc, long execution) {
+        Map<String, String> steps = new LinkedHashMap<>();
+        jdbc.sql("select step_name, exit_code from batch_step_execution where job_execution_id = ? order by step_execution_id")
+                .param(execution)
+                .query((rs, row) -> steps.put(rs.getString("step_name"), rs.getString("exit_code")))
+                .list();
+        return steps;
+    }
+
+    /** One observed data set. Null when it is not cataloged. */
+    private Object observed(String dsn, JsonNode spec, DatasetStore datasets) throws IOException {
+        Optional<List<byte[]>> records = datasets.readNamed(dsn);
+        if (records.isEmpty()) {
+            return null;
+        }
+        if (!spec.has("decode_as")) {
+            return records.get().stream()
+                    .map(record -> Python.rstrip(new String(record, ISO_8859_1)))
+                    .toList();
+        }
+        HarnessLayout layout = HarnessLayout.of(repo, registry, spec.get("decode_as").asText());
+        List<Map<String, String>> rows = new ArrayList<>();
+        for (byte[] record : records.get()) {
+            byte[] padded = record;
+            if (record.length < layout.recordLength()) {
+                padded = Arrays.copyOf(record, layout.recordLength());
+                Arrays.fill(padded, record.length, padded.length, (byte) ' ');
+            }
+            rows.add(layout.decode(padded));
+        }
+        return rows;
     }
 
     /**

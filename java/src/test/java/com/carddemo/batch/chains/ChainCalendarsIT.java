@@ -53,13 +53,24 @@ class ChainCalendarsIT {
         }
     }
 
+    @TestConfiguration
+    static class UnportedCalendar {
+        @Bean
+        @Primary
+        Chains unportedChains() {
+            return Chains.of(new Chain("UNPORTED_CAL", Chain.Scheduler.CA7, "TEST",
+                    List.of(new Member.Unported("NOTREAL", "not ported")), "test", Optional.empty()));
+        }
+    }
+
     @Test
     void aCalendarForAChainThatCannotRunFailsStartup() {
         Exception refused = assertThrows(Exception.class,
-                () -> app("carddemo.batch.calendar.CA7_031_CATBAL=0 0 1 * * *").run().close());
+                () -> app("carddemo.batch.calendar.UNPORTED_CAL=0 0 1 * * *").sources(UnportedCalendar.class)
+                        .run().close());
 
         assertTrue(causes(refused).contains(
-                "carddemo.batch.calendar.CA7_031_CATBAL: CA7_031_CATBAL cannot run, [PRTCATBL] not ported"),
+                "carddemo.batch.calendar.UNPORTED_CAL: UNPORTED_CAL cannot run, [NOTREAL] not ported"),
                 causes(refused).toString());
     }
 

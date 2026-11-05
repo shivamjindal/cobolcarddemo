@@ -3,6 +3,7 @@ package com.carddemo.batch.chains;
 import static java.nio.charset.StandardCharsets.ISO_8859_1;
 
 import java.math.BigDecimal;
+import java.nio.file.Files;
 import java.nio.file.Path;
 import java.sql.Connection;
 import java.time.LocalDate;
@@ -184,6 +185,41 @@ class RunnableChainsIT {
     }
 
     @Test
+    void referenceReloadRunsTheThreeClusters() throws Exception {
+        stageSeed("AWS.M2.CARDDEMO.TRANTYPE.PS", "trantype.txt", 60);
+        stageSeed("AWS.M2.CARDDEMO.TRANCATG.PS", "trancatg.txt", 60);
+        stageSeed("AWS.M2.CARDDEMO.TCATBALF.PS", "tcatbal.txt", 50);
+
+        ChainRun run = start("CA7_030_REFERENCE", day());
+
+        assertEquals(List.of("RC=0", "RC=0", "RC=0", "RC=0", "RC=0", "RC=0", "RC=0", "RC=0", "RC=0"), labels(run));
+        assertTrue(run.completed(), labels(run).toString());
+        assertEquals(List.of(CLOSEFIL_FILES, CLOSEFIL_FILES, CLOSEFIL_FILES), closedAtWait);
+        assertEquals(CLOSEFIL_FILES, region.closed());
+    }
+
+    @Test
+    void catbalPrintsTheCategoryBalancesAndReopens() {
+        ChainRun run = start("CA7_031_CATBAL", day());
+
+        assertEquals(List.of("RC=0", "RC=0", "RC=0", "RC=0"), labels(run));
+        assertTrue(run.completed(), labels(run).toString());
+        assertClosedThenOpen();
+        assertFalse(datasets.readNamed("AWS.M2.CARDDEMO.TCATBALF.REPT").orElseThrow().isEmpty());
+    }
+
+    @Test
+    void disclosureReloadRunsAndReopens() throws Exception {
+        stageSeed("AWS.M2.CARDDEMO.DISCGRP.PS", "discgrp.txt", 50);
+
+        ChainRun run = start("CONTROLM_WEEKLY_DISCLOSURE", day());
+
+        assertEquals(List.of("BYPASSED", "BYPASSED", "RC=0", "RC=0", "RC=0", "RC=0"), labels(run));
+        assertTrue(run.completed(), labels(run).toString());
+        assertClosedThenOpen();
+    }
+
+    @Test
     void aDeadRunIsAbandonedAndRestartGoesOnFromTheDeadMember() {
         Chain chain = new Chain("DEAD_" + RUN, Chain.Scheduler.CA7, "TEST", List.of(
                 new Member.Job(LibraryJob.CLOSEFIL), new Member.Job(LibraryJob.WAITSTEP),
@@ -232,6 +268,19 @@ class RunnableChainsIT {
         try (Connection connection = dataSource.getConnection()) {
             SeededTable.seed(connection, SeededTable.all(registry, repo), setup);
         }
+    }
+
+    private void stageSeed(String dsn, String file, int reclen) throws Exception {
+        List<byte[]> records = new ArrayList<>();
+        for (String line : Files.readString(Path.of("..", "app", "data", "ASCII", file), ISO_8859_1).split("\n", -1)) {
+            String record = line.replaceAll("\r+$", "");
+            if (!record.isBlank()) {
+                byte[] bytes = Fields.spaces(reclen);
+                Fields.text(bytes, 0, reclen, record);
+                records.add(bytes);
+            }
+        }
+        datasets.stage(dsn, new Dcb(Dcb.Recfm.F, reclen), Optional.empty(), records);
     }
 
     private int count(String table) {
