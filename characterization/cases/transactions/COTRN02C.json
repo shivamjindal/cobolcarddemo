@@ -1,0 +1,2498 @@
+{
+  "feature": "transaction-add",
+  "kind": "online",
+  "programs": [
+    "COTRN02C"
+  ],
+  "cases": [
+    {
+      "id": "transaction-add-first-display",
+      "title": "Menu option 8 shows an empty add screen with the cursor on Account ID",
+      "provenance": "observed",
+      "source": "app/cbl/COTRN02C.cbl MAIN-PARA (first entry)",
+      "steps": [
+        {
+          "do": {
+            "transid": "CC00"
+          }
+        },
+        {
+          "do": {
+            "aid": "ENTER",
+            "fields": {
+              "USERID": "USER0001",
+              "PASSWD": "PASSWORD"
+            }
+          }
+        },
+        {
+          "do": {
+            "aid": "ENTER",
+            "fields": {
+              "OPTION": "8"
+            }
+          },
+          "expect": {
+            "map": "COTRN2A",
+            "fields": {
+              "TRNNAME": "CT02",
+              "PGMNAME": "COTRN02C"
+            },
+            "cursor": "ACTIDIN"
+          }
+        }
+      ]
+    },
+    {
+      "id": "transaction-add-no-key",
+      "title": "ENTER with neither account nor card",
+      "provenance": "observed",
+      "source": "app/cbl/COTRN02C.cbl VALIDATE-INPUT-KEY-FIELDS (WHEN OTHER)",
+      "steps": [
+        {
+          "do": {
+            "transid": "CC00"
+          }
+        },
+        {
+          "do": {
+            "aid": "ENTER",
+            "fields": {
+              "USERID": "USER0001",
+              "PASSWD": "PASSWORD"
+            }
+          }
+        },
+        {
+          "do": {
+            "aid": "ENTER",
+            "fields": {
+              "OPTION": "8"
+            }
+          }
+        },
+        {
+          "do": {
+            "aid": "ENTER"
+          },
+          "expect": {
+            "map": "COTRN2A",
+            "fields": {
+              "TRNNAME": "CT02",
+              "PGMNAME": "COTRN02C",
+              "ERRMSG": "Account or Card Number must be entered..."
+            },
+            "cursor": "ACTIDIN"
+          }
+        }
+      ]
+    },
+    {
+      "id": "transaction-add-account-not-numeric",
+      "title": "Non-numeric Account ID",
+      "provenance": "observed",
+      "source": "app/cbl/COTRN02C.cbl VALIDATE-INPUT-KEY-FIELDS",
+      "steps": [
+        {
+          "do": {
+            "transid": "CC00"
+          }
+        },
+        {
+          "do": {
+            "aid": "ENTER",
+            "fields": {
+              "USERID": "USER0001",
+              "PASSWD": "PASSWORD"
+            }
+          }
+        },
+        {
+          "do": {
+            "aid": "ENTER",
+            "fields": {
+              "OPTION": "8"
+            }
+          }
+        },
+        {
+          "do": {
+            "aid": "ENTER",
+            "fields": {
+              "ACTIDIN": "ABC"
+            }
+          },
+          "expect": {
+            "map": "COTRN2A",
+            "fields": {
+              "TRNNAME": "CT02",
+              "PGMNAME": "COTRN02C",
+              "ACTIDIN": "ABC",
+              "ERRMSG": "Account ID must be Numeric..."
+            },
+            "cursor": "ACTIDIN"
+          }
+        }
+      ]
+    },
+    {
+      "id": "transaction-add-account-not-found",
+      "title": "Account ID not in the card cross-reference AIX",
+      "provenance": "observed",
+      "source": "app/cbl/COTRN02C.cbl READ-CXACAIX-FILE (NOTFND)",
+      "steps": [
+        {
+          "do": {
+            "transid": "CC00"
+          }
+        },
+        {
+          "do": {
+            "aid": "ENTER",
+            "fields": {
+              "USERID": "USER0001",
+              "PASSWD": "PASSWORD"
+            }
+          }
+        },
+        {
+          "do": {
+            "aid": "ENTER",
+            "fields": {
+              "OPTION": "8"
+            }
+          }
+        },
+        {
+          "do": {
+            "aid": "ENTER",
+            "fields": {
+              "ACTIDIN": "99999999999"
+            }
+          },
+          "expect": {
+            "map": "COTRN2A",
+            "fields": {
+              "TRNNAME": "CT02",
+              "PGMNAME": "COTRN02C",
+              "ACTIDIN": "99999999999",
+              "ERRMSG": "Account ID NOT found..."
+            },
+            "cursor": "ACTIDIN"
+          }
+        }
+      ]
+    },
+    {
+      "id": "transaction-add-card-not-numeric",
+      "title": "Non-numeric Card Number",
+      "provenance": "observed",
+      "source": "app/cbl/COTRN02C.cbl VALIDATE-INPUT-KEY-FIELDS",
+      "steps": [
+        {
+          "do": {
+            "transid": "CC00"
+          }
+        },
+        {
+          "do": {
+            "aid": "ENTER",
+            "fields": {
+              "USERID": "USER0001",
+              "PASSWD": "PASSWORD"
+            }
+          }
+        },
+        {
+          "do": {
+            "aid": "ENTER",
+            "fields": {
+              "OPTION": "8"
+            }
+          }
+        },
+        {
+          "do": {
+            "aid": "ENTER",
+            "fields": {
+              "CARDNIN": "ABCD"
+            }
+          },
+          "expect": {
+            "map": "COTRN2A",
+            "fields": {
+              "TRNNAME": "CT02",
+              "PGMNAME": "COTRN02C",
+              "CARDNIN": "ABCD",
+              "ERRMSG": "Card Number must be Numeric..."
+            },
+            "cursor": "CARDNIN"
+          }
+        }
+      ]
+    },
+    {
+      "id": "transaction-add-card-not-found",
+      "title": "Card Number not in the cross-reference",
+      "provenance": "observed",
+      "source": "app/cbl/COTRN02C.cbl READ-CCXREF-FILE (NOTFND)",
+      "steps": [
+        {
+          "do": {
+            "transid": "CC00"
+          }
+        },
+        {
+          "do": {
+            "aid": "ENTER",
+            "fields": {
+              "USERID": "USER0001",
+              "PASSWD": "PASSWORD"
+            }
+          }
+        },
+        {
+          "do": {
+            "aid": "ENTER",
+            "fields": {
+              "OPTION": "8"
+            }
+          }
+        },
+        {
+          "do": {
+            "aid": "ENTER",
+            "fields": {
+              "CARDNIN": "1111111111111111"
+            }
+          },
+          "expect": {
+            "map": "COTRN2A",
+            "fields": {
+              "TRNNAME": "CT02",
+              "PGMNAME": "COTRN02C",
+              "CARDNIN": "1111111111111111",
+              "ERRMSG": "Card Number NOT found..."
+            },
+            "cursor": "CARDNIN"
+          }
+        }
+      ]
+    },
+    {
+      "id": "transaction-add-short-account-not-numeric",
+      "title": "Legacy quirk: an Account ID typed without leading zeros is space-padded by BMS and fails the numeric check",
+      "provenance": "observed",
+      "source": "app/cbl/COTRN02C.cbl VALIDATE-INPUT-KEY-FIELDS (ACTIDINI IS NOT NUMERIC)",
+      "steps": [
+        {
+          "do": {
+            "transid": "CC00"
+          }
+        },
+        {
+          "do": {
+            "aid": "ENTER",
+            "fields": {
+              "USERID": "USER0001",
+              "PASSWD": "PASSWORD"
+            }
+          }
+        },
+        {
+          "do": {
+            "aid": "ENTER",
+            "fields": {
+              "OPTION": "8"
+            }
+          }
+        },
+        {
+          "do": {
+            "aid": "ENTER",
+            "fields": {
+              "ACTIDIN": "1"
+            }
+          },
+          "expect": {
+            "map": "COTRN2A",
+            "fields": {
+              "TRNNAME": "CT02",
+              "PGMNAME": "COTRN02C",
+              "ACTIDIN": "1",
+              "ERRMSG": "Account ID must be Numeric..."
+            },
+            "cursor": "ACTIDIN"
+          }
+        }
+      ]
+    },
+    {
+      "id": "transaction-add-card-fills-account",
+      "title": "A valid Card Number fills the Account ID from the xref",
+      "provenance": "observed",
+      "source": "app/cbl/COTRN02C.cbl VALIDATE-INPUT-KEY-FIELDS, READ-CCXREF-FILE",
+      "steps": [
+        {
+          "do": {
+            "transid": "CC00"
+          }
+        },
+        {
+          "do": {
+            "aid": "ENTER",
+            "fields": {
+              "USERID": "USER0001",
+              "PASSWD": "PASSWORD"
+            }
+          }
+        },
+        {
+          "do": {
+            "aid": "ENTER",
+            "fields": {
+              "OPTION": "8"
+            }
+          }
+        },
+        {
+          "do": {
+            "aid": "ENTER",
+            "fields": {
+              "CARDNIN": "9680294154603697"
+            }
+          },
+          "expect": {
+            "map": "COTRN2A",
+            "fields": {
+              "TRNNAME": "CT02",
+              "PGMNAME": "COTRN02C",
+              "ACTIDIN": "00000000001",
+              "CARDNIN": "9680294154603697",
+              "ERRMSG": "Type CD can NOT be empty..."
+            },
+            "cursor": "TTYPCD"
+          }
+        }
+      ]
+    },
+    {
+      "id": "transaction-add-account-wins-over-card",
+      "title": "When both are typed the Account ID wins and the typed card is replaced by the account's xref card",
+      "provenance": "observed",
+      "source": "app/cbl/COTRN02C.cbl VALIDATE-INPUT-KEY-FIELDS (EVALUATE order)",
+      "steps": [
+        {
+          "do": {
+            "transid": "CC00"
+          }
+        },
+        {
+          "do": {
+            "aid": "ENTER",
+            "fields": {
+              "USERID": "USER0001",
+              "PASSWD": "PASSWORD"
+            }
+          }
+        },
+        {
+          "do": {
+            "aid": "ENTER",
+            "fields": {
+              "OPTION": "8"
+            }
+          }
+        },
+        {
+          "do": {
+            "aid": "ENTER",
+            "fields": {
+              "ACTIDIN": "00000000001",
+              "CARDNIN": "0923877193247330"
+            }
+          },
+          "expect": {
+            "map": "COTRN2A",
+            "fields": {
+              "TRNNAME": "CT02",
+              "PGMNAME": "COTRN02C",
+              "ACTIDIN": "00000000001",
+              "CARDNIN": "9680294154603697",
+              "ERRMSG": "Type CD can NOT be empty..."
+            },
+            "cursor": "TTYPCD"
+          }
+        }
+      ]
+    },
+    {
+      "id": "transaction-add-empty-type-code",
+      "title": "All else valid, TTYPCD blank: the empty-field message for it",
+      "provenance": "observed",
+      "source": "app/cbl/COTRN02C.cbl VALIDATE-INPUT-DATA-FIELDS (empty checks)",
+      "steps": [
+        {
+          "do": {
+            "transid": "CC00"
+          }
+        },
+        {
+          "do": {
+            "aid": "ENTER",
+            "fields": {
+              "USERID": "USER0001",
+              "PASSWD": "PASSWORD"
+            }
+          }
+        },
+        {
+          "do": {
+            "aid": "ENTER",
+            "fields": {
+              "OPTION": "8"
+            }
+          }
+        },
+        {
+          "do": {
+            "aid": "ENTER",
+            "fields": {
+              "ACTIDIN": "00000000001",
+              "TTYPCD": "",
+              "TCATCD": "0001",
+              "TRNSRC": "POS TERM",
+              "TDESC": "Coffee shop",
+              "TRNAMT": "+00000012.50",
+              "TORIGDT": "2026-11-01",
+              "TPROCDT": "2026-11-02",
+              "MID": "123456789",
+              "MNAME": "Corner Cafe",
+              "MCITY": "Seattle",
+              "MZIP": "98101"
+            }
+          },
+          "expect": {
+            "map": "COTRN2A",
+            "fields": {
+              "TRNNAME": "CT02",
+              "PGMNAME": "COTRN02C",
+              "ACTIDIN": "00000000001",
+              "CARDNIN": "9680294154603697",
+              "TCATCD": "0001",
+              "TRNSRC": "POS TERM",
+              "TDESC": "Coffee shop",
+              "TRNAMT": "+00000012.50",
+              "TORIGDT": "2026-11-01",
+              "TPROCDT": "2026-11-02",
+              "MID": "123456789",
+              "MNAME": "Corner Cafe",
+              "MCITY": "Seattle",
+              "MZIP": "98101",
+              "ERRMSG": "Type CD can NOT be empty..."
+            },
+            "cursor": "TTYPCD"
+          }
+        }
+      ]
+    },
+    {
+      "id": "transaction-add-empty-category-code",
+      "title": "All else valid, TCATCD blank: the empty-field message for it",
+      "provenance": "observed",
+      "source": "app/cbl/COTRN02C.cbl VALIDATE-INPUT-DATA-FIELDS (empty checks)",
+      "steps": [
+        {
+          "do": {
+            "transid": "CC00"
+          }
+        },
+        {
+          "do": {
+            "aid": "ENTER",
+            "fields": {
+              "USERID": "USER0001",
+              "PASSWD": "PASSWORD"
+            }
+          }
+        },
+        {
+          "do": {
+            "aid": "ENTER",
+            "fields": {
+              "OPTION": "8"
+            }
+          }
+        },
+        {
+          "do": {
+            "aid": "ENTER",
+            "fields": {
+              "ACTIDIN": "00000000001",
+              "TTYPCD": "01",
+              "TCATCD": "",
+              "TRNSRC": "POS TERM",
+              "TDESC": "Coffee shop",
+              "TRNAMT": "+00000012.50",
+              "TORIGDT": "2026-11-01",
+              "TPROCDT": "2026-11-02",
+              "MID": "123456789",
+              "MNAME": "Corner Cafe",
+              "MCITY": "Seattle",
+              "MZIP": "98101"
+            }
+          },
+          "expect": {
+            "map": "COTRN2A",
+            "fields": {
+              "TRNNAME": "CT02",
+              "PGMNAME": "COTRN02C",
+              "ACTIDIN": "00000000001",
+              "CARDNIN": "9680294154603697",
+              "TTYPCD": "01",
+              "TRNSRC": "POS TERM",
+              "TDESC": "Coffee shop",
+              "TRNAMT": "+00000012.50",
+              "TORIGDT": "2026-11-01",
+              "TPROCDT": "2026-11-02",
+              "MID": "123456789",
+              "MNAME": "Corner Cafe",
+              "MCITY": "Seattle",
+              "MZIP": "98101",
+              "ERRMSG": "Category CD can NOT be empty..."
+            },
+            "cursor": "TCATCD"
+          }
+        }
+      ]
+    },
+    {
+      "id": "transaction-add-empty-source",
+      "title": "All else valid, TRNSRC blank: the empty-field message for it",
+      "provenance": "observed",
+      "source": "app/cbl/COTRN02C.cbl VALIDATE-INPUT-DATA-FIELDS (empty checks)",
+      "steps": [
+        {
+          "do": {
+            "transid": "CC00"
+          }
+        },
+        {
+          "do": {
+            "aid": "ENTER",
+            "fields": {
+              "USERID": "USER0001",
+              "PASSWD": "PASSWORD"
+            }
+          }
+        },
+        {
+          "do": {
+            "aid": "ENTER",
+            "fields": {
+              "OPTION": "8"
+            }
+          }
+        },
+        {
+          "do": {
+            "aid": "ENTER",
+            "fields": {
+              "ACTIDIN": "00000000001",
+              "TTYPCD": "01",
+              "TCATCD": "0001",
+              "TRNSRC": "",
+              "TDESC": "Coffee shop",
+              "TRNAMT": "+00000012.50",
+              "TORIGDT": "2026-11-01",
+              "TPROCDT": "2026-11-02",
+              "MID": "123456789",
+              "MNAME": "Corner Cafe",
+              "MCITY": "Seattle",
+              "MZIP": "98101"
+            }
+          },
+          "expect": {
+            "map": "COTRN2A",
+            "fields": {
+              "TRNNAME": "CT02",
+              "PGMNAME": "COTRN02C",
+              "ACTIDIN": "00000000001",
+              "CARDNIN": "9680294154603697",
+              "TTYPCD": "01",
+              "TCATCD": "0001",
+              "TDESC": "Coffee shop",
+              "TRNAMT": "+00000012.50",
+              "TORIGDT": "2026-11-01",
+              "TPROCDT": "2026-11-02",
+              "MID": "123456789",
+              "MNAME": "Corner Cafe",
+              "MCITY": "Seattle",
+              "MZIP": "98101",
+              "ERRMSG": "Source can NOT be empty..."
+            },
+            "cursor": "TRNSRC"
+          }
+        }
+      ]
+    },
+    {
+      "id": "transaction-add-empty-description",
+      "title": "All else valid, TDESC blank (amount also blank: description is checked first): the empty-field message for it",
+      "provenance": "observed",
+      "source": "app/cbl/COTRN02C.cbl VALIDATE-INPUT-DATA-FIELDS (empty checks)",
+      "steps": [
+        {
+          "do": {
+            "transid": "CC00"
+          }
+        },
+        {
+          "do": {
+            "aid": "ENTER",
+            "fields": {
+              "USERID": "USER0001",
+              "PASSWD": "PASSWORD"
+            }
+          }
+        },
+        {
+          "do": {
+            "aid": "ENTER",
+            "fields": {
+              "OPTION": "8"
+            }
+          }
+        },
+        {
+          "do": {
+            "aid": "ENTER",
+            "fields": {
+              "ACTIDIN": "00000000001",
+              "TTYPCD": "01",
+              "TCATCD": "0001",
+              "TRNSRC": "POS TERM",
+              "TDESC": "",
+              "TRNAMT": "",
+              "TORIGDT": "2026-11-01",
+              "TPROCDT": "2026-11-02",
+              "MID": "123456789",
+              "MNAME": "Corner Cafe",
+              "MCITY": "Seattle",
+              "MZIP": "98101"
+            }
+          },
+          "expect": {
+            "map": "COTRN2A",
+            "fields": {
+              "TRNNAME": "CT02",
+              "PGMNAME": "COTRN02C",
+              "ACTIDIN": "00000000001",
+              "CARDNIN": "9680294154603697",
+              "TTYPCD": "01",
+              "TCATCD": "0001",
+              "TRNSRC": "POS TERM",
+              "TORIGDT": "2026-11-01",
+              "TPROCDT": "2026-11-02",
+              "MID": "123456789",
+              "MNAME": "Corner Cafe",
+              "MCITY": "Seattle",
+              "MZIP": "98101",
+              "ERRMSG": "Description can NOT be empty..."
+            },
+            "cursor": "TDESC"
+          }
+        }
+      ]
+    },
+    {
+      "id": "transaction-add-empty-amount",
+      "title": "All else valid, TRNAMT blank: the empty-field message for it",
+      "provenance": "observed",
+      "source": "app/cbl/COTRN02C.cbl VALIDATE-INPUT-DATA-FIELDS (empty checks)",
+      "steps": [
+        {
+          "do": {
+            "transid": "CC00"
+          }
+        },
+        {
+          "do": {
+            "aid": "ENTER",
+            "fields": {
+              "USERID": "USER0001",
+              "PASSWD": "PASSWORD"
+            }
+          }
+        },
+        {
+          "do": {
+            "aid": "ENTER",
+            "fields": {
+              "OPTION": "8"
+            }
+          }
+        },
+        {
+          "do": {
+            "aid": "ENTER",
+            "fields": {
+              "ACTIDIN": "00000000001",
+              "TTYPCD": "01",
+              "TCATCD": "0001",
+              "TRNSRC": "POS TERM",
+              "TDESC": "Coffee shop",
+              "TRNAMT": "",
+              "TORIGDT": "2026-11-01",
+              "TPROCDT": "2026-11-02",
+              "MID": "123456789",
+              "MNAME": "Corner Cafe",
+              "MCITY": "Seattle",
+              "MZIP": "98101"
+            }
+          },
+          "expect": {
+            "map": "COTRN2A",
+            "fields": {
+              "TRNNAME": "CT02",
+              "PGMNAME": "COTRN02C",
+              "ACTIDIN": "00000000001",
+              "CARDNIN": "9680294154603697",
+              "TTYPCD": "01",
+              "TCATCD": "0001",
+              "TRNSRC": "POS TERM",
+              "TDESC": "Coffee shop",
+              "TORIGDT": "2026-11-01",
+              "TPROCDT": "2026-11-02",
+              "MID": "123456789",
+              "MNAME": "Corner Cafe",
+              "MCITY": "Seattle",
+              "MZIP": "98101",
+              "ERRMSG": "Amount can NOT be empty..."
+            },
+            "cursor": "TRNAMT"
+          }
+        }
+      ]
+    },
+    {
+      "id": "transaction-add-empty-orig-date",
+      "title": "All else valid, TORIGDT blank: the empty-field message for it",
+      "provenance": "observed",
+      "source": "app/cbl/COTRN02C.cbl VALIDATE-INPUT-DATA-FIELDS (empty checks)",
+      "steps": [
+        {
+          "do": {
+            "transid": "CC00"
+          }
+        },
+        {
+          "do": {
+            "aid": "ENTER",
+            "fields": {
+              "USERID": "USER0001",
+              "PASSWD": "PASSWORD"
+            }
+          }
+        },
+        {
+          "do": {
+            "aid": "ENTER",
+            "fields": {
+              "OPTION": "8"
+            }
+          }
+        },
+        {
+          "do": {
+            "aid": "ENTER",
+            "fields": {
+              "ACTIDIN": "00000000001",
+              "TTYPCD": "01",
+              "TCATCD": "0001",
+              "TRNSRC": "POS TERM",
+              "TDESC": "Coffee shop",
+              "TRNAMT": "+00000012.50",
+              "TORIGDT": "",
+              "TPROCDT": "2026-11-02",
+              "MID": "123456789",
+              "MNAME": "Corner Cafe",
+              "MCITY": "Seattle",
+              "MZIP": "98101"
+            }
+          },
+          "expect": {
+            "map": "COTRN2A",
+            "fields": {
+              "TRNNAME": "CT02",
+              "PGMNAME": "COTRN02C",
+              "ACTIDIN": "00000000001",
+              "CARDNIN": "9680294154603697",
+              "TTYPCD": "01",
+              "TCATCD": "0001",
+              "TRNSRC": "POS TERM",
+              "TDESC": "Coffee shop",
+              "TRNAMT": "+00000012.50",
+              "TPROCDT": "2026-11-02",
+              "MID": "123456789",
+              "MNAME": "Corner Cafe",
+              "MCITY": "Seattle",
+              "MZIP": "98101",
+              "ERRMSG": "Orig Date can NOT be empty..."
+            },
+            "cursor": "TORIGDT"
+          }
+        }
+      ]
+    },
+    {
+      "id": "transaction-add-empty-proc-date",
+      "title": "All else valid, TPROCDT blank: the empty-field message for it",
+      "provenance": "observed",
+      "source": "app/cbl/COTRN02C.cbl VALIDATE-INPUT-DATA-FIELDS (empty checks)",
+      "steps": [
+        {
+          "do": {
+            "transid": "CC00"
+          }
+        },
+        {
+          "do": {
+            "aid": "ENTER",
+            "fields": {
+              "USERID": "USER0001",
+              "PASSWD": "PASSWORD"
+            }
+          }
+        },
+        {
+          "do": {
+            "aid": "ENTER",
+            "fields": {
+              "OPTION": "8"
+            }
+          }
+        },
+        {
+          "do": {
+            "aid": "ENTER",
+            "fields": {
+              "ACTIDIN": "00000000001",
+              "TTYPCD": "01",
+              "TCATCD": "0001",
+              "TRNSRC": "POS TERM",
+              "TDESC": "Coffee shop",
+              "TRNAMT": "+00000012.50",
+              "TORIGDT": "2026-11-01",
+              "TPROCDT": "",
+              "MID": "123456789",
+              "MNAME": "Corner Cafe",
+              "MCITY": "Seattle",
+              "MZIP": "98101"
+            }
+          },
+          "expect": {
+            "map": "COTRN2A",
+            "fields": {
+              "TRNNAME": "CT02",
+              "PGMNAME": "COTRN02C",
+              "ACTIDIN": "00000000001",
+              "CARDNIN": "9680294154603697",
+              "TTYPCD": "01",
+              "TCATCD": "0001",
+              "TRNSRC": "POS TERM",
+              "TDESC": "Coffee shop",
+              "TRNAMT": "+00000012.50",
+              "TORIGDT": "2026-11-01",
+              "MID": "123456789",
+              "MNAME": "Corner Cafe",
+              "MCITY": "Seattle",
+              "MZIP": "98101",
+              "ERRMSG": "Proc Date can NOT be empty..."
+            },
+            "cursor": "TPROCDT"
+          }
+        }
+      ]
+    },
+    {
+      "id": "transaction-add-empty-merchant-id",
+      "title": "All else valid, MID blank: the empty-field message for it",
+      "provenance": "observed",
+      "source": "app/cbl/COTRN02C.cbl VALIDATE-INPUT-DATA-FIELDS (empty checks)",
+      "steps": [
+        {
+          "do": {
+            "transid": "CC00"
+          }
+        },
+        {
+          "do": {
+            "aid": "ENTER",
+            "fields": {
+              "USERID": "USER0001",
+              "PASSWD": "PASSWORD"
+            }
+          }
+        },
+        {
+          "do": {
+            "aid": "ENTER",
+            "fields": {
+              "OPTION": "8"
+            }
+          }
+        },
+        {
+          "do": {
+            "aid": "ENTER",
+            "fields": {
+              "ACTIDIN": "00000000001",
+              "TTYPCD": "01",
+              "TCATCD": "0001",
+              "TRNSRC": "POS TERM",
+              "TDESC": "Coffee shop",
+              "TRNAMT": "+00000012.50",
+              "TORIGDT": "2026-11-01",
+              "TPROCDT": "2026-11-02",
+              "MID": "",
+              "MNAME": "Corner Cafe",
+              "MCITY": "Seattle",
+              "MZIP": "98101"
+            }
+          },
+          "expect": {
+            "map": "COTRN2A",
+            "fields": {
+              "TRNNAME": "CT02",
+              "PGMNAME": "COTRN02C",
+              "ACTIDIN": "00000000001",
+              "CARDNIN": "9680294154603697",
+              "TTYPCD": "01",
+              "TCATCD": "0001",
+              "TRNSRC": "POS TERM",
+              "TDESC": "Coffee shop",
+              "TRNAMT": "+00000012.50",
+              "TORIGDT": "2026-11-01",
+              "TPROCDT": "2026-11-02",
+              "MNAME": "Corner Cafe",
+              "MCITY": "Seattle",
+              "MZIP": "98101",
+              "ERRMSG": "Merchant ID can NOT be empty..."
+            },
+            "cursor": "MID"
+          }
+        }
+      ]
+    },
+    {
+      "id": "transaction-add-empty-merchant-name",
+      "title": "All else valid, MNAME blank: the empty-field message for it",
+      "provenance": "observed",
+      "source": "app/cbl/COTRN02C.cbl VALIDATE-INPUT-DATA-FIELDS (empty checks)",
+      "steps": [
+        {
+          "do": {
+            "transid": "CC00"
+          }
+        },
+        {
+          "do": {
+            "aid": "ENTER",
+            "fields": {
+              "USERID": "USER0001",
+              "PASSWD": "PASSWORD"
+            }
+          }
+        },
+        {
+          "do": {
+            "aid": "ENTER",
+            "fields": {
+              "OPTION": "8"
+            }
+          }
+        },
+        {
+          "do": {
+            "aid": "ENTER",
+            "fields": {
+              "ACTIDIN": "00000000001",
+              "TTYPCD": "01",
+              "TCATCD": "0001",
+              "TRNSRC": "POS TERM",
+              "TDESC": "Coffee shop",
+              "TRNAMT": "+00000012.50",
+              "TORIGDT": "2026-11-01",
+              "TPROCDT": "2026-11-02",
+              "MID": "123456789",
+              "MNAME": "",
+              "MCITY": "Seattle",
+              "MZIP": "98101"
+            }
+          },
+          "expect": {
+            "map": "COTRN2A",
+            "fields": {
+              "TRNNAME": "CT02",
+              "PGMNAME": "COTRN02C",
+              "ACTIDIN": "00000000001",
+              "CARDNIN": "9680294154603697",
+              "TTYPCD": "01",
+              "TCATCD": "0001",
+              "TRNSRC": "POS TERM",
+              "TDESC": "Coffee shop",
+              "TRNAMT": "+00000012.50",
+              "TORIGDT": "2026-11-01",
+              "TPROCDT": "2026-11-02",
+              "MID": "123456789",
+              "MCITY": "Seattle",
+              "MZIP": "98101",
+              "ERRMSG": "Merchant Name can NOT be empty..."
+            },
+            "cursor": "MNAME"
+          }
+        }
+      ]
+    },
+    {
+      "id": "transaction-add-empty-merchant-city",
+      "title": "All else valid, MCITY blank: the empty-field message for it",
+      "provenance": "observed",
+      "source": "app/cbl/COTRN02C.cbl VALIDATE-INPUT-DATA-FIELDS (empty checks)",
+      "steps": [
+        {
+          "do": {
+            "transid": "CC00"
+          }
+        },
+        {
+          "do": {
+            "aid": "ENTER",
+            "fields": {
+              "USERID": "USER0001",
+              "PASSWD": "PASSWORD"
+            }
+          }
+        },
+        {
+          "do": {
+            "aid": "ENTER",
+            "fields": {
+              "OPTION": "8"
+            }
+          }
+        },
+        {
+          "do": {
+            "aid": "ENTER",
+            "fields": {
+              "ACTIDIN": "00000000001",
+              "TTYPCD": "01",
+              "TCATCD": "0001",
+              "TRNSRC": "POS TERM",
+              "TDESC": "Coffee shop",
+              "TRNAMT": "+00000012.50",
+              "TORIGDT": "2026-11-01",
+              "TPROCDT": "2026-11-02",
+              "MID": "123456789",
+              "MNAME": "Corner Cafe",
+              "MCITY": "",
+              "MZIP": "98101"
+            }
+          },
+          "expect": {
+            "map": "COTRN2A",
+            "fields": {
+              "TRNNAME": "CT02",
+              "PGMNAME": "COTRN02C",
+              "ACTIDIN": "00000000001",
+              "CARDNIN": "9680294154603697",
+              "TTYPCD": "01",
+              "TCATCD": "0001",
+              "TRNSRC": "POS TERM",
+              "TDESC": "Coffee shop",
+              "TRNAMT": "+00000012.50",
+              "TORIGDT": "2026-11-01",
+              "TPROCDT": "2026-11-02",
+              "MID": "123456789",
+              "MNAME": "Corner Cafe",
+              "MZIP": "98101",
+              "ERRMSG": "Merchant City can NOT be empty..."
+            },
+            "cursor": "MCITY"
+          }
+        }
+      ]
+    },
+    {
+      "id": "transaction-add-empty-merchant-zip",
+      "title": "All else valid, MZIP blank: the empty-field message for it",
+      "provenance": "observed",
+      "source": "app/cbl/COTRN02C.cbl VALIDATE-INPUT-DATA-FIELDS (empty checks)",
+      "steps": [
+        {
+          "do": {
+            "transid": "CC00"
+          }
+        },
+        {
+          "do": {
+            "aid": "ENTER",
+            "fields": {
+              "USERID": "USER0001",
+              "PASSWD": "PASSWORD"
+            }
+          }
+        },
+        {
+          "do": {
+            "aid": "ENTER",
+            "fields": {
+              "OPTION": "8"
+            }
+          }
+        },
+        {
+          "do": {
+            "aid": "ENTER",
+            "fields": {
+              "ACTIDIN": "00000000001",
+              "TTYPCD": "01",
+              "TCATCD": "0001",
+              "TRNSRC": "POS TERM",
+              "TDESC": "Coffee shop",
+              "TRNAMT": "+00000012.50",
+              "TORIGDT": "2026-11-01",
+              "TPROCDT": "2026-11-02",
+              "MID": "123456789",
+              "MNAME": "Corner Cafe",
+              "MCITY": "Seattle",
+              "MZIP": ""
+            }
+          },
+          "expect": {
+            "map": "COTRN2A",
+            "fields": {
+              "TRNNAME": "CT02",
+              "PGMNAME": "COTRN02C",
+              "ACTIDIN": "00000000001",
+              "CARDNIN": "9680294154603697",
+              "TTYPCD": "01",
+              "TCATCD": "0001",
+              "TRNSRC": "POS TERM",
+              "TDESC": "Coffee shop",
+              "TRNAMT": "+00000012.50",
+              "TORIGDT": "2026-11-01",
+              "TPROCDT": "2026-11-02",
+              "MID": "123456789",
+              "MNAME": "Corner Cafe",
+              "MCITY": "Seattle",
+              "ERRMSG": "Merchant Zip can NOT be empty..."
+            },
+            "cursor": "MZIP"
+          }
+        }
+      ]
+    },
+    {
+      "id": "transaction-add-type-not-numeric",
+      "title": "Type CD not numeric",
+      "provenance": "observed",
+      "source": "app/cbl/COTRN02C.cbl VALIDATE-INPUT-DATA-FIELDS",
+      "steps": [
+        {
+          "do": {
+            "transid": "CC00"
+          }
+        },
+        {
+          "do": {
+            "aid": "ENTER",
+            "fields": {
+              "USERID": "USER0001",
+              "PASSWD": "PASSWORD"
+            }
+          }
+        },
+        {
+          "do": {
+            "aid": "ENTER",
+            "fields": {
+              "OPTION": "8"
+            }
+          }
+        },
+        {
+          "do": {
+            "aid": "ENTER",
+            "fields": {
+              "ACTIDIN": "00000000001",
+              "TTYPCD": "AB",
+              "TCATCD": "0001",
+              "TRNSRC": "POS TERM",
+              "TDESC": "Coffee shop",
+              "TRNAMT": "+00000012.50",
+              "TORIGDT": "2026-11-01",
+              "TPROCDT": "2026-11-02",
+              "MID": "123456789",
+              "MNAME": "Corner Cafe",
+              "MCITY": "Seattle",
+              "MZIP": "98101"
+            }
+          },
+          "expect": {
+            "map": "COTRN2A",
+            "fields": {
+              "TRNNAME": "CT02",
+              "PGMNAME": "COTRN02C",
+              "ACTIDIN": "00000000001",
+              "CARDNIN": "9680294154603697",
+              "TTYPCD": "AB",
+              "TCATCD": "0001",
+              "TRNSRC": "POS TERM",
+              "TDESC": "Coffee shop",
+              "TRNAMT": "+00000012.50",
+              "TORIGDT": "2026-11-01",
+              "TPROCDT": "2026-11-02",
+              "MID": "123456789",
+              "MNAME": "Corner Cafe",
+              "MCITY": "Seattle",
+              "MZIP": "98101",
+              "ERRMSG": "Type CD must be Numeric..."
+            },
+            "cursor": "TTYPCD"
+          }
+        }
+      ]
+    },
+    {
+      "id": "transaction-add-type-one-digit",
+      "title": "A one-digit Type CD is space-padded and fails the numeric check",
+      "provenance": "observed",
+      "source": "app/cbl/COTRN02C.cbl VALIDATE-INPUT-DATA-FIELDS (TTYPCDI NOT NUMERIC)",
+      "steps": [
+        {
+          "do": {
+            "transid": "CC00"
+          }
+        },
+        {
+          "do": {
+            "aid": "ENTER",
+            "fields": {
+              "USERID": "USER0001",
+              "PASSWD": "PASSWORD"
+            }
+          }
+        },
+        {
+          "do": {
+            "aid": "ENTER",
+            "fields": {
+              "OPTION": "8"
+            }
+          }
+        },
+        {
+          "do": {
+            "aid": "ENTER",
+            "fields": {
+              "ACTIDIN": "00000000001",
+              "TTYPCD": "1",
+              "TCATCD": "0001",
+              "TRNSRC": "POS TERM",
+              "TDESC": "Coffee shop",
+              "TRNAMT": "+00000012.50",
+              "TORIGDT": "2026-11-01",
+              "TPROCDT": "2026-11-02",
+              "MID": "123456789",
+              "MNAME": "Corner Cafe",
+              "MCITY": "Seattle",
+              "MZIP": "98101"
+            }
+          },
+          "expect": {
+            "map": "COTRN2A",
+            "fields": {
+              "TRNNAME": "CT02",
+              "PGMNAME": "COTRN02C",
+              "ACTIDIN": "00000000001",
+              "CARDNIN": "9680294154603697",
+              "TTYPCD": "1",
+              "TCATCD": "0001",
+              "TRNSRC": "POS TERM",
+              "TDESC": "Coffee shop",
+              "TRNAMT": "+00000012.50",
+              "TORIGDT": "2026-11-01",
+              "TPROCDT": "2026-11-02",
+              "MID": "123456789",
+              "MNAME": "Corner Cafe",
+              "MCITY": "Seattle",
+              "MZIP": "98101",
+              "ERRMSG": "Type CD must be Numeric..."
+            },
+            "cursor": "TTYPCD"
+          }
+        }
+      ]
+    },
+    {
+      "id": "transaction-add-category-not-numeric",
+      "title": "Category CD not numeric",
+      "provenance": "observed",
+      "source": "app/cbl/COTRN02C.cbl VALIDATE-INPUT-DATA-FIELDS",
+      "steps": [
+        {
+          "do": {
+            "transid": "CC00"
+          }
+        },
+        {
+          "do": {
+            "aid": "ENTER",
+            "fields": {
+              "USERID": "USER0001",
+              "PASSWD": "PASSWORD"
+            }
+          }
+        },
+        {
+          "do": {
+            "aid": "ENTER",
+            "fields": {
+              "OPTION": "8"
+            }
+          }
+        },
+        {
+          "do": {
+            "aid": "ENTER",
+            "fields": {
+              "ACTIDIN": "00000000001",
+              "TTYPCD": "01",
+              "TCATCD": "1A",
+              "TRNSRC": "POS TERM",
+              "TDESC": "Coffee shop",
+              "TRNAMT": "+00000012.50",
+              "TORIGDT": "2026-11-01",
+              "TPROCDT": "2026-11-02",
+              "MID": "123456789",
+              "MNAME": "Corner Cafe",
+              "MCITY": "Seattle",
+              "MZIP": "98101"
+            }
+          },
+          "expect": {
+            "map": "COTRN2A",
+            "fields": {
+              "TRNNAME": "CT02",
+              "PGMNAME": "COTRN02C",
+              "ACTIDIN": "00000000001",
+              "CARDNIN": "9680294154603697",
+              "TTYPCD": "01",
+              "TCATCD": "1A",
+              "TRNSRC": "POS TERM",
+              "TDESC": "Coffee shop",
+              "TRNAMT": "+00000012.50",
+              "TORIGDT": "2026-11-01",
+              "TPROCDT": "2026-11-02",
+              "MID": "123456789",
+              "MNAME": "Corner Cafe",
+              "MCITY": "Seattle",
+              "MZIP": "98101",
+              "ERRMSG": "Category CD must be Numeric..."
+            },
+            "cursor": "TCATCD"
+          }
+        }
+      ]
+    },
+    {
+      "id": "transaction-add-amount-bad-format",
+      "title": "Amount without a sign and 8 integer digits fails the format check",
+      "provenance": "observed",
+      "source": "app/cbl/COTRN02C.cbl VALIDATE-INPUT-DATA-FIELDS (TRNAMTI format)",
+      "steps": [
+        {
+          "do": {
+            "transid": "CC00"
+          }
+        },
+        {
+          "do": {
+            "aid": "ENTER",
+            "fields": {
+              "USERID": "USER0001",
+              "PASSWD": "PASSWORD"
+            }
+          }
+        },
+        {
+          "do": {
+            "aid": "ENTER",
+            "fields": {
+              "OPTION": "8"
+            }
+          }
+        },
+        {
+          "do": {
+            "aid": "ENTER",
+            "fields": {
+              "ACTIDIN": "00000000001",
+              "TTYPCD": "01",
+              "TCATCD": "0001",
+              "TRNSRC": "POS TERM",
+              "TDESC": "Coffee shop",
+              "TRNAMT": "12.50",
+              "TORIGDT": "2026-11-01",
+              "TPROCDT": "2026-11-02",
+              "MID": "123456789",
+              "MNAME": "Corner Cafe",
+              "MCITY": "Seattle",
+              "MZIP": "98101"
+            }
+          },
+          "expect": {
+            "map": "COTRN2A",
+            "fields": {
+              "TRNNAME": "CT02",
+              "PGMNAME": "COTRN02C",
+              "ACTIDIN": "00000000001",
+              "CARDNIN": "9680294154603697",
+              "TTYPCD": "01",
+              "TCATCD": "0001",
+              "TRNSRC": "POS TERM",
+              "TDESC": "Coffee shop",
+              "TRNAMT": "12.50",
+              "TORIGDT": "2026-11-01",
+              "TPROCDT": "2026-11-02",
+              "MID": "123456789",
+              "MNAME": "Corner Cafe",
+              "MCITY": "Seattle",
+              "MZIP": "98101",
+              "ERRMSG": "Amount should be in format -99999999.99"
+            },
+            "cursor": "TRNAMT"
+          }
+        }
+      ]
+    },
+    {
+      "id": "transaction-add-orig-date-bad-format",
+      "title": "Orig date not YYYY-MM-DD",
+      "provenance": "observed",
+      "source": "app/cbl/COTRN02C.cbl VALIDATE-INPUT-DATA-FIELDS",
+      "steps": [
+        {
+          "do": {
+            "transid": "CC00"
+          }
+        },
+        {
+          "do": {
+            "aid": "ENTER",
+            "fields": {
+              "USERID": "USER0001",
+              "PASSWD": "PASSWORD"
+            }
+          }
+        },
+        {
+          "do": {
+            "aid": "ENTER",
+            "fields": {
+              "OPTION": "8"
+            }
+          }
+        },
+        {
+          "do": {
+            "aid": "ENTER",
+            "fields": {
+              "ACTIDIN": "00000000001",
+              "TTYPCD": "01",
+              "TCATCD": "0001",
+              "TRNSRC": "POS TERM",
+              "TDESC": "Coffee shop",
+              "TRNAMT": "+00000012.50",
+              "TORIGDT": "11/01/2026",
+              "TPROCDT": "2026-11-02",
+              "MID": "123456789",
+              "MNAME": "Corner Cafe",
+              "MCITY": "Seattle",
+              "MZIP": "98101"
+            }
+          },
+          "expect": {
+            "map": "COTRN2A",
+            "fields": {
+              "TRNNAME": "CT02",
+              "PGMNAME": "COTRN02C",
+              "ACTIDIN": "00000000001",
+              "CARDNIN": "9680294154603697",
+              "TTYPCD": "01",
+              "TCATCD": "0001",
+              "TRNSRC": "POS TERM",
+              "TDESC": "Coffee shop",
+              "TRNAMT": "+00000012.50",
+              "TORIGDT": "11/01/2026",
+              "TPROCDT": "2026-11-02",
+              "MID": "123456789",
+              "MNAME": "Corner Cafe",
+              "MCITY": "Seattle",
+              "MZIP": "98101",
+              "ERRMSG": "Orig Date should be in format YYYY-MM-DD"
+            },
+            "cursor": "TORIGDT"
+          }
+        }
+      ]
+    },
+    {
+      "id": "transaction-add-proc-date-bad-format",
+      "title": "Proc date not YYYY-MM-DD",
+      "provenance": "observed",
+      "source": "app/cbl/COTRN02C.cbl VALIDATE-INPUT-DATA-FIELDS",
+      "steps": [
+        {
+          "do": {
+            "transid": "CC00"
+          }
+        },
+        {
+          "do": {
+            "aid": "ENTER",
+            "fields": {
+              "USERID": "USER0001",
+              "PASSWD": "PASSWORD"
+            }
+          }
+        },
+        {
+          "do": {
+            "aid": "ENTER",
+            "fields": {
+              "OPTION": "8"
+            }
+          }
+        },
+        {
+          "do": {
+            "aid": "ENTER",
+            "fields": {
+              "ACTIDIN": "00000000001",
+              "TTYPCD": "01",
+              "TCATCD": "0001",
+              "TRNSRC": "POS TERM",
+              "TDESC": "Coffee shop",
+              "TRNAMT": "+00000012.50",
+              "TORIGDT": "2026-11-01",
+              "TPROCDT": "2026.11.02",
+              "MID": "123456789",
+              "MNAME": "Corner Cafe",
+              "MCITY": "Seattle",
+              "MZIP": "98101"
+            }
+          },
+          "expect": {
+            "map": "COTRN2A",
+            "fields": {
+              "TRNNAME": "CT02",
+              "PGMNAME": "COTRN02C",
+              "ACTIDIN": "00000000001",
+              "CARDNIN": "9680294154603697",
+              "TTYPCD": "01",
+              "TCATCD": "0001",
+              "TRNSRC": "POS TERM",
+              "TDESC": "Coffee shop",
+              "TRNAMT": "+00000012.50",
+              "TORIGDT": "2026-11-01",
+              "TPROCDT": "2026.11.02",
+              "MID": "123456789",
+              "MNAME": "Corner Cafe",
+              "MCITY": "Seattle",
+              "MZIP": "98101",
+              "ERRMSG": "Proc Date should be in format YYYY-MM-DD"
+            },
+            "cursor": "TPROCDT"
+          }
+        }
+      ]
+    },
+    {
+      "id": "transaction-add-orig-date-invalid",
+      "title": "Orig date well formed but not a calendar date (Feb 30)",
+      "provenance": "observed",
+      "source": "app/cbl/COTRN02C.cbl VALIDATE-INPUT-DATA-FIELDS (CSUTLDTC)",
+      "steps": [
+        {
+          "do": {
+            "transid": "CC00"
+          }
+        },
+        {
+          "do": {
+            "aid": "ENTER",
+            "fields": {
+              "USERID": "USER0001",
+              "PASSWD": "PASSWORD"
+            }
+          }
+        },
+        {
+          "do": {
+            "aid": "ENTER",
+            "fields": {
+              "OPTION": "8"
+            }
+          }
+        },
+        {
+          "do": {
+            "aid": "ENTER",
+            "fields": {
+              "ACTIDIN": "00000000001",
+              "TTYPCD": "01",
+              "TCATCD": "0001",
+              "TRNSRC": "POS TERM",
+              "TDESC": "Coffee shop",
+              "TRNAMT": "+00000012.50",
+              "TORIGDT": "2026-02-30",
+              "TPROCDT": "2026-11-02",
+              "MID": "123456789",
+              "MNAME": "Corner Cafe",
+              "MCITY": "Seattle",
+              "MZIP": "98101"
+            }
+          },
+          "expect": {
+            "map": "COTRN2A",
+            "fields": {
+              "TRNNAME": "CT02",
+              "PGMNAME": "COTRN02C",
+              "ACTIDIN": "00000000001",
+              "CARDNIN": "9680294154603697",
+              "TTYPCD": "01",
+              "TCATCD": "0001",
+              "TRNSRC": "POS TERM",
+              "TDESC": "Coffee shop",
+              "TRNAMT": "+00000012.50",
+              "TORIGDT": "2026-02-30",
+              "TPROCDT": "2026-11-02",
+              "MID": "123456789",
+              "MNAME": "Corner Cafe",
+              "MCITY": "Seattle",
+              "MZIP": "98101",
+              "ERRMSG": "Orig Date - Not a valid date..."
+            },
+            "cursor": "TORIGDT"
+          }
+        }
+      ]
+    },
+    {
+      "id": "transaction-add-proc-date-invalid",
+      "title": "Proc date month 13",
+      "provenance": "observed",
+      "source": "app/cbl/COTRN02C.cbl VALIDATE-INPUT-DATA-FIELDS (CSUTLDTC)",
+      "steps": [
+        {
+          "do": {
+            "transid": "CC00"
+          }
+        },
+        {
+          "do": {
+            "aid": "ENTER",
+            "fields": {
+              "USERID": "USER0001",
+              "PASSWD": "PASSWORD"
+            }
+          }
+        },
+        {
+          "do": {
+            "aid": "ENTER",
+            "fields": {
+              "OPTION": "8"
+            }
+          }
+        },
+        {
+          "do": {
+            "aid": "ENTER",
+            "fields": {
+              "ACTIDIN": "00000000001",
+              "TTYPCD": "01",
+              "TCATCD": "0001",
+              "TRNSRC": "POS TERM",
+              "TDESC": "Coffee shop",
+              "TRNAMT": "+00000012.50",
+              "TORIGDT": "2026-11-01",
+              "TPROCDT": "2026-13-01",
+              "MID": "123456789",
+              "MNAME": "Corner Cafe",
+              "MCITY": "Seattle",
+              "MZIP": "98101"
+            }
+          },
+          "expect": {
+            "map": "COTRN2A",
+            "fields": {
+              "TRNNAME": "CT02",
+              "PGMNAME": "COTRN02C",
+              "ACTIDIN": "00000000001",
+              "CARDNIN": "9680294154603697",
+              "TTYPCD": "01",
+              "TCATCD": "0001",
+              "TRNSRC": "POS TERM",
+              "TDESC": "Coffee shop",
+              "TRNAMT": "+00000012.50",
+              "TORIGDT": "2026-11-01",
+              "TPROCDT": "2026-13-01",
+              "MID": "123456789",
+              "MNAME": "Corner Cafe",
+              "MCITY": "Seattle",
+              "MZIP": "98101",
+              "ERRMSG": "Proc Date - Not a valid date..."
+            },
+            "cursor": "TPROCDT"
+          }
+        }
+      ]
+    },
+    {
+      "id": "transaction-add-orig-date-pre-1582-accepted",
+      "title": "Legacy quirk: a pre-1582 date passes because CEE2513 (unsupported range) is ignored",
+      "provenance": "observed",
+      "source": "app/cbl/COTRN02C.cbl VALIDATE-INPUT-DATA-FIELDS (CSUTLDTC-RESULT-MSG-NUM NOT = '2513')",
+      "steps": [
+        {
+          "do": {
+            "transid": "CC00"
+          }
+        },
+        {
+          "do": {
+            "aid": "ENTER",
+            "fields": {
+              "USERID": "USER0001",
+              "PASSWD": "PASSWORD"
+            }
+          }
+        },
+        {
+          "do": {
+            "aid": "ENTER",
+            "fields": {
+              "OPTION": "8"
+            }
+          }
+        },
+        {
+          "do": {
+            "aid": "ENTER",
+            "fields": {
+              "ACTIDIN": "00000000001",
+              "TTYPCD": "01",
+              "TCATCD": "0001",
+              "TRNSRC": "POS TERM",
+              "TDESC": "Coffee shop",
+              "TRNAMT": "+00000012.50",
+              "TORIGDT": "1500-01-01",
+              "TPROCDT": "2026-11-02",
+              "MID": "123456789",
+              "MNAME": "Corner Cafe",
+              "MCITY": "Seattle",
+              "MZIP": "98101"
+            }
+          },
+          "expect": {
+            "map": "COTRN2A",
+            "fields": {
+              "TRNNAME": "CT02",
+              "PGMNAME": "COTRN02C",
+              "ACTIDIN": "00000000001",
+              "CARDNIN": "9680294154603697",
+              "TTYPCD": "01",
+              "TCATCD": "0001",
+              "TRNSRC": "POS TERM",
+              "TDESC": "Coffee shop",
+              "TRNAMT": "+00000012.50",
+              "TORIGDT": "1500-01-01",
+              "TPROCDT": "2026-11-02",
+              "MID": "123456789",
+              "MNAME": "Corner Cafe",
+              "MCITY": "Seattle",
+              "MZIP": "98101",
+              "ERRMSG": "Confirm to add this transaction..."
+            },
+            "cursor": "CONFIRM"
+          }
+        }
+      ]
+    },
+    {
+      "id": "transaction-add-merchant-id-not-numeric",
+      "title": "Merchant ID not numeric",
+      "provenance": "observed",
+      "source": "app/cbl/COTRN02C.cbl VALIDATE-INPUT-DATA-FIELDS",
+      "steps": [
+        {
+          "do": {
+            "transid": "CC00"
+          }
+        },
+        {
+          "do": {
+            "aid": "ENTER",
+            "fields": {
+              "USERID": "USER0001",
+              "PASSWD": "PASSWORD"
+            }
+          }
+        },
+        {
+          "do": {
+            "aid": "ENTER",
+            "fields": {
+              "OPTION": "8"
+            }
+          }
+        },
+        {
+          "do": {
+            "aid": "ENTER",
+            "fields": {
+              "ACTIDIN": "00000000001",
+              "TTYPCD": "01",
+              "TCATCD": "0001",
+              "TRNSRC": "POS TERM",
+              "TDESC": "Coffee shop",
+              "TRNAMT": "+00000012.50",
+              "TORIGDT": "2026-11-01",
+              "TPROCDT": "2026-11-02",
+              "MID": "12AB",
+              "MNAME": "Corner Cafe",
+              "MCITY": "Seattle",
+              "MZIP": "98101"
+            }
+          },
+          "expect": {
+            "map": "COTRN2A",
+            "fields": {
+              "TRNNAME": "CT02",
+              "PGMNAME": "COTRN02C",
+              "ACTIDIN": "00000000001",
+              "CARDNIN": "9680294154603697",
+              "TTYPCD": "01",
+              "TCATCD": "0001",
+              "TRNSRC": "POS TERM",
+              "TDESC": "Coffee shop",
+              "TRNAMT": "+00000012.50",
+              "TORIGDT": "2026-11-01",
+              "TPROCDT": "2026-11-02",
+              "MID": "12AB",
+              "MNAME": "Corner Cafe",
+              "MCITY": "Seattle",
+              "MZIP": "98101",
+              "ERRMSG": "Merchant ID must be Numeric..."
+            },
+            "cursor": "MID"
+          }
+        }
+      ]
+    },
+    {
+      "id": "transaction-add-confirm-blank",
+      "title": "All valid, confirm blank: asks to confirm and shows the amount reformatted",
+      "provenance": "observed",
+      "source": "app/cbl/COTRN02C.cbl PROCESS-ENTER-KEY (CONFIRMI SPACES)",
+      "steps": [
+        {
+          "do": {
+            "transid": "CC00"
+          }
+        },
+        {
+          "do": {
+            "aid": "ENTER",
+            "fields": {
+              "USERID": "USER0001",
+              "PASSWD": "PASSWORD"
+            }
+          }
+        },
+        {
+          "do": {
+            "aid": "ENTER",
+            "fields": {
+              "OPTION": "8"
+            }
+          }
+        },
+        {
+          "do": {
+            "aid": "ENTER",
+            "fields": {
+              "ACTIDIN": "00000000001",
+              "TTYPCD": "01",
+              "TCATCD": "0001",
+              "TRNSRC": "POS TERM",
+              "TDESC": "Coffee shop",
+              "TRNAMT": "+00000012.50",
+              "TORIGDT": "2026-11-01",
+              "TPROCDT": "2026-11-02",
+              "MID": "123456789",
+              "MNAME": "Corner Cafe",
+              "MCITY": "Seattle",
+              "MZIP": "98101"
+            }
+          },
+          "expect": {
+            "map": "COTRN2A",
+            "fields": {
+              "TRNNAME": "CT02",
+              "PGMNAME": "COTRN02C",
+              "ACTIDIN": "00000000001",
+              "CARDNIN": "9680294154603697",
+              "TTYPCD": "01",
+              "TCATCD": "0001",
+              "TRNSRC": "POS TERM",
+              "TDESC": "Coffee shop",
+              "TRNAMT": "+00000012.50",
+              "TORIGDT": "2026-11-01",
+              "TPROCDT": "2026-11-02",
+              "MID": "123456789",
+              "MNAME": "Corner Cafe",
+              "MCITY": "Seattle",
+              "MZIP": "98101",
+              "ERRMSG": "Confirm to add this transaction..."
+            },
+            "cursor": "CONFIRM"
+          }
+        }
+      ]
+    },
+    {
+      "id": "transaction-add-confirm-n",
+      "title": "Legacy quirk: confirm N does not cancel; it gives the same confirm prompt as blank",
+      "provenance": "observed",
+      "source": "app/cbl/COTRN02C.cbl PROCESS-ENTER-KEY (WHEN 'N')",
+      "steps": [
+        {
+          "do": {
+            "transid": "CC00"
+          }
+        },
+        {
+          "do": {
+            "aid": "ENTER",
+            "fields": {
+              "USERID": "USER0001",
+              "PASSWD": "PASSWORD"
+            }
+          }
+        },
+        {
+          "do": {
+            "aid": "ENTER",
+            "fields": {
+              "OPTION": "8"
+            }
+          }
+        },
+        {
+          "do": {
+            "aid": "ENTER",
+            "fields": {
+              "ACTIDIN": "00000000001",
+              "TTYPCD": "01",
+              "TCATCD": "0001",
+              "TRNSRC": "POS TERM",
+              "TDESC": "Coffee shop",
+              "TRNAMT": "+00000012.50",
+              "TORIGDT": "2026-11-01",
+              "TPROCDT": "2026-11-02",
+              "MID": "123456789",
+              "MNAME": "Corner Cafe",
+              "MCITY": "Seattle",
+              "MZIP": "98101",
+              "CONFIRM": "N"
+            }
+          },
+          "expect": {
+            "map": "COTRN2A",
+            "fields": {
+              "TRNNAME": "CT02",
+              "PGMNAME": "COTRN02C",
+              "ACTIDIN": "00000000001",
+              "CARDNIN": "9680294154603697",
+              "TTYPCD": "01",
+              "TCATCD": "0001",
+              "TRNSRC": "POS TERM",
+              "TDESC": "Coffee shop",
+              "TRNAMT": "+00000012.50",
+              "TORIGDT": "2026-11-01",
+              "TPROCDT": "2026-11-02",
+              "MID": "123456789",
+              "MNAME": "Corner Cafe",
+              "MCITY": "Seattle",
+              "MZIP": "98101",
+              "CONFIRM": "N",
+              "ERRMSG": "Confirm to add this transaction..."
+            },
+            "cursor": "CONFIRM"
+          }
+        }
+      ]
+    },
+    {
+      "id": "transaction-add-confirm-invalid",
+      "title": "Confirm value other than Y/N",
+      "provenance": "observed",
+      "source": "app/cbl/COTRN02C.cbl PROCESS-ENTER-KEY (WHEN OTHER)",
+      "steps": [
+        {
+          "do": {
+            "transid": "CC00"
+          }
+        },
+        {
+          "do": {
+            "aid": "ENTER",
+            "fields": {
+              "USERID": "USER0001",
+              "PASSWD": "PASSWORD"
+            }
+          }
+        },
+        {
+          "do": {
+            "aid": "ENTER",
+            "fields": {
+              "OPTION": "8"
+            }
+          }
+        },
+        {
+          "do": {
+            "aid": "ENTER",
+            "fields": {
+              "ACTIDIN": "00000000001",
+              "TTYPCD": "01",
+              "TCATCD": "0001",
+              "TRNSRC": "POS TERM",
+              "TDESC": "Coffee shop",
+              "TRNAMT": "+00000012.50",
+              "TORIGDT": "2026-11-01",
+              "TPROCDT": "2026-11-02",
+              "MID": "123456789",
+              "MNAME": "Corner Cafe",
+              "MCITY": "Seattle",
+              "MZIP": "98101",
+              "CONFIRM": "X"
+            }
+          },
+          "expect": {
+            "map": "COTRN2A",
+            "fields": {
+              "TRNNAME": "CT02",
+              "PGMNAME": "COTRN02C",
+              "ACTIDIN": "00000000001",
+              "CARDNIN": "9680294154603697",
+              "TTYPCD": "01",
+              "TCATCD": "0001",
+              "TRNSRC": "POS TERM",
+              "TDESC": "Coffee shop",
+              "TRNAMT": "+00000012.50",
+              "TORIGDT": "2026-11-01",
+              "TPROCDT": "2026-11-02",
+              "MID": "123456789",
+              "MNAME": "Corner Cafe",
+              "MCITY": "Seattle",
+              "MZIP": "98101",
+              "CONFIRM": "X",
+              "ERRMSG": "Invalid value. Valid values are (Y/N)..."
+            },
+            "cursor": "CONFIRM"
+          }
+        }
+      ]
+    },
+    {
+      "id": "transaction-add-confirm-y-writes",
+      "title": "Confirm Y writes a TRANSACT record keyed highest+1, clears the screen and shows the new id in green; legacy quirk: orig/proc timestamps are stored as the bare 10-char date",
+      "provenance": "observed",
+      "source": "app/cbl/COTRN02C.cbl ADD-TRANSACTION, WRITE-TRANSACT-FILE",
+      "steps": [
+        {
+          "do": {
+            "transid": "CC00"
+          }
+        },
+        {
+          "do": {
+            "aid": "ENTER",
+            "fields": {
+              "USERID": "USER0001",
+              "PASSWD": "PASSWORD"
+            }
+          }
+        },
+        {
+          "do": {
+            "aid": "ENTER",
+            "fields": {
+              "OPTION": "8"
+            }
+          }
+        },
+        {
+          "do": {
+            "aid": "ENTER",
+            "fields": {
+              "ACTIDIN": "00000000001",
+              "TTYPCD": "01",
+              "TCATCD": "0001",
+              "TRNSRC": "POS TERM",
+              "TDESC": "Coffee shop",
+              "TRNAMT": "+00000012.50",
+              "TORIGDT": "2026-11-01",
+              "TPROCDT": "2026-11-02",
+              "MID": "123456789",
+              "MNAME": "Corner Cafe",
+              "MCITY": "Seattle",
+              "MZIP": "98101",
+              "CONFIRM": "Y"
+            }
+          },
+          "expect": {
+            "map": "COTRN2A",
+            "fields": {
+              "TRNNAME": "CT02",
+              "PGMNAME": "COTRN02C",
+              "ERRMSG": "Transaction added successfully.  Your Tran ID is 0000000996722788."
+            },
+            "colors": {
+              "ERRMSG": "GREEN"
+            },
+            "cursor": "ACTIDIN",
+            "files": {
+              "TRANSACT": {
+                "inserted": [
+                  {
+                    "TRAN-ID": "0000000996722788",
+                    "TRAN-TYPE-CD": "01",
+                    "TRAN-CAT-CD": "1",
+                    "TRAN-SOURCE": "POS TERM",
+                    "TRAN-DESC": "Coffee shop",
+                    "TRAN-AMT": "12.50",
+                    "TRAN-MERCHANT-ID": "123456789",
+                    "TRAN-MERCHANT-NAME": "Corner Cafe",
+                    "TRAN-MERCHANT-CITY": "Seattle",
+                    "TRAN-MERCHANT-ZIP": "98101",
+                    "TRAN-CARD-NUM": "9680294154603697",
+                    "TRAN-ORIG-TS": "2026-11-01",
+                    "TRAN-PROC-TS": "2026-11-02"
+                  }
+                ]
+              }
+            }
+          }
+        }
+      ]
+    },
+    {
+      "id": "transaction-add-pf5-copy-last",
+      "title": "PF5 copies the data fields of the highest-keyed TRANSACT record (any account); the seed record has a blank proc timestamp, so validation stops at Proc Date",
+      "provenance": "observed",
+      "source": "app/cbl/COTRN02C.cbl COPY-LAST-TRAN-DATA, VALIDATE-INPUT-DATA-FIELDS",
+      "steps": [
+        {
+          "do": {
+            "transid": "CC00"
+          }
+        },
+        {
+          "do": {
+            "aid": "ENTER",
+            "fields": {
+              "USERID": "USER0001",
+              "PASSWD": "PASSWORD"
+            }
+          }
+        },
+        {
+          "do": {
+            "aid": "ENTER",
+            "fields": {
+              "OPTION": "8"
+            }
+          }
+        },
+        {
+          "do": {
+            "aid": "PF5",
+            "fields": {
+              "ACTIDIN": "00000000001"
+            }
+          },
+          "expect": {
+            "map": "COTRN2A",
+            "fields": {
+              "TRNNAME": "CT02",
+              "PGMNAME": "COTRN02C",
+              "ACTIDIN": "00000000001",
+              "CARDNIN": "9680294154603697",
+              "TTYPCD": "01",
+              "TCATCD": "0001",
+              "TRNSRC": "POS TERM",
+              "TDESC": "Purchase at Kilback LLC",
+              "TRNAMT": "+00000603.22",
+              "TORIGDT": "2022-06-10",
+              "MID": "800000000",
+              "MNAME": "Kilback LLC",
+              "MCITY": "Cummeratamouth",
+              "MZIP": "53200-7529",
+              "ERRMSG": "Proc Date can NOT be empty..."
+            },
+            "cursor": "TPROCDT"
+          }
+        }
+      ]
+    },
+    {
+      "id": "transaction-add-pf5-copy-last-confirm",
+      "title": "PF5 with a complete last record: fields copied (timestamps cut to 10 chars) and confirm is asked",
+      "provenance": "observed",
+      "source": "app/cbl/COTRN02C.cbl COPY-LAST-TRAN-DATA, PROCESS-ENTER-KEY",
+      "setup": {
+        "TRANSACT": {
+          "upsert": [
+            {
+              "TRAN-ID": "0000000996722787",
+              "TRAN-PROC-TS": "2022-06-11 08:00:00.000000"
+            }
+          ]
+        }
+      },
+      "steps": [
+        {
+          "do": {
+            "transid": "CC00"
+          }
+        },
+        {
+          "do": {
+            "aid": "ENTER",
+            "fields": {
+              "USERID": "USER0001",
+              "PASSWD": "PASSWORD"
+            }
+          }
+        },
+        {
+          "do": {
+            "aid": "ENTER",
+            "fields": {
+              "OPTION": "8"
+            }
+          }
+        },
+        {
+          "do": {
+            "aid": "PF5",
+            "fields": {
+              "ACTIDIN": "00000000001"
+            }
+          },
+          "expect": {
+            "map": "COTRN2A",
+            "fields": {
+              "TRNNAME": "CT02",
+              "PGMNAME": "COTRN02C",
+              "ACTIDIN": "00000000001",
+              "CARDNIN": "9680294154603697",
+              "TTYPCD": "01",
+              "TCATCD": "0001",
+              "TRNSRC": "POS TERM",
+              "TDESC": "Purchase at Kilback LLC",
+              "TRNAMT": "+00000603.22",
+              "TORIGDT": "2022-06-10",
+              "TPROCDT": "2022-06-11",
+              "MID": "800000000",
+              "MNAME": "Kilback LLC",
+              "MCITY": "Cummeratamouth",
+              "MZIP": "53200-7529",
+              "ERRMSG": "Confirm to add this transaction..."
+            },
+            "cursor": "CONFIRM"
+          }
+        }
+      ]
+    },
+    {
+      "id": "transaction-add-pf4-clear",
+      "title": "PF4 clears every field",
+      "provenance": "observed",
+      "source": "app/cbl/COTRN02C.cbl CLEAR-CURRENT-SCREEN",
+      "steps": [
+        {
+          "do": {
+            "transid": "CC00"
+          }
+        },
+        {
+          "do": {
+            "aid": "ENTER",
+            "fields": {
+              "USERID": "USER0001",
+              "PASSWD": "PASSWORD"
+            }
+          }
+        },
+        {
+          "do": {
+            "aid": "ENTER",
+            "fields": {
+              "OPTION": "8"
+            }
+          }
+        },
+        {
+          "do": {
+            "aid": "ENTER",
+            "fields": {
+              "ACTIDIN": "00000000001",
+              "TTYPCD": "01",
+              "TCATCD": "0001",
+              "TRNSRC": "POS TERM",
+              "TDESC": "Coffee shop",
+              "TRNAMT": "+00000012.50",
+              "TORIGDT": "2026-11-01",
+              "TPROCDT": "2026-11-02",
+              "MID": "123456789",
+              "MNAME": "Corner Cafe",
+              "MCITY": "Seattle",
+              "MZIP": "98101"
+            }
+          }
+        },
+        {
+          "do": {
+            "aid": "PF4"
+          },
+          "expect": {
+            "map": "COTRN2A",
+            "fields": {
+              "TRNNAME": "CT02",
+              "PGMNAME": "COTRN02C"
+            },
+            "cursor": "ACTIDIN"
+          }
+        }
+      ]
+    },
+    {
+      "id": "transaction-add-pf3-menu",
+      "title": "PF3 returns to the main menu",
+      "provenance": "observed",
+      "source": "app/cbl/COTRN02C.cbl MAIN-PARA (DFHPF3)",
+      "steps": [
+        {
+          "do": {
+            "transid": "CC00"
+          }
+        },
+        {
+          "do": {
+            "aid": "ENTER",
+            "fields": {
+              "USERID": "USER0001",
+              "PASSWD": "PASSWORD"
+            }
+          }
+        },
+        {
+          "do": {
+            "aid": "ENTER",
+            "fields": {
+              "OPTION": "8"
+            }
+          }
+        },
+        {
+          "do": {
+            "aid": "PF3"
+          },
+          "expect": {
+            "map": "COMEN1A",
+            "fields": {
+              "TRNNAME": "CM00",
+              "PGMNAME": "COMEN01C",
+              "OPTN001": "01. Account View",
+              "OPTN002": "02. Account Update",
+              "OPTN003": "03. Credit Card List",
+              "OPTN004": "04. Credit Card View",
+              "OPTN005": "05. Credit Card Update",
+              "OPTN006": "06. Transaction List",
+              "OPTN007": "07. Transaction View",
+              "OPTN008": "08. Transaction Add",
+              "OPTN009": "09. Transaction Reports",
+              "OPTN010": "10. Bill Payment",
+              "OPTN011": "11. Pending Authorization View"
+            },
+            "cursor": "OPTION"
+          }
+        }
+      ]
+    },
+    {
+      "id": "transaction-add-invalid-key",
+      "title": "Any other key shows the invalid-key message",
+      "provenance": "observed",
+      "source": "app/cbl/COTRN02C.cbl MAIN-PARA (WHEN OTHER)",
+      "steps": [
+        {
+          "do": {
+            "transid": "CC00"
+          }
+        },
+        {
+          "do": {
+            "aid": "ENTER",
+            "fields": {
+              "USERID": "USER0001",
+              "PASSWD": "PASSWORD"
+            }
+          }
+        },
+        {
+          "do": {
+            "aid": "ENTER",
+            "fields": {
+              "OPTION": "8"
+            }
+          }
+        },
+        {
+          "do": {
+            "aid": "PF8"
+          },
+          "expect": {
+            "map": "COTRN2A",
+            "fields": {
+              "TRNNAME": "CT02",
+              "PGMNAME": "COTRN02C",
+              "ERRMSG": "Invalid key pressed. Please see below..."
+            },
+            "cursor": "ACTIDIN"
+          }
+        }
+      ]
+    }
+  ]
+}

@@ -1,0 +1,22 @@
+{
+  "about": "Systems the characterization cases can run against. A slice ported to Java adds its feature name to the java target's features once its adapter answers the protocol in .cursor/skills/verify-carddemo/SKILL.md.",
+  "targets": {
+    "legacy": {
+      "features": "*"
+    },
+    "java": {
+      "command": [
+        "java/characterization-adapter"
+      ],
+      "features": ["signon", "main-menu", "admin-menu", "user-list", "user-add", "user-update", "user-delete"]
+    },
+    "legacy-adapter": {
+      "command": [
+        "python3",
+        "characterization/reference_adapter.py"
+      ],
+      "features": "*",
+      "about": "The legacy harness behind the external protocol; a working template for the Java adapter."
+    }
+  }
+}

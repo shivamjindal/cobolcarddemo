@@ -12,6 +12,14 @@ final class MappingDoc {
         doc.append("# VSAM KSDS schema mapping\n\n");
         doc.append("SchemaGenerator writes this file from the copybooks, LISTCAT, and EBCDIC sample rows. ");
         doc.append("The Flyway migration is the same run.\n");
+        doc.append("\n## Key order\n\n");
+        doc.append("Every text column is `COLLATE \"C\"`, so text keys sort by the bytes of the stored text, ");
+        doc.append("which is ASCII order for this data. The characterization harness browses in that order, ");
+        doc.append("and the goldens were recorded on it. VSAM on z/OS compares EBCDIC, where lowercase letters ");
+        doc.append("sort before uppercase and both sort before digits. The sample keys of all ten tables sort ");
+        doc.append("the same way under both. A key added later can differ. A lowercase user id from COUSR01C ");
+        doc.append("lists after every uppercase id here and before them on the mainframe. ");
+        doc.append("`com.carddemo.ksds.KeyedBrowse` is the only code that decides browse order.\n");
         for (int i = 0; i < tables.size(); i++) {
             appendTable(doc, tables.get(i), clusters.get(i), reasons.get(i));
         }

@@ -2,11 +2,11 @@ package com.carddemo.vsam;
 
 import java.nio.file.Path;
 
-final class Fixtures {
+public final class Fixtures {
 
     private Fixtures() {}
 
-    static Path appRoot() {
+    public static Path appRoot() {
         String configured = System.getProperty("carddemo.app-root");
         if (configured != null && !configured.isBlank()) {
             return Path.of(configured);

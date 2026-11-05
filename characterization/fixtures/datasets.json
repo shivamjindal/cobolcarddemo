@@ -1,0 +1,26 @@
+{
+  "about": "Seed datasets for every case. Records are fixed-width text, one per line, decoded with the named copybook. Paths are relative to the repo root. Signed numbers use EBCDIC overpunch in the last byte.",
+  "datasets": {
+    "USRSEC":   {"source": "characterization/fixtures/seed/usrsec.txt", "origin": "iconv -f cp037 app/data/EBCDIC/AWS.M2.CARDDEMO.USRSEC.PS, 80-byte records", "reclen": 80,  "key": [0, 8],  "copybook": "app/cpy/CSUSR01Y.cpy"},
+    "ACCTDATA": {"source": "app/data/ASCII/acctdata.txt",  "reclen": 300, "key": [0, 11], "copybook": "app/cpy/CVACT01Y.cpy"},
+    "CARDDATA": {"source": "app/data/ASCII/carddata.txt",  "reclen": 150, "key": [0, 16], "copybook": "app/cpy/CVACT02Y.cpy"},
+    "CARDXREF": {"source": "app/data/ASCII/cardxref.txt",  "reclen": 50,  "key": [0, 16], "alt_keys": [[25, 11]], "copybook": "app/cpy/CVACT03Y.cpy"},
+    "CUSTDATA": {"source": "app/data/ASCII/custdata.txt",  "reclen": 500, "key": [0, 9],  "copybook": "app/cpy/CVCUS01Y.cpy"},
+    "TRANSACT": {"source": "app/data/ASCII/dailytran.txt", "origin": "The mainframe seed (DALYTRAN.PS.INIT) is one low-values placeholder; online cases start from the daily transactions instead.", "reclen": 350, "key": [0, 16], "copybook": "app/cpy/CVTRA05Y.cpy"},
+    "DALYTRAN": {"source": "app/data/ASCII/dailytran.txt", "reclen": 350, "key": null,    "copybook": "app/cpy/CVTRA06Y.cpy"},
+    "DISCGRP":  {"source": "app/data/ASCII/discgrp.txt",   "reclen": 50,  "key": [0, 16], "copybook": "app/cpy/CVTRA02Y.cpy"},
+    "TCATBALF": {"source": "app/data/ASCII/tcatbal.txt",   "reclen": 50,  "key": [0, 17], "copybook": "app/cpy/CVTRA01Y.cpy"},
+    "TRANCATG": {"source": "app/data/ASCII/trancatg.txt",  "reclen": 60,  "key": [0, 6],  "copybook": "app/cpy/CVTRA04Y.cpy"},
+    "TRANTYPE": {"source": "app/data/ASCII/trantype.txt",  "reclen": 60,  "key": [0, 2],  "copybook": "app/cpy/CVTRA03Y.cpy"}
+  },
+  "cics_files": {
+    "USRSEC":   {"dataset": "USRSEC"},
+    "ACCTDAT":  {"dataset": "ACCTDATA"},
+    "CARDDAT":  {"dataset": "CARDDATA"},
+    "CCXREF":   {"dataset": "CARDXREF"},
+    "CUSTDAT":  {"dataset": "CUSTDATA"},
+    "TRANSACT": {"dataset": "TRANSACT"},
+    "CXACAIX":  {"dataset": "CARDXREF", "alt_key": [25, 11]},
+    "CARDAIX":  {"dataset": "CARDDATA", "alt_key": [16, 11]}
+  }
+}
