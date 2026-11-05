@@ -6,15 +6,18 @@ import java.sql.SQLException;
 import org.springframework.jdbc.core.simple.JdbcClient;
 import org.springframework.stereotype.Component;
 
+import com.carddemo.cics.CicsFile;
+import com.carddemo.cics.CicsRegion;
+
 /** CCXREF, table {@code card_xref}, read by card number or through its alternate index CXACAIX on the account id. */
 @Component
 public final class CardXrefStore {
 
     private final KeyedFile<XrefRecord> file;
 
-    public CardXrefStore(JdbcClient jdbc) {
-        this.file = new KeyedFile<>(jdbc, "CCXREF", "card_xref", "xref_card_num, xref_cust_id, xref_acct_id",
-                "xref_card_num", CardXrefStore::row);
+    public CardXrefStore(JdbcClient jdbc, CicsRegion region) {
+        this.file = new KeyedFile<>(jdbc, region, CicsFile.CCXREF, "card_xref",
+                "xref_card_num, xref_cust_id, xref_acct_id", "xref_card_num", CardXrefStore::row);
     }
 
     /** {@code READ DATASET(CCXREF) RIDFLD(cardNum)}, the card number without trailing blanks. */
@@ -24,7 +27,7 @@ public final class CardXrefStore {
 
     /** {@code READ DATASET(CXACAIX) RIDFLD(acctId)}. */
     public Read<XrefRecord> findByAccount(long acctId) {
-        return file.readByAlternateKey("CXACAIX", "xref_acct_id", acctId);
+        return file.readByAlternateKey(CicsFile.CXACAIX, "xref_acct_id", acctId);
     }
 
     private static XrefRecord row(ResultSet rs, int rowNum) throws SQLException {

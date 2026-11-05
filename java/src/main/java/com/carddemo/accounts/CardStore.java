@@ -7,6 +7,8 @@ import java.time.LocalDate;
 import org.springframework.jdbc.core.simple.JdbcClient;
 import org.springframework.stereotype.Component;
 
+import com.carddemo.cics.CicsFile;
+import com.carddemo.cics.CicsRegion;
 import com.carddemo.ksds.KeyedBrowse;
 
 /** CARDDAT, table {@code cards}, and its alternate index CARDAIX on the account id. */
@@ -16,15 +18,17 @@ public final class CardStore {
     private static final String COLUMNS = "card_num, card_acct_id, card_cvv_cd, card_embossed_name, "
             + "card_expiraion_date, card_active_status, card_filler";
 
-    private static final KeyedBrowse.Table<CardRecord> TABLE =
-            new KeyedBrowse.Table<>("cards", "card_num", COLUMNS, CardStore::row, CardRecord::num);
+    private static final KeyedBrowse.Table<CardRecord> TABLE = new KeyedBrowse.Table<>(CicsFile.CARDDAT, "cards",
+            "card_num", COLUMNS, CardStore::row, CardRecord::num);
 
     private final JdbcClient jdbc;
+    private final CicsRegion region;
     private final KeyedFile<CardRecord> file;
 
-    public CardStore(JdbcClient jdbc) {
+    public CardStore(JdbcClient jdbc, CicsRegion region) {
         this.jdbc = jdbc;
-        this.file = new KeyedFile<>(jdbc, "CARDDAT", "cards", COLUMNS, "card_num", CardStore::row);
+        this.region = region;
+        this.file = new KeyedFile<>(jdbc, region, CicsFile.CARDDAT, "cards", COLUMNS, "card_num", CardStore::row);
     }
 
     /** {@code READ FILE(CARDDAT) RIDFLD(cardNum)}, the card number without trailing blanks. */
@@ -34,7 +38,7 @@ public final class CardStore {
 
     /** {@code READ FILE(CARDAIX) RIDFLD(acctId)}. */
     public Read<CardRecord> findByAccount(long acctId) {
-        return file.readByAlternateKey("CARDAIX", "card_acct_id", acctId);
+        return file.readByAlternateKey(CicsFile.CARDAIX, "card_acct_id", acctId);
     }
 
     public ForUpdate<CardRecord> findForUpdate(String cardNum) {
@@ -53,7 +57,7 @@ public final class CardStore {
 
     /** A browse for {@code STARTBR DATASET(CARDDAT)}. */
     public KeyedBrowse<CardRecord> browse() {
-        return new KeyedBrowse<>(jdbc, TABLE);
+        return new KeyedBrowse<>(jdbc, region, TABLE);
     }
 
     private static CardRecord row(ResultSet rs, int rowNum) throws SQLException {

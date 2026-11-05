@@ -67,9 +67,9 @@ final class SeededTable {
     }
 
     /**
-     * Every table from its seed and the case's edits, with no job queued, claimed or spooled and no data set
-     * cataloged, in one transaction. A case may delete a record others refer to, as the harness's text files
-     * allow, so foreign-key triggers are off while seeding, and with them the cascades.
+     * Every table from its seed and the case's edits, with no job queued, claimed or spooled, no data set
+     * cataloged and every CICS file open, in one transaction. A case may delete a record others refer to, as the
+     * harness's text files allow, so foreign-key triggers are off while seeding, and with them the cascades.
      */
     static void seed(Connection db, List<SeededTable> tables, JsonNode setup) throws IOException, SQLException {
         db.setAutoCommit(false);
@@ -78,6 +78,7 @@ final class SeededTable {
             for (String batchState : List.of("job_submission_runs", "job_submissions", "spool", "dataset_records", "datasets")) {
                 replica.execute("DELETE FROM " + batchState);
             }
+            replica.execute("UPDATE cics_region SET closed = '{}'");
         }
         for (SeededTable table : tables) {
             table.materialize(db, setup.path(table.name()));
