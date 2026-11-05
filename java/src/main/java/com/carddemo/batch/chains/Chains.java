@@ -60,7 +60,7 @@ public final class Chains {
     /** Both Saturday folders wait on MNTTRDB2's condition; TRANEXTR, the other folder's only job, runs no CLOSEFIL. */
     static final Chain CONTROLM_WEEKLY_DISCLOSURE = new Chain("CONTROLM_WEEKLY_DISCLOSURE", Chain.Scheduler.CONTROL_M,
             "WEEKLY-DisclosureGroupsRefresh", List.of(
-            new Member.Optional("MNTTRDB2", "Db2"), new Member.Optional("TRANEXTR", "Db2"),
+            job(LibraryJob.MNTTRDB2), new Member.Optional("TRANEXTR", "Db2"),
             job(LibraryJob.CLOSEFIL), new Member.Unported("DISCGRP", RELOAD), job(LibraryJob.WAITSTEP),
             job(LibraryJob.OPENFIL)),
             "Control-M smart folder DAYS=SA after MNTTRDB2, which has no DAYS; TIMETO=23:00",
