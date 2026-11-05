@@ -75,7 +75,8 @@ public enum KeyedTable {
             new Column(new Field("TRANCAT-ACCT-ID", 0, 11, new Pic.Zoned(11, 0, false), "9(11)"), "trancat_acct_id", new SqlType.BigInt(11)),
             new Column(new Field("TRANCAT-TYPE-CD", 11, 2, new Pic.Alnum(2), "X(02)"), "trancat_type_cd", new SqlType.Text(2)),
             new Column(new Field("TRANCAT-CD", 13, 4, new Pic.Zoned(4, 0, false), "9(04)"), "trancat_cd", new SqlType.Int(4)),
-            new Column(new Field("TRAN-CAT-BAL", 17, 11, new Pic.Zoned(11, 2, true), "S9(09)V99"), "tran_cat_bal", new SqlType.Numeric(11, 2, true)))),
+            new Column(new Field("TRAN-CAT-BAL", 17, 11, new Pic.Zoned(11, 2, true), "S9(09)V99"), "tran_cat_bal", new SqlType.Numeric(11, 2, true)),
+            new Column(new Field("FILLER", 28, 22, new Pic.Alnum(22), "X(22)"), "tran_cat_filler", new SqlType.Text(22)))),
     TRANSACT("transactions", "AWS.M2.CARDDEMO.TRANSACT.VSAM.KSDS", 350, new KeyRange(0, 16), "AWS.M2.CARDDEMO.TRANSACT.VSAM.AIX.PATH", "tran_proc_ts", List.of(
             new Column(new Field("TRAN-ID", 0, 16, new Pic.Alnum(16), "X(16)"), "tran_id", new SqlType.Text(16)),
             new Column(new Field("TRAN-TYPE-CD", 16, 2, new Pic.Alnum(2), "X(02)"), "tran_type_cd", new SqlType.Text(2)),

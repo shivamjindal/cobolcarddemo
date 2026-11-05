@@ -31,8 +31,9 @@ public final class KeyedTableGenerator {
 
     public static final Path OUTPUT = Path.of("src/main/java/com/carddemo/records/KeyedTable.java");
 
-    private static final Map<String, String> FILLER_COLUMNS =
-            Map.of("accounts", "acct_filler", "customers", "cust_filler", "cards", "card_filler");
+    private static final Map<String, String> FILLER_COLUMNS = Map.of(
+            "accounts", "acct_filler", "customers", "cust_filler", "cards", "card_filler",
+            "transaction_category_balances", "tran_cat_filler");
     private static final Map<String, SqlType> V3_TYPES = Map.of("tran_orig_ts", new SqlType.Text(26));
 
     private KeyedTableGenerator() {}
