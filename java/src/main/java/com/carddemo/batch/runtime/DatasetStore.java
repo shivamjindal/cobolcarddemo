@@ -9,6 +9,9 @@ import java.util.EnumMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Optional;
+import java.util.regex.Matcher;
+import java.util.regex.Pattern;
+import java.util.stream.Collectors;
 
 import org.springframework.jdbc.core.JdbcTemplate;
 import org.springframework.jdbc.core.simple.JdbcClient;
@@ -17,6 +20,8 @@ import org.springframework.transaction.support.TransactionTemplate;
 
 import com.carddemo.batch.jcl.Dcb;
 import com.carddemo.batch.jcl.Gdg;
+import com.carddemo.records.KeyedTable;
+import com.carddemo.records.RecordImage;
 import com.carddemo.vsam.KeyRange;
 
 /**
@@ -30,6 +35,7 @@ public final class DatasetStore {
     record Dataset(long id, String dsn, boolean pending, Dcb dcb, Optional<KeyRange> key) {}
 
     private static final String COLUMNS = "id, dsn, state, recfm, lrecl, key_offset, key_length";
+    private static final Pattern GENERATION_NAME = Pattern.compile("(.+)\\(([+-]?\\d+)\\)");
 
     private final JdbcClient jdbc;
     private final JdbcTemplate template;
@@ -56,6 +62,124 @@ public final class DatasetStore {
     /** The records of the data set cataloged under {@code dsn}, in write order. */
     public Optional<List<byte[]>> read(String dsn) {
         return cataloged(dsn).map(dataset -> records(dataset.id()));
+    }
+
+    /**
+     * A cataloged generation of {@code base}. Relative 0 is the newest. A relative above 0 is not cataloged yet.
+     * Empty when the base is not a GDG or that generation is not cataloged.
+     */
+    public Optional<List<byte[]>> generation(String base, int relative) {
+        Optional<Gdg> gdg = Gdg.byBase(base);
+        if (gdg.isEmpty() || relative > 0) {
+            return Optional.empty();
+        }
+        List<Long> ids = generations().get(gdg.get());
+        int back = -relative;
+        if (ids == null || back < 0 || back >= ids.size()) {
+            return Optional.empty();
+        }
+        return Optional.of(records(ids.get(back)));
+    }
+
+    /**
+     * Records named the way IDCAMS INDATASET names them: a cluster, {@code base(rel)}, or a cataloged sequential
+     * data set. A known cluster that holds nothing is present and empty.
+     */
+    public Optional<List<byte[]>> readNamed(String name) {
+        Optional<List<byte[]>> generation = generationName(name);
+        if (generation.isPresent()) {
+            return generation;
+        }
+        if (isGenerationName(name)) {
+            return Optional.empty();
+        }
+        return KeyedTable.byDsn(name).map(table -> TableDataset.records(jdbc, table)).or(() -> read(name));
+    }
+
+    /** The record key of a cataloged keyed data set or a table cluster. */
+    public Optional<KeyRange> keyOf(String name) {
+        if (isGenerationName(name)) {
+            return Optional.empty();
+        }
+        return KeyedTable.byDsn(name).map(KeyedTable::key).or(() -> cataloged(name).flatMap(Dataset::key));
+    }
+
+    /** LRECL of a table cluster or a cataloged data set, or 0 when it is not cataloged. */
+    public int lreclOf(String name) {
+        return KeyedTable.byDsn(name).map(KeyedTable::recordLength)
+                .or(() -> cataloged(name).map(dataset -> dataset.dcb().lrecl())).orElse(0);
+    }
+
+    /** Deletes the cataloged non-generation data set. False when none is cataloged. */
+    public boolean deleteCataloged(String dsn) {
+        return jdbc.sql("delete from datasets where dsn = ? and state = 'CATALOGED' and generation is null")
+                .param(dsn).update() > 0;
+    }
+
+    /** Empties a cluster held in a table. DEFINE CLUSTER and DELETE CLUSTER both leave it this way. */
+    public void emptyCluster(KeyedTable table) {
+        jdbc.sql("delete from " + table.table()).update();
+    }
+
+    /** Catalogs an empty keyed work cluster, replacing a cataloged data set of the same name. */
+    public void defineWorkCluster(String dsn, int lrecl, KeyRange key) {
+        transactions.executeWithoutResult(status -> {
+            jdbc.sql("delete from datasets where dsn = ? and state = 'CATALOGED' and generation is null").param(dsn)
+                    .update();
+            insert(dsn, "CATALOGED", new Dcb(Dcb.Recfm.F, lrecl), Optional.of(key), null);
+        });
+    }
+
+    /** Inserts one cluster record. False when a record with that key is already there. */
+    public boolean insertCluster(KeyedTable table, byte[] record) {
+        Object[] values = RecordImage.columns(table, record);
+        String placeholders = table.columns().stream().map(column -> "?").collect(Collectors.joining(", "));
+        String names = table.columns().stream().map(column -> column.name()).collect(Collectors.joining(", "));
+        return jdbc.sql("insert into " + table.table() + " (" + names + ") values (" + placeholders
+                + ") on conflict do nothing").params(values).update() == 1;
+    }
+
+    /** Replaces the records of a cataloged sequential data set or generation. False when it is not cataloged. */
+    public boolean replaceNamed(String name, List<byte[]> records) {
+        Optional<Long> generation = generationId(name);
+        if (generation.isPresent()) {
+            replace(generation.get(), records);
+            return true;
+        }
+        if (isGenerationName(name) || KeyedTable.byDsn(name).isPresent()) {
+            return false;
+        }
+        return cataloged(name).map(dataset -> {
+            replace(dataset.id(), records);
+            return true;
+        }).orElse(false);
+    }
+
+    private Optional<List<byte[]>> generationName(String name) {
+        Matcher matcher = GENERATION_NAME.matcher(name);
+        if (!matcher.matches()) {
+            return Optional.empty();
+        }
+        return generation(matcher.group(1), Integer.parseInt(matcher.group(2)));
+    }
+
+    private Optional<Long> generationId(String name) {
+        Matcher matcher = GENERATION_NAME.matcher(name);
+        if (!matcher.matches()) {
+            return Optional.empty();
+        }
+        Optional<Gdg> gdg = Gdg.byBase(matcher.group(1));
+        int relative = Integer.parseInt(matcher.group(2));
+        if (gdg.isEmpty() || relative > 0) {
+            return Optional.empty();
+        }
+        List<Long> ids = generations().get(gdg.get());
+        int back = -relative;
+        return back < ids.size() ? Optional.of(ids.get(back)) : Optional.empty();
+    }
+
+    private static boolean isGenerationName(String name) {
+        return GENERATION_NAME.matcher(name).matches();
     }
 
     Optional<Dataset> cataloged(String dsn) {
