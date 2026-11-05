@@ -16,8 +16,12 @@ record Show(SymbolicMap<?> map, SendMode mode, ScreenState state) implements Out
 /** SEND TEXT, then RETURN TRANSID with the screen's state. */
 record ShowText(String text, ScreenState state) implements Outcome {}
 
-/** XCTL. The dispatcher runs the target's first display in the same request and transaction. */
-record Transfer(ProgramName to, Optional<Handoff> handoff, IdentityChange identity) implements Outcome {}
+/**
+ * XCTL. The dispatcher runs the target's first display in the same request and transaction. With
+ * {@code ifNotInstalled}, a program no slice has ported yet gets that outcome instead of the pending screen.
+ */
+record Transfer(ProgramName to, Optional<Handoff> handoff, IdentityChange identity, Optional<Outcome> ifNotInstalled)
+        implements Outcome {}
 
 /** SEND TEXT, then RETURN without a transaction id: the conversation is over. */
 record End(String text) implements Outcome {}

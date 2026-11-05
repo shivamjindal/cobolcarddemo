@@ -44,7 +44,7 @@ public final class ProgramCatalog {
     }
 
     /** COMEN01C's INQUIRE PROGRAM and COADM01C's HANDLE CONDITION PGMIDERR both ask this. */
-    public boolean installed(ProgramName program) {
+    boolean installed(ProgramName program) {
         Screen<?, ?, ?, ?> screen = byProgram.get(program);
         return screen != null && screen != pending;
     }

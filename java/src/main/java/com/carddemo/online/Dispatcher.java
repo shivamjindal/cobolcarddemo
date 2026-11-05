@@ -178,6 +178,10 @@ final class Dispatcher {
             if (++hops > MAX_TRANSFERS) {
                 throw new IllegalStateException("more than " + MAX_TRANSFERS + " XCTLs from " + screen.ref().program());
             }
+            if (transfer.ifNotInstalled().isPresent() && !catalog.installed(transfer.to())) {
+                out = transfer.ifNotInstalled().get();
+                continue;
+            }
             if (!(transfer.identity() instanceof IdentityChange.Keep)) {
                 change = transfer.identity();
             }

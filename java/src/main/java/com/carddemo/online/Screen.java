@@ -61,22 +61,30 @@ public abstract class Screen<F extends Enum<F> & MapField, A extends Enum<A> & S
 
     /** XCTL with a typed COMMAREA extension. */
     protected final <T extends Handoff> Outcome transfer(ScreenRef<T> to, T handoff) {
-        return new Transfer(to.program(), Optional.of(handoff), new IdentityChange.Keep());
+        return new Transfer(to.program(), Optional.of(handoff), new IdentityChange.Keep(), Optional.empty());
     }
 
     /** XCTL with the base COMMAREA only. */
     protected final Outcome transfer(ProgramName to) {
-        return new Transfer(to, Optional.empty(), new IdentityChange.Keep());
+        return new Transfer(to, Optional.empty(), new IdentityChange.Keep(), Optional.empty());
+    }
+
+    /**
+     * XCTL under {@code HANDLE CONDITION PGMIDERR}, or after {@code INQUIRE PROGRAM}: a program that
+     * is not installed gets {@code otherwise}.
+     */
+    protected final Outcome transferIfInstalled(ProgramName to, Outcome otherwise) {
+        return new Transfer(to, Optional.empty(), new IdentityChange.Keep(), Optional.of(otherwise));
     }
 
     /** A successful sign-on: the identity becomes this user, then XCTL to the user's home menu. */
     protected final Outcome signIn(SignedOnUser user, ProgramName home) {
-        return new Transfer(home, Optional.empty(), new IdentityChange.SignIn(user));
+        return new Transfer(home, Optional.empty(), new IdentityChange.SignIn(user), Optional.empty());
     }
 
     /** XCTL to the sign-on program without a COMMAREA, so the identity is gone. */
     protected final Outcome signOff(ProgramName signOn) {
-        return new Transfer(signOn, Optional.empty(), new IdentityChange.SignOff());
+        return new Transfer(signOn, Optional.empty(), new IdentityChange.SignOff(), Optional.empty());
     }
 
     /** SEND TEXT, then RETURN without a transaction id. */
@@ -87,7 +95,7 @@ public abstract class Screen<F extends Enum<F> & MapField, A extends Enum<A> & S
     /** This path of the program belongs to a later slice. */
     protected final Outcome notMigrated() {
         return new Transfer(PendingProgramScreen.REF.program(),
-                Optional.of(new PendingProgramScreen.Requested(ref.program())), new IdentityChange.Keep());
+                Optional.of(new PendingProgramScreen.Requested(ref.program())), new IdentityChange.Keep(), Optional.empty());
     }
 
     final ScreenRef<H> ref() {

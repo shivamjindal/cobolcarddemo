@@ -8,7 +8,7 @@
       "command": [
         "java/characterization-adapter"
       ],
-      "features": ["signon"]
+      "features": ["signon", "main-menu", "admin-menu"]
     },
     "legacy-adapter": {
       "command": [
