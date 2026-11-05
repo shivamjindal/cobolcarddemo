@@ -12,6 +12,14 @@ mvn -q exec:java -Dexec.mainClass=com.carddemo.vsam.SchemaGenerator -Dexec.args=
 
 The command writes `src/main/resources/db/migration/V1__vsam_ksds_tables.sql` and `docs/schema-mapping.md`.
 
+## Regenerate the screen maps
+
+```
+mvn -q exec:java -Dexec.mainClass=com.carddemo.bms.ScreenMapGenerator -Dexec.args=/workspace/app
+```
+
+The command writes one field enum per BMS map into `src/main/java/com/carddemo/online/maps`. `ScreenMapsDriftTest` fails when a checked-in enum differs from the BMS source.
+
 ## Load the sample data
 
 Postgres is database `carddemo` on `localhost:5432`, user `carddemo`, password `carddemo`. Override the connection with `CARDDEMO_JDBC_URL`, `CARDDEMO_JDBC_USER`, and `CARDDEMO_JDBC_PASSWORD`.
@@ -35,3 +43,15 @@ The API listens on port 8080 (`CARDDEMO_PORT` overrides it) against the same dat
 ```
 mvn -q verify
 ```
+
+The Spring tests run on database `carddemo_test`, which they create on first use, so `verify` leaves the dev data alone.
+
+## Run the characterization goldens
+
+From the repository root:
+
+```
+python3 characterization/run.py --target java --feature signon
+```
+
+`characterization-adapter` rebuilds the jar when a source is newer than it. It keeps one server on `127.0.0.1:18080` under profile `characterization`, against database `carddemo_characterization` and a clock fixed at 2026-11-05 10:00. Before every case it seeds USRSEC from `characterization/fixtures`. The server stops after ten idle minutes, or with `characterization/cleanup.sh stop`.

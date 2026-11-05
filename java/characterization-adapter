@@ -1,0 +1,54 @@
+#!/usr/bin/env bash
+# The java target of characterization/run.py: one case on stdin, its observations on stdout.
+# Keeps one warm server (profile characterization, 127.0.0.1:18080, database carddemo_characterization)
+# per jar build and rebuilds the jar when a source is newer. `characterization/cleanup.sh stop` stops it.
+set -euo pipefail
+here="$(cd "$(dirname "$0")" && pwd)"
+state="$here/target/characterization"
+jar="$here/target/carddemo-0.1.0.jar"
+url="http://127.0.0.1:${CARDDEMO_CHARACTERIZATION_PORT:-18080}"
+export PGPASSWORD="${CARDDEMO_JDBC_PASSWORD:-carddemo}"
+pg=(-h localhost -U "${CARDDEMO_JDBC_USER:-carddemo}")
+
+mkdir -p "$state"
+exec 9>"$state/lock"
+flock 9
+
+if [[ ! -f "$jar" || -n "$(find "$here/src/main" "$here/pom.xml" -newer "$jar" -print -quit)" ]]; then
+  (cd "$here" && mvn -q -DskipTests package) >&2
+fi
+
+up() { curl -sf -o /dev/null "$url/api/maps/COSGN0A"; }
+running() { [[ -f "$state/server.pid" ]] && kill -0 "$(cat "$state/server.pid")" 2>/dev/null; }
+
+build="$(stat -c %Y "$jar")"
+if ! running || [[ "$(cat "$state/server.build" 2>/dev/null)" != "$build" ]] || ! up; then
+  if running; then
+    kill "$(cat "$state/server.pid")"
+    for _ in $(seq 60); do running || break; sleep 0.5; done
+  fi
+  rm -f "$state/server.pid" "$state/server.build"
+  if up; then
+    echo "$url answers, but not from a server this launcher started; stop it first" >&2
+    exit 1
+  fi
+  if [[ -z "$(psql "${pg[@]}" -d postgres -tAc "SELECT 1 FROM pg_database WHERE datname = 'carddemo_characterization'")" ]]; then
+    createdb "${pg[@]}" carddemo_characterization
+  fi
+  setsid nohup java -jar "$jar" --spring.profiles.active=characterization \
+    </dev/null >"$state/server.log" 2>&1 9>&- &
+  echo $! >"$state/server.pid"
+  for _ in $(seq 120); do
+    up && break
+    if ! running; then
+      tail -n 40 "$state/server.log" >&2
+      exit 1
+    fi
+    sleep 0.5
+  done
+  up || { echo "server did not answer at $url; see $state/server.log" >&2; exit 1; }
+  echo "$build" >"$state/server.build"
+fi
+
+exec java -cp "$jar" -Dloader.main=com.carddemo.characterization.Adapter \
+  org.springframework.boot.loader.launch.PropertiesLauncher
