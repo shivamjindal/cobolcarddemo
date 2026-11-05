@@ -652,6 +652,15 @@ PF5 on an id that is not on file, or whose READ UPDATE fails, still runs DELETE,
 - No golden pins it yet. It is read from the source.
 - Fix: stop after the failed READ and keep its message.
 
+## `PRTCATBL-edit-drops-balance-sign`
+
+PRTCATBL's OUTREC mask EDIT=(TTTTTTTTT.TT) prints a zoned balance's digits and a decimal point and no sign, so a negative balance appears positive.
+
+- Lives in [`Sort.edit`](../src/main/java/com/carddemo/batch/utilities/Sort.java).
+- Comes from the program logic.
+- Pinned by `catbal-print-drops-balance-sign`.
+- Fix: print the sign when the mask asks for one.
+
 ## `USRSEC-any-user-type`
 
 COUSR01C and COUSR02C store any non-blank character as the user type.

@@ -71,8 +71,8 @@ class UtilityStatementsIT {
     @BeforeEach
     void removeOutputs() {
         for (String dsn : List.of("TEST.SORT.OUT", "TEST.SORT.CAT", "TEST.SORT.ZD.OUT", "TEST.SORT.CH.OUT",
-                "TEST.SORT.TRX.OUT", "TEST.SORT.BAD.OUT", "TEST.REPRO.TYPES", "TEST.REPRO.NAMED.OUT", "TEST.REPRO.KSDS",
-                "TEST.REPRO.TRAN.IN")) {
+                "TEST.SORT.EDIT.OUT", "TEST.SORT.TRX.OUT", "TEST.SORT.BAD.OUT", "TEST.REPRO.TYPES",
+                "TEST.REPRO.NAMED.OUT", "TEST.REPRO.KSDS", "TEST.REPRO.ORDER", "TEST.REPRO.TRAN.IN")) {
             datasets.deleteCataloged(dsn);
         }
     }
@@ -121,6 +121,19 @@ class UtilityStatementsIT {
 
         run(sort("TEST.SORT.ZD", "TEST.SORT.CH.OUT", LRECL_1, List.of(), List.of(" SORT FIELDS=(1,1,CH,A)")));
         assertEquals(List.of("1", "J"), texts(datasets.read("TEST.SORT.CH.OUT").orElseThrow(), 0, 1));
+    }
+
+    @Test
+    void zonedSymbolsSortAsSignedNumbersAndEditPrintsNoSign() {
+        datasets.stage("TEST.SORT.EDIT", new Dcb(Dcb.Recfm.F, 2), Optional.empty(),
+                List.of(bytes("10"), bytes("1J"), bytes("09")));
+
+        run(sort("TEST.SORT.EDIT", "TEST.SORT.EDIT.OUT", new Dcb(Dcb.Recfm.F, 6),
+                List.of("AMT,1,2,ZD"),
+                List.of(" SORT FIELDS=(AMT,A)", " OUTREC FIELDS=(AMT,X,AMT,EDIT=(TTT))")));
+
+        assertEquals(List.of("1J 011", "09 009", "10 010"),
+                texts(datasets.read("TEST.SORT.EDIT.OUT").orElseThrow(), 0, 6));
     }
 
     @Test
@@ -220,6 +233,24 @@ class UtilityStatementsIT {
         assertEquals("RC=12", stopped.completion().label());
         assertEquals(List.of("AAAAAAA1"), texts(datasets.readNamed("TEST.REPRO.KSDS").orElseThrow(), 0, 8));
         assertFalse(texts(datasets.readNamed("TEST.REPRO.KSDS").orElseThrow(), 0, 8).contains("BBBBBBB1"));
+    }
+
+    @Test
+    void reproIntoAnEmptyKsdsRejectsAKeyThatDoesNotAscend() {
+        datasets.defineWorkCluster("TEST.REPRO.KSDS", 8, new KeyRange(0, 4));
+        datasets.stage("TEST.REPRO.ORDER", LRECL_8, Optional.empty(),
+                List.of(bytes("BBBBBBB1"), bytes("AAAAAAA1"), bytes("CCCCCCC1")));
+
+        Ran ran = run(reproNamed("TEST.REPRO.ORDER", "TEST.REPRO.KSDS"));
+
+        assertEquals("RC=8", ran.completion().label());
+        assertEquals(List.of("BBBBBBB1", "CCCCCCC1"), texts(datasets.readNamed("TEST.REPRO.KSDS").orElseThrow(), 0, 8));
+        assertTrue(text(ran, "SYSPRINT").stream().anyMatch(line -> line.contains("OUT OF SEQUENCE")));
+
+        datasets.stage("TEST.REPRO.ORDER", LRECL_8, Optional.empty(), List.of(bytes("AAAAAAA9")));
+        Ran added = run(reproNamed("TEST.REPRO.ORDER", "TEST.REPRO.KSDS"));
+        assertEquals("RC=0", added.completion().label());
+        assertTrue(texts(datasets.readNamed("TEST.REPRO.KSDS").orElseThrow(), 0, 8).contains("AAAAAAA9"));
     }
 
     @Test
