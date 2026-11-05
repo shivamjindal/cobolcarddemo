@@ -133,7 +133,13 @@ final class Dispatcher {
             Terminal terminal, long turn, HttpServletRequest request, HttpServletResponse response) {
         Task task;
         try {
-            task = tasks.execute(tx -> run(first, screen, user, aid));
+            task = tasks.execute(tx -> {
+                Task ran = run(first, screen, user, aid);
+                if (ran.last() instanceof Abend) {
+                    tx.setRollbackOnly();
+                }
+                return ran;
+            });
         } catch (Terminal.BadInput e) {
             return new Result.BadRequest(e.getMessage());
         } catch (AccessDenied e) {
@@ -161,6 +167,11 @@ final class Dispatcher {
             }
             case End end -> {
                 terminal.sendText(end.text());
+                identity.signOff(request, response);
+                return new Result.Ok(new EndedReply(next, terminal.text().orElseThrow()));
+            }
+            case Abend abend -> {
+                terminal.sendText(header.abendMessage(screen.ref().transid().orElseThrow(), abend.code()));
                 identity.signOff(request, response);
                 return new Result.Ok(new EndedReply(next, terminal.text().orElseThrow()));
             }

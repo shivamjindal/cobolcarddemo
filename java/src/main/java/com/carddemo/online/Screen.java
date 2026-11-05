@@ -92,6 +92,11 @@ public abstract class Screen<F extends Enum<F> & MapField, A extends Enum<A> & S
         return new End(text);
     }
 
+    /** The CICS abend a command raises when the program has no RESP for its condition, such as AEIP for INVREQ. */
+    protected final Outcome abend(String code) {
+        return new Abend(code);
+    }
+
     /** This path of the program belongs to a later slice. */
     protected final Outcome notMigrated() {
         return new Transfer(PendingProgramScreen.REF.program(),

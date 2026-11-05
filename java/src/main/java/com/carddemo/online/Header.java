@@ -38,4 +38,10 @@ final class Header {
         map.setIfPresent("APPLID", APPLID);
         map.setIfPresent("SYSID", SYSID);
     }
+
+    /** The message CICS writes to the terminal of a task that abends. */
+    String abendMessage(TransId transid, String code) {
+        return "DFHAC2206 " + TIME.format(LocalDateTime.now(clock)) + " " + APPLID + " Transaction " + transid.value()
+                + " failed with abend " + code + ". Updates to local recoverable resources backed out.";
+    }
 }

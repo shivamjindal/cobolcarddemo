@@ -17,6 +17,12 @@ public record UserId(String value) implements Serializable {
         return new UserId(value);
     }
 
+    /** {@code STRING SEC-USR-ID DELIMITED BY SPACE}: the characters before the first blank. */
+    public String delimitedBySpace() {
+        int blank = value.indexOf(' ');
+        return blank < 0 ? value : value.substring(0, blank);
+    }
+
     @Override
     public String toString() {
         return value;
