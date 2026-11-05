@@ -94,10 +94,16 @@ class VsamLoadIT {
                 WHERE schemaname = 'public' AND indexname LIKE '%\\_aix' ESCAPE '\\'
                 ORDER BY indexname
                 """, String.class));
-        assertEquals(9L, jdbc.queryForObject("""
-                SELECT count(*) FROM information_schema.table_constraints
+        assertEquals(List.of(
+                "card_xref_xref_acct_id_fk",
+                "card_xref_xref_card_num_fk",
+                "card_xref_xref_cust_id_fk",
+                "cards_card_acct_id_fk"), jdbc.queryForList("""
+                SELECT constraint_name FROM information_schema.table_constraints
                 WHERE constraint_schema = 'public' AND constraint_type = 'FOREIGN KEY'
-                """, Long.class));
+                AND table_name = ANY (?)
+                ORDER BY constraint_name
+                """, String.class, (Object) COUNTS.keySet().toArray(String[]::new)));
         assertEquals("date", columnType("accounts", "acct_open_date"));
         assertEquals("character varying", columnType("transactions", "tran_orig_ts"));
         assertEquals("2022-06-10 19:27:53.000000", jdbc.queryForObject(
