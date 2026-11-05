@@ -130,6 +130,24 @@ The info line keeps asking for an account id after a lookup that found it; 9000-
 - Pinned by `account-view-success`.
 - Fix: show 'Displaying details of given Account' when the account was found.
 
+## `COBIL00C-pays-without-xref`
+
+CXACAIX NOTFND is ignored, the payment is written with a LOW-VALUES card number, and the success message replaces the account-not-found error.
+
+- Lives in [`BillPayScreen.pay`](../src/main/java/com/carddemo/billpay/BillPayScreen.java).
+- Comes from the program logic.
+- Pinned by `bill-pay-no-xref-still-pays`.
+- Fix: stop when the account has no card cross-reference and leave the balance unchanged.
+
+## `COBIL00C-short-account-unpadded`
+
+MOVE of a short account id into ACCT-ID PIC 9(11) leaves it unpadded, so 1 is not account 00000000001.
+
+- Lives in [`BillPayScreen.accountId`](../src/main/java/com/carddemo/billpay/BillPayScreen.java).
+- Comes from the program logic.
+- Pinned by `bill-pay-short-account-not-found`.
+- Fix: zero-pad a short numeric account id to 11 digits before the read.
+
 ## `COCRDLIC-bad-filter-keeps-page`
 
 A non-numeric filter skips the browse, so the previous page stays on screen and every selection field stays protected.
@@ -336,6 +354,24 @@ PF5 is a real save only while changes are waiting for confirmation; before that 
 - Comes from the program logic.
 - Pinned by `card-update-pf5-before-confirm-acts-as-enter`.
 - Fix: ignore PF5 until the confirm screen is up.
+
+## `CORPT00C-pre-1582-accepted`
+
+CSUTLDTC message 2513, a date before 15 October 1582, is not treated as a date error.
+
+- Lives in [`ReportSubmitScreen.unacceptable`](../src/main/java/com/carddemo/report/ReportSubmitScreen.java).
+- Comes from the program logic.
+- Pinned by `report-submit-custom-pre-1582-accepted`.
+- Fix: reject every severity other than 0000, including message 2513.
+
+## `CORPT00C-reversed-range-accepted`
+
+A custom end date before the start date is submitted; the two dates are never compared.
+
+- Lives in [`ReportSubmitScreen.submitCustom`](../src/main/java/com/carddemo/report/ReportSubmitScreen.java).
+- Comes from the program logic.
+- Pinned by `report-submit-custom-reversed-range`.
+- Fix: reject the range when the end date is before the start date.
 
 ## `COSGN00C-untouched-password`
 
