@@ -140,6 +140,36 @@ public enum LibraryJob {
                               INDEX (NAME(AWS.M2.CARDDEMO.TRANSACT.VSAM.KSDS.INDEX) -
                               )
                     """)).cond(cond(4, Cond.Operator.LT)))),
+    TRANTYPE(reload("TRANTYPE", "TRANTYPE", "TTYPVSAM", "2 0", "60 60", "1 4")),
+    TRANCATG(reload("TRANCATG", "TRANCATG", "TCATVSAM", "6 0", "60 60", "2 3")),
+    TCATBALF(reload("TCATBALF", "TCATBAL", "TCATBALV", "17 0", "50 50", "2 3")),
+    DISCGRP(reload("DISCGRP", "DISCGRP", "DISCVSAM", "16 0", "50 50", "2 3")),
+    /**
+     * {@code EXEC PROC=REPROC,CNTLLIB=} expands {@link Proc#REPROC}. The step's SYSIN is that procedure's REPRO
+     * card, the text of {@code REPROCT}, rather than {@code DSN=&CNTLLIB(REPROCT)}. UNIT, SPACE and BLKSIZE are
+     * not in the parsed job.
+     */
+    PRTCATBL(JobDef.of("PRTCATBL",
+            program("DELDEF", Iefbr14.NAME, modDelete("THEFILE", "AWS.M2.CARDDEMO.TCATBALF.REPT")),
+            program("STEP05R.PRC001", Idcams.NAME, sysout("SYSPRINT"),
+                    shr("FILEIN", "AWS.M2.CARDDEMO.TCATBALF.VSAM.KSDS"),
+                    Dd.of("FILEOUT", relative(Gdg.TCATBALF_BKUP, 1, newCatalog(), 50)),
+                    instream("SYSIN", "    REPRO INFILE(FILEIN) OUTFILE(FILEOUT)")),
+            program("STEP10R", Sort.NAME,
+                    Dd.of("SORTIN", relative(Gdg.TCATBALF_BKUP, 1, Disposition.SHR, 0)),
+                    instream("SYMNAMES",
+                            "TRANCAT-ACCT-ID,1,11,ZD",
+                            "TRANCAT-TYPE-CD,12,2,CH",
+                            "TRANCAT-CD,14,4,ZD",
+                            "TRAN-CAT-BAL,18,11,ZD"),
+                    instream("SYSIN",
+                            " SORT FIELDS=(TRANCAT-ACCT-ID,A,TRANCAT-TYPE-CD,A,TRANCAT-CD,A)",
+                            " OUTREC FIELDS=(TRANCAT-ACCT-ID,X,",
+                            "     TRANCAT-TYPE-CD,X,",
+                            "     TRANCAT-CD,X,",
+                            "     TRAN-CAT-BAL,EDIT=(TTTTTTTTT.TT),9X)"),
+                    sysout("SYSOUT"),
+                    created("SORTOUT", "AWS.M2.CARDDEMO.TCATBALF.REPT", new Dcb(Dcb.Recfm.F, 40))))),
     READACCT(JobDef.of("READACCT",
             program("PREDEL", Iefbr14.NAME,
                     modDelete("DD01", "AWS.M2.CARDDEMO.ACCTDATA.PSCOMP"),
@@ -178,6 +208,38 @@ public enum LibraryJob {
 
     public static Optional<LibraryJob> byName(String name) {
         return Arrays.stream(values()).filter(j -> j.name().equals(name)).findFirst();
+    }
+
+    /**
+     * DELETE, DEFINE and REPRO of one reference cluster. The input DD is the sequential file and the output DD is
+     * the cluster, opened OLD.
+     */
+    private static JobDef reload(String member, String inDd, String outDd, String keys, String recordSize, String share) {
+        String ksds = "AWS.M2.CARDDEMO." + member + ".VSAM.KSDS";
+        return JobDef.of(member,
+                program("STEP05", Idcams.NAME, sysout("SYSPRINT"), instream("SYSIN",
+                        "   DELETE " + ksds + " -",
+                        "          CLUSTER",
+                        "   SET    MAXCC = 0")),
+                program("STEP10", Idcams.NAME, sysout("SYSPRINT"), instream("SYSIN",
+                        "   DEFINE CLUSTER (NAME(" + ksds + ") -",
+                        "          CYLINDERS(1 5) -",
+                        "          VOLUMES(AWSHJ1 -",
+                        "          ) -",
+                        "          KEYS(" + keys + ") -",
+                        "          RECORDSIZE(" + recordSize + ") -",
+                        "          SHAREOPTIONS(" + share + ") -",
+                        "          ERASE -",
+                        "          INDEXED -",
+                        "          ) -",
+                        "          DATA (NAME(" + ksds + ".DATA) -",
+                        "          ) -",
+                        "          INDEX (NAME(" + ksds + ".INDEX) -",
+                        "          )")),
+                program("STEP15", Idcams.NAME, sysout("SYSPRINT"),
+                        shr(inDd, "AWS.M2.CARDDEMO." + member + ".PS"),
+                        dataset(outDd, ksds, Disposition.of(Disposition.Status.OLD, null, null), Optional.empty()),
+                        instream("SYSIN", "   REPRO INFILE(" + inDd + ") OUTFILE(" + outDd + ")")));
     }
 
     private static Dd generation(String name, Gdg gdg, int lrecl) {
