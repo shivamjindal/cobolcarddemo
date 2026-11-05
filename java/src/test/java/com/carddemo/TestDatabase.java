@@ -9,13 +9,13 @@ import java.sql.Statement;
 import org.springframework.test.context.DynamicPropertyRegistry;
 
 /**
- * Spring tests run on database {@code carddemo_test}, created on first use. VsamLoadIT cleans and
- * edits its database, and {@code carddemo} is the dev data the running app serves.
+ * Spring tests run on database {@code carddemo_test} ({@code CARDDEMO_TEST_DB} overrides it), created on
+ * first use. VsamLoadIT cleans and edits its database, and {@code carddemo} is the dev data the running app serves.
  */
 public final class TestDatabase {
 
     private static final String SERVER = "jdbc:postgresql://localhost:5432/";
-    private static final String NAME = "carddemo_test";
+    private static final String NAME = env("CARDDEMO_TEST_DB", "carddemo_test");
 
     private TestDatabase() {}
 
