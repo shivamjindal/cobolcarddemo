@@ -14,11 +14,13 @@ import com.carddemo.batch.jcl.Disposition;
 import com.carddemo.batch.jcl.DsnRef;
 import com.carddemo.batch.jcl.Gdg;
 import com.carddemo.batch.jcl.JobDef;
+import com.carddemo.batch.programs.Cbact01c;
 import com.carddemo.batch.programs.Cbact02c;
 import com.carddemo.batch.programs.Cbact03c;
 import com.carddemo.batch.programs.Cbact04c;
 import com.carddemo.batch.programs.Cbcus01c;
 import com.carddemo.batch.programs.Cbtrn02c;
+import com.carddemo.batch.programs.Iefbr14;
 
 /** The members of {@code app/jcl} that run here, as typed JCL. STEPLIB is left out: programs come from the program library. */
 public enum LibraryJob {
@@ -43,7 +45,18 @@ public enum LibraryJob {
             shr("ACCTFILE", "AWS.M2.CARDDEMO.ACCTDATA.VSAM.KSDS"),
             shr("DISCGRP", "AWS.M2.CARDDEMO.DISCGRP.VSAM.KSDS"),
             generation("TRANSACT", Gdg.SYSTRAN, 350),
-            sysout("SYSOUT"), sysout("SYSPRINT")).parm("2022071800")));
+            sysout("SYSOUT"), sysout("SYSPRINT")).parm("2022071800"))),
+    READACCT(JobDef.of("READACCT",
+            program("PREDEL", Iefbr14.NAME,
+                    modDelete("DD01", "AWS.M2.CARDDEMO.ACCTDATA.PSCOMP"),
+                    modDelete("DD02", "AWS.M2.CARDDEMO.ACCTDATA.ARRYPS"),
+                    modDelete("DD03", "AWS.M2.CARDDEMO.ACCTDATA.VBPS")),
+            program("STEP05", Cbact01c.NAME,
+                    shr("ACCTFILE", "AWS.M2.CARDDEMO.ACCTDATA.VSAM.KSDS"),
+                    created("OUTFILE", "AWS.M2.CARDDEMO.ACCTDATA.PSCOMP", new Dcb(Dcb.Recfm.F, 107)),
+                    created("ARRYFILE", "AWS.M2.CARDDEMO.ACCTDATA.ARRYPS", new Dcb(Dcb.Recfm.F, 110)),
+                    created("VBRCFILE", "AWS.M2.CARDDEMO.ACCTDATA.VBPS", new Dcb(Dcb.Recfm.V, 84)),
+                    sysout("SYSOUT"), sysout("SYSPRINT"))));
 
     private final JobDef job;
 
@@ -63,5 +76,19 @@ public enum LibraryJob {
         return Dd.of(name, new DdSource.Dataset(new DsnRef.Generation(gdg, 1),
                 Disposition.of(Disposition.Status.NEW, Disposition.End.CATLG, Disposition.End.DELETE),
                 Optional.of(new Dcb(Dcb.Recfm.F, lrecl))));
+    }
+
+    private static Dd modDelete(String name, String dsn) {
+        return dataset(name, dsn, Disposition.of(Disposition.Status.MOD, Disposition.End.DELETE, Disposition.End.DELETE),
+                Optional.empty());
+    }
+
+    private static Dd created(String name, String dsn, Dcb dcb) {
+        return dataset(name, dsn, Disposition.of(Disposition.Status.NEW, Disposition.End.CATLG, Disposition.End.DELETE),
+                Optional.of(dcb));
+    }
+
+    private static Dd dataset(String name, String dsn, Disposition disposition, Optional<Dcb> dcb) {
+        return Dd.of(name, new DdSource.Dataset(new DsnRef.Named(dsn), disposition, dcb));
     }
 }

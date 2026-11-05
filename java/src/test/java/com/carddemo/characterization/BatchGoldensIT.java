@@ -46,7 +46,7 @@ import static org.junit.jupiter.api.Assumptions.assumeFalse;
 class BatchGoldensIT {
 
     /** Programs whose port has not landed; their cases are skipped. */
-    private static final Set<String> PENDING_PROGRAMS = Set.of("CBACT01C", "CBSTM03A");
+    private static final Set<String> PENDING_PROGRAMS = Set.of();
 
     private static final ObjectMapper JSON = new ObjectMapper();
     private static final Path CASES = Path.of("..", "characterization", "cases", "batch");

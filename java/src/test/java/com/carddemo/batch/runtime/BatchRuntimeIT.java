@@ -37,6 +37,7 @@ import com.carddemo.batch.step.OpenMode;
 import com.carddemo.batch.step.Read;
 import com.carddemo.batch.step.SequentialInput;
 import com.carddemo.batch.step.SequentialOutput;
+import com.carddemo.batch.programs.Iefbr14;
 import com.carddemo.batch.step.Step;
 import com.carddemo.records.KeyedTable;
 import com.carddemo.records.RecordImage;
@@ -157,6 +158,23 @@ class BatchRuntimeIT {
 
         assertEquals(Map.of("STEP01", "JCL ERROR", "STEP02", "FLUSH"), labels(ran));
         assertEquals(0, jdbc.sql("select count(*) from datasets").query(Integer.class).single());
+    }
+
+    @Test
+    void modDeleteDeleteRemovesAMissingDataSetAndACatalogedOneSoTheNextStepCanCreateIt() {
+        Disposition modDelete = Disposition.of(Disposition.Status.MOD, Disposition.End.DELETE, Disposition.End.DELETE);
+        String dsn = "TEST.BATCH.MODDEL";
+        Dd predel = Dd.of("DD01", new DdSource.Dataset(new DsnRef.Named(dsn), modDelete, Optional.empty()));
+
+        Ran first = run(JobDef.of("MODDEL", StepDef.program("PREDEL", Iefbr14.NAME, predel),
+                copy("STEP05", instream("ONE"), newDataset("OUT", dsn))));
+        assertEquals("RC=0", first.completion().label());
+        assertEquals(List.of("ONE"), lines(datasets.read(dsn).orElseThrow()));
+
+        Ran second = run(JobDef.of("MODDEL2", StepDef.program("PREDEL", Iefbr14.NAME, predel),
+                copy("STEP05", instream("TWO"), newDataset("OUT", dsn))));
+        assertEquals("RC=0", second.completion().label());
+        assertEquals(List.of("TWO"), lines(datasets.read(dsn).orElseThrow()));
     }
 
     @Test
