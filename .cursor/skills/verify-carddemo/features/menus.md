@@ -7,7 +7,7 @@ After sign-on a regular user sees the main menu (11 options) and an admin sees t
 - `menu-display` lists the options with the cursor on `OPTION`.
 - `menu-validate` rejects blank, zero, non-numeric and out-of-range options with `Please enter a valid option number...` and echoes the option as two digits.
 - `menu-route` transfers to the program in `COMEN02Y` / `COADM02Y` for the option.
-- `menu-not-installed` main option 11 (COPAUS0C) and admin options 5 and 6 (Db2 programs) report not installed.
+- `menu-not-installed` main option 11 (COPAUS0C) and admin options 5 and 6 (Db2 programs) report not installed on the base install. With the extension installed they open `COTRTLIC` and `COTRTUPC` (`db2-transaction-types.md`).
 - `menu-exit` PF3 returns to sign-on; other keys show the invalid key message.
 
 ## How to get to it (user POV)
