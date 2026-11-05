@@ -21,6 +21,7 @@ import org.springframework.batch.core.job.builder.SimpleJobBuilder;
 import org.springframework.batch.core.launch.JobLauncher;
 import org.springframework.batch.core.repository.JobRepository;
 import org.springframework.batch.core.step.builder.StepBuilder;
+import org.springframework.jdbc.core.simple.JdbcClient;
 import org.springframework.batch.core.step.tasklet.Tasklet;
 import org.springframework.batch.repeat.RepeatStatus;
 import org.springframework.stereotype.Component;
@@ -61,17 +62,21 @@ public final class ChainRunner {
 
     private static final String JOB_EXECUTION = "jobExecutionId";
 
+    private static final String RUNNING = "('STARTING', 'STARTED', 'STOPPING')";
+
     private final JobRepository repository;
     private final JobLauncher launcher;
     private final PlatformTransactionManager transactions;
     private final BatchRuntime runtime;
+    private final JdbcClient jdbc;
 
     ChainRunner(JobRepository repository, JobLauncher launcher, PlatformTransactionManager transactions,
-            BatchRuntime runtime) {
+            BatchRuntime runtime, JdbcClient jdbc) {
         this.repository = repository;
         this.launcher = launcher;
         this.transactions = transactions;
         this.runtime = runtime;
+        this.jdbc = jdbc;
     }
 
     /** Runs the chain for {@code orderDate} to its end on this thread, once per order date. */
@@ -96,6 +101,22 @@ public final class ChainRunner {
         return launch(chain, orderDate);
     }
 
+    /**
+     * Records a chain run whose JVM died, so {@link #restart} can resume it. Spring Batch will not restart an
+     * ABANDONED execution, and it skips an ABANDONED step, so the dead run is recorded FAILED.
+     */
+    public ChainRun abandon(Chain chain, LocalDate orderDate) {
+        JobExecution last = repository.getLastJobExecution(chain.name(), parameters(orderDate));
+        if (last == null) {
+            throw new Refused(chain.name() + " has not started for " + orderDate);
+        }
+        if (!last.getStatus().isRunning()) {
+            throw new Refused(chain.name() + " for " + orderDate + " is " + last.getStatus());
+        }
+        markDead(last.getId());
+        return run(chain, orderDate).orElseThrow();
+    }
+
     /** The chain's run for {@code orderDate} as it stands, empty when it has not started. */
     public Optional<ChainRun> run(Chain chain, LocalDate orderDate) {
         JobInstance instance = repository.getJobInstance(chain.name(), parameters(orderDate));
@@ -118,6 +139,27 @@ public final class ChainRunner {
             throw new Refused(chain.name() + " for " + orderDate + ": " + e.getMessage());
         }
         return run(chain, orderDate).orElseThrow();
+    }
+
+    private void markDead(long executionId) {
+        failRunning("batch_job_execution", executionId);
+        failRunning("batch_step_execution", executionId);
+        List<Long> members = jdbc.sql("select e.job_execution_id from batch_job_execution e"
+                        + " join batch_job_execution_params p on p.job_execution_id = e.job_execution_id"
+                        + " where p.parameter_name = 'chainExecution' and p.parameter_value = ?"
+                        + " and e.status in " + RUNNING)
+                .param(Long.toString(executionId)).query(Long.class).list();
+        for (Long member : members) {
+            failRunning("batch_job_execution", member);
+            failRunning("batch_step_execution", member);
+        }
+    }
+
+    private void failRunning(String table, long executionId) {
+        jdbc.sql("update " + table + " set status = 'FAILED', exit_code = 'FAILED', end_time = current_timestamp,"
+                        + " last_updated = current_timestamp, version = version + 1"
+                        + " where job_execution_id = ? and status in " + RUNNING)
+                .param(executionId).update();
     }
 
     private static void refuseUnrunnable(Chain chain) {
