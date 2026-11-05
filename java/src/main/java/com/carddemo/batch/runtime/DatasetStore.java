@@ -36,7 +36,7 @@ public final class DatasetStore {
     private final TransactionTemplate transactions;
     private final Clock clock;
 
-    DatasetStore(JdbcClient jdbc, JdbcTemplate template, TransactionTemplate transactions, Clock clock) {
+    public DatasetStore(JdbcClient jdbc, JdbcTemplate template, TransactionTemplate transactions, Clock clock) {
         this.jdbc = jdbc;
         this.template = template;
         this.transactions = transactions;

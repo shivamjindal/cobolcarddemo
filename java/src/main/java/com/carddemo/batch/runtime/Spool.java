@@ -17,7 +17,7 @@ public final class Spool {
     private final JdbcClient jdbc;
     private final JdbcTemplate template;
 
-    Spool(JdbcClient jdbc, JdbcTemplate template) {
+    public Spool(JdbcClient jdbc, JdbcTemplate template) {
         this.jdbc = jdbc;
         this.template = template;
     }

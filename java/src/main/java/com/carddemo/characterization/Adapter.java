@@ -15,6 +15,7 @@ import java.sql.PreparedStatement;
 import java.sql.ResultSet;
 import java.sql.SQLException;
 import java.sql.Statement;
+import java.time.Clock;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.HashSet;
@@ -24,6 +25,8 @@ import java.util.Map;
 import java.util.Set;
 import java.util.TreeMap;
 
+import org.springframework.jdbc.datasource.SingleConnectionDataSource;
+
 import com.carddemo.online.BmsField;
 import com.carddemo.online.MapId;
 import com.carddemo.online.maps.Maps;
@@ -32,83 +35,69 @@ import com.fasterxml.jackson.databind.ObjectMapper;
 import com.fasterxml.jackson.databind.node.ObjectNode;
 
 /**
- * The java target of {@code characterization/run.py}. Reads one online case on stdin, seeds the warm
- * server's database, plays each step over HTTP the way the browser does, and writes
- * {@code {"steps": [observation, ...]}} in the shape {@code characterization/harness/online.py}
- * reports. {@code java/characterization-adapter} starts the server and runs this class.
+ * The java target of {@code characterization/run.py}. Reads one case on stdin and seeds the warm server's
+ * database. An online case plays each step over HTTP the way the browser does; a batch case is a deck the
+ * server's internal reader runs ({@link BatchCase}). Writes {@code {"steps": [observation, ...]}} in the shape
+ * {@code characterization/harness/online.py} and {@code batch.py} report. {@code java/characterization-adapter}
+ * starts the server and runs this class.
  */
 public final class Adapter {
 
     private static final ObjectMapper JSON = new ObjectMapper();
     private static final Set<String> IGNORED_FIELDS = Set.of("CURDATE", "CURTIME", "APPLID", "SYSID", "TITLE01", "TITLE02");
-    private static final List<String> SEEDED = List.of("USRSEC", "ACCTDATA", "CUSTDATA", "CARDDATA", "CARDXREF", "TRANSACT");
 
     public static void main(String[] args) throws Exception {
         JsonNode request = JSON.readTree(System.in);
-        if (!"online".equals(request.path("kind").asText())) {
-            throw new IllegalArgumentException("the java target runs online cases only");
-        }
-        JsonNode testCase = request.get("case");
-        JsonNode setup = testCase.path("setup");
-        setup.fieldNames().forEachRemaining(name -> {
-            if (!SEEDED.contains(name)) {
-                throw new IllegalArgumentException("the java target seeds " + SEEDED + "; the case sets up " + name);
-            }
-        });
-        Path registryFile = Path.of(request.get("datasets").asText()).toAbsolutePath();
-        Path repo = registryFile.getParent().getParent().getParent();
-        JsonNode registry = JSON.readTree(registryFile.toFile());
-        List<SeededTable> seeded = new ArrayList<>();
-        for (String name : SEEDED) {
-            seeded.add(SeededTable.of(registry, repo, name));
-        }
-        URI server = URI.create(env("CARDDEMO_CHARACTERIZATION_URL", "http://127.0.0.1:18080"));
         try (Connection db = DriverManager.getConnection(
                 env("CARDDEMO_CHARACTERIZATION_JDBC_URL", "jdbc:postgresql://localhost:5432/carddemo_characterization"),
                 env("CARDDEMO_JDBC_USER", "carddemo"), env("CARDDEMO_JDBC_PASSWORD", "carddemo"))) {
-            seed(db, seeded, setup);
-            Browser browser = new Browser(server);
-            List<Map<String, Object>> observations = new ArrayList<>();
-            for (JsonNode step : testCase.get("steps")) {
-                List<TreeMap<String, byte[]>> before = new ArrayList<>();
-                for (SeededTable table : seeded) {
-                    before.add(table.snapshot(db));
-                }
-                long jobsBefore = lastJob(db);
-                Map<String, Object> observation = browser.step(step.get("do"));
-                Map<String, Object> files = new LinkedHashMap<>();
-                for (int i = 0; i < seeded.size(); i++) {
-                    SeededTable table = seeded.get(i);
-                    table.diff(before.get(i), table.snapshot(db)).ifPresent(d -> files.put(table.name(), d));
-                }
-                if (!files.isEmpty()) {
-                    observation.put("files", files);
-                }
-                Map<String, List<String>> queues = queued(db, jobsBefore);
-                if (!queues.isEmpty()) {
-                    observation.put("queues", queues);
-                }
-                observations.add(observation);
-            }
+            List<Map<String, Object>> observations = switch (request.path("kind").asText()) {
+                case "online" -> online(request, db);
+                case "batch" -> List.of(BatchCase.of(request).run(new SingleConnectionDataSource(db, true),
+                        Clock.systemDefaultZone()));
+                default -> throw new IllegalArgumentException("the java target runs online and batch cases, not "
+                        + request.path("kind"));
+            };
             System.out.print(JSON.writeValueAsString(Map.of("steps", observations)));
         }
     }
 
-    /**
-     * Every dataset and the empty TD queues in one transaction. A case may delete a record others refer
-     * to, as the harness's text files allow, so foreign-key triggers are off while seeding.
-     */
-    private static void seed(Connection db, List<SeededTable> seeded, JsonNode setup) throws Exception {
-        db.setAutoCommit(false);
-        try (Statement replica = db.createStatement()) {
-            replica.execute("SET LOCAL session_replication_role = replica");
-            replica.execute("DELETE FROM job_submissions");
+    private static List<Map<String, Object>> online(JsonNode request, Connection db) throws Exception {
+        JsonNode testCase = request.get("case");
+        JsonNode setup = testCase.path("setup");
+        setup.fieldNames().forEachRemaining(name -> {
+            if (!SeededTable.SEEDED.contains(name)) {
+                throw new IllegalArgumentException("the java target seeds " + SeededTable.SEEDED + "; the case sets up " + name);
+            }
+        });
+        Path registryFile = Path.of(request.get("datasets").asText()).toAbsolutePath();
+        Path repo = registryFile.getParent().getParent().getParent();
+        List<SeededTable> seeded = SeededTable.all(JSON.readTree(registryFile.toFile()), repo);
+        SeededTable.seed(db, seeded, setup);
+        Browser browser = new Browser(URI.create(env("CARDDEMO_CHARACTERIZATION_URL", "http://127.0.0.1:18080")));
+        List<Map<String, Object>> observations = new ArrayList<>();
+        for (JsonNode step : testCase.get("steps")) {
+            List<TreeMap<String, byte[]>> before = new ArrayList<>();
+            for (SeededTable table : seeded) {
+                before.add(table.snapshot(db));
+            }
+            long jobsBefore = lastJob(db);
+            Map<String, Object> observation = browser.step(step.get("do"));
+            Map<String, Object> files = new LinkedHashMap<>();
+            for (int i = 0; i < seeded.size(); i++) {
+                SeededTable table = seeded.get(i);
+                table.diff(before.get(i), table.snapshot(db)).ifPresent(d -> files.put(table.name(), d));
+            }
+            if (!files.isEmpty()) {
+                observation.put("files", files);
+            }
+            Map<String, List<String>> queues = queued(db, jobsBefore);
+            if (!queues.isEmpty()) {
+                observation.put("queues", queues);
+            }
+            observations.add(observation);
         }
-        for (SeededTable table : seeded) {
-            table.materialize(db, setup.path(table.name()));
-        }
-        db.commit();
-        db.setAutoCommit(true);
+        return observations;
     }
 
     private static long lastJob(Connection db) throws SQLException {

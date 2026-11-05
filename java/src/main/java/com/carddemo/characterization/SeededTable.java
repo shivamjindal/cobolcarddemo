@@ -32,6 +32,10 @@ import com.fasterxml.jackson.databind.JsonNode;
  */
 final class SeededTable {
 
+    /** Every keyed dataset of the registry. */
+    static final List<String> SEEDED = List.of("USRSEC", "ACCTDATA", "CUSTDATA", "CARDDATA", "CARDXREF", "TRANSACT",
+            "DISCGRP", "TCATBALF", "TRANCATG", "TRANTYPE");
+
     private final String name;
     private final KeyedTable table;
     private final HarnessLayout layout;
@@ -52,6 +56,34 @@ final class SeededTable {
             throw new IllegalArgumentException(name + " in the registry does not match " + table.dsn());
         }
         return new SeededTable(name, table, HarnessLayout.of(repo, registry, name), repo.resolve(entry.get("source").asText()));
+    }
+
+    static List<SeededTable> all(JsonNode registry, Path repo) throws IOException {
+        List<SeededTable> tables = new ArrayList<>();
+        for (String name : SEEDED) {
+            tables.add(of(registry, repo, name));
+        }
+        return tables;
+    }
+
+    /**
+     * Every table from its seed and the case's edits, with no job queued, claimed or spooled and no data set
+     * cataloged, in one transaction. A case may delete a record others refer to, as the harness's text files
+     * allow, so foreign-key triggers are off while seeding, and with them the cascades.
+     */
+    static void seed(Connection db, List<SeededTable> tables, JsonNode setup) throws IOException, SQLException {
+        db.setAutoCommit(false);
+        try (Statement replica = db.createStatement()) {
+            replica.execute("SET LOCAL session_replication_role = replica");
+            for (String batchState : List.of("job_submission_runs", "job_submissions", "spool", "dataset_records", "datasets")) {
+                replica.execute("DELETE FROM " + batchState);
+            }
+        }
+        for (SeededTable table : tables) {
+            table.materialize(db, setup.path(table.name()));
+        }
+        db.commit();
+        db.setAutoCommit(true);
     }
 
     String name() {

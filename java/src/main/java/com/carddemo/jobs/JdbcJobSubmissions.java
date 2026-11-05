@@ -11,14 +11,14 @@ import org.springframework.stereotype.Component;
 
 /** One {@code job_submissions} row per job. */
 @Component
-final class JdbcJobSubmissions implements JobSubmissions {
+public final class JdbcJobSubmissions implements JobSubmissions {
 
     private static final Logger log = LoggerFactory.getLogger(JdbcJobSubmissions.class);
 
     private final JdbcClient jdbc;
     private final Clock clock;
 
-    JdbcJobSubmissions(JdbcClient jdbc, Clock clock) {
+    public JdbcJobSubmissions(JdbcClient jdbc, Clock clock) {
         this.jdbc = jdbc;
         this.clock = clock;
     }
