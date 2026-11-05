@@ -1,0 +1,1077 @@
+{
+  "feature": "batch-posting",
+  "kind": "batch",
+  "programs": [
+    "CBTRN02C"
+  ],
+  "notes": "TRANSACT starts empty: POSTTRAN opens TRANFILE OUTPUT, which follows the TRANBKP delete/define.",
+  "cases": [
+    {
+      "id": "posting-valid-purchase",
+      "title": "A valid purchase is written to TRANSACT and updates the account and category balance",
+      "provenance": "observed",
+      "source": "CBTRN02C 1500-VALIDATE-TRAN / 2000-POST-TRANSACTION",
+      "setup": {
+        "TRANSACT": {
+          "replace": []
+        },
+        "DALYTRAN": {
+          "replace": [
+            {
+              "DALYTRAN-ID": "T000000000000001",
+              "DALYTRAN-TYPE-CD": "01",
+              "DALYTRAN-CAT-CD": 1,
+              "DALYTRAN-SOURCE": "POS TERM",
+              "DALYTRAN-DESC": "Purchase at Harness Store",
+              "DALYTRAN-AMT": "50.25",
+              "DALYTRAN-MERCHANT-ID": 800000001,
+              "DALYTRAN-MERCHANT-NAME": "Harness Store",
+              "DALYTRAN-MERCHANT-CITY": "Springfield",
+              "DALYTRAN-MERCHANT-ZIP": "12345",
+              "DALYTRAN-CARD-NUM": "9680294154603697",
+              "DALYTRAN-ORIG-TS": "2025-01-15 12:00:00.000000"
+            }
+          ]
+        }
+      },
+      "job": {
+        "program": "CBTRN02C",
+        "dd": {
+          "DALYTRAN": "DALYTRAN",
+          "TRANFILE": "TRANSACT",
+          "XREFFILE": "CARDXREF",
+          "DALYREJS": {
+            "output": "DALYREJS",
+            "reclen": 430
+          },
+          "ACCTFILE": "ACCTDATA",
+          "TCATBALF": "TCATBALF"
+        }
+      },
+      "expect": {
+        "completion": "RC=0",
+        "sysout": [
+          "START OF EXECUTION OF PROGRAM CBTRN02C",
+          "TRANSACTIONS PROCESSED :000000001",
+          "TRANSACTIONS REJECTED  :000000000",
+          "END OF EXECUTION OF PROGRAM CBTRN02C"
+        ],
+        "files": {
+          "ACCTDATA": {
+            "updated": [
+              {
+                "key": "00000000001",
+                "changed": {
+                  "ACCT-CURR-BAL": [
+                    "194.00",
+                    "244.25"
+                  ],
+                  "ACCT-CURR-CYC-CREDIT": [
+                    "0.00",
+                    "50.25"
+                  ]
+                }
+              }
+            ]
+          },
+          "TRANSACT": {
+            "inserted": [
+              {
+                "TRAN-ID": "T000000000000001",
+                "TRAN-TYPE-CD": "01",
+                "TRAN-CAT-CD": "1",
+                "TRAN-SOURCE": "POS TERM",
+                "TRAN-DESC": "Purchase at Harness Store",
+                "TRAN-AMT": "50.25",
+                "TRAN-MERCHANT-ID": "800000001",
+                "TRAN-MERCHANT-NAME": "Harness Store",
+                "TRAN-MERCHANT-CITY": "Springfield",
+                "TRAN-MERCHANT-ZIP": "12345",
+                "TRAN-CARD-NUM": "9680294154603697",
+                "TRAN-ORIG-TS": "2025-01-15 12:00:00.000000",
+                "TRAN-PROC-TS": "2026-11-05-10.00.00.000000"
+              }
+            ]
+          },
+          "TCATBALF": {
+            "updated": [
+              {
+                "key": "00000000001010001",
+                "changed": {
+                  "TRAN-CAT-BAL": [
+                    "0.00",
+                    "50.25"
+                  ]
+                }
+              }
+            ]
+          }
+        },
+        "outputs": {
+          "DALYREJS": []
+        }
+      }
+    },
+    {
+      "id": "posting-credit-return",
+      "title": "A negative amount posts to the cycle debit and lowers the balance",
+      "provenance": "observed",
+      "source": "CBTRN02C 1500-VALIDATE-TRAN / 2000-POST-TRANSACTION",
+      "setup": {
+        "TRANSACT": {
+          "replace": []
+        },
+        "DALYTRAN": {
+          "replace": [
+            {
+              "DALYTRAN-ID": "T000000000000001",
+              "DALYTRAN-TYPE-CD": "03",
+              "DALYTRAN-CAT-CD": 1,
+              "DALYTRAN-SOURCE": "POS TERM",
+              "DALYTRAN-DESC": "Purchase at Harness Store",
+              "DALYTRAN-AMT": "-20.00",
+              "DALYTRAN-MERCHANT-ID": 800000001,
+              "DALYTRAN-MERCHANT-NAME": "Harness Store",
+              "DALYTRAN-MERCHANT-CITY": "Springfield",
+              "DALYTRAN-MERCHANT-ZIP": "12345",
+              "DALYTRAN-CARD-NUM": "9680294154603697",
+              "DALYTRAN-ORIG-TS": "2025-01-15 12:00:00.000000"
+            }
+          ]
+        }
+      },
+      "job": {
+        "program": "CBTRN02C",
+        "dd": {
+          "DALYTRAN": "DALYTRAN",
+          "TRANFILE": "TRANSACT",
+          "XREFFILE": "CARDXREF",
+          "DALYREJS": {
+            "output": "DALYREJS",
+            "reclen": 430
+          },
+          "ACCTFILE": "ACCTDATA",
+          "TCATBALF": "TCATBALF"
+        }
+      },
+      "expect": {
+        "completion": "RC=0",
+        "sysout": [
+          "START OF EXECUTION OF PROGRAM CBTRN02C",
+          "TCATBAL record not found for key : 00000000001030001.. Creating.",
+          "TRANSACTIONS PROCESSED :000000001",
+          "TRANSACTIONS REJECTED  :000000000",
+          "END OF EXECUTION OF PROGRAM CBTRN02C"
+        ],
+        "files": {
+          "ACCTDATA": {
+            "updated": [
+              {
+                "key": "00000000001",
+                "changed": {
+                  "ACCT-CURR-BAL": [
+                    "194.00",
+                    "174.00"
+                  ],
+                  "ACCT-CURR-CYC-DEBIT": [
+                    "0.00",
+                    "-20.00"
+                  ]
+                }
+              }
+            ]
+          },
+          "TRANSACT": {
+            "inserted": [
+              {
+                "TRAN-ID": "T000000000000001",
+                "TRAN-TYPE-CD": "03",
+                "TRAN-CAT-CD": "1",
+                "TRAN-SOURCE": "POS TERM",
+                "TRAN-DESC": "Purchase at Harness Store",
+                "TRAN-AMT": "-20.00",
+                "TRAN-MERCHANT-ID": "800000001",
+                "TRAN-MERCHANT-NAME": "Harness Store",
+                "TRAN-MERCHANT-CITY": "Springfield",
+                "TRAN-MERCHANT-ZIP": "12345",
+                "TRAN-CARD-NUM": "9680294154603697",
+                "TRAN-ORIG-TS": "2025-01-15 12:00:00.000000",
+                "TRAN-PROC-TS": "2026-11-05-10.00.00.000000"
+              }
+            ]
+          },
+          "TCATBALF": {
+            "inserted": [
+              {
+                "TRANCAT-ACCT-ID": "1",
+                "TRANCAT-TYPE-CD": "03",
+                "TRANCAT-CD": "1",
+                "TRAN-CAT-BAL": "-20.00"
+              }
+            ]
+          }
+        },
+        "outputs": {
+          "DALYREJS": []
+        }
+      }
+    },
+    {
+      "id": "posting-new-category-balance",
+      "title": "A type/category with no TCATBAL record creates one",
+      "provenance": "observed",
+      "source": "CBTRN02C 1500-VALIDATE-TRAN / 2000-POST-TRANSACTION",
+      "setup": {
+        "TRANSACT": {
+          "replace": []
+        },
+        "DALYTRAN": {
+          "replace": [
+            {
+              "DALYTRAN-ID": "T000000000000001",
+              "DALYTRAN-TYPE-CD": "02",
+              "DALYTRAN-CAT-CD": 5,
+              "DALYTRAN-SOURCE": "POS TERM",
+              "DALYTRAN-DESC": "Purchase at Harness Store",
+              "DALYTRAN-AMT": "10.00",
+              "DALYTRAN-MERCHANT-ID": 800000001,
+              "DALYTRAN-MERCHANT-NAME": "Harness Store",
+              "DALYTRAN-MERCHANT-CITY": "Springfield",
+              "DALYTRAN-MERCHANT-ZIP": "12345",
+              "DALYTRAN-CARD-NUM": "9680294154603697",
+              "DALYTRAN-ORIG-TS": "2025-01-15 12:00:00.000000"
+            }
+          ]
+        }
+      },
+      "job": {
+        "program": "CBTRN02C",
+        "dd": {
+          "DALYTRAN": "DALYTRAN",
+          "TRANFILE": "TRANSACT",
+          "XREFFILE": "CARDXREF",
+          "DALYREJS": {
+            "output": "DALYREJS",
+            "reclen": 430
+          },
+          "ACCTFILE": "ACCTDATA",
+          "TCATBALF": "TCATBALF"
+        }
+      },
+      "expect": {
+        "completion": "RC=0",
+        "sysout": [
+          "START OF EXECUTION OF PROGRAM CBTRN02C",
+          "TCATBAL record not found for key : 00000000001020005.. Creating.",
+          "TRANSACTIONS PROCESSED :000000001",
+          "TRANSACTIONS REJECTED  :000000000",
+          "END OF EXECUTION OF PROGRAM CBTRN02C"
+        ],
+        "files": {
+          "ACCTDATA": {
+            "updated": [
+              {
+                "key": "00000000001",
+                "changed": {
+                  "ACCT-CURR-BAL": [
+                    "194.00",
+                    "204.00"
+                  ],
+                  "ACCT-CURR-CYC-CREDIT": [
+                    "0.00",
+                    "10.00"
+                  ]
+                }
+              }
+            ]
+          },
+          "TRANSACT": {
+            "inserted": [
+              {
+                "TRAN-ID": "T000000000000001",
+                "TRAN-TYPE-CD": "02",
+                "TRAN-CAT-CD": "5",
+                "TRAN-SOURCE": "POS TERM",
+                "TRAN-DESC": "Purchase at Harness Store",
+                "TRAN-AMT": "10.00",
+                "TRAN-MERCHANT-ID": "800000001",
+                "TRAN-MERCHANT-NAME": "Harness Store",
+                "TRAN-MERCHANT-CITY": "Springfield",
+                "TRAN-MERCHANT-ZIP": "12345",
+                "TRAN-CARD-NUM": "9680294154603697",
+                "TRAN-ORIG-TS": "2025-01-15 12:00:00.000000",
+                "TRAN-PROC-TS": "2026-11-05-10.00.00.000000"
+              }
+            ]
+          },
+          "TCATBALF": {
+            "inserted": [
+              {
+                "TRANCAT-ACCT-ID": "1",
+                "TRANCAT-TYPE-CD": "02",
+                "TRANCAT-CD": "5",
+                "TRAN-CAT-BAL": "10.00"
+              }
+            ]
+          }
+        },
+        "outputs": {
+          "DALYREJS": []
+        }
+      }
+    },
+    {
+      "id": "posting-reject-invalid-card",
+      "title": "An unknown card is rejected with reason 100 and RC 4",
+      "provenance": "observed",
+      "source": "CBTRN02C 1500-VALIDATE-TRAN / 2000-POST-TRANSACTION",
+      "setup": {
+        "TRANSACT": {
+          "replace": []
+        },
+        "DALYTRAN": {
+          "replace": [
+            {
+              "DALYTRAN-ID": "T000000000000001",
+              "DALYTRAN-TYPE-CD": "01",
+              "DALYTRAN-CAT-CD": 1,
+              "DALYTRAN-SOURCE": "POS TERM",
+              "DALYTRAN-DESC": "Purchase at Harness Store",
+              "DALYTRAN-AMT": "10.00",
+              "DALYTRAN-MERCHANT-ID": 800000001,
+              "DALYTRAN-MERCHANT-NAME": "Harness Store",
+              "DALYTRAN-MERCHANT-CITY": "Springfield",
+              "DALYTRAN-MERCHANT-ZIP": "12345",
+              "DALYTRAN-CARD-NUM": "0000000000000000",
+              "DALYTRAN-ORIG-TS": "2025-01-15 12:00:00.000000"
+            }
+          ]
+        }
+      },
+      "job": {
+        "program": "CBTRN02C",
+        "dd": {
+          "DALYTRAN": "DALYTRAN",
+          "TRANFILE": "TRANSACT",
+          "XREFFILE": "CARDXREF",
+          "DALYREJS": {
+            "output": "DALYREJS",
+            "reclen": 430
+          },
+          "ACCTFILE": "ACCTDATA",
+          "TCATBALF": "TCATBALF"
+        }
+      },
+      "expect": {
+        "completion": "RC=4",
+        "sysout": [
+          "START OF EXECUTION OF PROGRAM CBTRN02C",
+          "TRANSACTIONS PROCESSED :000000001",
+          "TRANSACTIONS REJECTED  :000000001",
+          "END OF EXECUTION OF PROGRAM CBTRN02C"
+        ],
+        "outputs": {
+          "DALYREJS": [
+            "T000000000000001010001POS TERM  Purchase at Harness Store                                                                           0000000100{800000001Harness Store                                     Springfield                                       12345     00000000000000002025-01-15 12:00:00.000000                                              0100INVALID CARD NUMBER FOUND"
+          ]
+        }
+      }
+    },
+    {
+      "id": "posting-reject-missing-account",
+      "title": "A card whose account is missing is rejected with reason 101",
+      "provenance": "observed",
+      "source": "CBTRN02C 1500-VALIDATE-TRAN / 2000-POST-TRANSACTION",
+      "setup": {
+        "TRANSACT": {
+          "replace": []
+        },
+        "DALYTRAN": {
+          "replace": [
+            {
+              "DALYTRAN-ID": "T000000000000001",
+              "DALYTRAN-TYPE-CD": "01",
+              "DALYTRAN-CAT-CD": 1,
+              "DALYTRAN-SOURCE": "POS TERM",
+              "DALYTRAN-DESC": "Purchase at Harness Store",
+              "DALYTRAN-AMT": "10.00",
+              "DALYTRAN-MERCHANT-ID": 800000001,
+              "DALYTRAN-MERCHANT-NAME": "Harness Store",
+              "DALYTRAN-MERCHANT-CITY": "Springfield",
+              "DALYTRAN-MERCHANT-ZIP": "12345",
+              "DALYTRAN-CARD-NUM": "9680294154603697",
+              "DALYTRAN-ORIG-TS": "2025-01-15 12:00:00.000000"
+            }
+          ]
+        },
+        "ACCTDATA": {
+          "delete": [
+            "00000000001"
+          ]
+        }
+      },
+      "job": {
+        "program": "CBTRN02C",
+        "dd": {
+          "DALYTRAN": "DALYTRAN",
+          "TRANFILE": "TRANSACT",
+          "XREFFILE": "CARDXREF",
+          "DALYREJS": {
+            "output": "DALYREJS",
+            "reclen": 430
+          },
+          "ACCTFILE": "ACCTDATA",
+          "TCATBALF": "TCATBALF"
+        }
+      },
+      "expect": {
+        "completion": "RC=4",
+        "sysout": [
+          "START OF EXECUTION OF PROGRAM CBTRN02C",
+          "TRANSACTIONS PROCESSED :000000001",
+          "TRANSACTIONS REJECTED  :000000001",
+          "END OF EXECUTION OF PROGRAM CBTRN02C"
+        ],
+        "outputs": {
+          "DALYREJS": [
+            "T000000000000001010001POS TERM  Purchase at Harness Store                                                                           0000000100{800000001Harness Store                                     Springfield                                       12345     96802941546036972025-01-15 12:00:00.000000                                              0101ACCOUNT RECORD NOT FOUND"
+          ]
+        }
+      }
+    },
+    {
+      "id": "posting-reject-overlimit",
+      "title": "Cycle credit minus debit plus amount over the credit limit is rejected with reason 102",
+      "provenance": "observed",
+      "source": "CBTRN02C 1500-VALIDATE-TRAN / 2000-POST-TRANSACTION",
+      "setup": {
+        "TRANSACT": {
+          "replace": []
+        },
+        "DALYTRAN": {
+          "replace": [
+            {
+              "DALYTRAN-ID": "T000000000000001",
+              "DALYTRAN-TYPE-CD": "01",
+              "DALYTRAN-CAT-CD": 1,
+              "DALYTRAN-SOURCE": "POS TERM",
+              "DALYTRAN-DESC": "Purchase at Harness Store",
+              "DALYTRAN-AMT": "2020.01",
+              "DALYTRAN-MERCHANT-ID": 800000001,
+              "DALYTRAN-MERCHANT-NAME": "Harness Store",
+              "DALYTRAN-MERCHANT-CITY": "Springfield",
+              "DALYTRAN-MERCHANT-ZIP": "12345",
+              "DALYTRAN-CARD-NUM": "9680294154603697",
+              "DALYTRAN-ORIG-TS": "2025-01-15 12:00:00.000000"
+            }
+          ]
+        }
+      },
+      "job": {
+        "program": "CBTRN02C",
+        "dd": {
+          "DALYTRAN": "DALYTRAN",
+          "TRANFILE": "TRANSACT",
+          "XREFFILE": "CARDXREF",
+          "DALYREJS": {
+            "output": "DALYREJS",
+            "reclen": 430
+          },
+          "ACCTFILE": "ACCTDATA",
+          "TCATBALF": "TCATBALF"
+        }
+      },
+      "expect": {
+        "completion": "RC=4",
+        "sysout": [
+          "START OF EXECUTION OF PROGRAM CBTRN02C",
+          "TRANSACTIONS PROCESSED :000000001",
+          "TRANSACTIONS REJECTED  :000000001",
+          "END OF EXECUTION OF PROGRAM CBTRN02C"
+        ],
+        "outputs": {
+          "DALYREJS": [
+            "T000000000000001010001POS TERM  Purchase at Harness Store                                                                           0000020200A800000001Harness Store                                     Springfield                                       12345     96802941546036972025-01-15 12:00:00.000000                                              0102OVERLIMIT TRANSACTION"
+          ]
+        }
+      }
+    },
+    {
+      "id": "posting-at-limit-accepted",
+      "title": "An amount that lands exactly on the credit limit is accepted",
+      "provenance": "observed",
+      "source": "CBTRN02C 1500-VALIDATE-TRAN / 2000-POST-TRANSACTION",
+      "setup": {
+        "TRANSACT": {
+          "replace": []
+        },
+        "DALYTRAN": {
+          "replace": [
+            {
+              "DALYTRAN-ID": "T000000000000001",
+              "DALYTRAN-TYPE-CD": "01",
+              "DALYTRAN-CAT-CD": 1,
+              "DALYTRAN-SOURCE": "POS TERM",
+              "DALYTRAN-DESC": "Purchase at Harness Store",
+              "DALYTRAN-AMT": "2020.00",
+              "DALYTRAN-MERCHANT-ID": 800000001,
+              "DALYTRAN-MERCHANT-NAME": "Harness Store",
+              "DALYTRAN-MERCHANT-CITY": "Springfield",
+              "DALYTRAN-MERCHANT-ZIP": "12345",
+              "DALYTRAN-CARD-NUM": "9680294154603697",
+              "DALYTRAN-ORIG-TS": "2025-01-15 12:00:00.000000"
+            }
+          ]
+        }
+      },
+      "job": {
+        "program": "CBTRN02C",
+        "dd": {
+          "DALYTRAN": "DALYTRAN",
+          "TRANFILE": "TRANSACT",
+          "XREFFILE": "CARDXREF",
+          "DALYREJS": {
+            "output": "DALYREJS",
+            "reclen": 430
+          },
+          "ACCTFILE": "ACCTDATA",
+          "TCATBALF": "TCATBALF"
+        }
+      },
+      "expect": {
+        "completion": "RC=0",
+        "sysout": [
+          "START OF EXECUTION OF PROGRAM CBTRN02C",
+          "TRANSACTIONS PROCESSED :000000001",
+          "TRANSACTIONS REJECTED  :000000000",
+          "END OF EXECUTION OF PROGRAM CBTRN02C"
+        ],
+        "files": {
+          "ACCTDATA": {
+            "updated": [
+              {
+                "key": "00000000001",
+                "changed": {
+                  "ACCT-CURR-BAL": [
+                    "194.00",
+                    "2214.00"
+                  ],
+                  "ACCT-CURR-CYC-CREDIT": [
+                    "0.00",
+                    "2020.00"
+                  ]
+                }
+              }
+            ]
+          },
+          "TRANSACT": {
+            "inserted": [
+              {
+                "TRAN-ID": "T000000000000001",
+                "TRAN-TYPE-CD": "01",
+                "TRAN-CAT-CD": "1",
+                "TRAN-SOURCE": "POS TERM",
+                "TRAN-DESC": "Purchase at Harness Store",
+                "TRAN-AMT": "2020.00",
+                "TRAN-MERCHANT-ID": "800000001",
+                "TRAN-MERCHANT-NAME": "Harness Store",
+                "TRAN-MERCHANT-CITY": "Springfield",
+                "TRAN-MERCHANT-ZIP": "12345",
+                "TRAN-CARD-NUM": "9680294154603697",
+                "TRAN-ORIG-TS": "2025-01-15 12:00:00.000000",
+                "TRAN-PROC-TS": "2026-11-05-10.00.00.000000"
+              }
+            ]
+          },
+          "TCATBALF": {
+            "updated": [
+              {
+                "key": "00000000001010001",
+                "changed": {
+                  "TRAN-CAT-BAL": [
+                    "0.00",
+                    "2020.00"
+                  ]
+                }
+              }
+            ]
+          }
+        },
+        "outputs": {
+          "DALYREJS": []
+        }
+      }
+    },
+    {
+      "id": "posting-reject-expired",
+      "title": "A transaction originated after the account expiry date is rejected with reason 103",
+      "provenance": "observed",
+      "source": "CBTRN02C 1500-VALIDATE-TRAN / 2000-POST-TRANSACTION",
+      "setup": {
+        "TRANSACT": {
+          "replace": []
+        },
+        "DALYTRAN": {
+          "replace": [
+            {
+              "DALYTRAN-ID": "T000000000000001",
+              "DALYTRAN-TYPE-CD": "01",
+              "DALYTRAN-CAT-CD": 1,
+              "DALYTRAN-SOURCE": "POS TERM",
+              "DALYTRAN-DESC": "Purchase at Harness Store",
+              "DALYTRAN-AMT": "10.00",
+              "DALYTRAN-MERCHANT-ID": 800000001,
+              "DALYTRAN-MERCHANT-NAME": "Harness Store",
+              "DALYTRAN-MERCHANT-CITY": "Springfield",
+              "DALYTRAN-MERCHANT-ZIP": "12345",
+              "DALYTRAN-CARD-NUM": "9680294154603697",
+              "DALYTRAN-ORIG-TS": "2025-05-21 00:00:00.000000"
+            }
+          ]
+        }
+      },
+      "job": {
+        "program": "CBTRN02C",
+        "dd": {
+          "DALYTRAN": "DALYTRAN",
+          "TRANFILE": "TRANSACT",
+          "XREFFILE": "CARDXREF",
+          "DALYREJS": {
+            "output": "DALYREJS",
+            "reclen": 430
+          },
+          "ACCTFILE": "ACCTDATA",
+          "TCATBALF": "TCATBALF"
+        }
+      },
+      "expect": {
+        "completion": "RC=4",
+        "sysout": [
+          "START OF EXECUTION OF PROGRAM CBTRN02C",
+          "TRANSACTIONS PROCESSED :000000001",
+          "TRANSACTIONS REJECTED  :000000001",
+          "END OF EXECUTION OF PROGRAM CBTRN02C"
+        ],
+        "outputs": {
+          "DALYREJS": [
+            "T000000000000001010001POS TERM  Purchase at Harness Store                                                                           0000000100{800000001Harness Store                                     Springfield                                       12345     96802941546036972025-05-21 00:00:00.000000                                              0103TRANSACTION RECEIVED AFTER ACCT EXPIRATION"
+          ]
+        }
+      }
+    },
+    {
+      "id": "posting-expiry-day-accepted",
+      "title": "A transaction on the expiry date itself is accepted",
+      "provenance": "observed",
+      "source": "CBTRN02C 1500-VALIDATE-TRAN / 2000-POST-TRANSACTION",
+      "setup": {
+        "TRANSACT": {
+          "replace": []
+        },
+        "DALYTRAN": {
+          "replace": [
+            {
+              "DALYTRAN-ID": "T000000000000001",
+              "DALYTRAN-TYPE-CD": "01",
+              "DALYTRAN-CAT-CD": 1,
+              "DALYTRAN-SOURCE": "POS TERM",
+              "DALYTRAN-DESC": "Purchase at Harness Store",
+              "DALYTRAN-AMT": "10.00",
+              "DALYTRAN-MERCHANT-ID": 800000001,
+              "DALYTRAN-MERCHANT-NAME": "Harness Store",
+              "DALYTRAN-MERCHANT-CITY": "Springfield",
+              "DALYTRAN-MERCHANT-ZIP": "12345",
+              "DALYTRAN-CARD-NUM": "9680294154603697",
+              "DALYTRAN-ORIG-TS": "2025-05-20 23:59:59.000000"
+            }
+          ]
+        }
+      },
+      "job": {
+        "program": "CBTRN02C",
+        "dd": {
+          "DALYTRAN": "DALYTRAN",
+          "TRANFILE": "TRANSACT",
+          "XREFFILE": "CARDXREF",
+          "DALYREJS": {
+            "output": "DALYREJS",
+            "reclen": 430
+          },
+          "ACCTFILE": "ACCTDATA",
+          "TCATBALF": "TCATBALF"
+        }
+      },
+      "expect": {
+        "completion": "RC=0",
+        "sysout": [
+          "START OF EXECUTION OF PROGRAM CBTRN02C",
+          "TRANSACTIONS PROCESSED :000000001",
+          "TRANSACTIONS REJECTED  :000000000",
+          "END OF EXECUTION OF PROGRAM CBTRN02C"
+        ],
+        "files": {
+          "ACCTDATA": {
+            "updated": [
+              {
+                "key": "00000000001",
+                "changed": {
+                  "ACCT-CURR-BAL": [
+                    "194.00",
+                    "204.00"
+                  ],
+                  "ACCT-CURR-CYC-CREDIT": [
+                    "0.00",
+                    "10.00"
+                  ]
+                }
+              }
+            ]
+          },
+          "TRANSACT": {
+            "inserted": [
+              {
+                "TRAN-ID": "T000000000000001",
+                "TRAN-TYPE-CD": "01",
+                "TRAN-CAT-CD": "1",
+                "TRAN-SOURCE": "POS TERM",
+                "TRAN-DESC": "Purchase at Harness Store",
+                "TRAN-AMT": "10.00",
+                "TRAN-MERCHANT-ID": "800000001",
+                "TRAN-MERCHANT-NAME": "Harness Store",
+                "TRAN-MERCHANT-CITY": "Springfield",
+                "TRAN-MERCHANT-ZIP": "12345",
+                "TRAN-CARD-NUM": "9680294154603697",
+                "TRAN-ORIG-TS": "2025-05-20 23:59:59.000000",
+                "TRAN-PROC-TS": "2026-11-05-10.00.00.000000"
+              }
+            ]
+          },
+          "TCATBALF": {
+            "updated": [
+              {
+                "key": "00000000001010001",
+                "changed": {
+                  "TRAN-CAT-BAL": [
+                    "0.00",
+                    "10.00"
+                  ]
+                }
+              }
+            ]
+          }
+        },
+        "outputs": {
+          "DALYREJS": []
+        }
+      }
+    },
+    {
+      "id": "posting-overlimit-and-expired-reports-103",
+      "title": "When both checks fail the later expiry check overwrites the reason",
+      "provenance": "observed",
+      "source": "CBTRN02C 1500-VALIDATE-TRAN / 2000-POST-TRANSACTION",
+      "setup": {
+        "TRANSACT": {
+          "replace": []
+        },
+        "DALYTRAN": {
+          "replace": [
+            {
+              "DALYTRAN-ID": "T000000000000001",
+              "DALYTRAN-TYPE-CD": "01",
+              "DALYTRAN-CAT-CD": 1,
+              "DALYTRAN-SOURCE": "POS TERM",
+              "DALYTRAN-DESC": "Purchase at Harness Store",
+              "DALYTRAN-AMT": "5000.00",
+              "DALYTRAN-MERCHANT-ID": 800000001,
+              "DALYTRAN-MERCHANT-NAME": "Harness Store",
+              "DALYTRAN-MERCHANT-CITY": "Springfield",
+              "DALYTRAN-MERCHANT-ZIP": "12345",
+              "DALYTRAN-CARD-NUM": "9680294154603697",
+              "DALYTRAN-ORIG-TS": "2026-01-01 00:00:00.000000"
+            }
+          ]
+        }
+      },
+      "job": {
+        "program": "CBTRN02C",
+        "dd": {
+          "DALYTRAN": "DALYTRAN",
+          "TRANFILE": "TRANSACT",
+          "XREFFILE": "CARDXREF",
+          "DALYREJS": {
+            "output": "DALYREJS",
+            "reclen": 430
+          },
+          "ACCTFILE": "ACCTDATA",
+          "TCATBALF": "TCATBALF"
+        }
+      },
+      "expect": {
+        "completion": "RC=4",
+        "sysout": [
+          "START OF EXECUTION OF PROGRAM CBTRN02C",
+          "TRANSACTIONS PROCESSED :000000001",
+          "TRANSACTIONS REJECTED  :000000001",
+          "END OF EXECUTION OF PROGRAM CBTRN02C"
+        ],
+        "outputs": {
+          "DALYREJS": [
+            "T000000000000001010001POS TERM  Purchase at Harness Store                                                                           0000050000{800000001Harness Store                                     Springfield                                       12345     96802941546036972026-01-01 00:00:00.000000                                              0103TRANSACTION RECEIVED AFTER ACCT EXPIRATION"
+          ]
+        }
+      }
+    },
+    {
+      "id": "posting-mixed-batch",
+      "title": "Accepted and rejected records in one run; balances accumulate across records",
+      "provenance": "observed",
+      "source": "CBTRN02C 1500-VALIDATE-TRAN / 2000-POST-TRANSACTION",
+      "setup": {
+        "TRANSACT": {
+          "replace": []
+        },
+        "DALYTRAN": {
+          "replace": [
+            {
+              "DALYTRAN-ID": "T000000000000001",
+              "DALYTRAN-TYPE-CD": "01",
+              "DALYTRAN-CAT-CD": 1,
+              "DALYTRAN-SOURCE": "POS TERM",
+              "DALYTRAN-DESC": "Purchase at Harness Store",
+              "DALYTRAN-AMT": "100.00",
+              "DALYTRAN-MERCHANT-ID": 800000001,
+              "DALYTRAN-MERCHANT-NAME": "Harness Store",
+              "DALYTRAN-MERCHANT-CITY": "Springfield",
+              "DALYTRAN-MERCHANT-ZIP": "12345",
+              "DALYTRAN-CARD-NUM": "9680294154603697",
+              "DALYTRAN-ORIG-TS": "2025-01-15 12:00:00.000000"
+            },
+            {
+              "DALYTRAN-ID": "T000000000000002",
+              "DALYTRAN-TYPE-CD": "01",
+              "DALYTRAN-CAT-CD": 1,
+              "DALYTRAN-SOURCE": "POS TERM",
+              "DALYTRAN-DESC": "Purchase at Harness Store",
+              "DALYTRAN-AMT": "1.00",
+              "DALYTRAN-MERCHANT-ID": 800000001,
+              "DALYTRAN-MERCHANT-NAME": "Harness Store",
+              "DALYTRAN-MERCHANT-CITY": "Springfield",
+              "DALYTRAN-MERCHANT-ZIP": "12345",
+              "DALYTRAN-CARD-NUM": "0000000000000000",
+              "DALYTRAN-ORIG-TS": "2025-01-15 12:00:00.000000"
+            },
+            {
+              "DALYTRAN-ID": "T000000000000003",
+              "DALYTRAN-TYPE-CD": "01",
+              "DALYTRAN-CAT-CD": 1,
+              "DALYTRAN-SOURCE": "POS TERM",
+              "DALYTRAN-DESC": "Purchase at Harness Store",
+              "DALYTRAN-AMT": "200.00",
+              "DALYTRAN-MERCHANT-ID": 800000001,
+              "DALYTRAN-MERCHANT-NAME": "Harness Store",
+              "DALYTRAN-MERCHANT-CITY": "Springfield",
+              "DALYTRAN-MERCHANT-ZIP": "12345",
+              "DALYTRAN-CARD-NUM": "9680294154603697",
+              "DALYTRAN-ORIG-TS": "2025-01-15 12:00:00.000000"
+            },
+            {
+              "DALYTRAN-ID": "T000000000000004",
+              "DALYTRAN-TYPE-CD": "01",
+              "DALYTRAN-CAT-CD": 1,
+              "DALYTRAN-SOURCE": "POS TERM",
+              "DALYTRAN-DESC": "Purchase at Harness Store",
+              "DALYTRAN-AMT": "1800.00",
+              "DALYTRAN-MERCHANT-ID": 800000001,
+              "DALYTRAN-MERCHANT-NAME": "Harness Store",
+              "DALYTRAN-MERCHANT-CITY": "Springfield",
+              "DALYTRAN-MERCHANT-ZIP": "12345",
+              "DALYTRAN-CARD-NUM": "9680294154603697",
+              "DALYTRAN-ORIG-TS": "2025-01-15 12:00:00.000000"
+            }
+          ]
+        }
+      },
+      "job": {
+        "program": "CBTRN02C",
+        "dd": {
+          "DALYTRAN": "DALYTRAN",
+          "TRANFILE": "TRANSACT",
+          "XREFFILE": "CARDXREF",
+          "DALYREJS": {
+            "output": "DALYREJS",
+            "reclen": 430
+          },
+          "ACCTFILE": "ACCTDATA",
+          "TCATBALF": "TCATBALF"
+        }
+      },
+      "expect": {
+        "completion": "RC=4",
+        "sysout": [
+          "START OF EXECUTION OF PROGRAM CBTRN02C",
+          "TRANSACTIONS PROCESSED :000000004",
+          "TRANSACTIONS REJECTED  :000000002",
+          "END OF EXECUTION OF PROGRAM CBTRN02C"
+        ],
+        "files": {
+          "ACCTDATA": {
+            "updated": [
+              {
+                "key": "00000000001",
+                "changed": {
+                  "ACCT-CURR-BAL": [
+                    "194.00",
+                    "494.00"
+                  ],
+                  "ACCT-CURR-CYC-CREDIT": [
+                    "0.00",
+                    "300.00"
+                  ]
+                }
+              }
+            ]
+          },
+          "TRANSACT": {
+            "inserted": [
+              {
+                "TRAN-ID": "T000000000000001",
+                "TRAN-TYPE-CD": "01",
+                "TRAN-CAT-CD": "1",
+                "TRAN-SOURCE": "POS TERM",
+                "TRAN-DESC": "Purchase at Harness Store",
+                "TRAN-AMT": "100.00",
+                "TRAN-MERCHANT-ID": "800000001",
+                "TRAN-MERCHANT-NAME": "Harness Store",
+                "TRAN-MERCHANT-CITY": "Springfield",
+                "TRAN-MERCHANT-ZIP": "12345",
+                "TRAN-CARD-NUM": "9680294154603697",
+                "TRAN-ORIG-TS": "2025-01-15 12:00:00.000000",
+                "TRAN-PROC-TS": "2026-11-05-10.00.00.000000"
+              },
+              {
+                "TRAN-ID": "T000000000000003",
+                "TRAN-TYPE-CD": "01",
+                "TRAN-CAT-CD": "1",
+                "TRAN-SOURCE": "POS TERM",
+                "TRAN-DESC": "Purchase at Harness Store",
+                "TRAN-AMT": "200.00",
+                "TRAN-MERCHANT-ID": "800000001",
+                "TRAN-MERCHANT-NAME": "Harness Store",
+                "TRAN-MERCHANT-CITY": "Springfield",
+                "TRAN-MERCHANT-ZIP": "12345",
+                "TRAN-CARD-NUM": "9680294154603697",
+                "TRAN-ORIG-TS": "2025-01-15 12:00:00.000000",
+                "TRAN-PROC-TS": "2026-11-05-10.00.00.000000"
+              }
+            ]
+          },
+          "TCATBALF": {
+            "updated": [
+              {
+                "key": "00000000001010001",
+                "changed": {
+                  "TRAN-CAT-BAL": [
+                    "0.00",
+                    "300.00"
+                  ]
+                }
+              }
+            ]
+          }
+        },
+        "outputs": {
+          "DALYREJS": [
+            "T000000000000002010001POS TERM  Purchase at Harness Store                                                                           0000000010{800000001Harness Store                                     Springfield                                       12345     00000000000000002025-01-15 12:00:00.000000                                              0100INVALID CARD NUMBER FOUND",
+            "T000000000000004010001POS TERM  Purchase at Harness Store                                                                           0000018000{800000001Harness Store                                     Springfield                                       12345     96802941546036972025-01-15 12:00:00.000000                                              0102OVERLIMIT TRANSACTION"
+          ]
+        }
+      }
+    },
+    {
+      "id": "posting-full-seed-summary",
+      "title": "The shipped daily file: counts, rejects and return code",
+      "provenance": "observed",
+      "source": "CBTRN02C against app/data/ASCII/dailytran.txt",
+      "setup": {
+        "TRANSACT": {
+          "replace": []
+        }
+      },
+      "job": {
+        "program": "CBTRN02C",
+        "dd": {
+          "DALYTRAN": "DALYTRAN",
+          "TRANFILE": "TRANSACT",
+          "XREFFILE": "CARDXREF",
+          "DALYREJS": {
+            "output": "DALYREJS",
+            "reclen": 430
+          },
+          "ACCTFILE": "ACCTDATA",
+          "TCATBALF": "TCATBALF"
+        }
+      },
+      "match": "subset",
+      "expect": {
+        "completion": "RC=4",
+        "sysout": [
+          "START OF EXECUTION OF PROGRAM CBTRN02C",
+          "TCATBAL record not found for key : 00000000020030001.. Creating.",
+          "TCATBAL record not found for key : 00000000013030001.. Creating.",
+          "TCATBAL record not found for key : 00000000048030001.. Creating.",
+          "TCATBAL record not found for key : 00000000022030001.. Creating.",
+          "TCATBAL record not found for key : 00000000039030001.. Creating.",
+          "TCATBAL record not found for key : 00000000044030001.. Creating.",
+          "TCATBAL record not found for key : 00000000015030001.. Creating.",
+          "TCATBAL record not found for key : 00000000043030001.. Creating.",
+          "TCATBAL record not found for key : 00000000011030001.. Creating.",
+          "TCATBAL record not found for key : 00000000008030001.. Creating.",
+          "TCATBAL record not found for key : 00000000005030001.. Creating.",
+          "TCATBAL record not found for key : 00000000030030001.. Creating.",
+          "TCATBAL record not found for key : 00000000033030001.. Creating.",
+          "TCATBAL record not found for key : 00000000002030001.. Creating.",
+          "TCATBAL record not found for key : 00000000047030001.. Creating.",
+          "TCATBAL record not found for key : 00000000032030001.. Creating.",
+          "TCATBAL record not found for key : 00000000029030001.. Creating.",
+          "TCATBAL record not found for key : 00000000045030001.. Creating.",
+          "TCATBAL record not found for key : 00000000028030001.. Creating.",
+          "TCATBAL record not found for key : 00000000006030001.. Creating.",
+          "TCATBAL record not found for key : 00000000041030001.. Creating.",
+          "TCATBAL record not found for key : 00000000042030001.. Creating.",
+          "TCATBAL record not found for key : 00000000049030001.. Creating.",
+          "TCATBAL record not found for key : 00000000025030001.. Creating.",
+          "TCATBAL record not found for key : 00000000007030001.. Creating.",
+          "TCATBAL record not found for key : 00000000018030001.. Creating.",
+          "TCATBAL record not found for key : 00000000001030001.. Creating.",
+          "TCATBAL record not found for key : 00000000026030001.. Creating.",
+          "TCATBAL record not found for key : 00000000003030001.. Creating.",
+          "TCATBAL record not found for key : 00000000010030001.. Creating.",
+          "TCATBAL record not found for key : 00000000017030001.. Creating.",
+          "TCATBAL record not found for key : 00000000050030001.. Creating.",
+          "TCATBAL record not found for key : 00000000019030001.. Creating.",
+          "TCATBAL record not found for key : 00000000037030001.. Creating.",
+          "TCATBAL record not found for key : 00000000038030001.. Creating.",
+          "TCATBAL record not found for key : 00000000046030001.. Creating.",
+          "TCATBAL record not found for key : 00000000014030001.. Creating.",
+          "TCATBAL record not found for key : 00000000012030001.. Creating.",
+          "TCATBAL record not found for key : 00000000040030001.. Creating.",
+          "TCATBAL record not found for key : 00000000035030001.. Creating.",
+          "TCATBAL record not found for key : 00000000036030001.. Creating.",
+          "TCATBAL record not found for key : 00000000024030001.. Creating.",
+          "TCATBAL record not found for key : 00000000031030001.. Creating.",
+          "TCATBAL record not found for key : 00000000021030001.. Creating.",
+          "TCATBAL record not found for key : 00000000034030001.. Creating.",
+          "TCATBAL record not found for key : 00000000016030001.. Creating.",
+          "TCATBAL record not found for key : 00000000004030001.. Creating.",
+          "TCATBAL record not found for key : 00000000027030001.. Creating.",
+          "TCATBAL record not found for key : 00000000009030001.. Creating.",
+          "TCATBAL record not found for key : 00000000023030001.. Creating.",
+          "TRANSACTIONS PROCESSED :000000300",
+          "TRANSACTIONS REJECTED  :000000038",
+          "END OF EXECUTION OF PROGRAM CBTRN02C"
+        ]
+      }
+    }
+  ]
+}

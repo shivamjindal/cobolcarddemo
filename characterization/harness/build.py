@@ -1,7 +1,7 @@
 """Compile the legacy programs for the harness into characterization/.build/.
 
 Online programs go through cicsprep.py and become GnuCOBOL modules loaded by the
-cicsrun driver. Batch programs become executables. Rebuilds only what changed.
+cicsrun driver. Batch programs become modules launched by jobrun. Rebuilds only what changed.
 """
 import os
 import shutil
@@ -18,7 +18,7 @@ BUILD = REPO / "characterization" / ".build"
 ONLINE = BUILD / "online"
 BATCH = BUILD / "batch"
 COPY_PATHS = [HERE / "runtime" / "copy", REPO / "app" / "cpy", REPO / "app" / "cpy-bms"]
-COBC = ["cobc", "-std=ibm", "-fsign=EBCDIC", "-fdefaultbyte=0"] + \
+COBC = ["cobc", "-std=ibm", "-fsign=EBCDIC", "-fdefaultbyte=0", "-ftab-width=4"] + \
        [f"-I{p}" for p in COPY_PATHS]
 
 ONLINE_PROGRAMS = ["COSGN00C", "COMEN01C", "COADM01C", "COUSR00C", "COUSR01C", "COUSR02C",
@@ -26,6 +26,12 @@ ONLINE_PROGRAMS = ["COSGN00C", "COMEN01C", "COADM01C", "COUSR00C", "COUSR01C", "
                    "COBIL00C", "COTRN00C", "COTRN01C", "COTRN02C", "CORPT00C"]
 # Plain COBOL subprograms CALLed from online programs (no EXEC CICS).
 ONLINE_SUBPROGRAMS = ["CSUTLDTC"]
+BATCH_PROGRAMS = ["CBACT01C", "CBACT02C", "CBACT03C", "CBACT04C", "CBCUS01C", "CBTRN02C",
+                  "CBTRN03C", "CBSTM03A"]
+BATCH_SUBPROGRAMS = ["CBSTM03B"]
+# Source ranges that cannot run off z/OS, commented out before compiling: (first, last) line text.
+# CBSTM03A walks PSA -> TCB -> TIOT from address 0 to DISPLAY the job's DD names.
+DISABLED = {"CBSTM03A": ("SET ADDRESS OF PSA-BLOCK   TO PSAPTR.", "DISPLAY ': ' TIOCDDNM ' -- null  UCB'")}
 
 
 def source(program):
@@ -58,10 +64,27 @@ def build_online_program(program):
     run(COBC + ["-m", "-o", str(out), str(translated)], ONLINE)
 
 
+def disable(program, src, dest):
+    first, last = DISABLED[program]
+    lines = src.read_text(encoding="latin-1").split("\n")
+    start = next(i for i, l in enumerate(lines) if first in l)
+    end = next(i for i in range(start, len(lines)) if last in lines[i]) + 1
+    if lines[end].strip() == "END-IF.":
+        end += 1
+    for i in range(start, end):
+        lines[i] = lines[i][:6].ljust(6) + "*" + lines[i][7:]
+    out = dest / "src" / src.name
+    out.parent.mkdir(parents=True, exist_ok=True)
+    out.write_text("\n".join(lines), encoding="latin-1")
+    return out
+
+
 def build_subprogram(program, dest):
     src = source(program)
     out = dest / f"{program}.so"
     if stale(out, src, HERE / "build.py"):
+        if program in DISABLED:
+            src = disable(program, src, dest)
         run(COBC + ["-m", "-o", str(out), str(src)], dest)
 
 
@@ -88,7 +111,21 @@ def build_online():
 
 
 def build_batch():
-    pass
+    BATCH.mkdir(parents=True, exist_ok=True)
+    for name, src in (("CEE3ABD", "lestubs.c"), ("COBDATFT", "cobdatft.c")):
+        c = HERE / "runtime" / src
+        if stale(BATCH / f"{name}.so", c):
+            run(["gcc", "-O1", "-shared", "-fPIC", "-o", str(BATCH / f"{name}.so"), str(c)], BATCH)
+    for program in BATCH_SUBPROGRAMS:
+        build_subprogram(program, BATCH)
+
+    launcher = HERE / "runtime" / "jobrun.c"
+    if stale(BATCH / "jobrun", launcher):
+        flags = subprocess.check_output(["cob-config", "--cflags"], text=True).split()
+        libs = subprocess.check_output(["cob-config", "--libs"], text=True).split()
+        run(["gcc", "-O1", "-o", str(BATCH / "jobrun"), str(launcher), *flags, *libs], BATCH)
+    with ThreadPoolExecutor(max_workers=os.cpu_count()) as pool:
+        list(pool.map(lambda p: build_subprogram(p, BATCH), BATCH_PROGRAMS))
 
 
 if __name__ == "__main__":

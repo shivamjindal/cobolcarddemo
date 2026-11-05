@@ -5,6 +5,8 @@
  * Edge behavior of real LE (blank padding, era pictures) is not reproduced.
  */
 #include <stdint.h>
+#include <stdio.h>
+#include <stdlib.h>
 #include <string.h>
 
 #pragma pack(push, 1)
@@ -73,4 +75,21 @@ int CEEDAYS(struct vstring *date, struct vstring *pic, unsigned char *out, unsig
     out[2] = (unsigned char)(l >> 8);  out[3] = (unsigned char)l;
     feedback(fc, 0);
     return 0;
+}
+
+extern int cob_get_num_params(void);
+
+/* CEE3ABD(abend code, timing): end the step with a user abend. The batch runner
+   reads the code from stderr and reports it as the step's completion. A call with
+   no arguments (CBSTM03A) has no defined code on z/OS, so none is reported. */
+int CEE3ABD(unsigned char *code, unsigned char *timing) {
+    (void)timing;
+    fflush(stdout);
+    if (cob_get_num_params() < 1) {
+        fprintf(stderr, "HARNESS-ABEND ABEND-NO-CODE\n");
+    } else {
+        int c = (code[0] << 24) | (code[1] << 16) | (code[2] << 8) | code[3];
+        fprintf(stderr, "HARNESS-ABEND U%04d\n", c);
+    }
+    exit(64);
 }

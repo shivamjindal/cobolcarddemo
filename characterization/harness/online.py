@@ -18,7 +18,7 @@ import screen
 from datasets import Datasets
 
 CSD = build.REPO / "app" / "csd" / "CARDDEMO.CSD"
-FIXED_CLOCK = "2026/11/05 10:00:00"
+FIXED_CLOCK = "2026/11/05 10:00:00.00"
 
 
 def transactions():

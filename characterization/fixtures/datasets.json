@@ -4,7 +4,7 @@
     "USRSEC":   {"source": "characterization/fixtures/seed/usrsec.txt", "origin": "iconv -f cp037 app/data/EBCDIC/AWS.M2.CARDDEMO.USRSEC.PS, 80-byte records", "reclen": 80,  "key": [0, 8],  "copybook": "app/cpy/CSUSR01Y.cpy"},
     "ACCTDATA": {"source": "app/data/ASCII/acctdata.txt",  "reclen": 300, "key": [0, 11], "copybook": "app/cpy/CVACT01Y.cpy"},
     "CARDDATA": {"source": "app/data/ASCII/carddata.txt",  "reclen": 150, "key": [0, 16], "copybook": "app/cpy/CVACT02Y.cpy"},
-    "CARDXREF": {"source": "app/data/ASCII/cardxref.txt",  "reclen": 50,  "key": [0, 16], "copybook": "app/cpy/CVACT03Y.cpy"},
+    "CARDXREF": {"source": "app/data/ASCII/cardxref.txt",  "reclen": 50,  "key": [0, 16], "alt_keys": [[25, 11]], "copybook": "app/cpy/CVACT03Y.cpy"},
     "CUSTDATA": {"source": "app/data/ASCII/custdata.txt",  "reclen": 500, "key": [0, 9],  "copybook": "app/cpy/CVCUS01Y.cpy"},
     "TRANSACT": {"source": "app/data/ASCII/dailytran.txt", "origin": "The mainframe seed (DALYTRAN.PS.INIT) is one low-values placeholder; online cases start from the daily transactions instead.", "reclen": 350, "key": [0, 16], "copybook": "app/cpy/CVTRA05Y.cpy"},
     "DALYTRAN": {"source": "app/data/ASCII/dailytran.txt", "reclen": 350, "key": null,    "copybook": "app/cpy/CVTRA06Y.cpy"},
