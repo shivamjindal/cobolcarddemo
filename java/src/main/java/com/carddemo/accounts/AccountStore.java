@@ -7,6 +7,9 @@ import java.time.LocalDate;
 import org.springframework.jdbc.core.simple.JdbcClient;
 import org.springframework.stereotype.Component;
 
+import com.carddemo.cics.CicsFile;
+import com.carddemo.cics.CicsRegion;
+
 /** ACCTDAT, table {@code accounts}. */
 @Component
 public final class AccountStore {
@@ -17,8 +20,8 @@ public final class AccountStore {
 
     private final KeyedFile<AccountRecord> file;
 
-    public AccountStore(JdbcClient jdbc) {
-        this.file = new KeyedFile<>(jdbc, "ACCTDAT", "accounts", COLUMNS, "acct_id", AccountStore::row);
+    public AccountStore(JdbcClient jdbc, CicsRegion region) {
+        this.file = new KeyedFile<>(jdbc, region, CicsFile.ACCTDAT, "accounts", COLUMNS, "acct_id", AccountStore::row);
     }
 
     public Read<AccountRecord> find(long id) {

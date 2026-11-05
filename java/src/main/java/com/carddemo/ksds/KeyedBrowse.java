@@ -9,6 +9,9 @@ import org.springframework.dao.DataAccessException;
 import org.springframework.jdbc.core.RowMapper;
 import org.springframework.jdbc.core.simple.JdbcClient;
 
+import com.carddemo.cics.CicsFile;
+import com.carddemo.cics.CicsRegion;
+
 /**
  * One CICS browse of a KSDS table: STARTBR GTEQ, READNEXT, READPREV, ENDBR, with the semantics of
  * {@code characterization/harness/runtime/cicsstub.c}, which recorded the goldens.
@@ -63,26 +66,33 @@ public final class KeyedBrowse<R> {
         record Failed<R>() implements Read<R> {}
     }
 
-    /** A keyed table: its name, key column, selected columns and row mapping. */
-    public record Table<R>(String name, String keyColumn, String columns, RowMapper<R> rows, Function<R, String> key) {}
+    /** A keyed table: the CICS file it is, its name, key column, selected columns and row mapping. */
+    public record Table<R>(CicsFile file, String name, String keyColumn, String columns, RowMapper<R> rows,
+            Function<R, String> key) {}
 
     private enum Direction { NONE, NEXT, PREV }
 
     private final JdbcClient jdbc;
+    private final CicsRegion region;
     private final Table<R> table;
     private boolean browsing;
     private StartKey start;
     private R current;
     private Direction direction = Direction.NONE;
 
-    public KeyedBrowse(JdbcClient jdbc, Table<R> table) {
+    public KeyedBrowse(JdbcClient jdbc, CicsRegion region, Table<R> table) {
         this.jdbc = jdbc;
+        this.region = region;
         this.table = table;
     }
 
-    /** {@code STARTBR RIDFLD(key) GTEQ}. */
+    /** {@code STARTBR RIDFLD(key) GTEQ}. A closed file is NOTOPEN, which every program handles as FAILED. */
     public Start start(StartKey key) {
         try {
+            if (!region.isOpen(table.file())) {
+                browsing = false;
+                return Start.FAILED;
+            }
             boolean pastEnd = switch (key) {
                 case StartKey.LowValues low -> edge("asc").isEmpty();
                 case StartKey.HighValues high -> false;

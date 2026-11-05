@@ -5,6 +5,7 @@ import static com.carddemo.batch.jcl.Dd.sysout;
 import static com.carddemo.batch.jcl.StepDef.program;
 
 import java.util.Arrays;
+import java.util.List;
 import java.util.Optional;
 
 import com.carddemo.batch.jcl.Dcb;
@@ -21,6 +22,8 @@ import com.carddemo.batch.programs.Cbact04c;
 import com.carddemo.batch.programs.Cbcus01c;
 import com.carddemo.batch.programs.Cbtrn02c;
 import com.carddemo.batch.programs.Iefbr14;
+import com.carddemo.batch.programs.Cobswait;
+import com.carddemo.batch.programs.Sdsf;
 
 /** The members of {@code app/jcl} that run here, as typed JCL. STEPLIB is left out: programs come from the program library. */
 public enum LibraryJob {
@@ -57,6 +60,20 @@ public enum LibraryJob {
                     created("ARRYFILE", "AWS.M2.CARDDEMO.ACCTDATA.ARRYPS", new Dcb(Dcb.Recfm.F, 110)),
                     created("VBRCFILE", "AWS.M2.CARDDEMO.ACCTDATA.VBPS", new Dcb(Dcb.Recfm.V, 84)),
                     sysout("SYSOUT"), sysout("SYSPRINT"))));
+    CLOSEFIL(JobDef.of("CLOSEFIL", program("CLCIFIL", Sdsf.NAME, sysout("ISFOUT"), sysout("CMDOUT"), instream("ISFIN",
+            " /F CICSAWSA,'CEMT SET FIL(TRANSACT ) CLO'",
+            " /F CICSAWSA,'CEMT SET FIL(CCXREF ) CLO'",
+            " /F CICSAWSA,'CEMT SET FIL(ACCTDAT ) CLO'",
+            " /F CICSAWSA,'CEMT SET FIL(CXACAIX ) CLO'",
+            " /F CICSAWSA,'CEMT SET FIL(USRSEC ) CLO'")))),
+    OPENFIL(JobDef.of("OPENFIL", program("OPCIFIL", Sdsf.NAME, sysout("ISFOUT"), sysout("CMDOUT"), instream("ISFIN",
+            " /F CICSAWSA,'CEMT SET FIL(TRANSACT ) OPE'",
+            " /F CICSAWSA,'CEMT SET FIL(CCXREF ) OPE'",
+            " /F CICSAWSA,'CEMT SET FIL(ACCTDAT ) OPE'",
+            " /F CICSAWSA,'CEMT SET FIL(CXACAIX ) OPE'",
+            " /F CICSAWSA,'CEMT SET FIL(USRSEC ) OPE'")))),
+    WAITSTEP(JobDef.of("WAITSTEP", program("WAIT", Cobswait.NAME, sysout("SYSOUT"),
+            instream("SYSIN", "00003600      VALUE IN CENTISECONDS"))));
 
     private final JobDef job;
 
@@ -90,5 +107,9 @@ public enum LibraryJob {
 
     private static Dd dataset(String name, String dsn, Disposition disposition, Optional<Dcb> dcb) {
         return Dd.of(name, new DdSource.Dataset(new DsnRef.Named(dsn), disposition, dcb));
+    }
+
+    private static Dd instream(String dd, String... cards) {
+        return Dd.of(dd, new DdSource.Instream(List.of(cards)));
     }
 }

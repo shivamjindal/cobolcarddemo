@@ -12,6 +12,9 @@ public sealed interface Read<T> permits Read.Found, Read.Missing, Read.Failed {
     /** DFHRESP(IOERR), which stands for any database failure. */
     int IOERR = 17;
 
+    /** DFHRESP(NOTOPEN): CEMT has closed the file. */
+    int NOTOPEN = 19;
+
     record Found<T>(T record) implements Read<T> {}
 
     /** NOTFND. */

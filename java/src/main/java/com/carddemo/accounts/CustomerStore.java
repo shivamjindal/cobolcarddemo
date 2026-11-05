@@ -7,6 +7,9 @@ import java.time.LocalDate;
 import org.springframework.jdbc.core.simple.JdbcClient;
 import org.springframework.stereotype.Component;
 
+import com.carddemo.cics.CicsFile;
+import com.carddemo.cics.CicsRegion;
+
 /** CUSTDAT, table {@code customers}. */
 @Component
 public final class CustomerStore {
@@ -18,8 +21,8 @@ public final class CustomerStore {
 
     private final KeyedFile<CustomerRecord> file;
 
-    public CustomerStore(JdbcClient jdbc) {
-        this.file = new KeyedFile<>(jdbc, "CUSTDAT", "customers", COLUMNS, "cust_id", CustomerStore::row);
+    public CustomerStore(JdbcClient jdbc, CicsRegion region) {
+        this.file = new KeyedFile<>(jdbc, region, CicsFile.CUSTDAT, "customers", COLUMNS, "cust_id", CustomerStore::row);
     }
 
     public Read<CustomerRecord> find(int id) {
