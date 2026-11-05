@@ -101,6 +101,20 @@ class KeyedDatasetIT {
     }
 
     @Test
+    void outputOpenReplacesTheFile() {
+        KeyedDataset transactions = new TableDataset(jdbc, KeyedTable.TRANSACT);
+        assertEquals(FileStatus.OK, transactions.open(OpenMode.I_O));
+        assertEquals(FileStatus.OK, transactions.write(transaction("ZZZZ000000000009", "2099-01-01-00.00.00.000000")));
+        assertEquals(FileStatus.OK, transactions.close());
+
+        assertEquals(FileStatus.OK, transactions.open(OpenMode.OUTPUT));
+        assertEquals(FileStatus.OK, transactions.close());
+        assertEquals(FileStatus.OK, transactions.open(OpenMode.INPUT));
+        assertEquals(FileStatus.END_OF_FILE, transactions.readNext().status());
+        assertEquals(FileStatus.OK, transactions.close());
+    }
+
+    @Test
     void readByTheAlternateKeyReportsDuplicates() {
         KeyedDataset transactions = new TableDataset(jdbc, KeyedTable.TRANSACT);
         assertEquals(FileStatus.OK, transactions.open(OpenMode.OUTPUT));
