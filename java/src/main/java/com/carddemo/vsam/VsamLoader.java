@@ -83,7 +83,7 @@ public class VsamLoader {
             case SqlType.BigInt ignored -> statement.setLong(index, ((Number) value).longValue());
             case SqlType.Numeric ignored -> statement.setBigDecimal(index, (BigDecimal) value);
             case SqlType.Date ignored -> statement.setObject(index, (LocalDate) value);
-            case SqlType.Timestamp ignored -> statement.setObject(index, (LocalDateTime) value);
+            case SqlType.Timestamp ignored -> statement.setString(index, ((LocalDateTime) value).format(SqlTypes.TIMESTAMP));
         }
     }
 }
