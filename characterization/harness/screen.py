@@ -133,14 +133,23 @@ def parse_bms(path):
     return maps
 
 
+def _map_source(kind, name):
+    """A mapset's BMS or symbolic-map member, in the base app or an optional extension."""
+    for root in (REPO / "app", REPO / "app" / "app-transaction-type-db2"):
+        for candidate in (name, name.lower(), name[:-3] + name[-3:].lower()):
+            if (root / kind / candidate).exists():
+                return root / kind / candidate
+    raise FileNotFoundError(f"{kind}/{name}")
+
+
 class MapDef:
     def __init__(self, mapset, mapname):
         self.mapset, self.name = mapset, mapname
-        cpy = REPO / "app" / "cpy-bms" / f"{mapset}.CPY"
+        cpy = _map_source("cpy-bms", f"{mapset}.CPY")
         inp = load_layout(cpy, mapname + "I", keep_redefines=True)
         out = load_layout(cpy, mapname + "O", keep_redefines=True)
         self.size = inp.size
-        bms = {f["name"]: f for f in parse_bms(REPO / "app" / "bms" / f"{mapset}.bms")[mapname]}
+        bms = {f["name"]: f for f in parse_bms(_map_source("bms", f"{mapset}.bms"))[mapname]}
         self.fields = []
         for lf in inp.leaves:
             if not (lf.name.endswith("L") and lf.kind == "comp"):

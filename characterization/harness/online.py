@@ -14,20 +14,35 @@ import subprocess
 from pathlib import Path
 
 import build
+import db2
 import screen
 from datasets import Datasets
 
 CSD = build.REPO / "app" / "csd" / "CARDDEMO.CSD"
 FIXED_CLOCK = "2026/11/05 10:00:00.00"
+# Optional extensions a case can install: its CSD group, its program library, Db2 or not.
+EXTENSIONS = {"transaction-type-db2": {"csd": build.DB2_EXT / "csd" / "CRDDEMOD.csd",
+                                       "online": build.ONLINE_DB2, "batch": build.BATCH_DB2}}
 
 
-def transactions():
-    text = CSD.read_text(encoding="latin-1")
-    return dict(re.findall(r"DEFINE TRANSACTION\((\w+)\).*?PROGRAM\((\w+)\)", text, re.S))
+def transactions(install=()):
+    out = {}
+    for csd in [CSD] + [EXTENSIONS[x]["csd"] for x in install]:
+        text = csd.read_text(encoding="latin-1")
+        out.update(re.findall(r"DEFINE TRANSACTION\((\w+)\).*?PROGRAM\((\w+)\)", text, re.S))
+    return out
+
+
+def db2_env(install, kind):
+    """Library path additions and Db2 settings for the installed extensions."""
+    libs = [str(EXTENSIONS[x][kind]) for x in install]
+    if not libs:
+        return libs, {}
+    return libs, {"CARDDEMO_SQL_DIR": libs[0], "CARDDEMO_DB2_CONNINFO": db2.CONNINFO}
 
 
 class Session:
-    def __init__(self, workdir, setup=None):
+    def __init__(self, workdir, setup=None, install=()):
         self.dir = Path(workdir)
         if self.dir.exists():
             shutil.rmtree(self.dir)
@@ -43,7 +58,10 @@ class Session:
                 line += f" {ds['key'][0]} {ds['key'][1]}"
             cfg.append(line)
         (self.dir / "files.cfg").write_text("\n".join(cfg) + "\n")
-        self.trans = transactions()
+        self.install = list(install)
+        self.trans = transactions(self.install)
+        if self.install:
+            db2.reset(self.data, self.dir)
         self.terminal = screen.Terminal()
         self.next_transid = None
         self.commarea = b""
@@ -71,9 +89,13 @@ class Session:
             lines.append(f"map={mapbuf.hex()}")
         (task_dir / "task.in").write_text("\n".join(lines) + "\n")
         before = self.data.snapshot(self.dir)
-        env = dict(os.environ, COB_LIBRARY_PATH=str(build.ONLINE), COB_CURRENT_DATE=FIXED_CLOCK)
+        libs, extra = db2_env(self.install, "online")
+        env = dict(os.environ, COB_LIBRARY_PATH=":".join(libs + [str(build.ONLINE)]),
+                   COB_CURRENT_DATE=FIXED_CLOCK, **extra)
         proc = subprocess.run([str(build.ONLINE / "cicsrun"), str(self.dir)], env=env,
                               capture_output=True, text=True, timeout=60)
+        if self.install:
+            db2.dump(self.data, self.dir)
         events = [json.loads(l) for l in (task_dir / "events.jsonl").read_text().splitlines() if l]
         shutil.copy(task_dir / "events.jsonl", task_dir / f"events.{self.task:02d}.jsonl")
         obs, trail = {}, []
@@ -108,6 +130,6 @@ class Session:
         return obs
 
 
-def run_journey(steps, workdir, setup=None):
-    s = Session(workdir, setup)
+def run_journey(steps, workdir, setup=None, install=()):
+    s = Session(workdir, setup, install)
     return [s.step(st) for st in steps]

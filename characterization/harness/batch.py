@@ -18,7 +18,9 @@ import zlib
 from pathlib import Path
 
 import build
+import db2
 from datasets import Datasets
+from online import db2_env
 
 FIXED_CLOCK = "2026/11/05 10:00:00.00"
 LOADER = """       IDENTIFICATION DIVISION.
@@ -123,7 +125,7 @@ def _records(raw, reclen, recfm):
     return [raw[i:i + reclen] for i in range(0, len(raw), reclen)]
 
 
-def run_job(case, run_dir):
+def run_job(case, run_dir, install=()):
     run_dir = Path(run_dir)
     if run_dir.exists():
         import shutil
@@ -132,8 +134,11 @@ def run_job(case, run_dir):
     data = Datasets()
     data.materialize(run_dir, case.get("setup", {}))
     job = case["job"]
-    env = dict(os.environ, COB_LIBRARY_PATH=str(build.BATCH), COB_CURRENT_DATE=FIXED_CLOCK,
-               COB_VARSEQ_FORMAT="0")
+    libs, extra = db2_env(install, "batch")
+    env = dict(os.environ, COB_LIBRARY_PATH=":".join(libs + [str(build.BATCH)]), COB_CURRENT_DATE=FIXED_CLOCK,
+               COB_VARSEQ_FORMAT="0", **extra)
+    if install:
+        db2.reset(data, run_dir)
     before = data.snapshot(run_dir)
     keyed, outputs = {}, {}
     for dd, spec in job["dd"].items():
@@ -175,6 +180,8 @@ def run_job(case, run_dir):
            "sysout": [l.rstrip() for l in proc.stdout.decode("latin-1").splitlines()]}
     if not abend and proc.returncode not in (0, 4, 8, 12, 16):
         obs["_stderr"] = stderr[-2000:]
+    if install:
+        db2.dump(data, run_dir)
     for dd, (spec, exe) in keyed.items():
         flat = run_dir / f"{spec}.dat"
         subprocess.run([str(exe)], env=dict(env, KSDSMODE="UNLOAD", DD_FLATFILE=str(flat),

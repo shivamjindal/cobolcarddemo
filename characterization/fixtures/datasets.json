@@ -1,5 +1,5 @@
 {
-  "about": "Seed datasets for every case. Records are fixed-width text, one per line, decoded with the named copybook. Paths are relative to the repo root. Signed numbers use EBCDIC overpunch in the last byte.",
+  "about": "Seed datasets for every case. Records are fixed-width text, one per line, decoded with the named copybook. Paths are relative to the repo root. Signed numbers use EBCDIC overpunch in the last byte. A dataset with \"db2\" is a Db2 table of the transaction-type extension, kept as row images (characterization/harness/db2.py); its seed comes from the load cards DB2LTTYP and DB2LTCAT.",
   "datasets": {
     "USRSEC":   {"source": "characterization/fixtures/seed/usrsec.txt", "origin": "iconv -f cp037 app/data/EBCDIC/AWS.M2.CARDDEMO.USRSEC.PS, 80-byte records", "reclen": 80,  "key": [0, 8],  "copybook": "app/cpy/CSUSR01Y.cpy"},
     "ACCTDATA": {"source": "app/data/ASCII/acctdata.txt",  "reclen": 300, "key": [0, 11], "copybook": "app/cpy/CVACT01Y.cpy"},
@@ -11,7 +11,9 @@
     "DISCGRP":  {"source": "app/data/ASCII/discgrp.txt",   "reclen": 50,  "key": [0, 16], "copybook": "app/cpy/CVTRA02Y.cpy"},
     "TCATBALF": {"source": "app/data/ASCII/tcatbal.txt",   "reclen": 50,  "key": [0, 17], "copybook": "app/cpy/CVTRA01Y.cpy"},
     "TRANCATG": {"source": "app/data/ASCII/trancatg.txt",  "reclen": 60,  "key": [0, 6],  "copybook": "app/cpy/CVTRA04Y.cpy"},
-    "TRANTYPE": {"source": "app/data/ASCII/trantype.txt",  "reclen": 60,  "key": [0, 2],  "copybook": "app/cpy/CVTRA03Y.cpy"}
+    "TRANTYPE": {"source": "app/data/ASCII/trantype.txt",  "reclen": 60,  "key": [0, 2],  "copybook": "app/cpy/CVTRA03Y.cpy"},
+    "TRANSACTION_TYPE":          {"source": "characterization/fixtures/seed/db2-transaction-type.txt",          "reclen": 54, "key": [0, 2], "copybook": "characterization/fixtures/db2/TRTYPROW.cpy", "db2": "CARDDEMO.TRANSACTION_TYPE"},
+    "TRANSACTION_TYPE_CATEGORY": {"source": "characterization/fixtures/seed/db2-transaction-type-category.txt", "reclen": 58, "key": [0, 6], "copybook": "characterization/fixtures/db2/TRCATROW.cpy", "db2": "CARDDEMO.TRANSACTION_TYPE_CATEGORY"}
   },
   "cics_files": {
     "USRSEC":   {"dataset": "USRSEC"},
