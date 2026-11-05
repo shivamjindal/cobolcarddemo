@@ -58,6 +58,15 @@ The address line STRINGs city, state, country and zip DELIMITED BY one space, so
 - Pinned by `statement-two-accounts`.
 - Fix: move the city, state, country and zip fields whole, the way address lines 1 and 2 are moved.
 
+## `CBSTM03A-eleventh-transaction-overlaps`
+
+The transaction table holds ten rows per card and does not check the subscript. The eleventh row is written into the next card's slot, and storing that card overwrites it, so the statement prints the next card number as the transaction id, a shifted description and a zero amount, and the total leaves out the real eleventh amount.
+
+- Lives in [`Cbstm03a.TransactionTable.store`](../src/main/java/com/carddemo/batch/programs/Cbstm03a.java).
+- Comes from the program logic.
+- No golden pins it yet. It is read from the source.
+- Fix: keep every transaction for the card.
+
 ## `CBTRN02C-expired-overwrites-overlimit`
 
 The expiration check is not an ELSE of the limit check, so a transaction that is both over the credit limit and past the account expiration date is rejected as 103 instead of 102.

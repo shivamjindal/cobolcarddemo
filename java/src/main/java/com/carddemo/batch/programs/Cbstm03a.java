@@ -102,24 +102,89 @@ public final class Cbstm03a implements BatchProgram {
     }
 
     private static List<CardGroup> load(Step step, Cbstm03b files, byte[] first) {
-        List<CardGroup> groups = new ArrayList<>();
+        TransactionTable table = new TransactionTable();
         byte[] current = first;
         String saved = cardOf(current);
+        int card = 1;
+        int count = 0;
         while (true) {
-            String card = cardOf(current);
-            if (groups.isEmpty() || !card.equals(saved)) {
-                groups.add(new CardGroup(card, new ArrayList<>()));
-                saved = card;
+            String number = cardOf(current);
+            if (number.equals(saved)) {
+                count++;
+            } else {
+                table.setCount(card, count);
+                card++;
+                count = 1;
+                saved = number;
             }
-            groups.getLast().transactions().add(Arrays.copyOf(current, TRAN));
+            table.store(card, count, current);
             Cbstm03b.Reply next = files.call(step, Cbstm03b.TRNXFILE, 'R', null);
             if (next.is("00")) {
                 current = next.record();
             } else if (next.is("10")) {
-                return groups;
+                table.setCount(card, count);
+                return table.groups(card);
             } else {
                 throw failed(step, "ERROR READING TRNXFILE", next.status());
             }
+        }
+    }
+
+    /**
+     * WS-TRNX-TABLE is 51 cards of 10 transactions in one contiguous area, so an 11th transaction
+     * occupies the next card's number and first slot until that card is stored.
+     */
+    private static final class TransactionTable {
+        private static final int CARDS = 51;
+        private static final int REST = 318;
+        private static final int SLOT = CARD + REST;
+        private static final int CARD_BYTES = CARD + 10 * SLOT;
+
+        private final byte[] bytes = new byte[(CARDS + 1) * CARD_BYTES];
+        private final int[] counts = new int[CARDS + 2];
+
+        TransactionTable() {
+            Arrays.fill(bytes, (byte) ' ');
+        }
+
+        void setCount(int card, int count) {
+            counts[card] = count;
+        }
+
+        @LegacyDefect(id = "CBSTM03A-eleventh-transaction-overlaps",
+                behavior = "the transaction table holds ten rows per card and does not check the subscript. The "
+                        + "eleventh row is written into the next card's slot, and storing that card overwrites it, so "
+                        + "the statement prints the next card number as the transaction id, a shifted description and "
+                        + "a zero amount, and the total leaves out the real eleventh amount",
+                fix = "keep every transaction for the card")
+        void store(int card, int tran, byte[] record) {
+            int origin = (card - 1) * CARD_BYTES;
+            System.arraycopy(record, 0, bytes, origin, CARD);
+            int slot = origin + CARD + (tran - 1) * SLOT;
+            System.arraycopy(record, CARD, bytes, slot, CARD);
+            System.arraycopy(record, CARD * 2, bytes, slot + CARD, REST);
+        }
+
+        List<CardGroup> groups(int cards) {
+            List<CardGroup> groups = new ArrayList<>();
+            for (int card = 1; card <= cards; card++) {
+                int origin = (card - 1) * CARD_BYTES;
+                List<byte[]> transactions = new ArrayList<>();
+                for (int tran = 1; tran <= counts[card]; tran++) {
+                    transactions.add(image(origin, tran));
+                }
+                groups.add(new CardGroup(Fields.text(bytes, origin, CARD), List.copyOf(transactions)));
+            }
+            return groups;
+        }
+
+        private byte[] image(int origin, int tran) {
+            byte[] record = Fields.spaces(TRAN);
+            System.arraycopy(bytes, origin, record, 0, CARD);
+            int slot = origin + CARD + (tran - 1) * SLOT;
+            System.arraycopy(bytes, slot, record, CARD, CARD);
+            System.arraycopy(bytes, slot + CARD, record, CARD * 2, REST);
+            return record;
         }
     }
 
@@ -166,7 +231,7 @@ public final class Cbstm03a implements BatchProgram {
             for (byte[] transaction : group.transactions()) {
                 String id = Fields.text(transaction, CARD, CARD);
                 String detail = Fields.text(transaction, 48, 49);
-                BigDecimal amount = Fields.zoned(transaction, 148, 11, 2);
+                BigDecimal amount = amount(transaction);
                 text(text, id + " " + detail + "$" + editZ(amount));
                 htmlTransaction(html, id, detail, editZ(amount));
                 total = total.add(amount);
@@ -298,6 +363,14 @@ public final class Cbstm03a implements BatchProgram {
             return value.substring(0, length);
         }
         return value + " ".repeat(length - value.length());
+    }
+
+    /** An overlapped slot can hold spaces. Unchecked COBOL arithmetic reads that as zero. */
+    private static BigDecimal amount(byte[] transaction) {
+        if (!Fields.isZoned(transaction, 148, 11, true)) {
+            return BigDecimal.ZERO.setScale(2);
+        }
+        return Fields.zoned(transaction, 148, 11, 2);
     }
 
     private static String cardOf(byte[] record) {
