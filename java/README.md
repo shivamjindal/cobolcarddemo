@@ -12,6 +12,8 @@ mvn -q exec:java -Dexec.mainClass=com.carddemo.vsam.SchemaGenerator -Dexec.args=
 
 The command writes `src/main/resources/db/migration/V1__vsam_ksds_tables.sql` and `docs/schema-mapping.md`.
 
+`V2__legacy_record_images.sql` is written by hand. COACTUPC and COCRDUPC rewrite bytes V1's typed columns cannot hold, so in `accounts.acct_addr_zip`, `accounts.acct_group_id` and the new `acct_filler`, `cust_filler` and `card_filler` columns NULL means all LOW-VALUES, and in `cards.card_cvv_cd` NULL means spaces. A slice that reads these columns must treat NULL that way. `RoundTripCheck` encodes only the loaded data and does not accept those NULLs.
+
 ## Regenerate the screen maps
 
 ```
@@ -65,7 +67,7 @@ Every POST needs header `X-XSRF-TOKEN` set to the value of cookie `XSRF-TOKEN`, 
 mvn -q verify
 ```
 
-The Spring tests run on database `carddemo_test`, which they create on first use, so `verify` leaves the dev data alone. `HttpJourneyIT` drives one admin journey over real HTTP with cookies and the CSRF header. `LegacyDefectRegisterTest` checks every `@LegacyDefect` against the recorded goldens and writes `docs/legacy-defects.md`.
+The Spring tests run on database `carddemo_test` (`CARDDEMO_TEST_DB` overrides it), which they create on first use, so `verify` leaves the dev data alone. `HttpJourneyIT` drives one admin journey over real HTTP with cookies and the CSRF header. `LegacyDefectRegisterTest` checks every `@LegacyDefect` against the recorded goldens and writes `docs/legacy-defects.md`.
 
 ## Run the characterization goldens
 
@@ -73,9 +75,10 @@ From the repository root:
 
 ```
 python3 characterization/run.py --target java --feature signon --feature main-menu --feature admin-menu \
-  --feature user-list --feature user-add --feature user-update --feature user-delete
+  --feature user-list --feature user-add --feature user-update --feature user-delete \
+  --feature account-view --feature account-update --feature card-list --feature card-detail --feature card-update
 ```
 
 The features the java target covers are listed in `characterization/targets.json`.
 
-`characterization-adapter` rebuilds the jar when a source is newer than it. It keeps one server on `127.0.0.1:18080` under profile `characterization`, against database `carddemo_characterization` and a clock fixed at 2026-11-05 10:00. Before every case it seeds USRSEC from `characterization/fixtures`. The server stops after ten idle minutes, or with `characterization/cleanup.sh stop`.
+`characterization-adapter` rebuilds the jar when a source is newer than it. It keeps one server on `127.0.0.1:18080` under profile `characterization`, against database `carddemo_characterization` and a clock fixed at 2026-11-05 10:00. Before every case it seeds USRSEC, ACCTDATA, CUSTDATA, CARDDATA and CARDXREF from the harness seeds named in `characterization/fixtures/datasets.json`, in one transaction with foreign-key triggers off, because a case may delete a record others refer to. `CARDDEMO_CHARACTERIZATION_PORT` and `CARDDEMO_CHARACTERIZATION_DB` give a second checkout its own server and database. The server stops after ten idle minutes, or with `characterization/cleanup.sh stop`.

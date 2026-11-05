@@ -19,7 +19,7 @@ This directory is the maintained source for verifying CardDemo's user-facing beh
 
 ## Java slice coverage
 
-`signon`, `main-menu`, `admin-menu`, `user-list`, `user-add`, `user-update` and `user-delete` are ported: `--target java` on those features prints `java: 78 PASS`. Every other feature reports `SKIP`. Main menu options 2-10 reach a placeholder screen in Java (`PendingProgramScreen`, a text reply naming the unported program). Option 1 shows the account view's first display only.
+`signon`, `main-menu`, `admin-menu`, `user-list`, `user-add`, `user-update`, `user-delete`, `account-view`, `account-update`, `card-list`, `card-detail` and `card-update` are ported: `--target java` on those features prints `java: 197 PASS`. Every other feature reports `SKIP`. Main menu options 1-5 reach the ported account and card screens; options 6-10 reach a placeholder screen in Java (`PendingProgramScreen`, a text reply naming the unported program).
 
 ## Proof and skip reporting
 
