@@ -14,6 +14,8 @@ The command writes `src/main/resources/db/migration/V1__vsam_ksds_tables.sql` an
 
 `V2__legacy_record_images.sql` is written by hand. COACTUPC and COCRDUPC rewrite bytes V1's typed columns cannot hold, so in `accounts.acct_addr_zip`, `accounts.acct_group_id` and the new `acct_filler`, `cust_filler` and `card_filler` columns NULL means all LOW-VALUES, and in `cards.card_cvv_cd` NULL means spaces. A slice that reads these columns must treat NULL that way. `RoundTripCheck` encodes only the loaded data and does not accept those NULLs.
 
+`V3__online_transactions.sql` is written by hand too. COTRN02C writes a bare date into TRAN-ORIG-TS, so `transactions.tran_orig_ts` is text like `tran_proc_ts`, and the loader writes the 26-character timestamp there. COBIL00C writes LOW-VALUES into TRAN-CARD-NUM when an account has no card cross-reference, so NULL in `transactions.tran_card_num` means all LOW-VALUES. The foreign key from a transaction to its category is gone, because COTRN02C checks only that the codes are numeric. Table `job_submissions` holds one row per job a program writes to a TD queue, as CORPT00C does to `JOBS`. Nothing runs those jobs yet.
+
 ## Regenerate the screen maps
 
 ```
@@ -81,4 +83,4 @@ python3 characterization/run.py --target java --feature signon --feature main-me
 
 The features the java target covers are listed in `characterization/targets.json`.
 
-`characterization-adapter` rebuilds the jar when a source is newer than it. It keeps one server on `127.0.0.1:18080` under profile `characterization`, against database `carddemo_characterization` and a clock fixed at 2026-11-05 10:00. Before every case it seeds USRSEC, ACCTDATA, CUSTDATA, CARDDATA and CARDXREF from the harness seeds named in `characterization/fixtures/datasets.json`, in one transaction with foreign-key triggers off, because a case may delete a record others refer to. `CARDDEMO_CHARACTERIZATION_PORT` and `CARDDEMO_CHARACTERIZATION_DB` give a second checkout its own server and database. The server stops after ten idle minutes, or with `characterization/cleanup.sh stop`.
+`characterization-adapter` rebuilds the jar when a source is newer than it. It keeps one server on `127.0.0.1:18080` under profile `characterization`, against database `carddemo_characterization` and a clock fixed at 2026-11-05 10:00. Before every case it seeds USRSEC, ACCTDATA, CUSTDATA, CARDDATA, CARDXREF and TRANSACT from the harness seeds named in `characterization/fixtures/datasets.json` and empties `job_submissions`, in one transaction with foreign-key triggers off, because a case may delete a record others refer to. A step's new `job_submissions` rows are its `queues` observation. `CARDDEMO_CHARACTERIZATION_PORT` and `CARDDEMO_CHARACTERIZATION_DB` give a second checkout its own server and database. The server stops after ten idle minutes, or with `characterization/cleanup.sh stop`.
