@@ -19,6 +19,7 @@ The command writes `src/main/resources/db/migration/V1__vsam_ksds_tables.sql` an
 `V4__batch.sql` and `V5__tcatbalf_filler.sql` are written by hand for the batch layer. They are described under [Batch](#batch).
 
 `V6__db2_transaction_types.sql` and `V7__installed_extensions.sql` are written by hand for the optional Db2 transaction-type extension (`app/app-transaction-type-db2`). They are described under [Db2 transaction types](#db2-transaction-types).
+`V20__pending_authorizations.sql`, `V21__td_queues_and_mq_triggers.sql` and `V22__install_authorization_extensions.sql` are written by hand for the pending-authorization and VSAM/MQ extensions, and are described under [Pending authorizations and MQ](#pending-authorizations-and-mq).
 
 ## Regenerate the screen maps
 
@@ -36,7 +37,7 @@ Postgres is database `carddemo` on `localhost:5432`, user `carddemo`, password `
 mvn -q spring-boot:run -Dspring-boot.run.profiles=load -Dspring-boot.run.arguments=--carddemo.load.app-root=/workspace/app
 ```
 
-Flyway applies the migration on startup. The loader then replaces every table in one transaction and checks each row against the EBCDIC file. A field mismatch or a count mismatch makes the process exit non-zero. Filler bytes that are not spaces are printed and do not fail the check. The `load` profile runs no web server.
+Flyway applies the migration on startup. The loader then replaces every table in one transaction and checks each row against the EBCDIC file. It also loads IMS database DBPAUTP0 from its DFSURGU0 unload in `app/app-authorization-ims-db2-mq/data/EBCDIC` and checks the root and dependent counts. A field mismatch or a count mismatch makes the process exit non-zero. Filler bytes that are not spaces are printed and do not fail the check. The `load` profile runs no web server.
 
 ## Run the web app
 
@@ -73,7 +74,7 @@ Every POST needs header `X-XSRF-TOKEN` set to the value of cookie `XSRF-TOKEN`, 
 mvn -q verify
 ```
 
-The Spring tests run on database `carddemo_test` (`CARDDEMO_TEST_DB` overrides it), which they create on first use, so `verify` leaves the dev data alone. `HttpJourneyIT` drives one admin journey over real HTTP with cookies and the CSRF header. `BatchGoldensIT` runs every batch golden in `characterization/cases/batch` through the internal reader. `LegacyDefectRegisterTest` checks every `@LegacyDefect` against the recorded goldens and writes `docs/legacy-defects.md`.
+The Spring tests run on database `carddemo_test` (`CARDDEMO_TEST_DB` overrides it), which they create on first use, so `verify` leaves the dev data alone. `HttpJourneyIT` drives one admin journey over real HTTP with cookies and the CSRF header. `BatchGoldensIT` runs every batch golden under `characterization/cases` (each suite of kind `batch`) through the internal reader. `LegacyDefectRegisterTest` checks every `@LegacyDefect` against the recorded goldens and writes `docs/legacy-defects.md`.
 
 ## Run the characterization goldens
 
@@ -83,13 +84,60 @@ From the repository root:
 python3 characterization/run.py --target java
 ```
 
-The command prints `java: 424 PASS`: 384 online cases and 40 batch cases. The features the java target covers are listed in `characterization/targets.json`.
+The command prints `java: 457 PASS`: 411 online cases and 46 batch cases. The features the java target covers are listed in `characterization/targets.json`.
 
-`characterization-adapter` rebuilds the jar when a source is newer than it. It keeps one server on `127.0.0.1:18080` under profile `characterization`, against database `carddemo_characterization` and a clock fixed at 2026-11-05 10:00. Before every case it seeds the ten KSDS tables and the two Db2 tables from the harness seeds named in `characterization/fixtures/datasets.json`, empties the job queue, the spool and the dataset catalog, opens every CICS file, and installs the extensions the case's `install` lists (none by default). A Db2 row is seeded, snapshotted and diffed as the harness's image: the key, a two-digit length, then the 50-byte description. It does all of that in one transaction with foreign-key triggers off, because a case may delete a record others refer to. A step's new `job_submissions` rows are its `queues` observation. A batch case is submitted as a one-step deck to queue `JOBS`, and the server's internal reader runs it. `CARDDEMO_CHARACTERIZATION_PORT` and `CARDDEMO_CHARACTERIZATION_DB` give a second checkout its own server and database. The server stops after ten idle minutes, or with `characterization/cleanup.sh stop`.
+`characterization-adapter` rebuilds the jar when a source is newer than it. It keeps one server on `127.0.0.1:18080` under profile `characterization`, against database `carddemo_characterization` and a clock fixed at 2026-11-05 10:00. Before every case it seeds the ten KSDS tables, the two Db2 tables, the IMS segments `PAUTSUM0` and `PAUTDTL1` and the Db2 table `AUTHFRDS` from the harness seeds named in `characterization/fixtures/datasets.json`, empties the job queue, the spool, the dataset catalog and the MQ queues, opens every CICS file, and installs the extensions the case's `install` lists (none by default). A Db2 row is seeded, snapshotted and diffed as the harness's image: the key, a two-digit length, then the 50-byte description. It does all of that in one transaction with foreign-key triggers off, because a case may delete a record others refer to. A step's new `job_submissions` rows are its `queues` observation. A batch case is submitted as a one-step deck to queue `JOBS`, and the server's internal reader runs it. An online `mq` step posts the case's messages to `/characterization/mq`, an endpoint only that profile has, which puts them and runs the trigger transid once; the adapter then reports what the programs put, on any queue, and how many of the case's messages are still unread. `CARDDEMO_CHARACTERIZATION_PORT` and `CARDDEMO_CHARACTERIZATION_DB` give a second checkout its own server and database. The server stops after ten idle minutes, or with `characterization/cleanup.sh stop`.
+
+## Pending authorizations and MQ
+
+The optional extensions `pending-authorizations` (`app/app-authorization-ims-db2-mq`) and `vsam-mq` (`app/app-vsam-mq`) run against three packages.
+
+| Package | What it holds |
+| --- | --- |
+| `cics` | `Extension.PENDING_AUTHORIZATIONS` (COPAUS0C, COPAUS1C, COPAUS2C, COPAUA0C; CPVS, CPVD, CP00) and `Extension.VSAM_MQ` (COACCT01, CODATE01; CDRA, CDRD), installed by default (V22) and switched as described under [Install switch](#install-switch). `Syncpoint` and `TransientData`, described below. |
+| `dli` | IMS database DBPAUTP0. `Dbpautp0.schedule()` gives a task its `Pcb`, which keeps position, parentage and the held segment and answers GU, GN, GNP, REPL, DLET and ISRT with `DliStatus` codes. `PendingAuthSummary` and `PendingAuthDetail` are the segments, typed and with their 100- and 200-byte images. |
+| `mq` | Port `MessageQueues` (open, get, put, put1, close, MQRC as `Reason`) and its adapter `JdbcMessageQueues`. A `TriggeredProgram` bean answers a transid; `MqTriggerMonitor` starts it when a put to a queue in `mq_queues` commits. |
+
+`V20__pending_authorizations.sql` adds these tables:
+
+- `pending_auth_summaries` and `pending_auth_details`: one row per PAUTSUM0 root and PAUTDTL1 dependent, a column per field. A detail's key is its parent's `acct_id` with `auth_date_9c` and `auth_time_9c`, and deleting a summary deletes its details, as DLET of a root does. NULL in a text column means all LOW-VALUES, which the unload holds. One unload root holds spaces in its packed and binary fields: a packed sign nibble other than D reads as positive and is written back as the picture's sign, so that root's image changes in its sign nibbles only.
+- `authfrds`: Db2 table CARDDEMO.AUTHFRDS per its DDL.
+- `mq_queues` and `mq_messages`: trigger definitions, and the messages on every queue in put order. Any queue name is defined.
+
+DL/I follows EXEC DLI, not CBLTDLI:
+
+- Every get holds the segment it returns; there is no GHU.
+- REPL and DLET are DJ unless the call just before them was a successful get of that segment type, and REPL that changes the key is DA.
+- A failed GU or GN cancels parentage, so the next GNP is GP. GN past the end is GB and starts over.
+- ISRT of a key already there is II, and under a missing parent it is GE.
+
+A PCB's calls run in the caller's transaction and lock what they read. An MQGET or MQPUT with syncpoint joins that transaction, so SYNCPOINT ROLLBACK or an abend puts a message back. Without syncpoint it commits at once. An MQGET waits up to its wait interval, capped by `carddemo.mq.max-wait` (zero under profile `characterization`).
+
+`Syncpoint` is EXEC CICS SYNCPOINT inside a task's one transaction: it commits the work so far and the task goes on. `TransientData` is WRITEQ TD to an extrapartition queue such as CSSL, held in `td_queue_records` (V21) and committed at once, as a non-recoverable queue is.
+
+The triggered programs are `TriggeredProgram` beans. `V21__td_queues_and_mq_triggers.sql` defines their production triggers, each of type FIRST.
+
+| Queue | Transid | Bean | Replies on |
+| --- | --- | --- | --- |
+| `AWS.M2.CARDDEMO.PAUTH.REQUEST` | CP00 | `authorization.AuthorizationProcessor` (COPAUA0C) | the request's reply-to queue |
+| `CARDDEMO.REQUEST.QUEUE` | CDRA | `vsammq.AccountInquiry` (COACCT01) | `CARD.DEMO.REPLY.ACCT` |
+| `CARDDEMO.REQUEST.DATE` | CDRD | `vsammq.SystemDateInquiry` (CODATE01) | `CARD.DEMO.REPLY.DATE` |
+
+The source names no queue for CODATE01, so `CARDDEMO.REQUEST.DATE` is this port's choice. COPAUA0C logs its warnings and failures to CSSL. COACCT01 and CODATE01 put their failures on `CARD.DEMO.ERROR`.
+
+An administrator reaches the queues over HTTP. Any other caller gets a 401 before sign-on and a 403 after.
+
+| Route | Body | Answer |
+| --- | --- | --- |
+| `POST /api/mq/queues/{queue}/messages` | `{"data":"...","correlId":"...","replyTo":"..."}` | 201: MQPUT1 without syncpoint, so the queue's trigger starts its transid at once |
+| `GET /api/mq/queues/{queue}/messages` | none | every message on the queue in put order, none taken: `msgId`, `correlId`, `replyTo`, `data` |
+| `POST /api/mq/queues/{queue}/get` | none | the oldest message, taken off the queue, or 204 when it is empty |
+
+Text is latin-1, up to 4096 characters. Ids are text padded with spaces to 24 bytes and come back without trailing spaces or low-values. The web client's `/mq` page sends an authorization request to `AWS.M2.CARDDEMO.PAUTH.REQUEST` and shows `AWS.M2.CARDDEMO.PAUTH.REPLY`; sign on as an admin user on `/` first.
 
 ## Batch
 
-The ten COBOL batch programs run as Spring Batch jobs against the same tables as the web app. Each JCL step is one tasklet step that runs outside a transaction, so what a step wrote before it abended stays written, as with VSAM. The Db2 program COBTUPDT is the exception: its step is one Db2 unit of work, committed when it ends and rolled back when it abends. The 40 batch goldens pin their behavior.
+The ten COBOL batch programs and the four IMS batch programs run as Spring Batch jobs against the same tables as the web app. Each JCL step is one tasklet step that runs outside a transaction, so what a step wrote before it abended stays written, as with VSAM. The Db2 program COBTUPDT is the exception: its step is one Db2 unit of work, committed when it ends and rolled back when it abends. The 46 batch goldens pin their behavior.
 
 ### Packages
 
@@ -98,7 +146,8 @@ Under `src/main/java/com/carddemo`:
 | Package | What it holds |
 | --- | --- |
 | `batch.step` | The program interface: `BatchProgram` (`name()`, `int run(Step)`), `Step` (PARM, clock, DISPLAY and the DDs), `KeyedDataset`, `SequentialInput`, `SequentialOutput`, `FileStatus`, `Read`, `Abend`. No SQL or Spring Batch types. |
-| `batch.programs` | CBACT01C, CBACT02C, CBACT03C, CBACT04C, CBCUS01C, CBSTM03A (with its CBSTM03B collaborator), CBTRN02C, CBTRN03C, COBTUPDT, and the system programs IEFBR14, SDSF, COBSWAIT and IKJEFT01. |
+| `batch.programs` | CBACT01C, CBACT02C, CBACT03C, CBACT04C, CBCUS01C, CBSTM03A (with its CBSTM03B collaborator), CBTRN02C, CBTRN03C, COBTUPDT, the IMS programs CBPAUP0C, PAUDBUNL, DBUNLDGS and PAUDBLOD (`DliProgram`s), and the system programs IEFBR14, SDSF, COBSWAIT and IKJEFT01. |
+| `batch.ims` | `Dfsrrc00`, the IMS region controller, and the `DliProgram` and `ImsRegion` interfaces it runs programs through. |
 | `batch.utilities` | SORT and IDCAMS for the control statements the library jobs code. Any other statement ends RC 12. |
 | `batch.jcl` | Typed JCL, and `JclDeck`, the parser for submitted decks. |
 | `batch.library` | `LibraryJob`, one entry per `app/jcl` or extension `jcl` member that runs here, and `Proc`, one per `app/proc` member (REPROC, TRANREPT). |
@@ -144,6 +193,17 @@ CORPT00C (`ReportSubmitScreen`) appends the `ReportJcl` cards to `job_submission
 
 The TRANREPT procedure copies the transaction master to `AWS.M2.CARDDEMO.TRANSACT.BKUP(+1)`, then sorts and date-filters that copy into `AWS.M2.CARDDEMO.TRANSACT.DALY(+1)`. CBTRN03C then writes the 133-byte report to `AWS.M2.CARDDEMO.TRANREPT(+1)`. To read the newest report, run operator `print 'AWS.M2.CARDDEMO.TRANREPT(0)'`. To see the run's step codes and spool, run operator `output <submission id>`.
 
+### IMS jobs
+
+CBPAUP0J, UNLDPADB, LOADPADB and UNLDGSAM run `EXEC PGM=DFSRRC00,PARM='BMP,program,psb'` (or `DLI,...`). `Dfsrrc00` finds the `DliProgram` bean of that name, checks its PSB and schedules a `Pcb` on DBPAUTP0. A name with no bean abends `S806`, and `EXEC PGM=` does not find a `DliProgram` either. The IMS system DDs and STEPLIB are left out of the library jobs.
+
+Unlike other steps, an IMS step runs in a transaction. CHKP (`ImsRegion.checkpoint()`) commits it and starts the next, and the program's return commits it, whatever the return code. An abend backs out to the last checkpoint. So CBPAUP0C's RC 16 after the summary DLET's DJ keeps the details it deleted.
+
+- CBPAUP0J purges expired details with SYSIN `00,00001,00001,Y`.
+- UNLDPADB deletes the last unload in STEP0, with DISP=OLD, so it ends `JCL ERROR` when there is none. It then writes roots to `AWS.M2.CARDDEMO.PAUTDB.ROOT.FILEO` (100 bytes) and each child, after its 6-byte root key, to `...CHILD.FILEO` (206 bytes).
+- LOADPADB inserts those two files back.
+- UNLDGSAM writes the GSAM data sets `...ROOT.GSAM` and `...CHILD.GSAM`, which must already be cataloged. Its child records have no root key.
+
 ### CLOSEFIL and OPENFIL
 
 Every online file request asks `CicsRegion.isOpen`, which reads the `cics_region` row `FOR SHARE` and holds the lock until the request's transaction commits. A closed file answers RESP NOTOPEN, and each program takes its own file-error path. For example, sign-on shows `Unable to verify the User ...` while USRSEC is closed. `CicsRegion.close` updates the row, so it waits for every in-flight online task that has used a file, as CEMT does before it closes one. Batch programs never ask the gate. CLOSEFIL is what keeps them apart from online tasks.
@@ -154,13 +214,13 @@ The CLOSEFIL and OPENFIL jobs run SDSF on the JCL's ISFIN cards, such as `/F CIC
 
 `Chains` registers the eight chains of `app/scheduler`. Five can run, and each is CLOSEFIL, the business jobs, WAITSTEP and OPENFIL:
 
-- `CA7_030_POSTING`: POSTTRAN.
+- `CA7_030_POSTING`: CBPAUP0J, then POSTTRAN.
 - `CA7_030_EXTRACTS`: READACCT, READCARD, READCUST, READXREF.
 - `CA7_030_STATEMENTS`: CREASTMT.
 - `CONTROLM_DAILY_BACKUP`: TRANBKP.
 - `CONTROLM_MONTHLY_INTEREST`: INTCALC, COMBTRAN.
 
-`CA7_030_REFERENCE`, `CA7_031_CATBAL` and `CONTROLM_WEEKLY_DISCLOSURE` hold an `Unported` member (a reference-data reload or PRTCATBL) and cannot start. The IMS, Db2 and REXX jobs not ported (CBPAUP0J, TRANEXTR, TXT2PDF1) are `Optional` members. They are recorded as bypassed, and the chain goes on.
+`CA7_030_REFERENCE`, `CA7_031_CATBAL` and `CONTROLM_WEEKLY_DISCLOSURE` hold an `Unported` member (a reference-data reload or PRTCATBL) and cannot start. CBPAUP0J is an `ExtensionJob`: it runs when extension `pending-authorizations` is installed and is recorded as bypassed when it is not. On the sample data it ends RC 16 (the summary DLET's DJ), which stops the chain with the files closed. The Db2 and REXX jobs not ported (TRANEXTR, TXT2PDF1) are `Optional` members. They are recorded as bypassed, and the chain goes on.
 
 `ChainRunner` runs a chain as one Spring Batch job named after the chain, identified by its order date, with one step per member. Each member runs as its own JCL job, so COND and generations stay inside that member. A member that ends above RC 4, abends or ends in a JCL error stops the chain. A chain stopped between CLOSEFIL and OPENFIL leaves those files closed until it is restarted or an operator opens them. `start` runs a chain once per order date. `restart` reruns a failed chain from the member that failed and skips the members that ended OK. `abandon` records a run whose JVM died as FAILED, so `restart` accepts it.
 
@@ -196,11 +256,11 @@ The exit code is 0 when the command did its work. It is 4 when a chain did not c
 
 ### Add a batch program
 
-1. Write one class in `batch.programs`: a `@Component` that implements `BatchProgram`, with `public static final String NAME` as its `name()`. `Cbact02c` is the smallest model. Use `Step.keyed`, `Step.input` and `Step.output` for files, never the online stores, and throw `Abend` for an abend.
+1. Write one class in `batch.programs`: a `@Component` that implements `BatchProgram`, with `public static final String NAME` as its `name()`. `Cbact02c` is the smallest model. An IMS program implements `DliProgram` instead, with its PSB, as `Paudblod` does. Use `Step.keyed`, `Step.input` and `Step.output` for files, never the online stores, and throw `Abend` for an abend.
 2. Add one `LibraryJob` entry that mirrors the `app/jcl` member, and add the job to a chain in `Chains` if a scheduler runs it.
 3. Put each pinned legacy defect in its own method annotated `@LegacyDefect`, then regenerate `docs/legacy-defects.md` with `mvn verify`.
 
-`BatchGoldensIT` picks up every case in `characterization/cases/batch` with no change. When the program's cases pass, add its feature to the java target in `characterization/targets.json`.
+`BatchGoldensIT` picks up every case of a `batch` suite under `characterization/cases` with no change. When the program's cases pass, add its feature to the java target in `characterization/targets.json`.
 
 ## Db2 transaction types
 
@@ -217,7 +277,7 @@ These are separate from the VSAM-loaded `transaction_types` and `transaction_cat
 
 The text columns collate `"C"`, so they sort and compare byte by byte, as the harness's tables do. V6 also creates `sysibm.sysdummy1`, which the extension's priming query selects from. `spring.flyway.schemas` lists `carddemo` and `sysibm`, so a Flyway clean drops them too.
 
-`V7__installed_extensions.sql` adds `cics_region.installed`, the extensions installed in the region. Production starts with `transaction-type-db2` installed.
+`V7__installed_extensions.sql` adds `cics_region.installed`, the extensions installed in the region, with `transaction-type-db2` installed. V22 adds `pending-authorizations` and `vsam-mq`, so production starts with all three.
 
 ### Embedded SQL
 
@@ -237,7 +297,7 @@ Every statement runs under its own savepoint in the caller's transaction. A fail
 
 ### Install switch
 
-`com.carddemo.cics.Extension` lists each optional CSD group and the programs it holds. `TRANSACTION_TYPE_DB2` is `transaction-type-db2` and holds COTRTLIC and COTRTUPC. `CicsRegion.installed()` reads the installed set and `CicsRegion.install(Set<Extension>)` replaces it, as CEDA INSTALL and DISCARD would. While an extension is not installed, its programs are not installed for `ProgramCatalog`: a transaction id of theirs is unknown, and an XCTL to one lands on the not-ported screen. A screen ported later becomes reachable only while its extension is installed.
+`com.carddemo.cics.Extension` lists each optional CSD group and the programs it holds: `TRANSACTION_TYPE_DB2` (`transaction-type-db2`: COTRTLIC, COTRTUPC), `PENDING_AUTHORIZATIONS` (`pending-authorizations`: COPAUS0C, COPAUS1C, COPAUS2C, COPAUA0C) and `VSAM_MQ` (`vsam-mq`: COACCT01, CODATE01). `CicsRegion.installed()` reads the installed set and `CicsRegion.install(Set<Extension>)` replaces it, as CEDA INSTALL and DISCARD would. While an extension is not installed, its programs are not installed for `ProgramCatalog`: a transaction id of theirs is unknown, and an XCTL to one lands on the not-ported screen. A screen ported later becomes reachable only while its extension is installed. `MqTriggerMonitor` answers a trigger for an uninstalled extension's `TriggeredProgram` as an undefined transid, and a chain bypasses an `ExtensionJob` whose extension is not installed.
 
 ### MNTTRDB2
 

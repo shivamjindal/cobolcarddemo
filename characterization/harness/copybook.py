@@ -215,6 +215,10 @@ class Layout:
 
 def load_layout(path, record=None, keep_redefines=False):
     with open(path, encoding="latin-1") as f:
-        roots = parse(f.read())
+        text = f.read()
+    roots = parse(text)
+    if roots and roots[0].level != 1:
+        # A segment copybook of bare 05 items (CIPAUSMY) is one record.
+        roots = parse("       01  RECORD.\n" + text)
     item = next(r for r in roots if record is None or r.name == record) if record else roots[0]
     return Layout(item, keep_redefines)

@@ -7,9 +7,9 @@ import java.net.URI;
 import java.net.http.HttpClient;
 import java.net.http.HttpRequest;
 import java.net.http.HttpResponse;
+import java.util.EnumSet;
 import java.util.List;
 import java.util.Map;
-import java.util.Set;
 
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.BeforeEach;
@@ -58,7 +58,7 @@ class TransactionTypeMaintenanceIT {
 
     @BeforeEach
     void seed() {
-        region.install(Set.of(Extension.TRANSACTION_TYPE_DB2));
+        region.install(EnumSet.allOf(Extension.class));
         dropTrigger();
         jdbc.update("delete from carddemo.transaction_type where tr_type in ('91', '92')");
         jdbc.update("insert into carddemo.transaction_type (tr_type, tr_description) values ('91', 'SEEDED')");

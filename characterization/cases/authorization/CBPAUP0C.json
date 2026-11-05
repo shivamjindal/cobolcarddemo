@@ -1,0 +1,252 @@
+{
+  "feature": "batch-auth-purge",
+  "kind": "batch",
+  "programs": [
+    "CBPAUP0C"
+  ],
+  "install": [
+    "pending-authorizations"
+  ],
+  "notes": "Runs as BMP CBPAUP0C with PSB PSBPAUTB (CMPAT=YES, so PCB 2 is the database PCB) and the SYSIN card from jcl/CBPAUP0J.jcl unless a case says otherwise. Expiry days 00 makes every detail expire (WS-DAY-DIFF >= WS-EXPIRY-DAYS, line 284). Pinned legacy defects: 6000-DELETE-AUTH-SUMMARY deletes the summary right after the GNP that returned GE, so the DLET gets DJ and 9999-ABEND sets RC 16; status DJ derives from the IMS rule above (EXEC DLI REPL/DLET need the immediately preceding call to have returned that segment). The summary test at line 156 checks PA-APPROVED-AUTH-CNT twice and never the declined count. The expired counts are subtracted in storage only; the summary is never replaced. The checkpoint tests at lines 160 and 360 compare a 9(8) counter with an X(5) parameter as alphanumeric, so '00001' only triggers once a counter reaches 1000: no mid-run CHKP and no 'CHKP SUCCESS' line. The deletes made before the RC 16 are kept because 9999-ABEND returns normally and the region commits.",
+  "cases": [
+    {
+      "id": "batch-auth-purge-summary-delete-dj",
+      "title": "Account 1's six details expire and are deleted; the summary DLET gets DJ and the job ends RC 16",
+      "provenance": "observed",
+      "source": "CBPAUP0C MAIN-PARA, 4000-CHECK-IF-EXPIRED, 5000-DELETE-AUTH-DTL, 6000-DELETE-AUTH-SUMMARY, 9999-ABEND",
+      "job": {
+        "program": "CBPAUP0C",
+        "psb": "PSBPAUTB",
+        "sysin": [
+          "00,00001,00001,Y"
+        ],
+        "dd": {}
+      },
+      "expect": {
+        "completion": "RC=16",
+        "sysout": [
+          "STARTING PROGRAM CBPAUP0C::",
+          "*-------------------------------------*",
+          "CBPAUP0C PARM RECEIVED :00,00001,00001,Y",
+          "TODAYS DATE            :26309",
+          "",
+          "DEBUG: AUTH SMRY READ : +0000000000",
+          "DEBUG: AUTH DTL READ : +0000000000",
+          "DEBUG: AUTH DTL DLET : +00000000001",
+          "DEBUG: AUTH DTL READ : +0000000001",
+          "DEBUG: AUTH DTL DLET : +00000000001",
+          "DEBUG: AUTH DTL READ : +0000000002",
+          "DEBUG: AUTH DTL DLET : +00000000001",
+          "DEBUG: AUTH DTL READ : +0000000003",
+          "DEBUG: AUTH DTL DLET : +00000000001",
+          "DEBUG: AUTH DTL READ : +0000000004",
+          "DEBUG: AUTH DTL DLET : +00000000001",
+          "DEBUG: AUTH DTL READ : +0000000005",
+          "DEBUG: AUTH DTL DLET : +00000000001",
+          "DEBUG: AUTH DTL READ : +0000000006",
+          "DEBUG: AUTH SMRY DLET : +00000000001",
+          "AUTH SUMMARY DELETE FAILED :DJ",
+          "AUTH APP ID                :+00000000001",
+          "CBPAUP0C ABENDING ..."
+        ],
+        "files": {
+          "PAUTDTL1": {
+            "deleted": [
+              "1/76699/998747444",
+              "1/76699/998748388",
+              "1/76700/769089115",
+              "1/76700/769090347",
+              "1/76700/769091469",
+              "1/76700/837391279"
+            ]
+          }
+        }
+      }
+    },
+    {
+      "id": "batch-auth-purge-nothing-expired",
+      "title": "With no details there is nothing to expire: every summary is kept and the totals print",
+      "provenance": "observed",
+      "source": "CBPAUP0C MAIN-PARA, 2000-FIND-NEXT-AUTH-SUMMARY, 9000-TAKE-CHECKPOINT",
+      "setup": {
+        "PAUTDTL1": {
+          "where": {
+            "PAUT-PARENT-ACCT-ID": []
+          }
+        }
+      },
+      "job": {
+        "program": "CBPAUP0C",
+        "psb": "PSBPAUTB",
+        "sysin": [
+          "00,00001,00001,Y"
+        ],
+        "dd": {}
+      },
+      "expect": {
+        "completion": "RC=0",
+        "sysout": [
+          "STARTING PROGRAM CBPAUP0C::",
+          "*-------------------------------------*",
+          "CBPAUP0C PARM RECEIVED :00,00001,00001,Y",
+          "TODAYS DATE            :26309",
+          "",
+          "DEBUG: AUTH SMRY READ : +0000000000",
+          "DEBUG: AUTH DTL READ : +0000000000",
+          "DEBUG: AUTH SMRY READ : +0000000001",
+          "DEBUG: AUTH DTL READ : +0000000000",
+          "DEBUG: AUTH SMRY READ : +0000000002",
+          "DEBUG: AUTH DTL READ : +0000000000",
+          "DEBUG: AUTH SMRY READ : +0000000003",
+          "DEBUG: AUTH DTL READ : +0000000000",
+          "DEBUG: AUTH SMRY READ : +0000000004",
+          "DEBUG: AUTH DTL READ : +0000000000",
+          "DEBUG: AUTH SMRY READ : +0000000005",
+          "DEBUG: AUTH DTL READ : +0000000000",
+          "DEBUG: AUTH SMRY READ : +0000000006",
+          "DEBUG: AUTH DTL READ : +0000000000",
+          "DEBUG: AUTH SMRY READ : +0000000007",
+          "DEBUG: AUTH DTL READ : +0000000000",
+          "DEBUG: AUTH SMRY READ : +0000000008",
+          "DEBUG: AUTH DTL READ : +0000000000",
+          "DEBUG: AUTH SMRY READ : +0000000009",
+          "DEBUG: AUTH DTL READ : +0000000000",
+          "DEBUG: AUTH SMRY READ : +0000000010",
+          "DEBUG: AUTH DTL READ : +0000000000",
+          "DEBUG: AUTH SMRY READ : +0000000011",
+          "DEBUG: AUTH DTL READ : +0000000000",
+          "DEBUG: AUTH SMRY READ : +0000000012",
+          "DEBUG: AUTH DTL READ : +0000000000",
+          "DEBUG: AUTH SMRY READ : +0000000013",
+          "DEBUG: AUTH DTL READ : +0000000000",
+          "DEBUG: AUTH SMRY READ : +0000000014",
+          "DEBUG: AUTH DTL READ : +0000000000",
+          "DEBUG: AUTH SMRY READ : +0000000015",
+          "DEBUG: AUTH DTL READ : +0000000000",
+          "DEBUG: AUTH SMRY READ : +0000000016",
+          "DEBUG: AUTH DTL READ : +0000000000",
+          "DEBUG: AUTH SMRY READ : +0000000017",
+          "DEBUG: AUTH DTL READ : +0000000000",
+          "DEBUG: AUTH SMRY READ : +0000000018",
+          "DEBUG: AUTH DTL READ : +0000000000",
+          "DEBUG: AUTH SMRY READ : +0000000019",
+          "DEBUG: AUTH DTL READ : +0000000000",
+          "DEBUG: AUTH SMRY READ : +0000000020",
+          "DEBUG: AUTH DTL READ : +0000000000",
+          "DEBUG: AUTH SMRY READ : +0000000021",
+          "DEBUG: AUTH DTL READ : +0000000000",
+          "DEBUG: AUTH SMRY READ : +0000000022",
+          "",
+          "*-------------------------------------*",
+          "# TOTAL SUMMARY READ  :+0000000022",
+          "# SUMMARY REC DELETED :+0000000000",
+          "# TOTAL DETAILS READ  :+0000000000",
+          "# DETAILS REC DELETED :+0000000000",
+          "*-------------------------------------*",
+          ""
+        ]
+      }
+    },
+    {
+      "id": "batch-auth-purge-partial-expiry",
+      "title": "Expiry 05: old details are deleted, today's detail stays, the summary is kept and not rewritten",
+      "provenance": "observed",
+      "source": "CBPAUP0C 4000-CHECK-IF-EXPIRED, 5000-DELETE-AUTH-DTL, MAIN-PARA line 156",
+      "setup": {
+        "PAUTSUM0": {
+          "where": {
+            "PA-ACCT-ID": [
+              "1"
+            ]
+          },
+          "upsert": [
+            {
+              "PA-ACCT-ID": 1,
+              "PA-APPROVED-AUTH-CNT": 7
+            }
+          ]
+        },
+        "PAUTDTL1": {
+          "where": {
+            "PAUT-PARENT-ACCT-ID": [
+              "1"
+            ]
+          },
+          "upsert": [
+            {
+              "PAUT-PARENT-ACCT-ID": 1,
+              "PA-AUTH-DATE-9C": 73690,
+              "PA-AUTH-TIME-9C": 899999999,
+              "PA-AUTH-ORIG-DATE": "261105",
+              "PA-AUTH-ORIG-TIME": "100000",
+              "PA-CARD-NUM": "9680294154603697",
+              "PA-AUTH-TYPE": "0100",
+              "PA-AUTH-RESP-CODE": "00",
+              "PA-AUTH-RESP-REASON": "0000",
+              "PA-PROCESSING-CODE": 0,
+              "PA-TRANSACTION-AMT": "3.00",
+              "PA-APPROVED-AMT": "3.00",
+              "PA-POS-ENTRY-MODE": 1,
+              "PA-TRANSACTION-ID": "TXN000000000041",
+              "PA-MATCH-STATUS": "P"
+            }
+          ]
+        }
+      },
+      "job": {
+        "program": "CBPAUP0C",
+        "psb": "PSBPAUTB",
+        "sysin": [
+          "05,00001,00001,Y"
+        ],
+        "dd": {}
+      },
+      "expect": {
+        "completion": "RC=0",
+        "sysout": [
+          "STARTING PROGRAM CBPAUP0C::",
+          "*-------------------------------------*",
+          "CBPAUP0C PARM RECEIVED :05,00001,00001,Y",
+          "TODAYS DATE            :26309",
+          "",
+          "DEBUG: AUTH SMRY READ : +0000000000",
+          "DEBUG: AUTH DTL READ : +0000000000",
+          "DEBUG: AUTH DTL READ : +0000000001",
+          "DEBUG: AUTH DTL DLET : +00000000001",
+          "DEBUG: AUTH DTL READ : +0000000002",
+          "DEBUG: AUTH DTL DLET : +00000000001",
+          "DEBUG: AUTH DTL READ : +0000000003",
+          "DEBUG: AUTH DTL DLET : +00000000001",
+          "DEBUG: AUTH DTL READ : +0000000004",
+          "DEBUG: AUTH DTL DLET : +00000000001",
+          "DEBUG: AUTH DTL READ : +0000000005",
+          "DEBUG: AUTH DTL DLET : +00000000001",
+          "DEBUG: AUTH DTL READ : +0000000006",
+          "DEBUG: AUTH DTL DLET : +00000000001",
+          "DEBUG: AUTH DTL READ : +0000000007",
+          "DEBUG: AUTH SMRY READ : +0000000001",
+          "",
+          "*-------------------------------------*",
+          "# TOTAL SUMMARY READ  :+0000000001",
+          "# SUMMARY REC DELETED :+0000000000",
+          "# TOTAL DETAILS READ  :+0000000007",
+          "# DETAILS REC DELETED :+0000000006",
+          "*-------------------------------------*",
+          ""
+        ],
+        "files": {
+          "PAUTDTL1": {
+            "deleted": [
+              "1/76699/998747444",
+              "1/76699/998748388",
+              "1/76700/769089115",
+              "1/76700/769090347",
+              "1/76700/769091469",
+              "1/76700/837391279"
+            ]
+          }
+        }
+      }
+    }
+  ]
+}

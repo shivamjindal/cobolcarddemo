@@ -26,6 +26,7 @@ import org.springframework.jdbc.core.simple.JdbcClient;
 import org.springframework.jdbc.datasource.DataSourceTransactionManager;
 import org.springframework.transaction.support.TransactionTemplate;
 
+import com.carddemo.batch.ims.Dfsrrc00;
 import com.carddemo.batch.jcl.Dcb;
 import com.carddemo.batch.runtime.DatasetStore;
 import com.carddemo.batch.runtime.Spool;
@@ -52,6 +53,7 @@ final class BatchCase {
     private static final String STEP = "STEP01";
     private static final String QUALIFIER = "AWS.M2.CARDDEMO.";
     private static final String TRXFL = QUALIFIER + "TRXFL.VSAM.KSDS";
+    private static final String SYSIN = "SYSIN";
     private static final int CARD = 80;
     private static final Duration TIMEOUT = Duration.ofSeconds(300);
     private static final long POLL_MILLIS = 50;
@@ -137,22 +139,41 @@ final class BatchCase {
      * <pre>
      *   "DATASET" keyed          DSN=&lt;its cluster&gt;,DISP=SHR
      *   "DATASET" sequential     DSN=AWS.M2.CARDDEMO.&lt;name&gt;.PS,DISP=SHR, staged from setup or seed
-     *   {"dataset": X}           DSN=AWS.M2.CARDDEMO.CHARZ.&lt;dd&gt;,DISP=SHR, a key-ordered flat copy of X
+     *   {"dataset": X}           DSN=AWS.M2.CARDDEMO.CHARZ.&lt;dd&gt;,DISP=SHR, a key-ordered flat copy of X, or with
+     *                            "seed" its seed records in seed order; "where" narrows either
      *   {"lines", reclen 80}     DD * with the lines
      *   {"lines", reclen n}      DSN=AWS.M2.CARDDEMO.CHARZ.&lt;dd&gt;,DISP=SHR, the lines as n-byte records
      *   {"derive": "creastmt-trxfl"}  DSN=AWS.M2.CARDDEMO.TRXFL.VSAM.KSDS,DISP=SHR, staged through CREASTMT's sort
-     *   {"output", reclen|recfm} DD SYSOUT=*,DCB=(RECFM=F,LRECL=reclen) or DCB=(RECFM=V)
+     *   {"output", reclen|recfm} DD SYSOUT=*,DCB=(RECFM=F,LRECL=reclen) or DCB=(RECFM=V), GSAM outputs too
      * </pre>
+     * A job with {@code psb} runs {@code EXEC PGM=DFSRRC00,PARM='DLI,program,psb'}, and its {@code sysin} lines
+     * are DD SYSIN.
      */
     private List<String> stage(JsonNode job, JsonNode setup, Connection connection, List<SeededTable> tables,
             DatasetStore datasets) throws IOException, SQLException {
         List<String> deck = new ArrayList<>();
         deck.add("//" + JOB + " JOB '" + testCase.get("id").asText() + "'");
         String parm = job.path("parm").asText("");
-        deck.add("//" + STEP + " EXEC PGM=" + job.get("program").asText()
-                + (parm.isEmpty() ? "" : ",PARM='" + parm.replace("'", "''") + "'"));
+        if (job.has("psb")) {
+            if (!parm.isEmpty()) {
+                throw new IllegalArgumentException("a DL/I job's PARM is DFSRRC00's; the case gives parm " + parm);
+            }
+            deck.add("//" + STEP + " EXEC PGM=" + Dfsrrc00.NAME + ",PARM='DLI," + job.get("program").asText() + ","
+                    + job.get("psb").asText() + "'");
+        } else {
+            deck.add("//" + STEP + " EXEC PGM=" + job.get("program").asText()
+                    + (parm.isEmpty() ? "" : ",PARM='" + parm.replace("'", "''") + "'"));
+        }
         if (!job.get("dd").has(Spool.DISPLAY)) {
             deck.add("//" + Spool.DISPLAY + " DD SYSOUT=*");
+        }
+        if (job.has("sysin")) {
+            if (job.get("dd").has(SYSIN)) {
+                throw new IllegalArgumentException("the case gives both sysin and DD " + SYSIN);
+            }
+            deck.add("//" + SYSIN + " DD *");
+            job.get("sysin").forEach(line -> deck.add(line.asText()));
+            deck.add("/*");
         }
         for (Map.Entry<String, JsonNode> dd : job.get("dd").properties()) {
             String name = dd.getKey();
@@ -166,9 +187,7 @@ final class BatchCase {
             } else if (spec.has("dataset")) {
                 String source = spec.get("dataset").asText();
                 String dsn = QUALIFIER + JOB + "." + name;
-                datasets.stage(dsn, fixed(source), Optional.empty(), sequential(source)
-                        ? sequentialRecords(source, setup)
-                        : List.copyOf(table(tables, source).snapshot(connection).values()));
+                datasets.stage(dsn, fixed(source), Optional.empty(), flatCopy(source, spec, setup, connection, tables));
                 deck.add(dsn(name, dsn));
             } else if (spec.has("lines") && spec.path("reclen").asInt() == CARD) {
                 deck.add("//" + name + " DD *");
@@ -201,6 +220,19 @@ final class BatchCase {
         return deck;
     }
 
+    /** {@code {"dataset": X}}: the run's copy of X, or with {@code seed} its seed records, narrowed by {@code where}. */
+    private List<byte[]> flatCopy(String source, JsonNode spec, JsonNode setup, Connection connection,
+            List<SeededTable> tables) throws IOException, SQLException {
+        boolean seed = spec.path("seed").asBoolean();
+        if (sequential(source)) {
+            List<byte[]> records = sequentialRecords(source, seed ? JSON.createObjectNode() : setup);
+            return SeededTable.where(HarnessLayout.of(repo, registry, source), records, spec.path("where"));
+        }
+        SeededTable table = table(tables, source);
+        List<byte[]> records = seed ? table.seeded() : List.copyOf(table.snapshot(connection).values());
+        return SeededTable.where(table.layout(), records, spec.path("where"));
+    }
+
     private static JobQueue.Run await(JobQueue queue, long submission) throws InterruptedException {
         long deadline = System.nanoTime() + TIMEOUT.toNanos();
         while (true) {
@@ -231,7 +263,10 @@ final class BatchCase {
         }
         List<Object> rows = new ArrayList<>();
         if (spec.has("decode_as")) {
-            HarnessLayout layout = HarnessLayout.of(repo, registry, spec.get("decode_as").asText());
+            String dataset = spec.get("decode_as").asText();
+            HarnessLayout layout = SeededTable.SEEDED.contains(dataset)
+                    ? SeededTable.of(registry, repo, dataset).layout()
+                    : HarnessLayout.of(repo, registry, dataset);
             for (byte[] record : records) {
                 byte[] padded = record;
                 if (record.length < layout.recordLength()) {
@@ -240,6 +275,9 @@ final class BatchCase {
                 }
                 rows.add(layout.decode(padded));
             }
+        } else if (spec.has("copybook")) {
+            HarnessLayout layout = HarnessLayout.ofCopybook(repo, spec.get("copybook").asText(), spec.get("reclen").asInt());
+            records.forEach(record -> rows.add(layout.decode(record)));
         } else if (spec.path("hex").asBoolean()) {
             records.forEach(record -> rows.add(HexFormat.of().formatHex(record)));
         } else {
@@ -268,8 +306,9 @@ final class BatchCase {
         } else {
             records.addAll(SeededTable.seedRecords(repo.resolve(entry.get("source").asText()), entry.get("reclen").asInt()));
         }
-        edit.path("append").forEach(r -> records.add(layout.encode(r, null)));
-        return records;
+        List<byte[]> selected = new ArrayList<>(SeededTable.where(layout, records, edit.path("where")));
+        edit.path("append").forEach(r -> selected.add(layout.encode(r, null)));
+        return selected;
     }
 
     private Dcb fixed(String dataset) {

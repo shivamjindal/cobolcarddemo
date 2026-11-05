@@ -1,0 +1,157 @@
+{
+  "feature": "batch-auth-load",
+  "kind": "batch",
+  "programs": [
+    "PAUDBLOD"
+  ],
+  "install": [
+    "pending-authorizations"
+  ],
+  "notes": "BMP PAUDBLOD with PSB PSBPAUTB (jcl/LOADPADB.JCL), called at its primary entry with the PSB's PCB list (I/O PCB, database PCB); ENTRY 'DLITCBL' lists only PAUTBPCB, which would bind the I/O PCB. INFILE1 and INFILE2 hold the records PAUDBUNL writes (seed roots of accounts 1 and 5, seed children of accounts 5 and 29) and the database starts empty. Pinned legacy defect: 3100-INSERT-CHILD-SEG has no END-IF after the GU success branch (lines 305-314), so a GU that fails (account 29 has no root) skips the child without a message or abend.",
+  "cases": [
+    {
+      "id": "batch-auth-load-from-unload",
+      "title": "Roots load, account 5's child loads under its root, account 29's orphan child is skipped silently",
+      "provenance": "observed",
+      "source": "PAUDBLOD 2100-INSERT-ROOT-SEG, 3100-INSERT-CHILD-SEG, 3200-INSERT-IMS-CALL",
+      "setup": {
+        "PAUTSUM0": {
+          "where": {
+            "PA-ACCT-ID": []
+          }
+        },
+        "PAUTDTL1": {
+          "where": {
+            "PAUT-PARENT-ACCT-ID": []
+          }
+        }
+      },
+      "job": {
+        "program": "PAUDBLOD",
+        "psb": "PSBPAUTB",
+        "dd": {
+          "INFILE1": {
+            "dataset": "PAUTSUM0",
+            "as": "sequential",
+            "seed": true,
+            "where": {
+              "PA-ACCT-ID": [
+                "1",
+                "5"
+              ]
+            }
+          },
+          "INFILE2": {
+            "dataset": "PAUTDTL1",
+            "as": "sequential",
+            "seed": true,
+            "where": {
+              "PAUT-PARENT-ACCT-ID": [
+                "5",
+                "29"
+              ]
+            }
+          }
+        }
+      },
+      "expect": {
+        "completion": "RC=0",
+        "sysout": [
+          "STARTING PAUDBLOD",
+          "*-------------------------------------*",
+          "TODAYS DATE            :261105",
+          "",
+          " *******************************",
+          " *******************************",
+          "ROOT INSERT SUCCESS",
+          " *******************************",
+          " *******************************",
+          "ROOT INSERT SUCCESS",
+          "***************************",
+          "***************************",
+          "GU CALL TO ROOT SEG SUCCESS",
+          "CHILD SEGMENT INSERTED SUCCESS",
+          "***************************",
+          "***************************",
+          "CLOSING THE FILE"
+        ],
+        "files": {
+          "PAUTSUM0": {
+            "inserted": [
+              {
+                "PA-ACCT-ID": "1",
+                "PA-CUST-ID": "1",
+                "PA-AUTH-STATUS": "",
+                "PA-ACCOUNT-STATUS(1)": "",
+                "PA-ACCOUNT-STATUS(2)": "",
+                "PA-ACCOUNT-STATUS(3)": "",
+                "PA-ACCOUNT-STATUS(4)": "",
+                "PA-ACCOUNT-STATUS(5)": "00",
+                "PA-CREDIT-LIMIT": "2022.00",
+                "PA-CASH-LIMIT": "1020.00",
+                "PA-CREDIT-BALANCE": "9.44",
+                "PA-CASH-BALANCE": "0.00",
+                "PA-APPROVED-AUTH-CNT": "6",
+                "PA-DECLINED-AUTH-CNT": "0",
+                "PA-APPROVED-AUTH-AMT": "9.44",
+                "PA-DECLINED-AUTH-AMT": "0.00"
+              },
+              {
+                "PA-ACCT-ID": "5",
+                "PA-CUST-ID": "5",
+                "PA-AUTH-STATUS": "",
+                "PA-ACCOUNT-STATUS(1)": "",
+                "PA-ACCOUNT-STATUS(2)": "",
+                "PA-ACCOUNT-STATUS(3)": "",
+                "PA-ACCOUNT-STATUS(4)": "",
+                "PA-ACCOUNT-STATUS(5)": "00",
+                "PA-CREDIT-LIMIT": "3819.00",
+                "PA-CASH-LIMIT": "2430.00",
+                "PA-CREDIT-BALANCE": "1.31",
+                "PA-CASH-BALANCE": "0.00",
+                "PA-APPROVED-AUTH-CNT": "1",
+                "PA-DECLINED-AUTH-CNT": "0",
+                "PA-APPROVED-AUTH-AMT": "1.31",
+                "PA-DECLINED-AUTH-AMT": "0.00"
+              }
+            ]
+          },
+          "PAUTDTL1": {
+            "inserted": [
+              {
+                "PAUT-PARENT-ACCT-ID": "5",
+                "PA-AUTH-DATE-9C": "76700",
+                "PA-AUTH-TIME-9C": "835153123",
+                "PA-AUTH-ORIG-DATE": "231026",
+                "PA-AUTH-ORIG-TIME": "204846",
+                "PA-CARD-NUM": "6009619150674526",
+                "PA-AUTH-TYPE": "0100",
+                "PA-CARD-EXPIRY-DATE": "1123",
+                "PA-MESSAGE-TYPE": "1234",
+                "PA-MESSAGE-SOURCE": "102030",
+                "PA-AUTH-ID-CODE": "204846",
+                "PA-AUTH-RESP-CODE": "00",
+                "PA-AUTH-RESP-REASON": "0000",
+                "PA-PROCESSING-CODE": "0",
+                "PA-TRANSACTION-AMT": "1.31",
+                "PA-APPROVED-AMT": "1.31",
+                "PA-MERCHANT-CATAGORY-CODE": "5442",
+                "PA-ACQR-COUNTRY-CODE": "USA",
+                "PA-POS-ENTRY-MODE": "0",
+                "PA-MERCHANT-ID": "123501000675423",
+                "PA-MERCHANT-NAME": "Best Buy",
+                "PA-MERCHANT-CITY": "Newark",
+                "PA-MERCHANT-STATE": "DE",
+                "PA-MERCHANT-ZIP": "19881",
+                "PA-TRANSACTION-ID": "3ec1336761a3482",
+                "PA-MATCH-STATUS": "P",
+                "PA-AUTH-FRAUD": "",
+                "PA-FRAUD-RPT-DATE": ""
+              }
+            ]
+          }
+        }
+      }
+    }
+  ]
+}

@@ -1,0 +1,69 @@
+{
+  "feature": "main-menu",
+  "kind": "online",
+  "programs": [
+    "COMEN01C"
+  ],
+  "install": [
+    "pending-authorizations"
+  ],
+  "cases": [
+    {
+      "id": "main-menu-option-11-installed",
+      "title": "With the pending-authorizations extension installed, option 11 opens the pending authorization summary",
+      "provenance": "observed",
+      "source": "COMEN01C PROCESS-ENTER-KEY INQUIRE PROGRAM, XCTL COPAUS0C",
+      "steps": [
+        {
+          "do": {
+            "transid": "CC00"
+          }
+        },
+        {
+          "do": {
+            "aid": "ENTER",
+            "fields": {
+              "USERID": "USER0001",
+              "PASSWD": "PASSWORD"
+            }
+          },
+          "expect": {
+            "map": "COMEN1A",
+            "fields": {
+              "TRNNAME": "CM00",
+              "PGMNAME": "COMEN01C",
+              "OPTN001": "01. Account View",
+              "OPTN002": "02. Account Update",
+              "OPTN003": "03. Credit Card List",
+              "OPTN004": "04. Credit Card View",
+              "OPTN005": "05. Credit Card Update",
+              "OPTN006": "06. Transaction List",
+              "OPTN007": "07. Transaction View",
+              "OPTN008": "08. Transaction Add",
+              "OPTN009": "09. Transaction Reports",
+              "OPTN010": "10. Bill Payment",
+              "OPTN011": "11. Pending Authorization View"
+            },
+            "cursor": "OPTION"
+          }
+        },
+        {
+          "do": {
+            "aid": "ENTER",
+            "fields": {
+              "OPTION": "11"
+            }
+          },
+          "expect": {
+            "map": "COPAU0A",
+            "fields": {
+              "TRNNAME": "CPVS",
+              "PGMNAME": "COPAUS0C"
+            },
+            "cursor": "ACCTID"
+          }
+        }
+      ]
+    }
+  ]
+}

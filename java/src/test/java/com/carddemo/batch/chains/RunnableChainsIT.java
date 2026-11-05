@@ -99,7 +99,7 @@ class RunnableChainsIT {
     @Autowired
     private DataSource dataSource;
 
-    private int dates;
+    private static int dates;
 
     @BeforeEach
     void freshSeed() throws Exception {
@@ -150,6 +150,36 @@ class RunnableChainsIT {
         assertTrue(run.completed());
         assertClosedThenOpen();
         assertTrue(ids(datasets.readNamed(KeyedTable.TRANSACT.dsn()).orElseThrow()).contains("T900000000000001"));
+    }
+
+    @Test
+    void postingRunsThePurgeWhenPendingAuthorizationsIsInstalled() throws Exception {
+        seed(JSON.readTree("{\"install\": [\"pending-authorizations\"],"
+                + " \"setup\": {\"PAUTDTL1\": {\"where\": {\"PAUT-PARENT-ACCT-ID\": []}}}}"));
+        int summaries = count("pending_auth_summaries");
+        datasets.stage(DALYTRAN, new Dcb(Dcb.Recfm.F, 350), Optional.empty(),
+                List.of(daily("T900000000000002", "9680294154603697")));
+
+        ChainRun run = start("CA7_030_POSTING", day());
+
+        assertEquals(List.of("RC=0", "RC=0", "RC=0", "RC=0", "RC=0"), labels(run));
+        assertTrue(run.completed());
+        assertClosedThenOpen();
+        assertEquals(summaries, count("pending_auth_summaries"), "a summary with no details is not deleted");
+    }
+
+    @Test
+    void thePurgeEndingRcSixteenStopsPostingWithTheFilesClosed() throws Exception {
+        seed(JSON.readTree("{\"install\": [\"pending-authorizations\"]}"));
+        int details = count("pending_auth_details");
+
+        ChainRun run = start("CA7_030_POSTING", day());
+
+        assertEquals(List.of("RC=0", "RC=16", "NOT RUN", "NOT RUN", "NOT RUN"), labels(run));
+        assertFalse(run.completed());
+        assertEquals(CLOSEFIL_FILES, region.closed());
+        assertEquals(details - 6, count("pending_auth_details"), "account 1's deletes commit before the DJ");
+        jdbc.sql("update cics_region set closed = '{}'").update();
     }
 
     @Test

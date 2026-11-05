@@ -1,7 +1,10 @@
 package com.carddemo;
 
 import java.nio.file.Path;
+import java.util.List;
 
+import com.carddemo.dli.Dbpautp0Unload;
+import com.carddemo.dli.PendingAuthorizationLoader;
 import com.carddemo.vsam.RoundTripCheck;
 import com.carddemo.vsam.SchemaGenerator;
 import com.carddemo.vsam.VsamLoader;
@@ -18,14 +21,17 @@ public class LoadRunner implements ApplicationRunner {
 
     private final VsamLoader loader;
     private final RoundTripCheck check;
+    private final PendingAuthorizationLoader pendingAuthorizations;
     private final String appRoot;
 
     public LoadRunner(
             VsamLoader loader,
             RoundTripCheck check,
+            PendingAuthorizationLoader pendingAuthorizations,
             @Value("${carddemo.load.app-root:}") String appRoot) {
         this.loader = loader;
         this.check = check;
+        this.pendingAuthorizations = pendingAuthorizations;
         this.appRoot = appRoot;
     }
 
@@ -41,6 +47,13 @@ public class LoadRunner implements ApplicationRunner {
         System.out.print(report);
         if (!report.ok()) {
             throw new IllegalStateException("round-trip check failed");
+        }
+        Dbpautp0Unload.Contents unload = pendingAuthorizations.load(root);
+        List<Integer> loaded = pendingAuthorizations.counts();
+        System.out.printf("pending_auth_summaries: source %d, loaded %d%npending_auth_details: source %d, loaded %d%n",
+                unload.roots().size(), loaded.get(0), unload.children().size(), loaded.get(1));
+        if (loaded.get(0) != unload.roots().size() || loaded.get(1) != unload.children().size()) {
+            throw new IllegalStateException("DBPAUTP0 count mismatch");
         }
     }
 }
