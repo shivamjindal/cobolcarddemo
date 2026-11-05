@@ -724,6 +724,114 @@ F10 confirms whatever is selected now while either request flag is set and the r
 - Pinned by `tran-type-list-update-switched-to-delete`.
 - Fix: keep F10 only when the pending request matches the action now selected on the row.
 
+## `COTRTUPC-cancelled-add-ignores-search`
+
+After F12 cancels an add, the screen prompts for a type code with the cursor on it, but the next ENTER starts over at the empty first display and ignores the typed code.
+
+- Lives in [`TransactionTypeMaintenanceScreen.Task.backedOutWithNothingFetched`](../src/main/java/com/carddemo/trantype/TransactionTypeMaintenanceScreen.java).
+- Comes from the program logic.
+- Pinned by `tran-type-maint-add-cancel-then-search-ignored`.
+- Fix: after a cancelled add go straight to TTUP-DETAILS-NOT-FETCHED, so the next ENTER searches.
+
+## `COTRTUPC-case-only-change-is-no-change`
+
+A description that differs from the stored one only in letter case counts as 'No change detected', so it cannot be saved.
+
+- Lives in [`TransactionTypeMaintenanceScreen.Task.sameAsFetched`](../src/main/java/com/carddemo/trantype/TransactionTypeMaintenanceScreen.java).
+- Comes from the program logic.
+- Pinned by `tran-type-maint-edit-case-only`.
+- Fix: compare the descriptions as typed.
+
+## `COTRTUPC-delete-confirm-legend-dark-unprotected`
+
+On the delete confirmation the ENTER=Process F3=Exit legend gets DFHBMDAR, which hides it but also unprotects it, so the user can type into the legend.
+
+- Lives in [`TransactionTypeMaintenanceScreen.Task.legendAttribute`](../src/main/java/com/carddemo/trantype/TransactionTypeMaintenanceScreen.java).
+- Comes from the program logic.
+- Pinned by `tran-type-maint-found-f4-confirm`, `tran-type-maint-delete-confirm-enter-rejected`.
+- Fix: use a protected dark attribute for the legend.
+
+## `COTRTUPC-description-padded-to-50`
+
+DCL-TR-DESCRIPTION-LEN is set to the length of the 50-byte field rather than of the trimmed text, so every saved VARCHAR description is padded with blanks to 50.
+
+- Lives in [`TransactionTypeMaintenanceScreen.Task.descriptionHostVariable`](../src/main/java/com/carddemo/trantype/TransactionTypeMaintenanceScreen.java).
+- Comes from the program logic.
+- Pinned by `tran-type-maint-edit-save`, `tran-type-maint-cancelled-then-save`, `tran-type-maint-add-save`, `tran-type-maint-notfound-non-numeric-insert`.
+- Fix: set the length to that of the trimmed description.
+
+## `COTRTUPC-f12-invalid-after-failed-edit`
+
+After an edit fails validation the F12=Cancel legend is gone and F12 answers 'Invalid key pressed', so the only ways out are fixing the edit or F3.
+
+- Lives in [`TransactionTypeMaintenanceScreen.Task.cancelAccepted`](../src/main/java/com/carddemo/trantype/TransactionTypeMaintenanceScreen.java).
+- Comes from the program logic.
+- Pinned by `tran-type-maint-edit-error-f12-rejected`.
+- Fix: accept F12 on TTUP-CHANGES-NOT-OK too and restore the fetched values.
+
+## `COTRTUPC-failed-save-reported-committed`
+
+An UPDATE that fails with a negative SQLCODE other than -911 sets TABLE-UPDATE-FAILED, but the STRING of the SQL error overwrites that message, so the state becomes TTUP-CHANGES-OKAYED-AND-DONE and the info line says 'Changes committed to database'.
+
+- Lives in [`TransactionTypeMaintenanceScreen.Task.updateFailed`](../src/main/java/com/carddemo/trantype/TransactionTypeMaintenanceScreen.java).
+- Comes from the program logic.
+- No golden pins it yet. It is read from the source.
+- Fix: decide the state from the SQLCODE rather than from the message text.
+
+## `COTRTUPC-fetched-type-shows-search-prompt`
+
+A fetched type opens its description for edit but the info line says 'Enter transaction type to be maintained': TTUP-SHOW-DETAILS shares the WHEN of the search prompt.
+
+- Lives in [`TransactionTypeMaintenanceScreen.Task.infoForShownDetails`](../src/main/java/com/carddemo/trantype/TransactionTypeMaintenanceScreen.java).
+- Comes from the program logic.
+- Pinned by `tran-type-maint-search-found`, `tran-type-maint-search-single-digit`, `tran-type-maint-search-negative`, `tran-type-maint-edit-no-change`, `tran-type-maint-edit-case-only`, `tran-type-maint-found-f5-invalid`.
+- Fix: show FOUND-TRANTYPE-DATA or PROMPT-FOR-CHANGES for TTUP-SHOW-DETAILS.
+
+## `COTRTUPC-fk-delete-left-in-progress`
+
+A delete rejected with -532 because categories still refer to the type never sets TTUP-DELETE-FAILED, so the state stays TTUP-START-DELETE and the next ENTER falls to 2000-DECIDE-ACTION's WHEN OTHER and abends 9999.
+
+- Lives in [`TransactionTypeMaintenanceScreen.Task.childRowsBlockDelete`](../src/main/java/com/carddemo/trantype/TransactionTypeMaintenanceScreen.java).
+- Comes from the program logic.
+- Pinned by `tran-type-maint-delete-with-children`.
+- Fix: set TTUP-DELETE-FAILED on -532 as on every other failure.
+
+## `COTRTUPC-insert-error-shows-update-sqlcode`
+
+A failed INSERT reports the SQLCODE of the UPDATE before it, always 100, next to the INSERT's own message, and like a failed UPDATE it is then reported as committed.
+
+- Lives in [`TransactionTypeMaintenanceScreen.Task.insertRecord`](../src/main/java/com/carddemo/trantype/TransactionTypeMaintenanceScreen.java).
+- Comes from the program logic.
+- No golden pins it yet. It is read from the source.
+- Fix: move the INSERT's SQLCODE to WS-DISP-SQLCODE and decide the state from it.
+
+## `COTRTUPC-negative-type-code`
+
+'-1' passes the numeric edit and COMPUTE into the unsigned PIC 9(2) drops the sign, so it fetches type 01.
+
+- Lives in [`TransactionTypeMaintenanceScreen.Task.editedTypeCode`](../src/main/java/com/carddemo/trantype/TransactionTypeMaintenanceScreen.java).
+- Comes from the program logic.
+- Pinned by `tran-type-maint-search-negative`.
+- Fix: reject a sign or a decimal point in the type code.
+
+## `COTRTUPC-retyped-code-skips-edit`
+
+A type code typed over the not-found screen is searched without 1210-EDIT-TRANTYPE, so a non-numeric code such as 'AB' is accepted and can be added with F5.
+
+- Lives in [`TransactionTypeMaintenanceScreen.Task.searchRetypedCode`](../src/main/java/com/carddemo/trantype/TransactionTypeMaintenanceScreen.java).
+- Comes from the program logic.
+- Pinned by `tran-type-maint-notfound-non-numeric-insert`.
+- Fix: run 1210-EDIT-TRANTYPE on every newly typed code.
+
+## `COTRTUPC-sqlerrm-length-bytes-in-message`
+
+The SQL error messages STRING the whole SQLERRM group, so its binary SQLERRML shows on the screen as two bytes before the message tokens.
+
+- Lives in [`TransactionTypeMaintenanceScreen.sqlerrm`](../src/main/java/com/carddemo/trantype/TransactionTypeMaintenanceScreen.java).
+- Comes from the program logic.
+- No golden pins it yet. It is read from the source.
+- Fix: STRING SQLERRMC(1:SQLERRML), or DSNTIAR's formatted text.
+
 ## `COUSR00C-endbr-after-notfnd`
 
 A search id after the last user, which includes every lowercase id, makes STARTBR NOTFND; the program still runs ENDBR without RESP and the task abends AEIP.
