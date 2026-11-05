@@ -18,7 +18,6 @@ import static com.carddemo.online.maps.COTRN2A.TTYPCD;
 
 import java.math.BigDecimal;
 import java.util.List;
-import java.util.Locale;
 import java.util.Optional;
 import java.util.function.Function;
 import java.util.function.Predicate;
@@ -86,7 +85,6 @@ public final class TransactionAddScreen extends Screen<COTRN2A, TransactionAddSc
     private static final String DATE_FORMAT = "YYYY-MM-DD";
     private static final Pattern AMOUNT = Pattern.compile("[+-]\\d{8}\\.\\d{2}");
     private static final Pattern DATE = Pattern.compile("\\d{4}-\\d{2}-\\d{2}");
-    private static final BigDecimal HUNDRED_MILLION = BigDecimal.TEN.pow(8);
 
     private static final Predicate<String> ENTERED = text -> !text.isEmpty();
 
@@ -217,7 +215,7 @@ public final class TransactionAddScreen extends Screen<COTRN2A, TransactionAddSc
 
     private static Optional<Rejection> validateDataFields(SymbolicMap<COTRN2A> map) {
         return firstFailed(PRESENCE_AND_FORMAT, map).or(() -> {
-            map.set(TRNAMT, edited(amount(map)));
+            map.set(TRNAMT, TransactionPicture.amount(amount(map)));
             return firstFailed(CALENDAR_AND_MERCHANT, map);
         });
     }
@@ -284,13 +282,13 @@ public final class TransactionAddScreen extends Screen<COTRN2A, TransactionAddSc
         }
         return withLastTransaction(map, state, last -> {
             map.set(TTYPCD, last.typeCd())
-                    .set(TCATCD, "%04d".formatted(last.catCd()))
+                    .set(TCATCD, TransactionPicture.category(last.catCd()))
                     .set(TRNSRC, last.source())
-                    .set(TRNAMT, edited(last.amount()))
+                    .set(TRNAMT, TransactionPicture.amount(last.amount()))
                     .set(TDESC, last.desc())
                     .set(TORIGDT, last.origTs())
                     .set(TPROCDT, last.procTs())
-                    .set(MID, "%09d".formatted(last.merchantId()))
+                    .set(MID, TransactionPicture.merchantId(last.merchantId()))
                     .set(MNAME, last.merchantName())
                     .set(MCITY, last.merchantCity())
                     .set(MZIP, last.merchantZip());
@@ -326,12 +324,6 @@ public final class TransactionAddScreen extends Screen<COTRN2A, TransactionAddSc
     /** {@code FUNCTION NUMVAL-C} of an amount that passed the format edit, which leaves only [+-]99999999.99. */
     private static BigDecimal amount(SymbolicMap<COTRN2A> map) {
         return new BigDecimal(map.text(TRNAMT));
-    }
-
-    /** PIC +99999999.99: the MOVE drops a ninth integer digit. */
-    private static String edited(BigDecimal amount) {
-        return (amount.signum() < 0 ? "-" : "+")
-                + String.format(Locale.ROOT, "%011.2f", amount.abs().remainder(HUNDRED_MILLION));
     }
 
     private static Optional<Rejection> rejection(COTRN2A field, String message) {
