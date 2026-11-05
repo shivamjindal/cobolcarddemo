@@ -122,11 +122,15 @@ final class AccountViewScreen extends Screen<CACTVWA, AccountViewScreen.Action, 
         };
     }
 
+    @Override
+    protected Outcome invalidKey(SymbolicMap<CACTVWA> map, State state) {
+        return anyKeyLooksUp(map, state);
+    }
+
     @LegacyDefect(id = "COACTVWC-any-key-looks-up", goldens = "account-view-invalid-key-acts-as-enter",
             behavior = "a key other than ENTER and PF3 is taken as ENTER and looks the typed account up",
             fix = "redisplay the screen with the invalid key message, as the menus do")
-    @Override
-    protected Outcome invalidKey(SymbolicMap<CACTVWA> map, State state) {
+    private Outcome anyKeyLooksUp(SymbolicMap<CACTVWA> map, State state) {
         return processInputs(map, state);
     }
 

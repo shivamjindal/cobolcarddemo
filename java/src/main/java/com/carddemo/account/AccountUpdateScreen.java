@@ -195,10 +195,18 @@ final class AccountUpdateScreen extends Screen<CACTUPA, AccountUpdateScreen.Acti
         };
     }
 
-    /** 0000-MAIN takes any key but ENTER, PF3, PF5 and PF12 as ENTER. */
     @Override
     protected Outcome invalidKey(SymbolicMap<CACTUPA> map, State state) {
-        return process(Action.PROCESS, map, state);
+        return process(anyOtherKeyIsEnter(), map, state);
+    }
+
+    @LegacyDefect(id = "COACTUPC-any-other-key-is-enter",
+            goldens = {"account-update-pf12-before-fetch", "account-update-pf5-before-confirmation"},
+            behavior = "a key 0000-MAIN does not accept at this point, such as PF12 before an account is fetched or "
+                    + "PF5 with no change waiting for confirmation, is taken as ENTER and processes the screen",
+            fix = "redisplay the screen with the invalid key message, as the menus do")
+    private static Action anyOtherKeyIsEnter() {
+        return Action.PROCESS;
     }
 
     private Outcome process(Action key, SymbolicMap<CACTUPA> received, State state) {
@@ -241,8 +249,8 @@ final class AccountUpdateScreen extends Screen<CACTUPA, AccountUpdateScreen.Acti
 
         Outcome processInputs(Action pressed, SymbolicMap<CACTUPA> received) {
             Action key = switch (pressed) {
-                case SAVE -> stage == Stage.CHANGES_OK_NOT_CONFIRMED ? pressed : Action.PROCESS;
-                case CANCEL -> stage != Stage.NOT_FETCHED ? pressed : Action.PROCESS;
+                case SAVE -> stage == Stage.CHANGES_OK_NOT_CONFIRMED ? pressed : anyOtherKeyIsEnter();
+                case CANCEL -> stage != Stage.NOT_FETCHED ? pressed : anyOtherKeyIsEnter();
                 default -> pressed;
             };
             entered = new Entered(received);
