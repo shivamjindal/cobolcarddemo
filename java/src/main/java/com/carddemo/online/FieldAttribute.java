@@ -8,6 +8,8 @@ public enum FieldAttribute {
     BMPRO(true, false),
     /** DFHBMPRF: protected, MDT on. */
     BMPRF(true, true),
+    /** DFHBMASB: autoskip and bright, MDT off. */
+    BMASB(true, false),
     /**
      * DFHBMBRY. Bright is unprotected with MDT off, and those are the two bits the terminal keeps.
      */
