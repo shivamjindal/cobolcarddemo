@@ -298,7 +298,10 @@ int DSNTIAC(void *eib, void *commarea, struct sqlca *ca, unsigned char *msg, int
     int lrecl = (lr[0] << 8) | lr[1];
     int total = (msg[0] << 8) | msg[1];
     char *area = (char *)msg + 2;
-    int lines = lrecl > 0 ? total / lrecl : 0;
+    /* DSNTIAR's documented minimums; callers that INITIALIZE the area length hit RC 12. */
+    if (lrecl < 72 || lrecl > 240) return 8;
+    if (total < 240) return 12;
+    int lines = total / lrecl;
     memset(area, ' ', lines * lrecl);
     char text[1024];
     snprintf(text, sizeof text, " %s SQLCODE = %d, %s  %s", ca->sqlcode > 0 ? "DSNT404I" : "DSNT408I",
