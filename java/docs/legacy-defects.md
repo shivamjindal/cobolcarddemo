@@ -355,41 +355,59 @@ Distinct messages tell an attacker whether a user id exists.
 - Pinned by `signon-unknown-user`, `signon-wrong-password`.
 - Fix: one message and one cursor position for UnknownUser and WrongPassword.
 
-## `COTRN00C-filter-past-end-abends`
+## `COTRN02C-account-replaces-card`
 
-A Tran ID above every key makes STARTBR NOTFND; ENDBR then runs with no RESP on the browse that never started and the task abends AEIP.
+When both an account and a card are typed, only the account is looked up, and the typed card is replaced by the account's card from the cross-reference, so the transaction posts to a card the user did not type.
 
-- Lives in [`TransactionListScreen.Task.endbrWithoutBrowse`](../src/main/java/com/carddemo/transaction/TransactionListScreen.java).
+- Lives in [`TransactionAddScreen.byAccount`](../src/main/java/com/carddemo/transaction/TransactionAddScreen.java).
 - Comes from the program logic.
-- Pinned by `transaction-list-filter-past-end`.
-- Fix: run ENDBR only after a successful STARTBR and show 'You are at the top of the page...'.
+- Pinned by `transaction-add-account-wins-over-card`.
+- Fix: reject a typed card that does not belong to the typed account.
 
-## `COTRN00C-invalid-selection-resets-page`
+## `COTRN02C-bare-date-timestamps`
 
-A selection other than S sets the message and then ENTER still re-browses from the start, so the page returns to 1 and the typed code stays in the row.
+TRAN-ORIG-TS and TRAN-PROC-TS, 26-character timestamps, get the bare 10-character typed date.
 
-- Lives in [`TransactionListScreen.Task.invalidSelection`](../src/main/java/com/carddemo/transaction/TransactionListScreen.java).
+- Lives in [`TransactionAddScreen.timestamp`](../src/main/java/com/carddemo/transaction/TransactionAddScreen.java).
 - Comes from the program logic.
-- Pinned by `transaction-list-select-invalid`.
-- Fix: redisplay the page that was on screen and clear the bad code.
+- Pinned by `transaction-add-confirm-y-writes`.
+- Fix: write the date as a full timestamp, yyyy-MM-dd HH:mm:ss.SSSSSS, as COBIL00C does.
 
-## `COTRN00C-pf5-skips-first`
+## `COTRN02C-confirm-n-reprompts`
 
-The forward browse skips one record unless EIBAID is ENTER, PF7, or PF3. PF5 from the view arrives with that aid, so page 1 starts at the second transaction.
+Confirm N does not cancel the add; it asks to confirm again, as a blank confirm does.
 
-- Lives in [`TransactionListScreen.Task.skipsFirstRecord`](../src/main/java/com/carddemo/transaction/TransactionListScreen.java).
+- Lives in [`TransactionAddScreen.confirmNo`](../src/main/java/com/carddemo/transaction/TransactionAddScreen.java).
 - Comes from the program logic.
-- Pinned by `transaction-view-pf5-list`.
-- Fix: skip a record only for PF8.
+- Pinned by `transaction-add-confirm-n`.
+- Fix: clear the screen and say the transaction was not added.
 
-## `COTRN00C-pf8-then-pf7-top-message`
+## `COTRN02C-copy-last-any-account`
 
-A backward page that includes the first record still runs the look-ahead READPREV, and that ENDFILE leaves 'You have reached the top of the page...' on page 1.
+PF5 copies the highest-keyed TRANSACT record whatever its account, not the last transaction of the typed account or card.
 
-- Lives in [`TransactionListScreen.Task.reachedTop`](../src/main/java/com/carddemo/transaction/TransactionListScreen.java).
+- Lives in [`TransactionAddScreen.copyLastTranData`](../src/main/java/com/carddemo/transaction/TransactionAddScreen.java).
 - Comes from the program logic.
-- Pinned by `transaction-list-pf8-then-pf7`.
-- Fix: set the top message only when the page did not fill.
+- Pinned by `transaction-add-pf5-copy-last`, `transaction-add-pf5-copy-last-confirm`.
+- Fix: browse the transactions of the typed card and copy its latest.
+
+## `COTRN02C-pre-1582-accepted`
+
+A date before 15 October 1582 passes, because CSUTLDTC's message 2513 (unsupported range) is ignored.
+
+- Lives in [`TransactionAddScreen.validDate`](../src/main/java/com/carddemo/transaction/TransactionAddScreen.java).
+- Comes from the program logic.
+- Pinned by `transaction-add-orig-date-pre-1582-accepted`.
+- Fix: reject message 2513 like every other non-zero severity.
+
+## `COTRN02C-short-field-not-numeric`
+
+IS NUMERIC fails when trailing blanks pad a short entry out to the field, so an account id typed without its leading zeros, or a one-digit type code, is not numeric.
+
+- Lives in [`TransactionAddScreen.numeric`](../src/main/java/com/carddemo/transaction/TransactionAddScreen.java).
+- Comes from the program logic.
+- Pinned by `transaction-add-short-account-not-numeric`, `transaction-add-type-one-digit`.
+- Fix: accept digits shorter than the field and pad them with leading zeros.
 
 ## `COUSR00C-endbr-after-notfnd`
 
