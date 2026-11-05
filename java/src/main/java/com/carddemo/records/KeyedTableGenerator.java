@@ -33,7 +33,8 @@ public final class KeyedTableGenerator {
 
     private static final Map<String, String> FILLER_COLUMNS = Map.of(
             "accounts", "acct_filler", "customers", "cust_filler", "cards", "card_filler",
-            "transaction_category_balances", "tran_cat_filler");
+            "transaction_category_balances", "tran_cat_filler", "transaction_types", "tran_type_filler",
+            "transaction_categories", "tran_catg_filler", "disclosure_groups", "dis_group_filler");
     private static final Map<String, SqlType> V3_TYPES = Map.of("tran_orig_ts", new SqlType.Text(26));
 
     private KeyedTableGenerator() {}

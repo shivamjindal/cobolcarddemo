@@ -61,16 +61,19 @@ public enum KeyedTable {
             new Column(new Field("XREF-ACCT-ID", 25, 11, new Pic.Zoned(11, 0, false), "9(11)"), "xref_acct_id", new SqlType.BigInt(11)))),
     TRANTYPE("transaction_types", "AWS.M2.CARDDEMO.TRANTYPE.VSAM.KSDS", 60, new KeyRange(0, 2), null, null, List.of(
             new Column(new Field("TRAN-TYPE", 0, 2, new Pic.Alnum(2), "X(02)"), "tran_type", new SqlType.Text(2)),
-            new Column(new Field("TRAN-TYPE-DESC", 2, 50, new Pic.Alnum(50), "X(50)"), "tran_type_desc", new SqlType.Text(50)))),
+            new Column(new Field("TRAN-TYPE-DESC", 2, 50, new Pic.Alnum(50), "X(50)"), "tran_type_desc", new SqlType.Text(50)),
+            new Column(new Field("FILLER", 52, 8, new Pic.Alnum(8), "X(08)"), "tran_type_filler", new SqlType.Text(8)))),
     TRANCATG("transaction_categories", "AWS.M2.CARDDEMO.TRANCATG.VSAM.KSDS", 60, new KeyRange(0, 6), null, null, List.of(
             new Column(new Field("TRAN-TYPE-CD", 0, 2, new Pic.Alnum(2), "X(02)"), "tran_type_cd", new SqlType.Text(2)),
             new Column(new Field("TRAN-CAT-CD", 2, 4, new Pic.Zoned(4, 0, false), "9(04)"), "tran_cat_cd", new SqlType.Int(4)),
-            new Column(new Field("TRAN-CAT-TYPE-DESC", 6, 50, new Pic.Alnum(50), "X(50)"), "tran_cat_type_desc", new SqlType.Text(50)))),
+            new Column(new Field("TRAN-CAT-TYPE-DESC", 6, 50, new Pic.Alnum(50), "X(50)"), "tran_cat_type_desc", new SqlType.Text(50)),
+            new Column(new Field("FILLER", 56, 4, new Pic.Alnum(4), "X(04)"), "tran_catg_filler", new SqlType.Text(4)))),
     DISCGRP("disclosure_groups", "AWS.M2.CARDDEMO.DISCGRP.VSAM.KSDS", 50, new KeyRange(0, 16), null, null, List.of(
             new Column(new Field("DIS-ACCT-GROUP-ID", 0, 10, new Pic.Alnum(10), "X(10)"), "dis_acct_group_id", new SqlType.Text(10)),
             new Column(new Field("DIS-TRAN-TYPE-CD", 10, 2, new Pic.Alnum(2), "X(02)"), "dis_tran_type_cd", new SqlType.Text(2)),
             new Column(new Field("DIS-TRAN-CAT-CD", 12, 4, new Pic.Zoned(4, 0, false), "9(04)"), "dis_tran_cat_cd", new SqlType.Int(4)),
-            new Column(new Field("DIS-INT-RATE", 16, 6, new Pic.Zoned(6, 2, true), "S9(04)V99"), "dis_int_rate", new SqlType.Numeric(6, 2, true)))),
+            new Column(new Field("DIS-INT-RATE", 16, 6, new Pic.Zoned(6, 2, true), "S9(04)V99"), "dis_int_rate", new SqlType.Numeric(6, 2, true)),
+            new Column(new Field("FILLER", 22, 28, new Pic.Alnum(28), "X(28)"), "dis_group_filler", new SqlType.Text(28)))),
     TCATBALF("transaction_category_balances", "AWS.M2.CARDDEMO.TCATBALF.VSAM.KSDS", 50, new KeyRange(0, 17), null, null, List.of(
             new Column(new Field("TRANCAT-ACCT-ID", 0, 11, new Pic.Zoned(11, 0, false), "9(11)"), "trancat_acct_id", new SqlType.BigInt(11)),
             new Column(new Field("TRANCAT-TYPE-CD", 11, 2, new Pic.Alnum(2), "X(02)"), "trancat_type_cd", new SqlType.Text(2)),
