@@ -625,6 +625,105 @@ IS NUMERIC fails when trailing blanks pad a short entry out to the field, so an 
 - Pinned by `transaction-add-short-account-not-numeric`, `transaction-add-type-one-digit`.
 - Fix: accept digits shorter than the field and pad them with leading zeros.
 
+## `COTRTLIC-case-only-change`
+
+A description that differs only in case is reported as 'No change detected', yet the update is still pending and F10 writes the typed text.
+
+- Lives in [`TranTypeListScreen.Task.editArrayDesc`](../src/main/java/com/carddemo/trantype/TranTypeListScreen.java).
+- Comes from the program logic.
+- Pinned by `tran-type-list-select-update`, `tran-type-list-update-case-only`, `tran-type-list-update-unchanged-save`.
+- Fix: compare the descriptions exactly, or drop the pending update when no change is detected.
+
+## `COTRTLIC-deleted-row-stays`
+
+The screen after a delete is built before the list is re-read, so the deleted row stays on it until the next ENTER.
+
+- Lives in [`TranTypeListScreen.Task.deletedRowStays`](../src/main/java/com/carddemo/trantype/TranTypeListScreen.java).
+- Comes from the program logic.
+- Pinned by `tran-type-list-delete-confirm`.
+- Fix: re-read the page after the delete and before SEND MAP.
+
+## `COTRTLIC-description-padded`
+
+The VARCHAR length is set to the length of the 50-byte field instead of the trimmed text, so every saved description is padded with blanks to 50.
+
+- Lives in [`TranTypeListScreen.Task.updateRecord`](../src/main/java/com/carddemo/trantype/TranTypeListScreen.java).
+- Comes from the program logic.
+- Pinned by `tran-type-list-update-save`, `tran-type-list-update-case-only`, `tran-type-list-update-unchanged-save`.
+- Fix: set DCL-TR-DESCRIPTION-LEN to the length of the trimmed description.
+
+## `COTRTLIC-dsntiac-message-length`
+
+INITIALIZE WS-MISC-STORAGE zeroes WS-DSNTIAC-MESG-LEN before each call, so DSNTIAC always returns 12 and every Db2 error shows 'DSNTIAC CD12' instead of the Db2 message.
+
+- Lives in [`TranTypeListScreen.db2Message`](../src/main/java/com/carddemo/trantype/TranTypeListScreen.java).
+- Comes from the program logic.
+- Pinned by `tran-type-list-delete-child-records`.
+- Fix: set WS-DSNTIAC-MESG-LEN to 720 before the CALL.
+
+## `COTRTLIC-no-sign-on`
+
+CTLI typed on a clear screen starts with EIBCALEN = 0, and the program builds its own COMMAREA marked admin instead of sending the user to sign on, so anyone at a terminal can list, update and delete transaction types and reach the admin menu with F3.
+
+- Lives in [`TranTypeListScreen.xctl`](../src/main/java/com/carddemo/trantype/TranTypeListScreen.java).
+- Comes from the program logic.
+- Pinned by `tran-type-list-direct-transid`, `tran-type-list-direct-transid-exit`.
+- Fix: XCTL to COSGN00C when EIBCALEN = 0.
+
+## `COTRTLIC-page-up-short-page`
+
+8100-READ-BACKWARDS treats +100 as an error, so F7 onto a page with fewer than seven earlier rows shows 'Error on fetch Cursor C-TR-TYPE-BACKWARD' over a partly filled page.
+
+- Lives in [`TranTypeListScreen.Task.readBackwards`](../src/main/java/com/carddemo/trantype/TranTypeListScreen.java).
+- Comes from the program logic.
+- No golden pins it yet. It is read from the source.
+- Fix: treat +100 as the end of the page and read forward from the first row.
+
+## `COTRTLIC-page-up-to-first-page`
+
+The message is chosen after the page is read, so F7 that pages back to page 1 reports 'No previous pages to display' above the page it just showed.
+
+- Lives in [`TranTypeListScreen.Task.noPreviousPages`](../src/main/java/com/carddemo/trantype/TranTypeListScreen.java).
+- Comes from the program logic.
+- Pinned by `tran-type-list-page-up`.
+- Fix: test for the first page before paging back.
+
+## `COTRTLIC-rejected-filter-keeps-rows`
+
+A rejected filter skips the read but has already cleared the paging variables, so the previous rows stay on screen, protected, above page number 0.
+
+- Lives in [`TranTypeListScreen.Task.rejectedInput`](../src/main/java/com/carddemo/trantype/TranTypeListScreen.java).
+- Comes from the program logic.
+- Pinned by `tran-type-list-type-filter-non-numeric`, `tran-type-list-type-filter-no-match`, `tran-type-list-desc-filter-lowercase`, `tran-type-list-combined-filters-no-match`.
+- Fix: clear the rows when a filter is rejected, or keep the paging variables until the filter is accepted.
+
+## `COTRTLIC-screen-number-wraps`
+
+The page number is a PIC 9(1): F8 past page 9 shows page 0, and F7 from page 0 shows page 1.
+
+- Lives in [`TranTypeListScreen.screenNumAfter`](../src/main/java/com/carddemo/trantype/TranTypeListScreen.java).
+- Comes from the program logic.
+- No golden pins it yet. It is read from the source.
+- Fix: widen WS-CA-SCREEN-NUM and PAGENO's source field.
+
+## `COTRTLIC-selection-survives-filter-change`
+
+1210-EDIT-ARRAY means to drop the selections when a filter changed, but it runs before the filter edits set those flags, so a D or U typed with a new filter is acted on against the rows of the old page.
+
+- Lives in [`TranTypeListScreen.Task.editArray`](../src/main/java/com/carddemo/trantype/TranTypeListScreen.java).
+- Comes from the program logic.
+- No golden pins it yet. It is read from the source.
+- Fix: edit the filters before the selections.
+
+## `COTRTLIC-switch-to-delete-without-confirm`
+
+F10 confirms whatever is selected now while either request flag is set and the row and filters are unchanged, so a row shown for update, changed to D, is deleted by F10 without the delete confirmation.
+
+- Lives in [`TranTypeListScreen.Task.confirmed`](../src/main/java/com/carddemo/trantype/TranTypeListScreen.java).
+- Comes from the program logic.
+- Pinned by `tran-type-list-update-switched-to-delete`.
+- Fix: keep F10 only when the pending request matches the action now selected on the row.
+
 ## `COUSR00C-endbr-after-notfnd`
 
 A search id after the last user, which includes every lowercase id, makes STARTBR NOTFND; the program still runs ENDBR without RESP and the task abends AEIP.
