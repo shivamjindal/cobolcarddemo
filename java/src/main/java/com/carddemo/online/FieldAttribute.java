@@ -4,6 +4,8 @@ package com.carddemo.online;
 public enum FieldAttribute {
     /** DFHBMFSE: unprotected, MDT on. */
     BMFSE(false, true),
+    /** DFHBMUNP: unprotected, MDT off. */
+    BMUNP(false, false),
     /** DFHBMPRO: protected, MDT off. */
     BMPRO(true, false),
     /** DFHBMPRF: protected, MDT on. */

@@ -1,5 +1,6 @@
 package com.carddemo.online;
 
+import java.util.EnumSet;
 import java.util.List;
 import java.util.Optional;
 import java.util.Set;
@@ -13,6 +14,7 @@ import org.springframework.test.context.DynamicPropertyRegistry;
 import org.springframework.test.context.DynamicPropertySource;
 
 import com.carddemo.TestDatabase;
+import com.carddemo.authorization.PendingAuthSummaryScreen;
 import com.carddemo.cics.CicsRegion;
 import com.carddemo.cics.Extension;
 
@@ -40,12 +42,16 @@ class ProgramCatalogInstallIT {
     @Autowired
     private ProgramCatalog production;
 
+    @Autowired
+    private PendingAuthSummaryScreen summary;
+
     private final PendingProgramScreen pending = new PendingProgramScreen();
 
     @AfterEach
     void installAsMigrated() {
-        region.install(Set.of(Extension.TRANSACTION_TYPE_DB2));
+        region.install(EnumSet.allOf(Extension.class));
     }
+
 
     @Test
     void anExtensionProgramRunsOnlyWhileItsExtensionIsInstalled() {
@@ -70,6 +76,24 @@ class ProgramCatalogInstallIT {
         assertTrue(production.installed(LIST));
         assertTrue(production.installed(ProgramName.of("COTRTUPC")));
         assertTrue(production.installed(ADMIN_MENU));
+    }
+
+    @Test
+    void anUninstalledAuthorizationExtensionHasNoProgramsAndNoTransids() {
+        region.install(Set.of());
+        assertFalse(production.installed(ProgramName.of("COPAUS0C")));
+        assertTrue(production.byTransid(TransId.of("CPVS")).isEmpty());
+        assertTrue(production.byTransid(TransId.of("CDRA")).isEmpty());
+        assertTrue(production.installed(ProgramName.of("COMEN01C")));
+    }
+
+    @Test
+    void anInstalledExtensionsProgramWithoutAScreenLandsOnThePendingScreen() {
+        region.install(Set.of(Extension.PENDING_AUTHORIZATIONS));
+        assertTrue(production.installed(ProgramName.of("COPAUS0C")));
+        assertFalse(production.installed(ProgramName.of("COACCT01")));
+        assertSame(summary, production.resolve(ProgramName.of("COPAUS0C"), Optional.empty()).screen());
+        assertSame(PendingProgramScreen.class, production.resolve(ProgramName.of("COPAUA0C"), Optional.empty()).screen().getClass());
     }
 
     /** A stand-in for the COTRTLIC port, so the switch can be seen before the screen exists. */

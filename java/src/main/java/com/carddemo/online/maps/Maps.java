@@ -25,6 +25,8 @@ public final class Maps {
             COUSR1A.MAP,
             COUSR2A.MAP,
             COUSR3A.MAP,
+            COPAU0A.MAP,
+            COPAU1A.MAP,
             CTRTLIA.MAP,
             CTRTUPA.MAP);
 

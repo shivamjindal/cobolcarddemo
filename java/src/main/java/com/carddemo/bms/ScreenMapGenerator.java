@@ -25,7 +25,7 @@ public final class ScreenMapGenerator {
     public static final Path OUTPUT = Path.of("src/main/java/com/carddemo/online/maps");
 
     /** The app root, then each optional extension that ships BMS maps. */
-    private static final List<String> MODULES = List.of("", "app-transaction-type-db2");
+    private static final List<String> MODULES = List.of("", "app-authorization-ims-db2-mq", "app-transaction-type-db2");
 
     private static final Pattern MACRO = Pattern.compile("(\\S*)\\s+(DFHMSD|DFHMDI|DFHMDF)\\s*(.*)");
     private static final Pattern LENGTH_ITEM = Pattern.compile("\\s*02\\s+(\\w+)L\\s+COMP\\b.*");
