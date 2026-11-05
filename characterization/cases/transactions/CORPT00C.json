@@ -1,0 +1,1203 @@
+{
+  "feature": "report-submit",
+  "kind": "online",
+  "programs": [
+    "CORPT00C"
+  ],
+  "cases": [
+    {
+      "id": "report-submit-first-display",
+      "title": "Menu option 9 shows the report screen with the cursor on Monthly",
+      "provenance": "observed",
+      "source": "app/cbl/CORPT00C.cbl MAIN-PARA (first entry)",
+      "steps": [
+        {
+          "do": {
+            "transid": "CC00"
+          }
+        },
+        {
+          "do": {
+            "aid": "ENTER",
+            "fields": {
+              "USERID": "USER0001",
+              "PASSWD": "PASSWORD"
+            }
+          }
+        },
+        {
+          "do": {
+            "aid": "ENTER",
+            "fields": {
+              "OPTION": "9"
+            }
+          },
+          "expect": {
+            "map": "CORPT0A",
+            "fields": {
+              "TRNNAME": "CR00",
+              "PGMNAME": "CORPT00C"
+            },
+            "cursor": "MONTHLY"
+          }
+        }
+      ]
+    },
+    {
+      "id": "report-submit-no-type",
+      "title": "ENTER with no report type selected",
+      "provenance": "observed",
+      "source": "app/cbl/CORPT00C.cbl PROCESS-ENTER-KEY (WHEN OTHER)",
+      "steps": [
+        {
+          "do": {
+            "transid": "CC00"
+          }
+        },
+        {
+          "do": {
+            "aid": "ENTER",
+            "fields": {
+              "USERID": "USER0001",
+              "PASSWD": "PASSWORD"
+            }
+          }
+        },
+        {
+          "do": {
+            "aid": "ENTER",
+            "fields": {
+              "OPTION": "9"
+            }
+          }
+        },
+        {
+          "do": {
+            "aid": "ENTER"
+          },
+          "expect": {
+            "map": "CORPT0A",
+            "fields": {
+              "TRNNAME": "CR00",
+              "PGMNAME": "CORPT00C",
+              "ERRMSG": "Select a report type to print report..."
+            },
+            "cursor": "MONTHLY"
+          }
+        }
+      ]
+    },
+    {
+      "id": "report-submit-monthly-unconfirmed",
+      "title": "Monthly without confirm asks to confirm",
+      "provenance": "observed",
+      "source": "app/cbl/CORPT00C.cbl SUBMIT-JOB-TO-INTRDR",
+      "steps": [
+        {
+          "do": {
+            "transid": "CC00"
+          }
+        },
+        {
+          "do": {
+            "aid": "ENTER",
+            "fields": {
+              "USERID": "USER0001",
+              "PASSWD": "PASSWORD"
+            }
+          }
+        },
+        {
+          "do": {
+            "aid": "ENTER",
+            "fields": {
+              "OPTION": "9"
+            }
+          }
+        },
+        {
+          "do": {
+            "aid": "ENTER",
+            "fields": {
+              "MONTHLY": "X"
+            }
+          },
+          "expect": {
+            "map": "CORPT0A",
+            "fields": {
+              "TRNNAME": "CR00",
+              "PGMNAME": "CORPT00C",
+              "MONTHLY": "X",
+              "ERRMSG": "Please confirm to print the Monthly report..."
+            },
+            "cursor": "CONFIRM"
+          }
+        }
+      ]
+    },
+    {
+      "id": "report-submit-monthly-confirmed",
+      "title": "Monthly confirmed: JCL for the current month (1st to last day) goes to TD queue JOBS",
+      "provenance": "observed",
+      "source": "app/cbl/CORPT00C.cbl PROCESS-ENTER-KEY (monthly), SUBMIT-JOB-TO-INTRDR, WIRTE-JOBSUB-TDQ",
+      "steps": [
+        {
+          "do": {
+            "transid": "CC00"
+          }
+        },
+        {
+          "do": {
+            "aid": "ENTER",
+            "fields": {
+              "USERID": "USER0001",
+              "PASSWD": "PASSWORD"
+            }
+          }
+        },
+        {
+          "do": {
+            "aid": "ENTER",
+            "fields": {
+              "OPTION": "9"
+            }
+          }
+        },
+        {
+          "do": {
+            "aid": "ENTER",
+            "fields": {
+              "MONTHLY": "X",
+              "CONFIRM": "Y"
+            }
+          },
+          "expect": {
+            "queues": {
+              "JOBS": [
+                "//TRNRPT00 JOB 'TRAN REPORT',CLASS=A,MSGCLASS=0,",
+                "// NOTIFY=&SYSUID",
+                "//*",
+                "//JOBLIB JCLLIB ORDER=('AWS.M2.CARDDEMO.PROC')",
+                "//*",
+                "//STEP10 EXEC PROC=TRANREPT",
+                "//*",
+                "//STEP05R.SYMNAMES DD *",
+                "TRAN-CARD-NUM,263,16,ZD",
+                "TRAN-PROC-DT,305,10,CH",
+                "PARM-START-DATE,C'2026-11-01'",
+                "PARM-END-DATE,C'2026-11-30'",
+                "/*",
+                "//STEP10R.DATEPARM DD *",
+                "2026-11-01 2026-11-30",
+                "/*",
+                "/*EOF"
+              ]
+            },
+            "map": "CORPT0A",
+            "fields": {
+              "TRNNAME": "CR00",
+              "PGMNAME": "CORPT00C",
+              "ERRMSG": "Monthly report submitted for printing ..."
+            },
+            "colors": {
+              "ERRMSG": "GREEN"
+            },
+            "cursor": "MONTHLY"
+          }
+        }
+      ]
+    },
+    {
+      "id": "report-submit-yearly-confirmed",
+      "title": "Yearly confirmed: JCL for Jan 1 to Dec 31 of the current year",
+      "provenance": "observed",
+      "source": "app/cbl/CORPT00C.cbl PROCESS-ENTER-KEY (yearly), SUBMIT-JOB-TO-INTRDR",
+      "steps": [
+        {
+          "do": {
+            "transid": "CC00"
+          }
+        },
+        {
+          "do": {
+            "aid": "ENTER",
+            "fields": {
+              "USERID": "USER0001",
+              "PASSWD": "PASSWORD"
+            }
+          }
+        },
+        {
+          "do": {
+            "aid": "ENTER",
+            "fields": {
+              "OPTION": "9"
+            }
+          }
+        },
+        {
+          "do": {
+            "aid": "ENTER",
+            "fields": {
+              "YEARLY": "X",
+              "CONFIRM": "y"
+            }
+          },
+          "expect": {
+            "queues": {
+              "JOBS": [
+                "//TRNRPT00 JOB 'TRAN REPORT',CLASS=A,MSGCLASS=0,",
+                "// NOTIFY=&SYSUID",
+                "//*",
+                "//JOBLIB JCLLIB ORDER=('AWS.M2.CARDDEMO.PROC')",
+                "//*",
+                "//STEP10 EXEC PROC=TRANREPT",
+                "//*",
+                "//STEP05R.SYMNAMES DD *",
+                "TRAN-CARD-NUM,263,16,ZD",
+                "TRAN-PROC-DT,305,10,CH",
+                "PARM-START-DATE,C'2026-01-01'",
+                "PARM-END-DATE,C'2026-12-31'",
+                "/*",
+                "//STEP10R.DATEPARM DD *",
+                "2026-01-01 2026-12-31",
+                "/*",
+                "/*EOF"
+              ]
+            },
+            "map": "CORPT0A",
+            "fields": {
+              "TRNNAME": "CR00",
+              "PGMNAME": "CORPT00C",
+              "ERRMSG": "Yearly report submitted for printing ..."
+            },
+            "colors": {
+              "ERRMSG": "GREEN"
+            },
+            "cursor": "MONTHLY"
+          }
+        }
+      ]
+    },
+    {
+      "id": "report-submit-monthly-wins",
+      "title": "Monthly takes precedence when several types are marked",
+      "provenance": "observed",
+      "source": "app/cbl/CORPT00C.cbl PROCESS-ENTER-KEY (EVALUATE order)",
+      "steps": [
+        {
+          "do": {
+            "transid": "CC00"
+          }
+        },
+        {
+          "do": {
+            "aid": "ENTER",
+            "fields": {
+              "USERID": "USER0001",
+              "PASSWD": "PASSWORD"
+            }
+          }
+        },
+        {
+          "do": {
+            "aid": "ENTER",
+            "fields": {
+              "OPTION": "9"
+            }
+          }
+        },
+        {
+          "do": {
+            "aid": "ENTER",
+            "fields": {
+              "MONTHLY": "X",
+              "YEARLY": "X",
+              "CONFIRM": "Y"
+            }
+          },
+          "expect": {
+            "queues": {
+              "JOBS": [
+                "//TRNRPT00 JOB 'TRAN REPORT',CLASS=A,MSGCLASS=0,",
+                "// NOTIFY=&SYSUID",
+                "//*",
+                "//JOBLIB JCLLIB ORDER=('AWS.M2.CARDDEMO.PROC')",
+                "//*",
+                "//STEP10 EXEC PROC=TRANREPT",
+                "//*",
+                "//STEP05R.SYMNAMES DD *",
+                "TRAN-CARD-NUM,263,16,ZD",
+                "TRAN-PROC-DT,305,10,CH",
+                "PARM-START-DATE,C'2026-11-01'",
+                "PARM-END-DATE,C'2026-11-30'",
+                "/*",
+                "//STEP10R.DATEPARM DD *",
+                "2026-11-01 2026-11-30",
+                "/*",
+                "/*EOF"
+              ]
+            },
+            "map": "CORPT0A",
+            "fields": {
+              "TRNNAME": "CR00",
+              "PGMNAME": "CORPT00C",
+              "ERRMSG": "Monthly report submitted for printing ..."
+            },
+            "colors": {
+              "ERRMSG": "GREEN"
+            },
+            "cursor": "MONTHLY"
+          }
+        }
+      ]
+    },
+    {
+      "id": "report-submit-custom-start-month-empty",
+      "title": "Custom with no start month",
+      "provenance": "observed",
+      "source": "app/cbl/CORPT00C.cbl PROCESS-ENTER-KEY (custom empty checks)",
+      "steps": [
+        {
+          "do": {
+            "transid": "CC00"
+          }
+        },
+        {
+          "do": {
+            "aid": "ENTER",
+            "fields": {
+              "USERID": "USER0001",
+              "PASSWD": "PASSWORD"
+            }
+          }
+        },
+        {
+          "do": {
+            "aid": "ENTER",
+            "fields": {
+              "OPTION": "9"
+            }
+          }
+        },
+        {
+          "do": {
+            "aid": "ENTER",
+            "fields": {
+              "CUSTOM": "X",
+              "SDTMM": "",
+              "SDTDD": "01",
+              "SDTYYYY": "2026",
+              "EDTMM": "01",
+              "EDTDD": "31",
+              "EDTYYYY": "2026"
+            }
+          },
+          "expect": {
+            "map": "CORPT0A",
+            "fields": {
+              "TRNNAME": "CR00",
+              "PGMNAME": "CORPT00C",
+              "CUSTOM": "X",
+              "SDTDD": "01",
+              "SDTYYYY": "2026",
+              "EDTMM": "01",
+              "EDTDD": "31",
+              "EDTYYYY": "2026",
+              "ERRMSG": "Start Date - Month can NOT be empty..."
+            },
+            "cursor": "SDTMM"
+          }
+        }
+      ]
+    },
+    {
+      "id": "report-submit-custom-end-year-empty",
+      "title": "Custom with only the end year missing",
+      "provenance": "observed",
+      "source": "app/cbl/CORPT00C.cbl PROCESS-ENTER-KEY (custom empty checks)",
+      "steps": [
+        {
+          "do": {
+            "transid": "CC00"
+          }
+        },
+        {
+          "do": {
+            "aid": "ENTER",
+            "fields": {
+              "USERID": "USER0001",
+              "PASSWD": "PASSWORD"
+            }
+          }
+        },
+        {
+          "do": {
+            "aid": "ENTER",
+            "fields": {
+              "OPTION": "9"
+            }
+          }
+        },
+        {
+          "do": {
+            "aid": "ENTER",
+            "fields": {
+              "CUSTOM": "X",
+              "SDTMM": "01",
+              "SDTDD": "01",
+              "SDTYYYY": "2026",
+              "EDTMM": "01",
+              "EDTDD": "31",
+              "EDTYYYY": ""
+            }
+          },
+          "expect": {
+            "map": "CORPT0A",
+            "fields": {
+              "TRNNAME": "CR00",
+              "PGMNAME": "CORPT00C",
+              "CUSTOM": "X",
+              "SDTMM": "01",
+              "SDTDD": "01",
+              "SDTYYYY": "2026",
+              "EDTMM": "01",
+              "EDTDD": "31",
+              "ERRMSG": "End Date - Year can NOT be empty..."
+            },
+            "cursor": "EDTYYYY"
+          }
+        }
+      ]
+    },
+    {
+      "id": "report-submit-custom-bad-month",
+      "title": "Custom start month 13",
+      "provenance": "observed",
+      "source": "app/cbl/CORPT00C.cbl PROCESS-ENTER-KEY (Not a valid Month)",
+      "steps": [
+        {
+          "do": {
+            "transid": "CC00"
+          }
+        },
+        {
+          "do": {
+            "aid": "ENTER",
+            "fields": {
+              "USERID": "USER0001",
+              "PASSWD": "PASSWORD"
+            }
+          }
+        },
+        {
+          "do": {
+            "aid": "ENTER",
+            "fields": {
+              "OPTION": "9"
+            }
+          }
+        },
+        {
+          "do": {
+            "aid": "ENTER",
+            "fields": {
+              "CUSTOM": "X",
+              "SDTMM": "13",
+              "SDTDD": "01",
+              "SDTYYYY": "2026",
+              "EDTMM": "01",
+              "EDTDD": "31",
+              "EDTYYYY": "2026"
+            }
+          },
+          "expect": {
+            "map": "CORPT0A",
+            "fields": {
+              "TRNNAME": "CR00",
+              "PGMNAME": "CORPT00C",
+              "CUSTOM": "X",
+              "SDTMM": "13",
+              "SDTDD": "01",
+              "SDTYYYY": "2026",
+              "EDTMM": "01",
+              "EDTDD": "31",
+              "EDTYYYY": "2026",
+              "ERRMSG": "Start Date - Not a valid Month..."
+            },
+            "cursor": "SDTMM"
+          }
+        }
+      ]
+    },
+    {
+      "id": "report-submit-custom-bad-day",
+      "title": "Custom end day 32",
+      "provenance": "observed",
+      "source": "app/cbl/CORPT00C.cbl PROCESS-ENTER-KEY (Not a valid Day)",
+      "steps": [
+        {
+          "do": {
+            "transid": "CC00"
+          }
+        },
+        {
+          "do": {
+            "aid": "ENTER",
+            "fields": {
+              "USERID": "USER0001",
+              "PASSWD": "PASSWORD"
+            }
+          }
+        },
+        {
+          "do": {
+            "aid": "ENTER",
+            "fields": {
+              "OPTION": "9"
+            }
+          }
+        },
+        {
+          "do": {
+            "aid": "ENTER",
+            "fields": {
+              "CUSTOM": "X",
+              "SDTMM": "01",
+              "SDTDD": "01",
+              "SDTYYYY": "2026",
+              "EDTMM": "01",
+              "EDTDD": "32",
+              "EDTYYYY": "2026"
+            }
+          },
+          "expect": {
+            "map": "CORPT0A",
+            "fields": {
+              "TRNNAME": "CR00",
+              "PGMNAME": "CORPT00C",
+              "CUSTOM": "X",
+              "SDTMM": "01",
+              "SDTDD": "01",
+              "SDTYYYY": "2026",
+              "EDTMM": "01",
+              "EDTDD": "32",
+              "EDTYYYY": "2026",
+              "ERRMSG": "End Date - Not a valid Day..."
+            },
+            "cursor": "EDTDD"
+          }
+        }
+      ]
+    },
+    {
+      "id": "report-submit-custom-invalid-date",
+      "title": "Custom start date Feb 30 fails the calendar check",
+      "provenance": "observed",
+      "source": "app/cbl/CORPT00C.cbl PROCESS-ENTER-KEY (CSUTLDTC start)",
+      "steps": [
+        {
+          "do": {
+            "transid": "CC00"
+          }
+        },
+        {
+          "do": {
+            "aid": "ENTER",
+            "fields": {
+              "USERID": "USER0001",
+              "PASSWD": "PASSWORD"
+            }
+          }
+        },
+        {
+          "do": {
+            "aid": "ENTER",
+            "fields": {
+              "OPTION": "9"
+            }
+          }
+        },
+        {
+          "do": {
+            "aid": "ENTER",
+            "fields": {
+              "CUSTOM": "X",
+              "SDTMM": "02",
+              "SDTDD": "30",
+              "SDTYYYY": "2026",
+              "EDTMM": "01",
+              "EDTDD": "31",
+              "EDTYYYY": "2026"
+            }
+          },
+          "expect": {
+            "map": "CORPT0A",
+            "fields": {
+              "TRNNAME": "CR00",
+              "PGMNAME": "CORPT00C",
+              "CUSTOM": "X",
+              "SDTMM": "02",
+              "SDTDD": "30",
+              "SDTYYYY": "2026",
+              "EDTMM": "01",
+              "EDTDD": "31",
+              "EDTYYYY": "2026",
+              "ERRMSG": "Start Date - Not a valid date..."
+            },
+            "cursor": "SDTMM"
+          }
+        }
+      ]
+    },
+    {
+      "id": "report-submit-custom-end-invalid-date",
+      "title": "Custom end date Apr 31 fails the calendar check",
+      "provenance": "observed",
+      "source": "app/cbl/CORPT00C.cbl PROCESS-ENTER-KEY (CSUTLDTC end)",
+      "steps": [
+        {
+          "do": {
+            "transid": "CC00"
+          }
+        },
+        {
+          "do": {
+            "aid": "ENTER",
+            "fields": {
+              "USERID": "USER0001",
+              "PASSWD": "PASSWORD"
+            }
+          }
+        },
+        {
+          "do": {
+            "aid": "ENTER",
+            "fields": {
+              "OPTION": "9"
+            }
+          }
+        },
+        {
+          "do": {
+            "aid": "ENTER",
+            "fields": {
+              "CUSTOM": "X",
+              "SDTMM": "01",
+              "SDTDD": "01",
+              "SDTYYYY": "2026",
+              "EDTMM": "04",
+              "EDTDD": "31",
+              "EDTYYYY": "2026"
+            }
+          },
+          "expect": {
+            "map": "CORPT0A",
+            "fields": {
+              "TRNNAME": "CR00",
+              "PGMNAME": "CORPT00C",
+              "CUSTOM": "X",
+              "SDTMM": "01",
+              "SDTDD": "01",
+              "SDTYYYY": "2026",
+              "EDTMM": "04",
+              "EDTDD": "31",
+              "EDTYYYY": "2026",
+              "ERRMSG": "End Date - Not a valid date..."
+            },
+            "cursor": "EDTMM"
+          }
+        }
+      ]
+    },
+    {
+      "id": "report-submit-custom-pre-1582-accepted",
+      "title": "Legacy quirk: a pre-1582 start year passes the date check because CEE2513 (unsupported range) is ignored",
+      "provenance": "observed",
+      "source": "app/cbl/CORPT00C.cbl PROCESS-ENTER-KEY (CSUTLDTC-RESULT-MSG-NUM NOT = '2513')",
+      "steps": [
+        {
+          "do": {
+            "transid": "CC00"
+          }
+        },
+        {
+          "do": {
+            "aid": "ENTER",
+            "fields": {
+              "USERID": "USER0001",
+              "PASSWD": "PASSWORD"
+            }
+          }
+        },
+        {
+          "do": {
+            "aid": "ENTER",
+            "fields": {
+              "OPTION": "9"
+            }
+          }
+        },
+        {
+          "do": {
+            "aid": "ENTER",
+            "fields": {
+              "CUSTOM": "X",
+              "SDTMM": "01",
+              "SDTDD": "01",
+              "SDTYYYY": "1500",
+              "EDTMM": "01",
+              "EDTDD": "31",
+              "EDTYYYY": "2026",
+              "CONFIRM": "Y"
+            }
+          },
+          "expect": {
+            "queues": {
+              "JOBS": [
+                "//TRNRPT00 JOB 'TRAN REPORT',CLASS=A,MSGCLASS=0,",
+                "// NOTIFY=&SYSUID",
+                "//*",
+                "//JOBLIB JCLLIB ORDER=('AWS.M2.CARDDEMO.PROC')",
+                "//*",
+                "//STEP10 EXEC PROC=TRANREPT",
+                "//*",
+                "//STEP05R.SYMNAMES DD *",
+                "TRAN-CARD-NUM,263,16,ZD",
+                "TRAN-PROC-DT,305,10,CH",
+                "PARM-START-DATE,C'1500-01-01'",
+                "PARM-END-DATE,C'2026-01-31'",
+                "/*",
+                "//STEP10R.DATEPARM DD *",
+                "1500-01-01 2026-01-31",
+                "/*",
+                "/*EOF"
+              ]
+            },
+            "map": "CORPT0A",
+            "fields": {
+              "TRNNAME": "CR00",
+              "PGMNAME": "CORPT00C",
+              "ERRMSG": "Custom report submitted for printing ..."
+            },
+            "colors": {
+              "ERRMSG": "GREEN"
+            },
+            "cursor": "MONTHLY"
+          }
+        }
+      ]
+    },
+    {
+      "id": "report-submit-custom-unconfirmed",
+      "title": "Valid custom range without confirm: one-digit entries are shown zero-padded and confirm is asked",
+      "provenance": "observed",
+      "source": "app/cbl/CORPT00C.cbl PROCESS-ENTER-KEY (NUMVAL-C normalisation), SUBMIT-JOB-TO-INTRDR",
+      "steps": [
+        {
+          "do": {
+            "transid": "CC00"
+          }
+        },
+        {
+          "do": {
+            "aid": "ENTER",
+            "fields": {
+              "USERID": "USER0001",
+              "PASSWD": "PASSWORD"
+            }
+          }
+        },
+        {
+          "do": {
+            "aid": "ENTER",
+            "fields": {
+              "OPTION": "9"
+            }
+          }
+        },
+        {
+          "do": {
+            "aid": "ENTER",
+            "fields": {
+              "CUSTOM": "X",
+              "SDTMM": "1",
+              "SDTDD": "5",
+              "SDTYYYY": "2026",
+              "EDTMM": "2",
+              "EDTDD": "9",
+              "EDTYYYY": "2026"
+            }
+          },
+          "expect": {
+            "map": "CORPT0A",
+            "fields": {
+              "TRNNAME": "CR00",
+              "PGMNAME": "CORPT00C",
+              "CUSTOM": "X",
+              "SDTMM": "01",
+              "SDTDD": "05",
+              "SDTYYYY": "2026",
+              "EDTMM": "02",
+              "EDTDD": "09",
+              "EDTYYYY": "2026",
+              "ERRMSG": "Please confirm to print the Custom report..."
+            },
+            "cursor": "CONFIRM"
+          }
+        }
+      ]
+    },
+    {
+      "id": "report-submit-custom-confirmed",
+      "title": "Valid custom range confirmed: JCL with the typed dates",
+      "provenance": "observed",
+      "source": "app/cbl/CORPT00C.cbl PROCESS-ENTER-KEY (custom), SUBMIT-JOB-TO-INTRDR",
+      "steps": [
+        {
+          "do": {
+            "transid": "CC00"
+          }
+        },
+        {
+          "do": {
+            "aid": "ENTER",
+            "fields": {
+              "USERID": "USER0001",
+              "PASSWD": "PASSWORD"
+            }
+          }
+        },
+        {
+          "do": {
+            "aid": "ENTER",
+            "fields": {
+              "OPTION": "9"
+            }
+          }
+        },
+        {
+          "do": {
+            "aid": "ENTER",
+            "fields": {
+              "CUSTOM": "X",
+              "SDTMM": "01",
+              "SDTDD": "01",
+              "SDTYYYY": "2026",
+              "EDTMM": "01",
+              "EDTDD": "31",
+              "EDTYYYY": "2026",
+              "CONFIRM": "Y"
+            }
+          },
+          "expect": {
+            "queues": {
+              "JOBS": [
+                "//TRNRPT00 JOB 'TRAN REPORT',CLASS=A,MSGCLASS=0,",
+                "// NOTIFY=&SYSUID",
+                "//*",
+                "//JOBLIB JCLLIB ORDER=('AWS.M2.CARDDEMO.PROC')",
+                "//*",
+                "//STEP10 EXEC PROC=TRANREPT",
+                "//*",
+                "//STEP05R.SYMNAMES DD *",
+                "TRAN-CARD-NUM,263,16,ZD",
+                "TRAN-PROC-DT,305,10,CH",
+                "PARM-START-DATE,C'2026-01-01'",
+                "PARM-END-DATE,C'2026-01-31'",
+                "/*",
+                "//STEP10R.DATEPARM DD *",
+                "2026-01-01 2026-01-31",
+                "/*",
+                "/*EOF"
+              ]
+            },
+            "map": "CORPT0A",
+            "fields": {
+              "TRNNAME": "CR00",
+              "PGMNAME": "CORPT00C",
+              "ERRMSG": "Custom report submitted for printing ..."
+            },
+            "colors": {
+              "ERRMSG": "GREEN"
+            },
+            "cursor": "MONTHLY"
+          }
+        }
+      ]
+    },
+    {
+      "id": "report-submit-custom-reversed-range",
+      "title": "Legacy quirk: an end date before the start date is accepted and submitted",
+      "provenance": "observed",
+      "source": "app/cbl/CORPT00C.cbl PROCESS-ENTER-KEY (no range check)",
+      "steps": [
+        {
+          "do": {
+            "transid": "CC00"
+          }
+        },
+        {
+          "do": {
+            "aid": "ENTER",
+            "fields": {
+              "USERID": "USER0001",
+              "PASSWD": "PASSWORD"
+            }
+          }
+        },
+        {
+          "do": {
+            "aid": "ENTER",
+            "fields": {
+              "OPTION": "9"
+            }
+          }
+        },
+        {
+          "do": {
+            "aid": "ENTER",
+            "fields": {
+              "CUSTOM": "X",
+              "SDTMM": "12",
+              "SDTDD": "31",
+              "SDTYYYY": "2026",
+              "EDTMM": "01",
+              "EDTDD": "01",
+              "EDTYYYY": "2026",
+              "CONFIRM": "Y"
+            }
+          },
+          "expect": {
+            "queues": {
+              "JOBS": [
+                "//TRNRPT00 JOB 'TRAN REPORT',CLASS=A,MSGCLASS=0,",
+                "// NOTIFY=&SYSUID",
+                "//*",
+                "//JOBLIB JCLLIB ORDER=('AWS.M2.CARDDEMO.PROC')",
+                "//*",
+                "//STEP10 EXEC PROC=TRANREPT",
+                "//*",
+                "//STEP05R.SYMNAMES DD *",
+                "TRAN-CARD-NUM,263,16,ZD",
+                "TRAN-PROC-DT,305,10,CH",
+                "PARM-START-DATE,C'2026-12-31'",
+                "PARM-END-DATE,C'2026-01-01'",
+                "/*",
+                "//STEP10R.DATEPARM DD *",
+                "2026-12-31 2026-01-01",
+                "/*",
+                "/*EOF"
+              ]
+            },
+            "map": "CORPT0A",
+            "fields": {
+              "TRNNAME": "CR00",
+              "PGMNAME": "CORPT00C",
+              "ERRMSG": "Custom report submitted for printing ..."
+            },
+            "colors": {
+              "ERRMSG": "GREEN"
+            },
+            "cursor": "MONTHLY"
+          }
+        }
+      ]
+    },
+    {
+      "id": "report-submit-confirm-n",
+      "title": "Confirm N clears the screen with no message and submits nothing",
+      "provenance": "observed",
+      "source": "app/cbl/CORPT00C.cbl SUBMIT-JOB-TO-INTRDR (WHEN 'N')",
+      "steps": [
+        {
+          "do": {
+            "transid": "CC00"
+          }
+        },
+        {
+          "do": {
+            "aid": "ENTER",
+            "fields": {
+              "USERID": "USER0001",
+              "PASSWD": "PASSWORD"
+            }
+          }
+        },
+        {
+          "do": {
+            "aid": "ENTER",
+            "fields": {
+              "OPTION": "9"
+            }
+          }
+        },
+        {
+          "do": {
+            "aid": "ENTER",
+            "fields": {
+              "MONTHLY": "X",
+              "CONFIRM": "N"
+            }
+          },
+          "expect": {
+            "map": "CORPT0A",
+            "fields": {
+              "TRNNAME": "CR00",
+              "PGMNAME": "CORPT00C"
+            },
+            "cursor": "MONTHLY"
+          }
+        }
+      ]
+    },
+    {
+      "id": "report-submit-confirm-invalid",
+      "title": "Confirm value other than Y/N is quoted back",
+      "provenance": "observed",
+      "source": "app/cbl/CORPT00C.cbl SUBMIT-JOB-TO-INTRDR (WHEN OTHER)",
+      "steps": [
+        {
+          "do": {
+            "transid": "CC00"
+          }
+        },
+        {
+          "do": {
+            "aid": "ENTER",
+            "fields": {
+              "USERID": "USER0001",
+              "PASSWD": "PASSWORD"
+            }
+          }
+        },
+        {
+          "do": {
+            "aid": "ENTER",
+            "fields": {
+              "OPTION": "9"
+            }
+          }
+        },
+        {
+          "do": {
+            "aid": "ENTER",
+            "fields": {
+              "YEARLY": "X",
+              "CONFIRM": "Q"
+            }
+          },
+          "expect": {
+            "map": "CORPT0A",
+            "fields": {
+              "TRNNAME": "CR00",
+              "PGMNAME": "CORPT00C",
+              "YEARLY": "X",
+              "CONFIRM": "Q",
+              "ERRMSG": "\"Q\" is not a valid value to confirm..."
+            },
+            "cursor": "CONFIRM"
+          }
+        }
+      ]
+    },
+    {
+      "id": "report-submit-pf3-menu",
+      "title": "PF3 returns to the main menu",
+      "provenance": "observed",
+      "source": "app/cbl/CORPT00C.cbl MAIN-PARA (DFHPF3)",
+      "steps": [
+        {
+          "do": {
+            "transid": "CC00"
+          }
+        },
+        {
+          "do": {
+            "aid": "ENTER",
+            "fields": {
+              "USERID": "USER0001",
+              "PASSWD": "PASSWORD"
+            }
+          }
+        },
+        {
+          "do": {
+            "aid": "ENTER",
+            "fields": {
+              "OPTION": "9"
+            }
+          }
+        },
+        {
+          "do": {
+            "aid": "PF3"
+          },
+          "expect": {
+            "map": "COMEN1A",
+            "fields": {
+              "TRNNAME": "CM00",
+              "PGMNAME": "COMEN01C",
+              "OPTN001": "01. Account View",
+              "OPTN002": "02. Account Update",
+              "OPTN003": "03. Credit Card List",
+              "OPTN004": "04. Credit Card View",
+              "OPTN005": "05. Credit Card Update",
+              "OPTN006": "06. Transaction List",
+              "OPTN007": "07. Transaction View",
+              "OPTN008": "08. Transaction Add",
+              "OPTN009": "09. Transaction Reports",
+              "OPTN010": "10. Bill Payment",
+              "OPTN011": "11. Pending Authorization View"
+            },
+            "cursor": "OPTION"
+          }
+        }
+      ]
+    },
+    {
+      "id": "report-submit-invalid-key",
+      "title": "Any other key shows the invalid-key message",
+      "provenance": "observed",
+      "source": "app/cbl/CORPT00C.cbl MAIN-PARA (WHEN OTHER)",
+      "steps": [
+        {
+          "do": {
+            "transid": "CC00"
+          }
+        },
+        {
+          "do": {
+            "aid": "ENTER",
+            "fields": {
+              "USERID": "USER0001",
+              "PASSWD": "PASSWORD"
+            }
+          }
+        },
+        {
+          "do": {
+            "aid": "ENTER",
+            "fields": {
+              "OPTION": "9"
+            }
+          }
+        },
+        {
+          "do": {
+            "aid": "PF5"
+          },
+          "expect": {
+            "map": "CORPT0A",
+            "fields": {
+              "TRNNAME": "CR00",
+              "PGMNAME": "CORPT00C",
+              "ERRMSG": "Invalid key pressed. Please see below..."
+            },
+            "cursor": "MONTHLY"
+          }
+        }
+      ]
+    }
+  ]
+}

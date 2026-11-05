@@ -1,0 +1,571 @@
+{
+  "feature": "transaction-view",
+  "kind": "online",
+  "programs": [
+    "COTRN01C"
+  ],
+  "cases": [
+    {
+      "id": "transaction-view-first-display",
+      "title": "Menu option 7 shows an empty view with the cursor on the Tran ID",
+      "provenance": "observed",
+      "source": "app/cbl/COTRN01C.cbl MAIN-PARA (first entry, no selection)",
+      "steps": [
+        {
+          "do": {
+            "transid": "CC00"
+          }
+        },
+        {
+          "do": {
+            "aid": "ENTER",
+            "fields": {
+              "USERID": "USER0001",
+              "PASSWD": "PASSWORD"
+            }
+          }
+        },
+        {
+          "do": {
+            "aid": "ENTER",
+            "fields": {
+              "OPTION": "7"
+            }
+          },
+          "expect": {
+            "map": "COTRN1A",
+            "fields": {
+              "TRNNAME": "CT01",
+              "PGMNAME": "COTRN01C"
+            },
+            "cursor": "TRNIDIN"
+          }
+        }
+      ]
+    },
+    {
+      "id": "transaction-view-blank-id",
+      "title": "ENTER with no Tran ID",
+      "provenance": "observed",
+      "source": "app/cbl/COTRN01C.cbl PROCESS-ENTER-KEY",
+      "steps": [
+        {
+          "do": {
+            "transid": "CC00"
+          }
+        },
+        {
+          "do": {
+            "aid": "ENTER",
+            "fields": {
+              "USERID": "USER0001",
+              "PASSWD": "PASSWORD"
+            }
+          }
+        },
+        {
+          "do": {
+            "aid": "ENTER",
+            "fields": {
+              "OPTION": "7"
+            }
+          }
+        },
+        {
+          "do": {
+            "aid": "ENTER"
+          },
+          "expect": {
+            "map": "COTRN1A",
+            "fields": {
+              "TRNNAME": "CT01",
+              "PGMNAME": "COTRN01C",
+              "ERRMSG": "Tran ID can NOT be empty..."
+            },
+            "cursor": "TRNIDIN"
+          }
+        }
+      ]
+    },
+    {
+      "id": "transaction-view-not-found",
+      "title": "Unknown Tran ID",
+      "provenance": "observed",
+      "source": "app/cbl/COTRN01C.cbl READ-TRANSACT-FILE (NOTFND)",
+      "steps": [
+        {
+          "do": {
+            "transid": "CC00"
+          }
+        },
+        {
+          "do": {
+            "aid": "ENTER",
+            "fields": {
+              "USERID": "USER0001",
+              "PASSWD": "PASSWORD"
+            }
+          }
+        },
+        {
+          "do": {
+            "aid": "ENTER",
+            "fields": {
+              "OPTION": "7"
+            }
+          }
+        },
+        {
+          "do": {
+            "aid": "ENTER",
+            "fields": {
+              "TRNIDIN": "0000000000000001"
+            }
+          },
+          "expect": {
+            "map": "COTRN1A",
+            "fields": {
+              "TRNNAME": "CT01",
+              "PGMNAME": "COTRN01C",
+              "TRNIDIN": "0000000000000001",
+              "ERRMSG": "Transaction ID NOT found..."
+            },
+            "cursor": "TRNIDIN"
+          }
+        }
+      ]
+    },
+    {
+      "id": "transaction-view-found",
+      "title": "A known Tran ID shows every field of the record",
+      "provenance": "observed",
+      "source": "app/cbl/COTRN01C.cbl PROCESS-ENTER-KEY, READ-TRANSACT-FILE",
+      "steps": [
+        {
+          "do": {
+            "transid": "CC00"
+          }
+        },
+        {
+          "do": {
+            "aid": "ENTER",
+            "fields": {
+              "USERID": "USER0001",
+              "PASSWD": "PASSWORD"
+            }
+          }
+        },
+        {
+          "do": {
+            "aid": "ENTER",
+            "fields": {
+              "OPTION": "7"
+            }
+          }
+        },
+        {
+          "do": {
+            "aid": "ENTER",
+            "fields": {
+              "TRNIDIN": "0000000001774260"
+            }
+          },
+          "expect": {
+            "map": "COTRN1A",
+            "fields": {
+              "TRNNAME": "CT01",
+              "PGMNAME": "COTRN01C",
+              "TRNIDIN": "0000000001774260",
+              "TRNID": "0000000001774260",
+              "CARDNUM": "0927987108636232",
+              "TTYPCD": "03",
+              "TCATCD": "0001",
+              "TRNSRC": "OPERATOR",
+              "TDESC": "Return item at Nitzsche, Nicolas and Lowe",
+              "TRNAMT": "-00000919.00",
+              "TORIGDT": "2022-06-10",
+              "MID": "800000000",
+              "MNAME": "Nitzsche, Nicolas and Lowe",
+              "MCITY": "Fidelshire",
+              "MZIP": "53378"
+            },
+            "cursor": "TRNIDIN"
+          }
+        }
+      ]
+    },
+    {
+      "id": "transaction-view-short-id-not-found",
+      "title": "A Tran ID typed without leading zeros is not padded and is not found",
+      "provenance": "observed",
+      "source": "app/cbl/COTRN01C.cbl PROCESS-ENTER-KEY (MOVE TRNIDINI TO TRAN-ID)",
+      "steps": [
+        {
+          "do": {
+            "transid": "CC00"
+          }
+        },
+        {
+          "do": {
+            "aid": "ENTER",
+            "fields": {
+              "USERID": "USER0001",
+              "PASSWD": "PASSWORD"
+            }
+          }
+        },
+        {
+          "do": {
+            "aid": "ENTER",
+            "fields": {
+              "OPTION": "7"
+            }
+          }
+        },
+        {
+          "do": {
+            "aid": "ENTER",
+            "fields": {
+              "TRNIDIN": "1774260"
+            }
+          },
+          "expect": {
+            "map": "COTRN1A",
+            "fields": {
+              "TRNNAME": "CT01",
+              "PGMNAME": "COTRN01C",
+              "TRNIDIN": "1774260",
+              "ERRMSG": "Transaction ID NOT found..."
+            },
+            "cursor": "TRNIDIN"
+          }
+        }
+      ]
+    },
+    {
+      "id": "transaction-view-pf4-clear",
+      "title": "PF4 clears the input and the shown record",
+      "provenance": "observed",
+      "source": "app/cbl/COTRN01C.cbl CLEAR-CURRENT-SCREEN",
+      "steps": [
+        {
+          "do": {
+            "transid": "CC00"
+          }
+        },
+        {
+          "do": {
+            "aid": "ENTER",
+            "fields": {
+              "USERID": "USER0001",
+              "PASSWD": "PASSWORD"
+            }
+          }
+        },
+        {
+          "do": {
+            "aid": "ENTER",
+            "fields": {
+              "OPTION": "7"
+            }
+          }
+        },
+        {
+          "do": {
+            "aid": "ENTER",
+            "fields": {
+              "TRNIDIN": "0000000001774260"
+            }
+          }
+        },
+        {
+          "do": {
+            "aid": "PF4"
+          },
+          "expect": {
+            "map": "COTRN1A",
+            "fields": {
+              "TRNNAME": "CT01",
+              "PGMNAME": "COTRN01C"
+            },
+            "cursor": "TRNIDIN"
+          }
+        }
+      ]
+    },
+    {
+      "id": "transaction-view-pf3-menu",
+      "title": "PF3 from the menu-started view returns to the main menu",
+      "provenance": "observed",
+      "source": "app/cbl/COTRN01C.cbl MAIN-PARA (DFHPF3, CDEMO-FROM-PROGRAM)",
+      "steps": [
+        {
+          "do": {
+            "transid": "CC00"
+          }
+        },
+        {
+          "do": {
+            "aid": "ENTER",
+            "fields": {
+              "USERID": "USER0001",
+              "PASSWD": "PASSWORD"
+            }
+          }
+        },
+        {
+          "do": {
+            "aid": "ENTER",
+            "fields": {
+              "OPTION": "7"
+            }
+          }
+        },
+        {
+          "do": {
+            "aid": "PF3"
+          },
+          "expect": {
+            "map": "COMEN1A",
+            "fields": {
+              "TRNNAME": "CM00",
+              "PGMNAME": "COMEN01C",
+              "OPTN001": "01. Account View",
+              "OPTN002": "02. Account Update",
+              "OPTN003": "03. Credit Card List",
+              "OPTN004": "04. Credit Card View",
+              "OPTN005": "05. Credit Card Update",
+              "OPTN006": "06. Transaction List",
+              "OPTN007": "07. Transaction View",
+              "OPTN008": "08. Transaction Add",
+              "OPTN009": "09. Transaction Reports",
+              "OPTN010": "10. Bill Payment",
+              "OPTN011": "11. Pending Authorization View"
+            },
+            "cursor": "OPTION"
+          }
+        }
+      ]
+    },
+    {
+      "id": "transaction-view-pf5-list",
+      "title": "PF5 goes to the transaction list; legacy quirk: EIBAID is still PF5 after XCTL so COTRN00C skips the first record and page 1 starts at the second",
+      "provenance": "observed",
+      "source": "app/cbl/COTRN01C.cbl MAIN-PARA (DFHPF5); app/cbl/COTRN00C.cbl PROCESS-PAGE-FORWARD (EIBAID NOT = DFHENTER AND DFHPF7 AND DFHPF3)",
+      "steps": [
+        {
+          "do": {
+            "transid": "CC00"
+          }
+        },
+        {
+          "do": {
+            "aid": "ENTER",
+            "fields": {
+              "USERID": "USER0001",
+              "PASSWD": "PASSWORD"
+            }
+          }
+        },
+        {
+          "do": {
+            "aid": "ENTER",
+            "fields": {
+              "OPTION": "7"
+            }
+          }
+        },
+        {
+          "do": {
+            "aid": "PF5"
+          },
+          "expect": {
+            "map": "COTRN0A",
+            "fields": {
+              "TRNNAME": "CT00",
+              "PGMNAME": "COTRN00C",
+              "PAGENUM": "00000001",
+              "TRNID01": "0000000001774260",
+              "TDATE01": "06/10/22",
+              "TDESC01": "Return item at Nitzsche, N",
+              "TAMT001": "-00000919.00",
+              "TRNID02": "0000000006292564",
+              "TDATE02": "06/10/22",
+              "TDESC02": "Purchase at Ernser, Roob a",
+              "TAMT002": "+00000067.88",
+              "TRNID03": "0000000009101861",
+              "TDATE03": "06/10/22",
+              "TDESC03": "Purchase at Guann LLC",
+              "TAMT003": "+00000281.77",
+              "TRNID04": "0000000010142252",
+              "TDATE04": "06/10/22",
+              "TDESC04": "Purchase at Kertzmann-Scho",
+              "TAMT004": "+00000454.66",
+              "TRNID05": "0000000010229018",
+              "TDATE05": "06/10/22",
+              "TDESC05": "Purchase at Gislason-Medhu",
+              "TAMT005": "+00000849.99",
+              "TRNID06": "0000000016259484",
+              "TDATE06": "06/10/22",
+              "TDESC06": "Return item at Sipes Inc",
+              "TAMT006": "-00000056.77",
+              "TRNID07": "0000000017874199",
+              "TDATE07": "06/10/22",
+              "TDESC07": "Purchase at Legros Group",
+              "TAMT007": "+00000373.66",
+              "TRNID08": "0000000019065428",
+              "TDATE08": "06/10/22",
+              "TDESC08": "Return item at Turcotte Gr",
+              "TAMT008": "-00000535.88",
+              "TRNID09": "0000000021711604",
+              "TDATE09": "06/10/22",
+              "TDESC09": "Purchase at Gleason, Shana",
+              "TAMT009": "+00000416.11",
+              "TRNID10": "0000000025430891",
+              "TDATE10": "06/10/22",
+              "TDESC10": "Purchase at Beatty-Hessel",
+              "TAMT010": "+00000094.33"
+            },
+            "cursor": "TRNIDIN"
+          }
+        }
+      ]
+    },
+    {
+      "id": "transaction-view-invalid-key",
+      "title": "Any other key shows the invalid-key message",
+      "provenance": "observed",
+      "source": "app/cbl/COTRN01C.cbl MAIN-PARA (WHEN OTHER)",
+      "steps": [
+        {
+          "do": {
+            "transid": "CC00"
+          }
+        },
+        {
+          "do": {
+            "aid": "ENTER",
+            "fields": {
+              "USERID": "USER0001",
+              "PASSWD": "PASSWORD"
+            }
+          }
+        },
+        {
+          "do": {
+            "aid": "ENTER",
+            "fields": {
+              "OPTION": "7"
+            }
+          }
+        },
+        {
+          "do": {
+            "aid": "PF7"
+          },
+          "expect": {
+            "map": "COTRN1A",
+            "fields": {
+              "TRNNAME": "CT01",
+              "PGMNAME": "COTRN01C",
+              "ERRMSG": "Invalid key pressed. Please see below..."
+            },
+            "cursor": "TRNIDIN"
+          }
+        }
+      ]
+    },
+    {
+      "id": "transaction-view-from-list-pf3-back",
+      "title": "Opened from the list with S; PF3 returns to the list (from-program), page 1",
+      "provenance": "observed",
+      "source": "app/cbl/COTRN01C.cbl MAIN-PARA (DFHPF3 to CDEMO-FROM-PROGRAM)",
+      "steps": [
+        {
+          "do": {
+            "transid": "CC00"
+          }
+        },
+        {
+          "do": {
+            "aid": "ENTER",
+            "fields": {
+              "USERID": "USER0001",
+              "PASSWD": "PASSWORD"
+            }
+          }
+        },
+        {
+          "do": {
+            "aid": "ENTER",
+            "fields": {
+              "OPTION": "6"
+            }
+          }
+        },
+        {
+          "do": {
+            "aid": "ENTER",
+            "fields": {
+              "SEL0002": "S"
+            }
+          }
+        },
+        {
+          "do": {
+            "aid": "PF3"
+          },
+          "expect": {
+            "map": "COTRN0A",
+            "fields": {
+              "TRNNAME": "CT00",
+              "PGMNAME": "COTRN00C",
+              "PAGENUM": "00000001",
+              "TRNID01": "0000000000683580",
+              "TDATE01": "06/10/22",
+              "TDESC01": "Purchase at Abshire-Lowe",
+              "TAMT001": "+00000504.77",
+              "TRNID02": "0000000001774260",
+              "TDATE02": "06/10/22",
+              "TDESC02": "Return item at Nitzsche, N",
+              "TAMT002": "-00000919.00",
+              "TRNID03": "0000000006292564",
+              "TDATE03": "06/10/22",
+              "TDESC03": "Purchase at Ernser, Roob a",
+              "TAMT003": "+00000067.88",
+              "TRNID04": "0000000009101861",
+              "TDATE04": "06/10/22",
+              "TDESC04": "Purchase at Guann LLC",
+              "TAMT004": "+00000281.77",
+              "TRNID05": "0000000010142252",
+              "TDATE05": "06/10/22",
+              "TDESC05": "Purchase at Kertzmann-Scho",
+              "TAMT005": "+00000454.66",
+              "TRNID06": "0000000010229018",
+              "TDATE06": "06/10/22",
+              "TDESC06": "Purchase at Gislason-Medhu",
+              "TAMT006": "+00000849.99",
+              "TRNID07": "0000000016259484",
+              "TDATE07": "06/10/22",
+              "TDESC07": "Return item at Sipes Inc",
+              "TAMT007": "-00000056.77",
+              "TRNID08": "0000000017874199",
+              "TDATE08": "06/10/22",
+              "TDESC08": "Purchase at Legros Group",
+              "TAMT008": "+00000373.66",
+              "TRNID09": "0000000019065428",
+              "TDATE09": "06/10/22",
+              "TDESC09": "Return item at Turcotte Gr",
+              "TAMT009": "-00000535.88",
+              "TRNID10": "0000000021711604",
+              "TDATE10": "06/10/22",
+              "TDESC10": "Purchase at Gleason, Shana",
+              "TAMT010": "+00000416.11"
+            },
+            "cursor": "TRNIDIN"
+          }
+        }
+      ]
+    }
+  ]
+}
