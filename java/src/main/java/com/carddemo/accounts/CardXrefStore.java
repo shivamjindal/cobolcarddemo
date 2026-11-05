@@ -6,7 +6,7 @@ import java.sql.SQLException;
 import org.springframework.jdbc.core.simple.JdbcClient;
 import org.springframework.stereotype.Component;
 
-/** CCXREF, table {@code card_xref}, read through its alternate index CXACAIX on the account id. */
+/** CCXREF, table {@code card_xref}, read by card number or through its alternate index CXACAIX on the account id. */
 @Component
 public final class CardXrefStore {
 
@@ -15,6 +15,11 @@ public final class CardXrefStore {
     public CardXrefStore(JdbcClient jdbc) {
         this.file = new KeyedFile<>(jdbc, "CCXREF", "card_xref", "xref_card_num, xref_cust_id, xref_acct_id",
                 "xref_card_num", CardXrefStore::row);
+    }
+
+    /** {@code READ DATASET(CCXREF) RIDFLD(cardNum)}, the card number without trailing blanks. */
+    public Read<XrefRecord> find(String cardNum) {
+        return file.read(cardNum);
     }
 
     /** {@code READ DATASET(CXACAIX) RIDFLD(acctId)}. */
