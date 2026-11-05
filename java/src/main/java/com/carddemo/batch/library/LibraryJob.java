@@ -7,10 +7,17 @@ import static com.carddemo.batch.jcl.StepDef.program;
 import java.util.Arrays;
 import java.util.Optional;
 
+import com.carddemo.batch.jcl.Dcb;
+import com.carddemo.batch.jcl.Dd;
+import com.carddemo.batch.jcl.DdSource;
+import com.carddemo.batch.jcl.Disposition;
+import com.carddemo.batch.jcl.DsnRef;
 import com.carddemo.batch.jcl.JobDef;
+import com.carddemo.batch.programs.Cbact01c;
 import com.carddemo.batch.programs.Cbact02c;
 import com.carddemo.batch.programs.Cbact03c;
 import com.carddemo.batch.programs.Cbcus01c;
+import com.carddemo.batch.programs.Iefbr14;
 
 /** The members of {@code app/jcl} that run here, as typed JCL. STEPLIB is left out: programs come from the program library. */
 public enum LibraryJob {
@@ -19,7 +26,18 @@ public enum LibraryJob {
     READXREF(JobDef.of("READXREF", program("STEP05", Cbact03c.NAME,
             shr("XREFFILE", "AWS.M2.CARDDEMO.CARDXREF.VSAM.KSDS"), sysout("SYSOUT"), sysout("SYSPRINT")))),
     READCUST(JobDef.of("READCUST", program("STEP05", Cbcus01c.NAME,
-            shr("CUSTFILE", "AWS.M2.CARDDEMO.CUSTDATA.VSAM.KSDS"), sysout("SYSOUT"), sysout("SYSPRINT"))));
+            shr("CUSTFILE", "AWS.M2.CARDDEMO.CUSTDATA.VSAM.KSDS"), sysout("SYSOUT"), sysout("SYSPRINT")))),
+    READACCT(JobDef.of("READACCT",
+            program("PREDEL", Iefbr14.NAME,
+                    modDelete("DD01", "AWS.M2.CARDDEMO.ACCTDATA.PSCOMP"),
+                    modDelete("DD02", "AWS.M2.CARDDEMO.ACCTDATA.ARRYPS"),
+                    modDelete("DD03", "AWS.M2.CARDDEMO.ACCTDATA.VBPS")),
+            program("STEP05", Cbact01c.NAME,
+                    shr("ACCTFILE", "AWS.M2.CARDDEMO.ACCTDATA.VSAM.KSDS"),
+                    created("OUTFILE", "AWS.M2.CARDDEMO.ACCTDATA.PSCOMP", new Dcb(Dcb.Recfm.F, 107)),
+                    created("ARRYFILE", "AWS.M2.CARDDEMO.ACCTDATA.ARRYPS", new Dcb(Dcb.Recfm.F, 110)),
+                    created("VBRCFILE", "AWS.M2.CARDDEMO.ACCTDATA.VBPS", new Dcb(Dcb.Recfm.V, 84)),
+                    sysout("SYSOUT"), sysout("SYSPRINT"))));
 
     private final JobDef job;
 
@@ -33,5 +51,19 @@ public enum LibraryJob {
 
     public static Optional<LibraryJob> byName(String name) {
         return Arrays.stream(values()).filter(j -> j.name().equals(name)).findFirst();
+    }
+
+    private static Dd modDelete(String name, String dsn) {
+        return dataset(name, dsn, Disposition.of(Disposition.Status.MOD, Disposition.End.DELETE, Disposition.End.DELETE),
+                Optional.empty());
+    }
+
+    private static Dd created(String name, String dsn, Dcb dcb) {
+        return dataset(name, dsn, Disposition.of(Disposition.Status.NEW, Disposition.End.CATLG, Disposition.End.DELETE),
+                Optional.of(dcb));
+    }
+
+    private static Dd dataset(String name, String dsn, Disposition disposition, Optional<Dcb> dcb) {
+        return Dd.of(name, new DdSource.Dataset(new DsnRef.Named(dsn), disposition, dcb));
     }
 }
