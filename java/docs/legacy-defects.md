@@ -4,6 +4,105 @@ The Java port reproduces these CardDemo defects so that it behaves as the COBOL 
 
 `LegacyDefectRegisterTest` writes this file from the `@LegacyDefect` annotations during `mvn verify`. Edit the annotations, not this file.
 
+## `CBACT01C-reissue-keeps-null-padding`
+
+COBDATFT writes eight bytes of YYYYMMDD into a twenty-byte area that starts as low-values, and the MOVE into OUT-ACCT-REISSUE-DATE keeps the two nulls after them.
+
+- Lives in [`Cbact01c.reissueDate`](../src/main/java/com/carddemo/batch/programs/Cbact01c.java).
+- Comes from the program logic.
+- Pinned by `acct-extract-two-accounts`.
+- Fix: space-fill OUT-ACCT-REISSUE-DATE and move only the eight converted characters.
+
+## `CBACT01C-zero-cycle-debit-becomes-2525`
+
+1300-POPUL-ACCT-RECORD moves 2525.00 into the packed cycle debit only when the account debit is zero, so a later non-zero debit keeps the previous record's value.
+
+- Lives in [`Cbact01c.carryCycleDebit`](../src/main/java/com/carddemo/batch/programs/Cbact01c.java).
+- Comes from the program logic.
+- Pinned by `acct-extract-two-accounts`.
+- Fix: move ACCT-CURR-CYC-DEBIT into OUT-ACCT-CURR-CYC-DEBIT on every account.
+
+## `CBACT03C-displays-each-record-twice`
+
+1000-XREFFILE-GET-NEXT DISPLAYs each cross-reference record it reads and the main loop DISPLAYs it again, so SYSOUT lists every record twice.
+
+- Lives in [`Cbact03c.displayAsRead`](../src/main/java/com/carddemo/batch/programs/Cbact03c.java).
+- Comes from the program logic.
+- Pinned by `xref-list-full-seed`.
+- Fix: drop the DISPLAY in 1000-XREFFILE-GET-NEXT, as CBACT02C comments out its own.
+
+## `CBACT04C-skips-last-account`
+
+PERFORM UNTIL tests END-OF-FILE before the body, so the ELSE that rewrites the last account is dead. That account's interest is written and its balance and cycle totals are left as they were.
+
+- Lives in [`Cbact04c.charge`](../src/main/java/com/carddemo/batch/programs/Cbact04c.java).
+- Comes from the program logic.
+- Pinned by `interest-default-group`, `interest-group-rate-truncates`, `interest-negative-balance`, `interest-zero-rate-no-transaction`, `interest-unknown-group-uses-default`, `interest-two-accounts`.
+- Fix: rewrite the last account after the category file is exhausted.
+
+## `CBCUS01C-displays-each-record-twice`
+
+1000-CUSTFILE-GET-NEXT DISPLAYs each customer record it reads and the main loop DISPLAYs it again, so SYSOUT lists every record twice.
+
+- Lives in [`Cbcus01c.displayAsRead`](../src/main/java/com/carddemo/batch/programs/Cbcus01c.java).
+- Comes from the program logic.
+- Pinned by `customer-list-full-seed`.
+- Fix: drop the DISPLAY in 1000-CUSTFILE-GET-NEXT, as CBACT02C comments out its own.
+
+## `CBSTM03A-city-cut-at-first-space`
+
+The address line STRINGs city, state, country and zip DELIMITED BY one space, so a city with an embedded space such as West Bernita is printed as its first word.
+
+- Lives in [`Cbstm03a.firstWord`](../src/main/java/com/carddemo/batch/programs/Cbstm03a.java).
+- Comes from the program logic.
+- Pinned by `statement-two-accounts`.
+- Fix: move the city, state, country and zip fields whole, the way address lines 1 and 2 are moved.
+
+## `CBSTM03A-eleventh-transaction-overlaps`
+
+The transaction table holds ten rows per card and does not check the subscript. The eleventh row is written into the next card's slot, and storing that card overwrites it, so the statement prints the next card number as the transaction id, a shifted description and a zero amount, and the total leaves out the real eleventh amount.
+
+- Lives in [`Cbstm03a.TransactionTable.store`](../src/main/java/com/carddemo/batch/programs/Cbstm03a.java).
+- Comes from the program logic.
+- No golden pins it yet. It is read from the source.
+- Fix: keep every transaction for the card.
+
+## `CBTRN02C-expired-overwrites-overlimit`
+
+The expiration check is not an ELSE of the limit check, so a transaction that is both over the credit limit and past the account expiration date is rejected as 103 instead of 102.
+
+- Lives in [`Cbtrn02c.rejectIfExpired`](../src/main/java/com/carddemo/batch/programs/Cbtrn02c.java).
+- Comes from the program logic.
+- Pinned by `posting-overlimit-and-expired-reports-103`.
+- Fix: keep 102 when the limit already failed.
+
+## `CBTRN03C-drops-last-account-total`
+
+1120-WRITE-ACCOUNT-TOTALS runs only when the card changes, so the last card's account total is never written.
+
+- Lives in [`Cbtrn03c.endOfFile`](../src/main/java/com/carddemo/batch/programs/Cbtrn03c.java).
+- Comes from the program logic.
+- Pinned by `tranrept-two-cards`.
+- Fix: write the account total for the current card before the page and grand totals at end of file.
+
+## `CBTRN03C-eof-adds-stale-amount`
+
+At end of file TRAN-RECORD still holds the last transaction, and that amount is added to the page and account totals a second time.
+
+- Lives in [`Cbtrn03c.addStaleAmount`](../src/main/java/com/carddemo/batch/programs/Cbtrn03c.java).
+- Comes from the program logic.
+- Pinned by `tranrept-two-cards`.
+- Fix: do not add TRAN-AMT on the end-of-file branch.
+
+## `CBTRN03C-next-sentence-ends-run`
+
+NEXT SENTENCE on a process date outside DATEPARM leaves the PERFORM, so the run ends RC=0 without reading later records or writing totals.
+
+- Lives in [`Cbtrn03c.stopAtOutOfRangeDate`](../src/main/java/com/carddemo/batch/programs/Cbtrn03c.java).
+- Comes from the program logic.
+- Pinned by `tranrept-out-of-range-stops-run`.
+- Fix: skip that record and keep reading.
+
 ## `COACTUPC-any-other-key-is-enter`
 
 A key 0000-MAIN does not accept at this point, such as PF12 before an account is fetched or PF5 with no change waiting for confirmation, is taken as ENTER and processes the screen.

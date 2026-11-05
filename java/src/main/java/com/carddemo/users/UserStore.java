@@ -9,6 +9,8 @@ import org.springframework.dao.DataAccessException;
 import org.springframework.jdbc.core.simple.JdbcClient;
 import org.springframework.stereotype.Component;
 
+import com.carddemo.cics.CicsFile;
+import com.carddemo.cics.CicsRegion;
 import com.carddemo.ksds.KeyedBrowse;
 
 /**
@@ -23,13 +25,15 @@ public final class UserStore {
 
     private static final String COLUMNS = "sec_usr_id, sec_usr_fname, sec_usr_lname, sec_usr_pwd, sec_usr_type";
 
-    private static final KeyedBrowse.Table<UserRecord> TABLE =
-            new KeyedBrowse.Table<>("users", "sec_usr_id", COLUMNS, UserStore::row, u -> u.id().value());
+    private static final KeyedBrowse.Table<UserRecord> TABLE = new KeyedBrowse.Table<>(CicsFile.USRSEC, "users",
+            "sec_usr_id", COLUMNS, UserStore::row, u -> u.id().value());
 
     private final JdbcClient jdbc;
+    private final CicsRegion region;
 
-    public UserStore(JdbcClient jdbc) {
+    public UserStore(JdbcClient jdbc, CicsRegion region) {
         this.jdbc = jdbc;
+        this.region = region;
     }
 
     public sealed interface Lookup permits Found, Missing, Failed {}
@@ -57,7 +61,7 @@ public final class UserStore {
     /** NOTFND. */
     public record Missing() implements Lookup, ForUpdate {}
 
-    /** Any other RESP. */
+    /** Any other RESP, NOTOPEN among them. */
     public record Failed() implements Lookup, ForUpdate {}
 
     /** RESP of a REWRITE or DELETE of a held record. */
@@ -69,6 +73,9 @@ public final class UserStore {
     /** {@code EXEC CICS READ DATASET(USRSEC) RIDFLD(id)}. */
     public Lookup find(UserId id) {
         try {
+            if (!region.isOpen(CicsFile.USRSEC)) {
+                return new Failed();
+            }
             return jdbc.sql("select " + COLUMNS + " from users where sec_usr_id = ?")
                     .param(id.value())
                     .query(UserStore::row)
@@ -84,6 +91,9 @@ public final class UserStore {
     /** {@code EXEC CICS READ DATASET(USRSEC) RIDFLD(id) UPDATE}. */
     public ForUpdate findForUpdate(UserId id) {
         try {
+            if (!region.isOpen(CicsFile.USRSEC)) {
+                return new Failed();
+            }
             return jdbc.sql("select " + COLUMNS + " from users where sec_usr_id = ? for update")
                     .param(id.value())
                     .query(UserStore::row)
@@ -127,6 +137,9 @@ public final class UserStore {
     /** {@code EXEC CICS WRITE DATASET(USRSEC) RIDFLD(id)}. A new record's FILLER is spaces. */
     public Insert insert(UserRecord user) {
         try {
+            if (!region.isOpen(CicsFile.USRSEC)) {
+                return Insert.FAILED;
+            }
             int rows = jdbc.sql("insert into users (" + COLUMNS + ", sec_usr_filler) values (?, ?, ?, ?, ?, '')"
                             + " on conflict (sec_usr_id) do nothing")
                     .params(user.id().value(), user.firstName(), user.lastName(), user.password(), user.type().toString())
@@ -140,7 +153,7 @@ public final class UserStore {
 
     /** A browse for {@code STARTBR DATASET(USRSEC)}. */
     public KeyedBrowse<UserRecord> browse() {
-        return new KeyedBrowse<>(jdbc, TABLE);
+        return new KeyedBrowse<>(jdbc, region, TABLE);
     }
 
     private static Write locked(int rows, Held held) {
