@@ -2,9 +2,13 @@ package com.carddemo.operator;
 
 import static java.nio.charset.StandardCharsets.ISO_8859_1;
 
+import java.io.IOException;
+import java.nio.file.Files;
+import java.nio.file.Path;
 import java.time.Clock;
 import java.time.LocalDate;
 import java.time.format.DateTimeParseException;
+import java.util.ArrayList;
 import java.util.List;
 import java.util.Optional;
 import java.util.regex.Matcher;
@@ -18,6 +22,7 @@ import com.carddemo.batch.chains.Chain;
 import com.carddemo.batch.chains.ChainRun;
 import com.carddemo.batch.chains.ChainRunner;
 import com.carddemo.batch.chains.Chains;
+import com.carddemo.batch.jcl.Dcb;
 import com.carddemo.batch.runtime.Completion;
 import com.carddemo.batch.runtime.DatasetStore;
 import com.carddemo.batch.runtime.Spool;
@@ -35,7 +40,8 @@ public final class Operator {
 
     private static final Pattern GENERATION = Pattern.compile("(.+)\\(([+-]?\\d+)\\)");
     private static final String USAGE = "usage: output <submissionId> | print <dsn> | cemt open|close <file>"
-            + " | start <chain> [orderDate] | restart <chain> <orderDate> | abandon <chain> <orderDate> | chains";
+            + " | start <chain> [orderDate] | restart <chain> <orderDate> | abandon <chain> <orderDate> | chains"
+            + " | receive <dsn> <lrecl> <file>";
 
     private final JobQueue queue;
     private final DatasetStore datasets;
@@ -72,6 +78,7 @@ public final class Operator {
             case "restart" -> chain(args.subList(1, args.size()), true, false);
             case "abandon" -> chain(args.subList(1, args.size()), false, false);
             case "chains" -> list(args.subList(1, args.size()));
+            case "receive" -> receive(args.subList(1, args.size()));
             default -> {
                 System.err.println("unknown command " + args.getFirst());
                 yield 8;
@@ -98,6 +105,34 @@ public final class Operator {
             region.open(file);
         }
         System.out.println(file.name() + (close ? " CLOSED" : " OPEN"));
+        return 0;
+    }
+
+    /** Catalogs a fixed-length feed drop, one record per line, the way the external transfer lands DALYTRAN.PS. */
+    private int receive(List<String> args) {
+        if (args.size() != 3 || !args.get(1).matches("\\d{1,5}")) {
+            System.err.println("usage: receive <dsn> <lrecl> <file>");
+            return 8;
+        }
+        int lrecl = Integer.parseInt(args.get(1));
+        List<String> lines;
+        try {
+            lines = Files.readAllLines(Path.of(args.get(2)), ISO_8859_1);
+        } catch (IOException e) {
+            System.err.println("cannot read " + args.get(2) + ": " + e.getMessage());
+            return 8;
+        }
+        List<byte[]> records = new ArrayList<>();
+        for (String line : lines) {
+            if (line.length() > lrecl) {
+                System.err.println("record " + (records.size() + 1) + " is longer than " + lrecl);
+                return 8;
+            }
+            records.add((line + " ".repeat(lrecl - line.length())).getBytes(ISO_8859_1));
+        }
+        datasets.deleteCataloged(args.getFirst());
+        datasets.stage(args.getFirst(), new Dcb(Dcb.Recfm.F, lrecl), Optional.empty(), records);
+        System.out.println(args.getFirst() + " " + records.size() + " RECORDS");
         return 0;
     }
 

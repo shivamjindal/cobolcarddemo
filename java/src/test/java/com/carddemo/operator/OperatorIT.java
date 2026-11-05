@@ -4,6 +4,8 @@ import static java.nio.charset.StandardCharsets.ISO_8859_1;
 
 import java.io.ByteArrayOutputStream;
 import java.io.PrintStream;
+import java.nio.file.Files;
+import java.nio.file.Path;
 import java.time.LocalDate;
 import java.time.LocalDateTime;
 import java.util.List;
@@ -107,6 +109,18 @@ class OperatorIT {
                 operator.execute(List.of("print", Gdg.TRANREPT.base() + "(0)"))));
         assertTrue(newest.contains("OPERATOR-LINE"), newest);
         assertEquals(4, operator.execute(List.of("print", "TEST.OPERATOR.MISSING")));
+    }
+
+    @Test
+    void receiveCatalogsAFeedDropPaddedToTheRecordLength() throws Exception {
+        Path feed = Files.createTempFile("dalytran", ".txt");
+        Files.writeString(feed, "FIRST\nSECOND RECORD\n", ISO_8859_1);
+        assertEquals(0, operator.execute(List.of("receive", "TEST.OPERATOR.FEED", "20", feed.toString())));
+        assertEquals(List.of("FIRST               ", "SECOND RECORD       "), datasets.read("TEST.OPERATOR.FEED")
+                .orElseThrow().stream().map(r -> new String(r, ISO_8859_1)).toList());
+        assertEquals(0, operator.execute(List.of("receive", "TEST.OPERATOR.FEED", "20", feed.toString())));
+        assertEquals(2, datasets.read("TEST.OPERATOR.FEED").orElseThrow().size());
+        assertEquals(8, operator.execute(List.of("receive", "TEST.OPERATOR.FEED", "3", feed.toString())));
     }
 
     @Test
