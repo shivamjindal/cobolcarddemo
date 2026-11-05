@@ -8,14 +8,17 @@ import java.util.Arrays;
 import java.util.Optional;
 
 import com.carddemo.batch.jcl.JobDef;
+import com.carddemo.batch.programs.Cbact02c;
+import com.carddemo.batch.programs.Cbact03c;
+import com.carddemo.batch.programs.Cbcus01c;
 
 /** The members of {@code app/jcl} that run here, as typed JCL. STEPLIB is left out: programs come from the program library. */
 public enum LibraryJob {
-    READCARD(JobDef.of("READCARD", program("STEP05", "CBACT02C",
+    READCARD(JobDef.of("READCARD", program("STEP05", Cbact02c.NAME,
             shr("CARDFILE", "AWS.M2.CARDDEMO.CARDDATA.VSAM.KSDS"), sysout("SYSOUT"), sysout("SYSPRINT")))),
-    READXREF(JobDef.of("READXREF", program("STEP05", "CBACT03C",
+    READXREF(JobDef.of("READXREF", program("STEP05", Cbact03c.NAME,
             shr("XREFFILE", "AWS.M2.CARDDEMO.CARDXREF.VSAM.KSDS"), sysout("SYSOUT"), sysout("SYSPRINT")))),
-    READCUST(JobDef.of("READCUST", program("STEP05", "CBCUS01C",
+    READCUST(JobDef.of("READCUST", program("STEP05", Cbcus01c.NAME,
             shr("CUSTFILE", "AWS.M2.CARDDEMO.CUSTDATA.VSAM.KSDS"), sysout("SYSOUT"), sysout("SYSPRINT"))));
 
     private final JobDef job;

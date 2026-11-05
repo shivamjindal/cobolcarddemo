@@ -4,6 +4,24 @@ The Java port reproduces these CardDemo defects so that it behaves as the COBOL 
 
 `LegacyDefectRegisterTest` writes this file from the `@LegacyDefect` annotations during `mvn verify`. Edit the annotations, not this file.
 
+## `CBACT03C-displays-each-record-twice`
+
+1000-XREFFILE-GET-NEXT DISPLAYs each cross-reference record it reads and the main loop DISPLAYs it again, so SYSOUT lists every record twice.
+
+- Lives in [`Cbact03c.displayAsRead`](../src/main/java/com/carddemo/batch/programs/Cbact03c.java).
+- Comes from the program logic.
+- Pinned by `xref-list-full-seed`.
+- Fix: drop the DISPLAY in 1000-XREFFILE-GET-NEXT, as CBACT02C comments out its own.
+
+## `CBCUS01C-displays-each-record-twice`
+
+1000-CUSTFILE-GET-NEXT DISPLAYs each customer record it reads and the main loop DISPLAYs it again, so SYSOUT lists every record twice.
+
+- Lives in [`Cbcus01c.displayAsRead`](../src/main/java/com/carddemo/batch/programs/Cbcus01c.java).
+- Comes from the program logic.
+- Pinned by `customer-list-full-seed`.
+- Fix: drop the DISPLAY in 1000-CUSTFILE-GET-NEXT, as CBACT02C comments out its own.
+
 ## `COACTUPC-any-other-key-is-enter`
 
 A key 0000-MAIN does not accept at this point, such as PF12 before an account is fetched or PF5 with no change waiting for confirmation, is taken as ENTER and processes the screen.
