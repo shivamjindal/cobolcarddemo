@@ -164,6 +164,7 @@ public final class CardListScreen extends Screen<CCRDLIA, CardListScreen.Action,
         private int selected = -1;
         private boolean inputError;
         private boolean protectSelections;
+        private boolean endbrWithoutBrowse;
         private String error = "";
 
         Task(State state) {
@@ -324,7 +325,7 @@ public final class CardListScreen extends Screen<CCRDLIA, CardListScreen.Action,
             } else {
                 fileError();
             }
-            browse.end();
+            close(browse);
         }
 
         private void readBackward(String startCard) {
@@ -336,14 +337,14 @@ public final class CardListScreen extends Screen<CCRDLIA, CardListScreen.Action,
             int counter = PAGE_SIZE + 1;
             if (browse.start(startOf(startCard)) != KeyedBrowse.Start.NORMAL) {
                 fileError();
-                browse.end();
+                close(browse);
                 return;
             }
             switch (browse.previous()) {
                 case KeyedBrowse.Read.Normal<CardRecord> normal -> counter = PAGE_SIZE;
                 default -> {
                     fileError();
-                    browse.end();
+                    close(browse);
                     return;
                 }
             }
@@ -367,7 +368,17 @@ public final class CardListScreen extends Screen<CCRDLIA, CardListScreen.Action,
                     }
                 }
             }
-            browse.end();
+            close(browse);
+        }
+
+        @LegacyDefect(id = "COCRDLIC-endbr-without-browse",
+                behavior = "a STARTBR that does not start a browse still runs ENDBR with no RESP, so the task abends "
+                        + "AEIP and the file-error message is never sent",
+                fix = "run ENDBR only after a successful STARTBR and show the file-error message")
+        private void close(KeyedBrowse<?> browse) {
+            if (!browse.end()) {
+                endbrWithoutBrowse = true;
+            }
         }
 
         @LegacyDefect(id = "COCRDLIC-no-user-filter",
@@ -424,6 +435,9 @@ public final class CardListScreen extends Screen<CCRDLIA, CardListScreen.Action,
         }
 
         Outcome paint(Key aid) {
+            if (endbrWithoutBrowse) {
+                return abend("AEIP");
+            }
             SymbolicMap<CCRDLIA> map = SymbolicMap.lowValues(CCRDLIA.MAP);
             map.set(PAGENO, Integer.toString(page));
             for (int i = 0; i < PAGE_SIZE; i++) {

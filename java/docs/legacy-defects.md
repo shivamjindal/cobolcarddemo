@@ -13,6 +13,15 @@ A non-numeric filter skips the browse, so the previous page stays on screen and 
 - Pinned by `card-list-account-not-numeric`, `card-list-card-not-numeric`.
 - Fix: drop the typed filter and leave the selection fields unprotected.
 
+## `COCRDLIC-endbr-without-browse`
+
+A STARTBR that does not start a browse still runs ENDBR with no RESP, so the task abends AEIP and the file-error message is never sent.
+
+- Lives in [`CardListScreen.Task.close`](../src/main/java/com/carddemo/card/CardListScreen.java).
+- Comes from the program logic.
+- No golden pins it yet. It is read from the source.
+- Fix: run ENDBR only after a successful STARTBR and show the file-error message.
+
 ## `COCRDLIC-invalid-key-acts-as-enter`
 
 A key other than ENTER, PF3, PF7 or PF8 is forced to ENTER and the typed filter is applied.
