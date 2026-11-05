@@ -1,0 +1,910 @@
+{
+  "feature": "card-detail",
+  "kind": "online",
+  "programs": [
+    "COCRDSLC"
+  ],
+  "cases": [
+    {
+      "id": "card-detail-initial-display",
+      "title": "Menu option 4 shows an empty search screen with 'Please enter Account and Card Number' and the cursor on the account field",
+      "provenance": "observed",
+      "source": "app/cbl/COCRDSLC.cbl 0000-MAIN (WHEN CDEMO-PGM-ENTER), 1200-SETUP-SCREEN-VARS, 1300-SETUP-SCREEN-ATTRS",
+      "steps": [
+        {
+          "do": {
+            "transid": "CC00"
+          }
+        },
+        {
+          "do": {
+            "aid": "ENTER",
+            "fields": {
+              "USERID": "USER0001",
+              "PASSWD": "PASSWORD"
+            }
+          }
+        },
+        {
+          "do": {
+            "aid": "ENTER",
+            "fields": {
+              "OPTION": "4"
+            }
+          },
+          "expect": {
+            "map": "CCRDSLA",
+            "fields": {
+              "TRNNAME": "CCDL",
+              "PGMNAME": "COCRDSLC",
+              "INFOMSG": "Please enter Account and Card Number",
+              "FKEYS": "ENTER=Search Cards  F3=Exit"
+            },
+            "cursor": "ACCTSID"
+          }
+        }
+      ]
+    },
+    {
+      "id": "card-detail-found",
+      "title": "Account 1 with its card shows embossed name, status and expiry month/year with '   Displaying requested details' (leading blanks kept)",
+      "provenance": "observed",
+      "source": "app/cbl/COCRDSLC.cbl 9100-GETCARD-BYACCTCARD (NORMAL), 1200-SETUP-SCREEN-VARS",
+      "steps": [
+        {
+          "do": {
+            "transid": "CC00"
+          }
+        },
+        {
+          "do": {
+            "aid": "ENTER",
+            "fields": {
+              "USERID": "USER0001",
+              "PASSWD": "PASSWORD"
+            }
+          }
+        },
+        {
+          "do": {
+            "aid": "ENTER",
+            "fields": {
+              "OPTION": "4"
+            }
+          }
+        },
+        {
+          "do": {
+            "aid": "ENTER",
+            "fields": {
+              "ACCTSID": "00000000001",
+              "CARDSID": "9680294154603697"
+            }
+          },
+          "expect": {
+            "map": "CCRDSLA",
+            "fields": {
+              "TRNNAME": "CCDL",
+              "PGMNAME": "COCRDSLC",
+              "ACCTSID": "00000000001",
+              "CARDSID": "9680294154603697",
+              "CRDNAME": "Immanuel Kessler",
+              "CRDSTCD": "Y",
+              "EXPMON": "05",
+              "EXPYEAR": "2025",
+              "INFOMSG": "   Displaying requested details",
+              "FKEYS": "ENTER=Search Cards  F3=Exit"
+            },
+            "cursor": "ACCTSID"
+          }
+        }
+      ]
+    },
+    {
+      "id": "card-detail-account-not-checked",
+      "title": "The card is read by card number only, so account 1 with account 50's card shows that card's details under account 1 (legacy quirk, no account/card cross-check)",
+      "provenance": "observed",
+      "source": "app/cbl/COCRDSLC.cbl 9100-GETCARD-BYACCTCARD (account key commented out)",
+      "steps": [
+        {
+          "do": {
+            "transid": "CC00"
+          }
+        },
+        {
+          "do": {
+            "aid": "ENTER",
+            "fields": {
+              "USERID": "USER0001",
+              "PASSWD": "PASSWORD"
+            }
+          }
+        },
+        {
+          "do": {
+            "aid": "ENTER",
+            "fields": {
+              "OPTION": "4"
+            }
+          }
+        },
+        {
+          "do": {
+            "aid": "ENTER",
+            "fields": {
+              "ACCTSID": "00000000001",
+              "CARDSID": "0500024453765740"
+            }
+          },
+          "expect": {
+            "map": "CCRDSLA",
+            "fields": {
+              "TRNNAME": "CCDL",
+              "PGMNAME": "COCRDSLC",
+              "ACCTSID": "00000000001",
+              "CARDSID": "0500024453765740",
+              "CRDNAME": "Aniya Von",
+              "CRDSTCD": "Y",
+              "EXPMON": "03",
+              "EXPYEAR": "2023",
+              "INFOMSG": "   Displaying requested details",
+              "FKEYS": "ENTER=Search Cards  F3=Exit"
+            },
+            "cursor": "ACCTSID"
+          }
+        }
+      ]
+    },
+    {
+      "id": "card-detail-both-blank",
+      "title": "ENTER with both fields blank shows 'No input received', overwriting 'Account number not provided', with red '*' in both fields (legacy quirk)",
+      "provenance": "observed",
+      "source": "app/cbl/COCRDSLC.cbl 2200-EDIT-MAP-INPUTS (cross-field edit), 2210-EDIT-ACCOUNT, 1300-SETUP-SCREEN-ATTRS",
+      "steps": [
+        {
+          "do": {
+            "transid": "CC00"
+          }
+        },
+        {
+          "do": {
+            "aid": "ENTER",
+            "fields": {
+              "USERID": "USER0001",
+              "PASSWD": "PASSWORD"
+            }
+          }
+        },
+        {
+          "do": {
+            "aid": "ENTER",
+            "fields": {
+              "OPTION": "4"
+            }
+          }
+        },
+        {
+          "do": {
+            "aid": "ENTER"
+          },
+          "expect": {
+            "map": "CCRDSLA",
+            "fields": {
+              "TRNNAME": "CCDL",
+              "PGMNAME": "COCRDSLC",
+              "ACCTSID": "*",
+              "CARDSID": "*",
+              "INFOMSG": "Please enter Account and Card Number",
+              "ERRMSG": "No input received",
+              "FKEYS": "ENTER=Search Cards  F3=Exit"
+            },
+            "colors": {
+              "ACCTSID": "RED",
+              "CARDSID": "RED"
+            },
+            "cursor": "ACCTSID"
+          }
+        }
+      ]
+    },
+    {
+      "id": "card-detail-account-blank",
+      "title": "Card given but account blank shows 'Account number not provided' with a red '*' in the account field",
+      "provenance": "observed",
+      "source": "app/cbl/COCRDSLC.cbl 2210-EDIT-ACCOUNT (not supplied)",
+      "steps": [
+        {
+          "do": {
+            "transid": "CC00"
+          }
+        },
+        {
+          "do": {
+            "aid": "ENTER",
+            "fields": {
+              "USERID": "USER0001",
+              "PASSWD": "PASSWORD"
+            }
+          }
+        },
+        {
+          "do": {
+            "aid": "ENTER",
+            "fields": {
+              "OPTION": "4"
+            }
+          }
+        },
+        {
+          "do": {
+            "aid": "ENTER",
+            "fields": {
+              "CARDSID": "9680294154603697"
+            }
+          },
+          "expect": {
+            "map": "CCRDSLA",
+            "fields": {
+              "TRNNAME": "CCDL",
+              "PGMNAME": "COCRDSLC",
+              "ACCTSID": "*",
+              "CARDSID": "9680294154603697",
+              "INFOMSG": "Please enter Account and Card Number",
+              "ERRMSG": "Account number not provided",
+              "FKEYS": "ENTER=Search Cards  F3=Exit"
+            },
+            "colors": {
+              "ACCTSID": "RED"
+            },
+            "cursor": "ACCTSID"
+          }
+        }
+      ]
+    },
+    {
+      "id": "card-detail-account-zero",
+      "title": "An all-zero account is treated as not provided",
+      "provenance": "observed",
+      "source": "app/cbl/COCRDSLC.cbl 2210-EDIT-ACCOUNT (CC-ACCT-ID-N EQUAL ZEROS)",
+      "steps": [
+        {
+          "do": {
+            "transid": "CC00"
+          }
+        },
+        {
+          "do": {
+            "aid": "ENTER",
+            "fields": {
+              "USERID": "USER0001",
+              "PASSWD": "PASSWORD"
+            }
+          }
+        },
+        {
+          "do": {
+            "aid": "ENTER",
+            "fields": {
+              "OPTION": "4"
+            }
+          }
+        },
+        {
+          "do": {
+            "aid": "ENTER",
+            "fields": {
+              "ACCTSID": "00000000000",
+              "CARDSID": "9680294154603697"
+            }
+          },
+          "expect": {
+            "map": "CCRDSLA",
+            "fields": {
+              "TRNNAME": "CCDL",
+              "PGMNAME": "COCRDSLC",
+              "ACCTSID": "*",
+              "CARDSID": "9680294154603697",
+              "INFOMSG": "Please enter Account and Card Number",
+              "ERRMSG": "Account number not provided",
+              "FKEYS": "ENTER=Search Cards  F3=Exit"
+            },
+            "colors": {
+              "ACCTSID": "RED"
+            },
+            "cursor": "ACCTSID"
+          }
+        }
+      ]
+    },
+    {
+      "id": "card-detail-card-blank",
+      "title": "Account given but card blank shows 'Card number not provided' with a red '*' in the card field and the cursor there",
+      "provenance": "observed",
+      "source": "app/cbl/COCRDSLC.cbl 2220-EDIT-CARD (not supplied), 1300-SETUP-SCREEN-ATTRS",
+      "steps": [
+        {
+          "do": {
+            "transid": "CC00"
+          }
+        },
+        {
+          "do": {
+            "aid": "ENTER",
+            "fields": {
+              "USERID": "USER0001",
+              "PASSWD": "PASSWORD"
+            }
+          }
+        },
+        {
+          "do": {
+            "aid": "ENTER",
+            "fields": {
+              "OPTION": "4"
+            }
+          }
+        },
+        {
+          "do": {
+            "aid": "ENTER",
+            "fields": {
+              "ACCTSID": "00000000001"
+            }
+          },
+          "expect": {
+            "map": "CCRDSLA",
+            "fields": {
+              "TRNNAME": "CCDL",
+              "PGMNAME": "COCRDSLC",
+              "ACCTSID": "00000000001",
+              "CARDSID": "*",
+              "INFOMSG": "Please enter Account and Card Number",
+              "ERRMSG": "Card number not provided",
+              "FKEYS": "ENTER=Search Cards  F3=Exit"
+            },
+            "colors": {
+              "CARDSID": "RED"
+            },
+            "cursor": "CARDSID"
+          }
+        }
+      ]
+    },
+    {
+      "id": "card-detail-account-not-numeric",
+      "title": "A non-numeric account shows 'ACCOUNT FILTER,IF SUPPLIED MUST BE A 11 DIGIT NUMBER' in red and the typed value is erased from the field rather than echoed (legacy quirk, 1200-SETUP-SCREEN-VARS shows LOW-VALUES when CDEMO-ACCT-ID is 0)",
+      "provenance": "observed",
+      "source": "app/cbl/COCRDSLC.cbl 2210-EDIT-ACCOUNT (NOT NUMERIC)",
+      "steps": [
+        {
+          "do": {
+            "transid": "CC00"
+          }
+        },
+        {
+          "do": {
+            "aid": "ENTER",
+            "fields": {
+              "USERID": "USER0001",
+              "PASSWD": "PASSWORD"
+            }
+          }
+        },
+        {
+          "do": {
+            "aid": "ENTER",
+            "fields": {
+              "OPTION": "4"
+            }
+          }
+        },
+        {
+          "do": {
+            "aid": "ENTER",
+            "fields": {
+              "ACCTSID": "ABC",
+              "CARDSID": "9680294154603697"
+            }
+          },
+          "expect": {
+            "map": "CCRDSLA",
+            "fields": {
+              "TRNNAME": "CCDL",
+              "PGMNAME": "COCRDSLC",
+              "CARDSID": "9680294154603697",
+              "INFOMSG": "Please enter Account and Card Number",
+              "ERRMSG": "ACCOUNT FILTER,IF SUPPLIED MUST BE A 11 DIGIT NUMBER",
+              "FKEYS": "ENTER=Search Cards  F3=Exit"
+            },
+            "colors": {
+              "ACCTSID": "RED"
+            },
+            "cursor": "ACCTSID"
+          }
+        }
+      ]
+    },
+    {
+      "id": "card-detail-account-short",
+      "title": "A short account number fails the numeric test because of trailing blanks; the typed value is erased (legacy quirk)",
+      "provenance": "observed",
+      "source": "app/cbl/COCRDSLC.cbl 2210-EDIT-ACCOUNT (NOT NUMERIC)",
+      "steps": [
+        {
+          "do": {
+            "transid": "CC00"
+          }
+        },
+        {
+          "do": {
+            "aid": "ENTER",
+            "fields": {
+              "USERID": "USER0001",
+              "PASSWD": "PASSWORD"
+            }
+          }
+        },
+        {
+          "do": {
+            "aid": "ENTER",
+            "fields": {
+              "OPTION": "4"
+            }
+          }
+        },
+        {
+          "do": {
+            "aid": "ENTER",
+            "fields": {
+              "ACCTSID": "1",
+              "CARDSID": "9680294154603697"
+            }
+          },
+          "expect": {
+            "map": "CCRDSLA",
+            "fields": {
+              "TRNNAME": "CCDL",
+              "PGMNAME": "COCRDSLC",
+              "CARDSID": "9680294154603697",
+              "INFOMSG": "Please enter Account and Card Number",
+              "ERRMSG": "ACCOUNT FILTER,IF SUPPLIED MUST BE A 11 DIGIT NUMBER",
+              "FKEYS": "ENTER=Search Cards  F3=Exit"
+            },
+            "colors": {
+              "ACCTSID": "RED"
+            },
+            "cursor": "ACCTSID"
+          }
+        }
+      ]
+    },
+    {
+      "id": "card-detail-card-not-numeric",
+      "title": "A non-numeric card shows 'CARD ID FILTER,IF SUPPLIED MUST BE A 16 DIGIT NUMBER' in red and the typed value is erased from the field (legacy quirk)",
+      "provenance": "observed",
+      "source": "app/cbl/COCRDSLC.cbl 2220-EDIT-CARD (NOT NUMERIC)",
+      "steps": [
+        {
+          "do": {
+            "transid": "CC00"
+          }
+        },
+        {
+          "do": {
+            "aid": "ENTER",
+            "fields": {
+              "USERID": "USER0001",
+              "PASSWD": "PASSWORD"
+            }
+          }
+        },
+        {
+          "do": {
+            "aid": "ENTER",
+            "fields": {
+              "OPTION": "4"
+            }
+          }
+        },
+        {
+          "do": {
+            "aid": "ENTER",
+            "fields": {
+              "ACCTSID": "00000000001",
+              "CARDSID": "12345678ABCD"
+            }
+          },
+          "expect": {
+            "map": "CCRDSLA",
+            "fields": {
+              "TRNNAME": "CCDL",
+              "PGMNAME": "COCRDSLC",
+              "ACCTSID": "00000000001",
+              "INFOMSG": "Please enter Account and Card Number",
+              "ERRMSG": "CARD ID FILTER,IF SUPPLIED MUST BE A 16 DIGIT NUMBER",
+              "FKEYS": "ENTER=Search Cards  F3=Exit"
+            },
+            "colors": {
+              "CARDSID": "RED"
+            },
+            "cursor": "CARDSID"
+          }
+        }
+      ]
+    },
+    {
+      "id": "card-detail-both-invalid",
+      "title": "When both fields are invalid only the account message is shown, both fields are red and both typed values are erased (legacy quirk)",
+      "provenance": "observed",
+      "source": "app/cbl/COCRDSLC.cbl 2210-EDIT-ACCOUNT, 2220-EDIT-CARD (WS-RETURN-MSG-OFF guard)",
+      "steps": [
+        {
+          "do": {
+            "transid": "CC00"
+          }
+        },
+        {
+          "do": {
+            "aid": "ENTER",
+            "fields": {
+              "USERID": "USER0001",
+              "PASSWD": "PASSWORD"
+            }
+          }
+        },
+        {
+          "do": {
+            "aid": "ENTER",
+            "fields": {
+              "OPTION": "4"
+            }
+          }
+        },
+        {
+          "do": {
+            "aid": "ENTER",
+            "fields": {
+              "ACCTSID": "ABC",
+              "CARDSID": "XYZ"
+            }
+          },
+          "expect": {
+            "map": "CCRDSLA",
+            "fields": {
+              "TRNNAME": "CCDL",
+              "PGMNAME": "COCRDSLC",
+              "INFOMSG": "Please enter Account and Card Number",
+              "ERRMSG": "ACCOUNT FILTER,IF SUPPLIED MUST BE A 11 DIGIT NUMBER",
+              "FKEYS": "ENTER=Search Cards  F3=Exit"
+            },
+            "colors": {
+              "ACCTSID": "RED",
+              "CARDSID": "RED"
+            },
+            "cursor": "ACCTSID"
+          }
+        }
+      ]
+    },
+    {
+      "id": "card-detail-not-found",
+      "title": "An unknown card shows 'Did not find cards for this search condition' with both fields red; the input prompt info line stays shown alongside the error",
+      "provenance": "observed",
+      "source": "app/cbl/COCRDSLC.cbl 9100-GETCARD-BYACCTCARD (NOTFND)",
+      "steps": [
+        {
+          "do": {
+            "transid": "CC00"
+          }
+        },
+        {
+          "do": {
+            "aid": "ENTER",
+            "fields": {
+              "USERID": "USER0001",
+              "PASSWD": "PASSWORD"
+            }
+          }
+        },
+        {
+          "do": {
+            "aid": "ENTER",
+            "fields": {
+              "OPTION": "4"
+            }
+          }
+        },
+        {
+          "do": {
+            "aid": "ENTER",
+            "fields": {
+              "ACCTSID": "00000000001",
+              "CARDSID": "1111111111111111"
+            }
+          },
+          "expect": {
+            "map": "CCRDSLA",
+            "fields": {
+              "TRNNAME": "CCDL",
+              "PGMNAME": "COCRDSLC",
+              "ACCTSID": "00000000001",
+              "CARDSID": "1111111111111111",
+              "INFOMSG": "Please enter Account and Card Number",
+              "ERRMSG": "Did not find cards for this search condition",
+              "FKEYS": "ENTER=Search Cards  F3=Exit"
+            },
+            "colors": {
+              "ACCTSID": "RED",
+              "CARDSID": "RED"
+            },
+            "cursor": "ACCTSID"
+          }
+        }
+      ]
+    },
+    {
+      "id": "card-detail-invalid-key-acts-as-enter",
+      "title": "An unsupported key (PF5) is treated as ENTER and performs the search",
+      "provenance": "observed",
+      "source": "app/cbl/COCRDSLC.cbl 0000-MAIN (PFK-INVALID -> CCARD-AID-ENTER)",
+      "steps": [
+        {
+          "do": {
+            "transid": "CC00"
+          }
+        },
+        {
+          "do": {
+            "aid": "ENTER",
+            "fields": {
+              "USERID": "USER0001",
+              "PASSWD": "PASSWORD"
+            }
+          }
+        },
+        {
+          "do": {
+            "aid": "ENTER",
+            "fields": {
+              "OPTION": "4"
+            }
+          }
+        },
+        {
+          "do": {
+            "aid": "PF5",
+            "fields": {
+              "ACCTSID": "00000000001",
+              "CARDSID": "9680294154603697"
+            }
+          },
+          "expect": {
+            "map": "CCRDSLA",
+            "fields": {
+              "TRNNAME": "CCDL",
+              "PGMNAME": "COCRDSLC",
+              "ACCTSID": "00000000001",
+              "CARDSID": "9680294154603697",
+              "CRDNAME": "Immanuel Kessler",
+              "CRDSTCD": "Y",
+              "EXPMON": "05",
+              "EXPYEAR": "2025",
+              "INFOMSG": "   Displaying requested details",
+              "FKEYS": "ENTER=Search Cards  F3=Exit"
+            },
+            "cursor": "ACCTSID"
+          }
+        }
+      ]
+    },
+    {
+      "id": "card-detail-pf3-to-menu",
+      "title": "PF3 after a search returns to the main menu",
+      "provenance": "observed",
+      "source": "app/cbl/COCRDSLC.cbl 0000-MAIN (CCARD-AID-PFK03)",
+      "steps": [
+        {
+          "do": {
+            "transid": "CC00"
+          }
+        },
+        {
+          "do": {
+            "aid": "ENTER",
+            "fields": {
+              "USERID": "USER0001",
+              "PASSWD": "PASSWORD"
+            }
+          }
+        },
+        {
+          "do": {
+            "aid": "ENTER",
+            "fields": {
+              "OPTION": "4"
+            }
+          }
+        },
+        {
+          "do": {
+            "aid": "ENTER",
+            "fields": {
+              "ACCTSID": "00000000001",
+              "CARDSID": "9680294154603697"
+            }
+          }
+        },
+        {
+          "do": {
+            "aid": "PF3"
+          },
+          "expect": {
+            "map": "COMEN1A",
+            "fields": {
+              "TRNNAME": "CM00",
+              "PGMNAME": "COMEN01C",
+              "OPTN001": "01. Account View",
+              "OPTN002": "02. Account Update",
+              "OPTN003": "03. Credit Card List",
+              "OPTN004": "04. Credit Card View",
+              "OPTN005": "05. Credit Card Update",
+              "OPTN006": "06. Transaction List",
+              "OPTN007": "07. Transaction View",
+              "OPTN008": "08. Transaction Add",
+              "OPTN009": "09. Transaction Reports",
+              "OPTN010": "10. Bill Payment",
+              "OPTN011": "11. Pending Authorization View"
+            },
+            "cursor": "OPTION"
+          }
+        }
+      ]
+    },
+    {
+      "id": "card-detail-from-list-enter",
+      "title": "ENTER on a detail screen reached from the card list re-reads the same card; the key fields stay protected",
+      "provenance": "observed",
+      "source": "app/cbl/COCRDSLC.cbl 0000-MAIN (CDEMO-PGM-REENTER), 1300-SETUP-SCREEN-ATTRS (from COCRDLIC)",
+      "steps": [
+        {
+          "do": {
+            "transid": "CC00"
+          }
+        },
+        {
+          "do": {
+            "aid": "ENTER",
+            "fields": {
+              "USERID": "USER0001",
+              "PASSWD": "PASSWORD"
+            }
+          }
+        },
+        {
+          "do": {
+            "aid": "ENTER",
+            "fields": {
+              "OPTION": "3"
+            }
+          }
+        },
+        {
+          "do": {
+            "aid": "ENTER",
+            "fields": {
+              "CRDSEL2": "S"
+            }
+          }
+        },
+        {
+          "do": {
+            "aid": "ENTER"
+          },
+          "expect": {
+            "map": "CCRDSLA",
+            "fields": {
+              "TRNNAME": "CCDL",
+              "PGMNAME": "COCRDSLC",
+              "ACCTSID": "00000000027",
+              "CARDSID": "0683586198171516",
+              "CRDNAME": "Ward Jones",
+              "CRDSTCD": "Y",
+              "EXPMON": "07",
+              "EXPYEAR": "2025",
+              "INFOMSG": "   Displaying requested details",
+              "FKEYS": "ENTER=Search Cards  F3=Exit"
+            },
+            "protected": [
+              "ACCTSID",
+              "CARDSID"
+            ],
+            "cursor": "ACCTSID"
+          }
+        }
+      ]
+    },
+    {
+      "id": "card-detail-from-list-pf3",
+      "title": "PF3 on a detail screen reached from the card list returns to the card list",
+      "provenance": "observed",
+      "source": "app/cbl/COCRDSLC.cbl 0000-MAIN (CCARD-AID-PFK03, CDEMO-FROM-PROGRAM = COCRDLIC)",
+      "steps": [
+        {
+          "do": {
+            "transid": "CC00"
+          }
+        },
+        {
+          "do": {
+            "aid": "ENTER",
+            "fields": {
+              "USERID": "USER0001",
+              "PASSWD": "PASSWORD"
+            }
+          }
+        },
+        {
+          "do": {
+            "aid": "ENTER",
+            "fields": {
+              "OPTION": "3"
+            }
+          }
+        },
+        {
+          "do": {
+            "aid": "ENTER",
+            "fields": {
+              "CRDSEL2": "S"
+            }
+          }
+        },
+        {
+          "do": {
+            "aid": "PF3"
+          },
+          "expect": {
+            "map": "CCRDLIA",
+            "fields": {
+              "TRNNAME": "CCLI",
+              "PGMNAME": "COCRDLIC",
+              "PAGENO": "1",
+              "ACCTNO1": "00000000050",
+              "CRDNUM1": "0500024453765740",
+              "CRDSTS1": "Y",
+              "ACCTNO2": "00000000027",
+              "CRDNUM2": "0683586198171516",
+              "CRDSTS2": "Y",
+              "ACCTNO3": "00000000002",
+              "CRDNUM3": "0923877193247330",
+              "CRDSTS3": "Y",
+              "ACCTNO4": "00000000020",
+              "CRDNUM4": "0927987108636232",
+              "CRDSTS4": "Y",
+              "ACCTNO5": "00000000012",
+              "CRDNUM5": "0982496213629795",
+              "CRDSTS5": "Y",
+              "ACCTNO6": "00000000044",
+              "CRDNUM6": "1014086565224350",
+              "CRDSTS6": "Y",
+              "ACCTNO7": "00000000037",
+              "CRDNUM7": "1142167692878931",
+              "CRDSTS7": "Y",
+              "INFOMSG": "TYPE S FOR DETAIL, U TO UPDATE ANY RECORD"
+            },
+            "unprotected": [
+              "CRDSEL1",
+              "CRDSEL2",
+              "CRDSEL3",
+              "CRDSEL4",
+              "CRDSEL5",
+              "CRDSEL6",
+              "CRDSEL7"
+            ],
+            "cursor": "ACCTSID"
+          }
+        }
+      ]
+    }
+  ]
+}

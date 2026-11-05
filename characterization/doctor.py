@@ -25,6 +25,7 @@ def main():
     results.append(check("online modules built", len(built) == len(build.ONLINE_PROGRAMS),
                          f"{len(built)}/{len(build.ONLINE_PROGRAMS)} in {build.ONLINE} (run.py builds them)"))
     results.append(check("cicsrun driver built", (build.ONLINE / "cicsrun").exists()))
+    results.append(check("jobrun launcher built", (build.BATCH / "jobrun").exists()))
     batch_built = [p for p in build.BATCH_PROGRAMS if (build.BATCH / f"{p}.so").exists()]
     results.append(check("batch programs built", len(batch_built) == len(build.BATCH_PROGRAMS),
                          f"{len(batch_built)}/{len(build.BATCH_PROGRAMS)} in {build.BATCH}"))

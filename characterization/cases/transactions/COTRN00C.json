@@ -847,7 +847,7 @@
     {
       "id": "transaction-list-filter-past-end",
       "title": "Legacy bug: a Tran ID above every key makes STARTBR raise NOTFND, then the unconditional ENDBR (no RESP) on the never-started browse raises INVREQ and the task abends AEIP",
-      "provenance": "source-derived",
+      "provenance": "observed",
       "source": "app/cbl/COTRN00C.cbl STARTBR-TRANSACT-FILE (NOTFND), PROCESS-PAGE-FORWARD, ENDBR-TRANSACT-FILE (no RESP)",
       "steps": [
         {
