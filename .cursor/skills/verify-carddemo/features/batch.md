@@ -1,6 +1,6 @@
 # Batch jobs
 
-The nightly jobs post the daily transaction file, compute interest, produce statements and reports, and extract files. Each case runs one COBOL step with the DD bindings of its JCL and checks the return code, SYSOUT, file changes and output files. All five features run on the `legacy` and `java` targets.
+The nightly jobs post the daily transaction file, compute interest, produce statements and reports, and extract files. Each case runs one COBOL step with the DD bindings of its JCL and checks the return code, SYSOUT, file changes and output files. All five features run on the `legacy` and `java` targets. The IMS jobs of the pending authorization extension (CBPAUP0J, UNLDPADB, LOADPADB, UNLDGSAM) are in [authorization.md](./authorization.md).
 
 ## Sub-features
 
@@ -23,7 +23,7 @@ Preconditions: baseline; cases in `characterization/cases/batch/`. Inside tmux, 
 - **Posting rules.** Run `--feature batch-posting`. `posting-mixed-batch` shows one run accepting two records, rejecting an invalid card (100) and an over-limit amount (102), with `TRANSACTIONS PROCESSED :000000004` and RC 4.
 - **Statements.** Run `--case statement-one-account`. `outputs.STMTFILE` is the printed statement; `outputs.HTMLFILE` is the HTML version.
 - **Java slice.** Add `--target java` to any command above. Expect the same counts. One case is `python3 characterization/run.py --target java --case posting-mixed-batch`. The adapter submits the case as a one-step deck to TD queue `JOBS`, and the warm server's internal reader runs it on Spring Batch (`SKILL.md`, "Adding a Java slice").
-- **Without run.py.** `cd java && mvn verify` runs all 28 goldens in `BatchGoldensIT` through the same deck path.
+- **Without run.py.** `cd java && mvn verify` runs these 28 goldens, and the six IMS batch goldens of [authorization.md](./authorization.md), in `BatchGoldensIT` through the same deck path.
 
 ## Gotchas
 

@@ -49,6 +49,42 @@ PERFORM UNTIL tests END-OF-FILE before the body, so the ELSE that rewrites the l
 - Pinned by `customer-list-full-seed`.
 - Fix: drop the DISPLAY in 1000-CUSTFILE-GET-NEXT, as CBACT02C comments out its own.
 
+## `CBPAUP0C-approved-count-tested-twice`
+
+The summary delete test reads IF PA-APPROVED-AUTH-CNT <= 0 AND PA-APPROVED-AUTH-CNT <= 0, so a summary with no approved authorization left qualifies even while it has declined ones.
+
+- Lives in [`Cbpaup0c.Run.qualifiesForDelete`](../src/main/java/com/carddemo/batch/programs/Cbpaup0c.java).
+- Comes from the program logic.
+- No golden pins it yet. It is read from the source.
+- Fix: test PA-DECLINED-AUTH-CNT in the second condition.
+
+## `CBPAUP0C-checkpoint-compares-as-text`
+
+The checkpoint tests compare a PIC 9(8) counter with a PIC X(5) parameter, which COBOL does as text with the parameter space-filled, so frequency 00001 is reached only at 1000 summaries and the default 5 at 50000000.
+
+- Lives in [`Cbpaup0c.compareAsText`](../src/main/java/com/carddemo/batch/programs/Cbpaup0c.java).
+- Comes from the program logic.
+- Pinned by `batch-auth-purge-nothing-expired`.
+- Fix: move the parameters to numeric fields (or test them NUMERIC) and compare numbers.
+
+## `CBPAUP0C-expired-counts-not-replaced`
+
+An expired authorization is subtracted from the summary's approved or declined count and amount in working storage only; no REPL follows, so the summary keeps its old totals.
+
+- Lives in [`Cbpaup0c.Run.subtractExpired`](../src/main/java/com/carddemo/batch/programs/Cbpaup0c.java).
+- Comes from the program logic.
+- Pinned by `batch-auth-purge-partial-expiry`.
+- Fix: REPL the summary after its expired details are deleted, before the next GN.
+
+## `CBPAUP0C-summary-dlet-without-hold`
+
+The summary DLET comes right after the GNP that ended its details with GE, which released the hold, so EXEC DLI answers DJ and 9999-ABEND ends the job RC 16 at the first summary whose approved count reaches zero; the detail deletes before it are committed.
+
+- Lives in [`Cbpaup0c.Run.deleteSummary`](../src/main/java/com/carddemo/batch/programs/Cbpaup0c.java).
+- Comes from the program logic.
+- Pinned by `batch-auth-purge-summary-delete-dj`.
+- Fix: GU the summary by its ACCNTID before the DLET.
+
 ## `CBSTM03A-city-cut-at-first-space`
 
 The address line STRINGs city, state, country and zip DELIMITED BY one space, so a city with an embedded space such as West Bernita is printed as its first word.
@@ -102,6 +138,24 @@ NEXT SENTENCE on a process date outside DATEPARM leaves the PERFORM, so the run 
 - Comes from the program logic.
 - Pinned by `tranrept-out-of-range-stops-run`.
 - Fix: skip that record and keep reading.
+
+## `COACCT01-key-compare-on-raw-bytes`
+
+WS-KEY is tested with > ZEROES while it holds the request's raw bytes, so a key with letters can pass and be read as an ACCTDAT key that cannot exist, and a key with a leading or trailing space fails even when its digits name an account.
+
+- Lives in [`AccountKey.positive`](../src/main/java/com/carddemo/vsammq/AccountKey.java).
+- Comes from the program logic.
+- No golden pins it yet. It is read from the source.
+- Fix: test WS-KEY IS NUMERIC before comparing it, and reject the request otherwise.
+
+## `COACCT01-short-request-reads-old-buffer`
+
+MQGET fills only as many bytes of MQ-BUFFER as the message has, and the program moves all 1000 to REQUEST-MESSAGE, so a request shorter than function and account id is read with the tail of the previous reply, or low-values in a fresh task.
+
+- Lives in [`MqInquiryProgram.Task.receive`](../src/main/java/com/carddemo/vsammq/MqInquiryProgram.java).
+- Comes from the program logic.
+- No golden pins it yet. It is read from the source.
+- Fix: clear MQ-BUFFER before each MQGET, or use only MQ-DATA-LENGTH bytes of it.
 
 ## `COACTUPC-any-other-key-is-enter`
 
@@ -489,6 +543,96 @@ PF5 is a real save only while changes are waiting for confirmation; before that 
 - Comes from the program logic.
 - Pinned by `card-update-pf5-before-confirm-acts-as-enter`.
 - Fix: ignore PF5 until the confirm screen is up.
+
+## `COPAUA0C-declined-amount-from-previous-detail`
+
+A decline adds PA-TRANSACTION-AMT of the detail I/O area to the declined total before this request's detail is built there, so it adds the previous request's amount in the task, zero for the first.
+
+- Lives in [`AuthorizationProcessor.Task.declinedAmount`](../src/main/java/com/carddemo/authorization/AuthorizationProcessor.java).
+- Comes from the program logic.
+- Pinned by `auth-declined-insufficient-funds`.
+- Fix: add the request's transaction amount.
+
+## `COPAUA0C-initialize-replacing-numeric`
+
+A new summary is built with INITIALIZE REPLACING NUMERIC DATA BY ZERO, which leaves the authorization and account status fields and the filler as the I/O area last held them, low-values in a fresh task.
+
+- Lives in [`AuthorizationProcessor.Task.initialized`](../src/main/java/com/carddemo/authorization/AuthorizationProcessor.java).
+- Comes from the program logic.
+- Pinned by `auth-no-summary`.
+- Fix: INITIALIZE the whole summary, so its text fields are spaces.
+
+## `COPAUA0C-limits-overwritten-from-acctdata`
+
+Every summary write copies the ACCTDATA credit and cash limits over the summary's own.
+
+- Lives in [`AuthorizationProcessor.Task.updateSummary`](../src/main/java/com/carddemo/authorization/AuthorizationProcessor.java).
+- Comes from the program logic.
+- Pinned by `auth-approved`, `auth-declined-insufficient-funds`, `auth-multiple-messages`.
+- Fix: keep the summary's limits, which the batch and the screens maintain.
+
+## `COPAUA0C-reply-length-never-reset`
+
+The STRING pointer that becomes the reply length starts at 1 and is never reset, so every reply carries one more byte than its text, a low-value, and each later reply in the same task repeats every earlier reply before its own.
+
+- Lives in [`AuthorizationProcessor.Task.appendReply`](../src/main/java/com/carddemo/authorization/AuthorizationProcessor.java).
+- Comes from the program logic.
+- Pinned by `auth-approved`, `auth-multiple-messages`, `auth-malformed-request`.
+- Fix: clear the put buffer and set the pointer to 1 before each STRING, and send pointer - 1 bytes.
+
+## `COPAUA0C-summary-flag-leaks`
+
+The summary-found flag is set only by a summary read, which a card missing from the xref skips, so that request is decided against the previous request's summary and can be approved 00.
+
+- Lives in [`AuthorizationProcessor.Task.processAuth`](../src/main/java/com/carddemo/authorization/AuthorizationProcessor.java).
+- Comes from the program logic.
+- Pinned by `auth-multiple-messages`.
+- Fix: reset the summary-found flag, and the other read flags, at the start of every request.
+
+## `COPAUA0C-unstring-keeps-old-fields`
+
+A request with fewer than eighteen fields leaves the rest as the previous request, or low-values in a fresh task, so a line without commas is decided on a card of low-values and its reply carries low-values for the card, transaction id and auth id.
+
+- Lives in [`AuthorizationRequest.unstring`](../src/main/java/com/carddemo/authorization/AuthorizationRequest.java).
+- Comes from the program logic.
+- Pinned by `auth-malformed-request`.
+- Fix: INITIALIZE the request before the UNSTRING and reject a request without all eighteen fields.
+
+## `COPAUS0C-error-reads-continue`
+
+Each NOTFND of the xref, account and customer reads sends the screen and the next read still runs, every STRING overwriting the start of WS-MESSAGE without clearing it, so a missing account ends on 'Customer:          not found in CUST file' with the last character of the account message after it.
+
+- Lives in [`PendingAuthSummaryScreen.Task.gatherAccountDetails`](../src/main/java/com/carddemo/authorization/PendingAuthSummaryScreen.java).
+- Comes from the program logic.
+- Pinned by `pending-auth-summary-account-not-found`.
+- Fix: stop at the first read that fails and clear WS-MESSAGE before each STRING.
+
+## `COPAUS0C-limits-from-acctdata`
+
+CREDLIM and CASHLIM show ACCT-CREDIT-LIMIT and ACCT-CASH-CREDIT-LIMIT from ACCTDATA, not the IMS summary's PA-CREDIT-LIMIT and PA-CASH-LIMIT the other totals come from, so account 1 shows 2020.00 while its summary says 2022.00.
+
+- Lives in [`PendingAuthSummaryScreen.Task.showLimits`](../src/main/java/com/carddemo/authorization/PendingAuthSummaryScreen.java).
+- Comes from the program logic.
+- Pinned by `pending-auth-summary-valid-account`.
+- Fix: show the summary's limits next to the summary's balances.
+
+## `COPAUS0C-pf8-past-last-page-empty-list`
+
+NEXT-PAGE-NO is set only when the page loop ends before the last authorization, so a last page that is not full leaves NEXT-PAGE-YES from the page before, and the next PF8 shows an empty list instead of 'You are already at the bottom of the page...'.
+
+- Lives in [`PendingAuthSummaryScreen.Task.lookAhead`](../src/main/java/com/carddemo/authorization/PendingAuthSummaryScreen.java).
+- Comes from the program logic.
+- Pinned by `pending-auth-summary-paging`.
+- Fix: set NEXT-PAGE-NO whenever the loop reaches the end of the authorizations.
+
+## `COPAUS1C-authcd-shows-processing-code`
+
+The Auth Code field shows PA-PROCESSING-CODE, not the authorization id code PA-AUTH-ID-CODE the label names.
+
+- Lives in [`PendingAuthDetailScreen.Task.showAuthorizationCode`](../src/main/java/com/carddemo/authorization/PendingAuthDetailScreen.java).
+- Comes from the program logic.
+- Pinned by `pending-auth-detail-display`.
+- Fix: move PA-AUTH-ID-CODE to AUTHCDO.
 
 ## `CORPT00C-non-numeric-date-part-is-zero`
 
@@ -894,6 +1038,42 @@ PF5 on an id that is not on file, or whose READ UPDATE fails, still runs DELETE,
 - Comes from the program logic.
 - No golden pins it yet. It is read from the source.
 - Fix: stop after the failed READ and keep its message.
+
+## `DBUNLDGS-child-loses-parent-key`
+
+The dependent GSAM record is the bare 200-byte segment: DBUNLDGS builds the root key before it in OPFIL2-REC but inserts PENDING-AUTH-DETAILS, so the unload cannot tell whose dependent it is.
+
+- Lives in [`Dbunldgs.childRecord`](../src/main/java/com/carddemo/batch/programs/Dbunldgs.java).
+- Comes from the program logic.
+- Pinned by `batch-auth-unload-gsam`.
+- Fix: insert OPFIL2-REC, the root's packed ACCNTID followed by the segment, into a 206-byte PADFLDBD.
+
+## `PAUDBLOD-orphan-child-skipped`
+
+3100-INSERT-CHILD-SEG has no END-IF after the GU success branch, so the test for a failed GU sits inside it: a dependent whose root is not in the database is skipped with no message and the load ends RC 0.
+
+- Lives in [`Paudblod.insertChild`](../src/main/java/com/carddemo/batch/programs/Paudblod.java).
+- Comes from the program logic.
+- Pinned by `batch-auth-load-from-unload`.
+- Fix: end the success IF before the failure test, so a failed GU DISPLAYs ROOT GU CALL FAIL and ends RC 16.
+
+## `PAUDBUNL-DBUNLDGS-blank-key-root-dropped`
+
+A root whose PA-ACCT-ID is not numeric, such as the sample's root of spaces, is not unloaded and neither are its dependents, without a message, so a reload loses them.
+
+- Lives in [`UnloadWalk.isNumeric`](../src/main/java/com/carddemo/batch/programs/UnloadWalk.java).
+- Comes from the program logic.
+- Pinned by `batch-auth-unload-flat`, `batch-auth-unload-gsam`.
+- Fix: unload every root, or DISPLAY and count the roots skipped.
+
+## `PAUDBUNL-DBUNLDGS-child-counted-as-summary`
+
+Each dependent read adds 1 to WS-NO-SUMRY-READ and WS-AUTH-SMRY-PROC-CNT, the summary counters; neither is displayed, so nothing shows it.
+
+- Lives in [`UnloadWalk.countChildAsSummary`](../src/main/java/com/carddemo/batch/programs/UnloadWalk.java).
+- Comes from the program logic.
+- No golden pins it yet. It is read from the source.
+- Fix: count dependents in WS-NO-DTL-READ.
 
 ## `USRSEC-any-user-type`
 
