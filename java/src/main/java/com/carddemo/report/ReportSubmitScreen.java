@@ -123,7 +123,7 @@ public final class ReportSubmitScreen extends Screen<CORPT0A, ReportSubmitScreen
             }
         }
         for (DatePart part : PARTS) {
-            map.set(part.field(), Intrinsics.numvalCImage(map.text(part.field()), part.digits()));
+            map.set(part.field(), numericPart(map.text(part.field()), part.digits()));
         }
         for (DatePart part : PARTS) {
             if (part.limit() != null && map.text(part.field()).compareTo(part.limit()) > 0) {
@@ -139,6 +139,14 @@ public final class ReportSubmitScreen extends Screen<CORPT0A, ReportSubmitScreen
             return send(map.cursor(EDTMM), "End Date - Not a valid date...", state);
         }
         return submitCustom(map, state, start, end);
+    }
+
+    @LegacyDefect(id = "CORPT00C-non-numeric-date-part-is-zero",
+            behavior = "NUMVAL-C of a date part with letters answers 0 under GnuCOBOL, so 20X6 becomes year 0000, "
+                    + "which CSUTLDTC flags as message 2513 and the job is submitted",
+            fix = "reject a date part that fails TEST-NUMVAL-C before converting it")
+    private static String numericPart(String typed, int digits) {
+        return Intrinsics.numvalCImage(typed, digits);
     }
 
     @LegacyDefect(id = "CORPT00C-pre-1582-accepted",

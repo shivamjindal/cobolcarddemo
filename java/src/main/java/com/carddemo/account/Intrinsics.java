@@ -48,13 +48,11 @@ public final class Intrinsics {
 
     /**
      * {@code COMPUTE n = FUNCTION NUMVAL-C(text)} into PIC 9({@code digits}), as the zero-padded image a
-     * MOVE back to the date field produces. Text that fails TEST-NUMVAL-C is the COBOL size error.
+     * MOVE back to the date field produces. GnuCOBOL's NUMVAL-C answers 0 for text that fails
+     * TEST-NUMVAL-C; Enterprise COBOL leaves it undefined.
      */
     public static String numvalCImage(String text, int digits) {
-        if (!testNumvalC(text)) {
-            throw new IllegalArgumentException("NUMVAL-C of '" + text + "'");
-        }
-        return ("%0" + digits + "d").formatted(unsigned(numvalC(text), digits));
+        return ("%0" + digits + "d").formatted(testNumvalC(text) ? unsigned(numvalC(text), digits) : 0);
     }
 
     /** {@code FUNCTION NUMVAL-C(text)} of text that passes {@link #testNumvalC}. */

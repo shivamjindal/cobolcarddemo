@@ -246,6 +246,24 @@ class BillPayReportIT {
     }
 
     @Test
+    void lettersInACustomDatePartBecomeZero() throws Exception {
+        Browser browser = signedOn();
+        JsonNode month = browser.press(openReports(browser), "submit", Map.of("CUSTOM", "X", "SDTMM", "AB",
+                "SDTDD", "01", "SDTYYYY", "2026", "EDTMM", "11", "EDTDD", "30", "EDTYYYY", "2026", "CONFIRM", "Y"));
+        assertEquals("00", month.at("/fields/SDTMM").asText());
+        assertEquals("Start Date - Not a valid date...", month.at("/fields/ERRMSG").asText());
+        assertEquals("SDTMM", month.path("cursor").asText());
+        assertEquals(0, jobCount());
+
+        JsonNode menu = browser.press(month, "back", Map.of());
+        JsonNode year = browser.press(browser.press(menu, "select", Map.of("OPTION", "9")), "submit",
+                Map.of("CUSTOM", "X", "SDTMM", "01", "SDTDD", "01", "SDTYYYY", "20X6", "EDTMM", "11", "EDTDD", "30",
+                        "EDTYYYY", "2026", "CONFIRM", "Y"));
+        assertEquals("Custom report submitted for printing ...", year.at("/fields/ERRMSG").asText());
+        assertJob(1, "0000-01-01", "2026-11-30");
+    }
+
+    @Test
     void confirmNSubmitsNothing() throws Exception {
         Browser browser = signedOn();
         JsonNode cleared = browser.press(openReports(browser), "submit", Map.of("MONTHLY", "X", "CONFIRM", "n"));

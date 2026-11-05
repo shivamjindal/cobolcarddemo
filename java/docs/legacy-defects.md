@@ -355,6 +355,15 @@ PF5 is a real save only while changes are waiting for confirmation; before that 
 - Pinned by `card-update-pf5-before-confirm-acts-as-enter`.
 - Fix: ignore PF5 until the confirm screen is up.
 
+## `CORPT00C-non-numeric-date-part-is-zero`
+
+NUMVAL-C of a date part with letters answers 0 under GnuCOBOL, so 20X6 becomes year 0000, which CSUTLDTC flags as message 2513 and the job is submitted.
+
+- Lives in [`ReportSubmitScreen.numericPart`](../src/main/java/com/carddemo/report/ReportSubmitScreen.java).
+- Comes from the program logic.
+- No golden pins it yet. It is read from the source.
+- Fix: reject a date part that fails TEST-NUMVAL-C before converting it.
+
 ## `CORPT00C-pre-1582-accepted`
 
 CSUTLDTC message 2513, a date before 15 October 1582, is not treated as a date error.
@@ -390,6 +399,42 @@ Distinct messages tell an attacker whether a user id exists.
 - Comes from the program logic.
 - Pinned by `signon-unknown-user`, `signon-wrong-password`.
 - Fix: one message and one cursor position for UnknownUser and WrongPassword.
+
+## `COTRN00C-filter-past-end-abends`
+
+A Tran ID above every key makes STARTBR NOTFND; ENDBR then runs with no RESP on the browse that never started and the task abends AEIP.
+
+- Lives in [`TransactionListScreen.Task.endbrWithoutBrowse`](../src/main/java/com/carddemo/transaction/TransactionListScreen.java).
+- Comes from the program logic.
+- Pinned by `transaction-list-filter-past-end`.
+- Fix: run ENDBR only after a successful STARTBR and show 'You are at the top of the page...'.
+
+## `COTRN00C-invalid-selection-resets-page`
+
+A selection other than S sets the message and then ENTER still re-browses from the start, so the page returns to 1 and the typed code stays in the row.
+
+- Lives in [`TransactionListScreen.Task.invalidSelection`](../src/main/java/com/carddemo/transaction/TransactionListScreen.java).
+- Comes from the program logic.
+- Pinned by `transaction-list-select-invalid`.
+- Fix: redisplay the page that was on screen and clear the bad code.
+
+## `COTRN00C-pf5-skips-first`
+
+The forward browse skips one record unless EIBAID is ENTER, PF7, or PF3. PF5 from the view arrives with that aid, so page 1 starts at the second transaction.
+
+- Lives in [`TransactionListScreen.Task.skipsFirstRecord`](../src/main/java/com/carddemo/transaction/TransactionListScreen.java).
+- Comes from the program logic.
+- Pinned by `transaction-view-pf5-list`.
+- Fix: skip a record only for PF8.
+
+## `COTRN00C-pf8-then-pf7-top-message`
+
+A backward page that includes the first record still runs the look-ahead READPREV, and that ENDFILE leaves 'You have reached the top of the page...' on page 1.
+
+- Lives in [`TransactionListScreen.Task.reachedTop`](../src/main/java/com/carddemo/transaction/TransactionListScreen.java).
+- Comes from the program logic.
+- Pinned by `transaction-list-pf8-then-pf7`.
+- Fix: set the top message only when the page did not fill.
 
 ## `COTRN02C-account-replaces-card`
 
