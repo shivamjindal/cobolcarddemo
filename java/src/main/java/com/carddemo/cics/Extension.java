@@ -10,7 +10,11 @@ import java.util.Set;
  */
 public enum Extension {
     /** {@code app/app-transaction-type-db2/csd/CRDDEMOD.csd}: transactions CTLI and CTTU. */
-    TRANSACTION_TYPE_DB2("transaction-type-db2", Set.of("COTRTLIC", "COTRTUPC"));
+    TRANSACTION_TYPE_DB2("transaction-type-db2", Set.of("COTRTLIC", "COTRTUPC")),
+    /** {@code app/app-authorization-ims-db2-mq/csd/CRDDEMO2.csd}: transactions CPVS, CPVD and CP00. */
+    PENDING_AUTHORIZATIONS("pending-authorizations", Set.of("COPAUS0C", "COPAUS1C", "COPAUS2C", "COPAUA0C")),
+    /** {@code app/app-vsam-mq/csd/CRDDEMOM.csd}: transactions CDRA and CDRD. */
+    VSAM_MQ("vsam-mq", Set.of("COACCT01", "CODATE01"));
 
     private final String id;
     private final Set<String> programs;

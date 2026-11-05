@@ -71,6 +71,7 @@ class SecurityConfig {
                 .requestMatchers("/api/session", "/api/maps/**").permitAll()
                 .requestMatchers(HttpMethod.POST, anyone).permitAll()
                 .requestMatchers(HttpMethod.POST, admin).hasRole("ADMIN")
+                .requestMatchers("/api/mq/**").hasRole("ADMIN")
                 .anyRequest().authenticated())
             .securityContext(context -> context.securityContextRepository(securityContexts))
             .csrf(csrf -> csrf

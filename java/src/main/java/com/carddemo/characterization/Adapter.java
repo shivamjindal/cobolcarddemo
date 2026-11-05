@@ -1,5 +1,7 @@
 package com.carddemo.characterization;
 
+import static java.nio.charset.StandardCharsets.ISO_8859_1;
+
 import java.io.IOException;
 import java.net.CookieManager;
 import java.net.CookiePolicy;
@@ -20,6 +22,7 @@ import java.time.Duration;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.HashSet;
+import java.util.HexFormat;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
@@ -29,6 +32,7 @@ import java.util.TreeMap;
 import org.springframework.jdbc.datasource.SingleConnectionDataSource;
 
 import com.carddemo.online.BmsField;
+import com.carddemo.records.Fields;
 import com.carddemo.online.MapId;
 import com.carddemo.online.maps.Maps;
 import com.fasterxml.jackson.databind.JsonNode;
@@ -77,13 +81,18 @@ public final class Adapter {
         SeededTable.seed(db, seeded, testCase);
         Browser browser = new Browser(URI.create(env("CARDDEMO_CHARACTERIZATION_URL", "http://127.0.0.1:18080")));
         List<Map<String, Object>> observations = new ArrayList<>();
+        int[] messagesPut = {0};
         for (JsonNode step : testCase.get("steps")) {
             List<TreeMap<String, byte[]>> before = new ArrayList<>();
             for (SeededTable table : seeded) {
                 before.add(table.snapshot(db));
             }
             long jobsBefore = lastJob(db);
-            Map<String, Object> observation = browser.step(step.get("do"));
+            long tdBefore = lastTdRecord(db);
+            JsonNode action = step.get("do");
+            Map<String, Object> observation = action.has("mq")
+                    ? mqStep(browser, db, action.get("mq"), messagesPut)
+                    : browser.step(action);
             awaitSubmitted(db, jobsBefore);
             Map<String, Object> files = new LinkedHashMap<>();
             for (int i = 0; i < seeded.size(); i++) {
@@ -94,12 +103,85 @@ public final class Adapter {
                 observation.put("files", files);
             }
             Map<String, List<String>> queues = queued(db, jobsBefore);
+            written(db, tdBefore).forEach((queue, records) -> queues.computeIfAbsent(queue, q -> new ArrayList<>())
+                    .addAll(records));
             if (!queues.isEmpty()) {
                 observation.put("queues", queues);
             }
             observations.add(observation);
         }
         return observations;
+    }
+
+    /**
+     * {@code OnlineSession.mq_step}: the case's messages get msgIds HARNESS and a counter that runs across the
+     * case's steps. The programs' puts, on any queue, are reported and taken off their queues, as the harness
+     * reads and drops them; {@code unread} counts the case's messages still on the step's queue.
+     */
+    static Map<String, Object> mqStep(Browser browser, Connection db, JsonNode spec, int[] messagesPut)
+            throws IOException, InterruptedException, SQLException {
+        String queue = spec.get("queue").asText();
+        HexFormat hex = HexFormat.of();
+        List<Map<String, String>> messages = new ArrayList<>();
+        for (JsonNode m : spec.path("messages")) {
+            messagesPut[0]++;
+            String correl = m.path("correl_id").asText("");
+            messages.add(Map.of(
+                    "data", hex.formatHex(m.path("data").asText("").getBytes(ISO_8859_1)),
+                    "msgId", hex.formatHex(String.format("HARNESS%017d", messagesPut[0]).getBytes(ISO_8859_1)),
+                    "correlId", hex.formatHex(correl.isEmpty() ? new byte[24] : padded(correl, 24)),
+                    "replyTo", m.path("reply_to").asText("").replaceAll(" +$", "")));
+        }
+        Map<String, Object> body = new LinkedHashMap<>();
+        body.put("queue", queue);
+        body.put("trigger", spec.get("trigger").asText());
+        body.put("messages", messages);
+        HttpResponse<String> response = browser.post("/characterization/mq", body);
+        Map<String, Object> observation = new LinkedHashMap<>();
+        if (response.statusCode() != 200) {
+            observation.put("runtime_error", "HTTP " + response.statusCode() + ": " + response.body());
+            return observation;
+        }
+        JsonNode reply = JSON.readTree(response.body());
+        long putThrough = reply.get("putThrough").asLong();
+        Map<String, List<Map<String, String>>> puts = new TreeMap<>();
+        try (PreparedStatement select = db.prepareStatement(
+                "SELECT queue, data, correl_id FROM mq_messages WHERE sequence > ? ORDER BY sequence");
+                PreparedStatement delete = db.prepareStatement("DELETE FROM mq_messages WHERE sequence > ?")) {
+            select.setLong(1, putThrough);
+            try (ResultSet rows = select.executeQuery()) {
+                while (rows.next()) {
+                    puts.computeIfAbsent(rows.getString("queue"), q -> new ArrayList<>()).add(Map.of(
+                            "data", Python.rstrip(new String(rows.getBytes("data"), ISO_8859_1)),
+                            "correl_id", new String(rows.getBytes("correl_id"), ISO_8859_1).replaceAll("[ \0]+$", "")));
+                }
+            }
+            delete.setLong(1, putThrough);
+            delete.executeUpdate();
+        }
+        observation.put("mq", puts);
+        try (PreparedStatement count = db.prepareStatement("SELECT count(*) FROM mq_messages WHERE queue = ?")) {
+            count.setString(1, queue);
+            try (ResultSet rows = count.executeQuery()) {
+                rows.next();
+                if (rows.getInt(1) > 0) {
+                    observation.put("unread", Map.of(queue, rows.getInt(1)));
+                }
+            }
+        }
+        if (reply.has("abend")) {
+            observation.put("abend", reply.get("abend").asText());
+        }
+        if (reply.has("notDefined")) {
+            observation.put("runtime_error", "transaction " + reply.get("notDefined").asText() + " is not defined");
+        }
+        return observation;
+    }
+
+    private static byte[] padded(String text, int length) {
+        byte[] bytes = Fields.spaces(length);
+        Fields.text(bytes, 0, length, text);
+        return bytes;
     }
 
     private static long lastJob(Connection db) throws SQLException {
@@ -153,13 +235,37 @@ public final class Adapter {
         return queues;
     }
 
+    private static long lastTdRecord(Connection db) throws SQLException {
+        try (Statement select = db.createStatement();
+                ResultSet last = select.executeQuery("SELECT coalesce(max(sequence), 0) FROM td_queue_records")) {
+            last.next();
+            return last.getLong(1);
+        }
+    }
+
+    /** The harness's {@code queues} from WRITEQ TD: each record after {@code after}, as text without trailing whitespace. */
+    private static Map<String, List<String>> written(Connection db, long after) throws SQLException {
+        Map<String, List<String>> queues = new LinkedHashMap<>();
+        try (PreparedStatement select = db.prepareStatement(
+                "SELECT queue, data FROM td_queue_records WHERE sequence > ? ORDER BY sequence")) {
+            select.setLong(1, after);
+            try (ResultSet records = select.executeQuery()) {
+                while (records.next()) {
+                    queues.computeIfAbsent(records.getString("queue"), queue -> new ArrayList<>())
+                            .add(Python.rstrip(new String(records.getBytes("data"), ISO_8859_1)));
+                }
+            }
+        }
+        return queues;
+    }
+
     private static String env(String name, String fallback) {
         String value = System.getenv(name);
         return value == null || value.isEmpty() ? fallback : value;
     }
 
     /** One terminal: a cookie jar, the CSRF header, and the reply on screen. */
-    private static final class Browser {
+    static final class Browser {
 
         private final URI server;
         private final CookieManager cookies = new CookieManager(null, CookiePolicy.ACCEPT_ALL);
@@ -210,6 +316,13 @@ public final class Adapter {
             screen = JSON.readTree(response.body());
             observe(screen, observation);
             return observation;
+        }
+
+        HttpResponse<String> post(String path, Object body) throws IOException, InterruptedException {
+            return http.send(HttpRequest.newBuilder(server.resolve(path))
+                    .header("Content-Type", "application/json")
+                    .POST(HttpRequest.BodyPublishers.ofString(JSON.writeValueAsString(body)))
+                    .build(), HttpResponse.BodyHandlers.ofString());
         }
 
         private String csrfToken() {

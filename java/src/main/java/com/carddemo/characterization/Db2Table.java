@@ -8,7 +8,6 @@ import java.sql.ResultSet;
 import java.sql.SQLException;
 import java.sql.Statement;
 import java.util.ArrayList;
-import java.util.Collection;
 import java.util.List;
 import java.util.stream.Collectors;
 
@@ -16,7 +15,7 @@ import java.util.stream.Collectors;
  * A Db2 table of the transaction-type extension as {@code characterization/harness/db2.py} keeps it: one row
  * image per row, the key columns, the VARCHAR's length in two digits, then its text.
  */
-enum Db2Table implements SeededTable.Store {
+enum Db2Table implements Storage {
     TRANSACTION_TYPE("carddemo.transaction_type", List.of(new KeyColumn("tr_type", 2)), "tr_description"),
     TRANSACTION_TYPE_CATEGORY("carddemo.transaction_type_category",
             List.of(new KeyColumn("trc_type_code", 2), new KeyColumn("trc_type_category", 4)), "trc_cat_data");
@@ -37,23 +36,21 @@ enum Db2Table implements SeededTable.Store {
     }
 
     @Override
-    public int recordLength() {
+    public String table() {
+        return table;
+    }
+
+    int recordLength() {
         return keyLength() + LENGTH_DIGITS + VARCHAR_LENGTH;
     }
 
-    @Override
-    public int keyOffset() {
-        return 0;
-    }
-
-    @Override
-    public int keyLength() {
+    int keyLength() {
         return keys.stream().mapToInt(KeyColumn::width).sum();
     }
 
     /** {@code db2.dump}: the image built in SQL, trailing blanks dropped, then read back to the record length. */
     @Override
-    public List<byte[]> records(Connection db) throws SQLException {
+    public List<byte[]> read(Connection db) throws SQLException {
         String image = keys.stream().map(k -> "rpad(" + k.name() + ", " + k.width() + ")")
                 .collect(Collectors.joining(" || ")) + " || lpad(length(" + varchar + ")::text, 2, '0') || " + varchar;
         List<byte[]> records = new ArrayList<>();
@@ -72,7 +69,7 @@ enum Db2Table implements SeededTable.Store {
 
     /** {@code db2.reset}: every row from its image; a length of 0 or blanks means the text's rstripped length. */
     @Override
-    public void replace(Connection db, Collection<byte[]> records) throws SQLException {
+    public void replace(Connection db, Iterable<byte[]> records) throws SQLException {
         String columns = keys.stream().map(KeyColumn::name).collect(Collectors.joining(", ")) + ", " + varchar;
         String placeholders = String.join(", ", keys.stream().map(k -> "?").toList()) + ", ?";
         try (Statement delete = db.createStatement();
