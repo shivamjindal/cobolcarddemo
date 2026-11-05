@@ -59,7 +59,7 @@ public enum LibraryJob {
                     created("OUTFILE", "AWS.M2.CARDDEMO.ACCTDATA.PSCOMP", new Dcb(Dcb.Recfm.F, 107)),
                     created("ARRYFILE", "AWS.M2.CARDDEMO.ACCTDATA.ARRYPS", new Dcb(Dcb.Recfm.F, 110)),
                     created("VBRCFILE", "AWS.M2.CARDDEMO.ACCTDATA.VBPS", new Dcb(Dcb.Recfm.V, 84)),
-                    sysout("SYSOUT"), sysout("SYSPRINT"))));
+                    sysout("SYSOUT"), sysout("SYSPRINT")))),
     CLOSEFIL(JobDef.of("CLOSEFIL", program("CLCIFIL", Sdsf.NAME, sysout("ISFOUT"), sysout("CMDOUT"), instream("ISFIN",
             " /F CICSAWSA,'CEMT SET FIL(TRANSACT ) CLO'",
             " /F CICSAWSA,'CEMT SET FIL(CCXREF ) CLO'",
