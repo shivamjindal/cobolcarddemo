@@ -247,6 +247,42 @@ MOVE of a short account id into ACCT-ID PIC 9(11) leaves it unpadded, so 1 is no
 - Pinned by `bill-pay-short-account-not-found`.
 - Fix: zero-pad a short numeric account id to 11 digits before the read.
 
+## `COBTUPDT-description-keeps-trailing-blanks`
+
+INSERT and UPDATE bind the fixed 50-byte INPUT-REC-DESC to the VARCHAR(50) TR_DESCRIPTION, so every description is stored with its trailing blanks, length 50.
+
+- Lives in [`Cobtupdt.description`](../src/main/java/com/carddemo/batch/programs/Cobtupdt.java).
+- Comes from the program logic.
+- Pinned by `batch-tran-type-add-keeps-trailing-blanks`, `batch-tran-type-add-update-delete`, `batch-tran-type-later-sql-resets-rc`, `batch-tran-type-code-not-validated`.
+- Fix: bind a VARCHAR host variable that holds the description without its trailing blanks.
+
+## `COBTUPDT-message-keeps-stale-tail`
+
+STRING ... DELIMITED BY SIZE INTO WS-RETURN-MSG replaces only the characters it moves and the message is never cleared, so a shorter message DISPLAYs with the tail of a longer one.
+
+- Lives in [`Cobtupdt.Run.string`](../src/main/java/com/carddemo/batch/programs/Cobtupdt.java).
+- Comes from the program logic.
+- Pinned by `batch-tran-type-message-keeps-stale-tail`.
+- Fix: MOVE SPACES TO WS-RETURN-MSG before each STRING.
+
+## `COBTUPDT-sql-resets-return-code`
+
+9999-ABEND sets RETURN-CODE to 4, but the CALL the precompiler generates for the next SQL statement sets RETURN-CODE again, so an error followed by a statement that succeeds ends the step RC 0.
+
+- Lives in [`Cobtupdt.Run.sql`](../src/main/java/com/carddemo/batch/programs/Cobtupdt.java).
+- Comes from the program logic.
+- Pinned by `batch-tran-type-later-sql-resets-rc`.
+- Fix: keep the highest return code in working storage and move it to RETURN-CODE before STOP RUN.
+
+## `COBTUPDT-type-code-not-validated`
+
+The two-byte type code is bound as read, although MNTTRDB2 documents a numeric value, so letters and a blank second byte are added.
+
+- Lives in [`Cobtupdt.typeCode`](../src/main/java/com/carddemo/batch/programs/Cobtupdt.java).
+- Comes from the program logic.
+- Pinned by `batch-tran-type-code-not-validated`.
+- Fix: reject a record whose columns 2-3 are not two digits.
+
 ## `COCRDLIC-bad-filter-keeps-page`
 
 A non-numeric filter skips the browse, so the previous page stays on screen and every selection field stays protected.
