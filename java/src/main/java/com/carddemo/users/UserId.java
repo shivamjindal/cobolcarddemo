@@ -7,8 +7,11 @@ public record UserId(String value) implements Serializable {
 
     public static final int LENGTH = 8;
 
+    /** CDEMO-USER-ID of a COMMAREA that no sign-on filled. */
+    public static final UserId SPACES = new UserId("");
+
     public UserId {
-        if (value.isBlank() || value.length() > LENGTH || !value.equals(value.stripTrailing())) {
+        if (value.length() > LENGTH || !value.equals(value.stripTrailing())) {
             throw new IllegalArgumentException("user id '" + value + "'");
         }
     }
