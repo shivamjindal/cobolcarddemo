@@ -8,7 +8,7 @@
       "command": [
         "java/characterization-adapter"
       ],
-      "features": ["signon", "main-menu", "admin-menu", "user-list", "user-add", "user-update", "user-delete", "account-view", "account-update", "card-list", "card-detail", "card-update", "transaction-list", "transaction-view", "transaction-add", "bill-pay", "report-submit", "batch-posting", "batch-interest", "batch-reports", "batch-statements", "batch-extracts", "batch-tran-type-maint"]
+      "features": ["signon", "main-menu", "admin-menu", "user-list", "user-add", "user-update", "user-delete", "account-view", "account-update", "card-list", "card-detail", "card-update", "transaction-list", "transaction-view", "transaction-add", "bill-pay", "report-submit", "batch-posting", "batch-interest", "batch-reports", "batch-statements", "batch-extracts", "batch-tran-type-maint", "tran-type-list"]
     },
     "legacy-adapter": {
       "command": [
