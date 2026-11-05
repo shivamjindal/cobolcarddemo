@@ -210,20 +210,10 @@ public final class Adapter {
         switch (reply.get("kind").asText()) {
             case "text" -> observation.put("text", reply.get("text").asText());
             case "ended" -> {
-                String text = reply.get("text").asText();
-                observation.put("text", text);
+                observation.put("text", reply.get("text").asText());
                 observation.put("session", "ended");
-                // The harness reports an abend event. An ended reply only carries the DFHAC2206 text.
-                int marker = text.indexOf("failed with abend ");
-                if (marker >= 0) {
-                    String rest = text.substring(marker + "failed with abend ".length());
-                    int end = 0;
-                    while (end < rest.length() && Character.isLetterOrDigit(rest.charAt(end))) {
-                        end++;
-                    }
-                    if (end > 0) {
-                        observation.put("abend", rest.substring(0, end));
-                    }
+                if (reply.hasNonNull("abend")) {
+                    observation.put("abend", reply.get("abend").asText());
                 }
             }
             case "screen" -> {

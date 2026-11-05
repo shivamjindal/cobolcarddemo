@@ -170,12 +170,12 @@ final class Dispatcher {
             case End end -> {
                 terminal.sendText(end.text());
                 identity.signOff(request, response);
-                return new Result.Ok(new EndedReply(next, terminal.text().orElseThrow()));
+                return new Result.Ok(new EndedReply(next, terminal.text().orElseThrow(), null));
             }
             case Abend abend -> {
                 terminal.sendText(header.abendMessage(screen.ref().transid().orElseThrow(), abend.code()));
                 identity.signOff(request, response);
-                return new Result.Ok(new EndedReply(next, terminal.text().orElseThrow()));
+                return new Result.Ok(new EndedReply(next, terminal.text().orElseThrow(), abend.code()));
             }
             case Transfer transfer -> throw new IllegalStateException("task ended on an XCTL");
         }

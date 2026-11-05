@@ -57,7 +57,7 @@ A reply has a `kind`.
 
 - `screen` has `turn`, `screen` (the route name), `map` (`mapset`, `name`), `fields` (every field whose shown value is not blank), `colors`, `protectedFields`, `hiddenFields` (BMS DRK), `cursor` and `actions`.
 - `text` has `turn`, `screen`, `text` and `actions`.
-- `ended` has `turn` and `text`. The conversation is over and the session is signed off. A task that abends ends this way, with the CICS `DFHAC2206` message, and its writes are rolled back.
+- `ended` has `turn` and `text`. The conversation is over and the session is signed off. A task that abends ends this way, with the CICS `DFHAC2206` message and the code in `abend`, and its writes are rolled back.
 
 `actions` lists each action's `name` and `key`. A key that no action binds goes to action `invalid-key` with `"key":"PF9"` in the body, so the program answers it. `fields` holds only the fields the user changed since the last reply, by name, because a sent field counts as modified the way a 3270 sets its MDT. `""` erases a field. Typing into a protected or unknown field, past a field's length, or with a character below blank or outside Latin-1 is a 400. A `turn` or route that is not the one on screen is a 409 whose body is the reply on screen.
 
