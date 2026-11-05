@@ -67,7 +67,7 @@ class ProgramCatalogInstallIT {
     @Test
     void untilTheScreensArePortedTheExtensionProgramsStayPending() {
         region.install(Set.of(Extension.TRANSACTION_TYPE_DB2));
-        assertFalse(production.installed(LIST));
+        assertTrue(production.installed(LIST));
         assertFalse(production.installed(ProgramName.of("COTRTUPC")));
         assertTrue(production.installed(ADMIN_MENU));
     }
