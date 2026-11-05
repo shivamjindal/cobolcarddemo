@@ -82,7 +82,9 @@ public final class RecordImage {
         Field field = column.field();
         String text = Fields.text(record, field.offset(), field.length());
         return switch (column.type()) {
-            case SqlType.Text ignored -> text.chars().allMatch(c -> c == 0) ? null : stripSpaces(text);
+            case SqlType.Text ignored -> text.chars().allMatch(c -> c == 0) ? null
+                    // Postgres text rejects 0x00. The interest description's unused tail is low-values.
+                    : stripSpaces(text.replace('\0', ' '));
             case SqlType.Date ignored -> text.isBlank() ? null : LocalDate.parse(text, SqlTypes.DATE);
             case SqlType.Timestamp ignored -> throw new IllegalStateException(column.name() + " is not stored as text");
             case SqlType.Int ignored -> text.isBlank() ? null : number(record, field).intValueExact();
