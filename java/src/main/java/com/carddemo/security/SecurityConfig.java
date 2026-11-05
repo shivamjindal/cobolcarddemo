@@ -2,6 +2,7 @@ package com.carddemo.security;
 
 import java.util.List;
 
+import org.springframework.boot.autoconfigure.condition.ConditionalOnWebApplication;
 import org.springframework.boot.web.servlet.ServletListenerRegistrationBean;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
@@ -30,6 +31,7 @@ import com.carddemo.online.ProgramCatalog;
  * URL rules come from each screen's Access, and the dispatcher checks Access again on every XCTL
  * target, which no filter sees. CSRF uses the cookie XSRF-TOKEN and the header X-XSRF-TOKEN.
  */
+@ConditionalOnWebApplication
 @Configuration
 @EnableWebSecurity
 class SecurityConfig {

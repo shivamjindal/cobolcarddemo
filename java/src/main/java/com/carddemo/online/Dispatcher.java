@@ -9,6 +9,7 @@ import jakarta.servlet.http.HttpServletRequest;
 import jakarta.servlet.http.HttpServletResponse;
 import jakarta.servlet.http.HttpSession;
 
+import org.springframework.boot.autoconfigure.condition.ConditionalOnWebApplication;
 import org.springframework.stereotype.Component;
 import org.springframework.transaction.support.TransactionTemplate;
 import org.springframework.web.util.WebUtils;
@@ -20,6 +21,7 @@ import com.carddemo.identity.SignedOnUser;
  * inside it with an access check on every screen, identity changes applied after commit, and the
  * conversation stored last. Requests of one session run one at a time.
  */
+@ConditionalOnWebApplication
 @Component
 final class Dispatcher {
 

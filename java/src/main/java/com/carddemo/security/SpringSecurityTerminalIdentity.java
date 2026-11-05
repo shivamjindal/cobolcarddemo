@@ -7,6 +7,7 @@ import jakarta.servlet.http.HttpServletRequest;
 import jakarta.servlet.http.HttpServletResponse;
 import jakarta.servlet.http.HttpSession;
 
+import org.springframework.boot.autoconfigure.condition.ConditionalOnWebApplication;
 import org.springframework.context.ApplicationEventPublisher;
 import org.springframework.security.authentication.UsernamePasswordAuthenticationToken;
 import org.springframework.security.authentication.event.AuthenticationSuccessEvent;
@@ -24,6 +25,7 @@ import com.carddemo.identity.SignedOnUser;
 import com.carddemo.online.TerminalIdentity;
 
 /** TerminalIdentity on Spring Security, with the objects a login filter and a logout handler use. */
+@ConditionalOnWebApplication
 @Component
 final class SpringSecurityTerminalIdentity implements TerminalIdentity {
 

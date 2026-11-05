@@ -5,6 +5,7 @@ import java.util.List;
 import jakarta.servlet.http.HttpServletRequest;
 import jakarta.servlet.http.HttpServletResponse;
 
+import org.springframework.boot.autoconfigure.condition.ConditionalOnWebApplication;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ProblemDetail;
 import org.springframework.http.ResponseEntity;
@@ -26,6 +27,7 @@ import com.fasterxml.jackson.annotation.JsonInclude;
  * GET  /api/maps/{name}                 the BMS layout of a map
  * </pre>
  */
+@ConditionalOnWebApplication
 @RestController
 @RequestMapping("/api")
 final class ScreenController {
