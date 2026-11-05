@@ -16,6 +16,7 @@ import java.sql.ResultSet;
 import java.sql.SQLException;
 import java.sql.Statement;
 import java.time.Clock;
+import java.time.Duration;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.HashSet;
@@ -83,6 +84,7 @@ public final class Adapter {
             }
             long jobsBefore = lastJob(db);
             Map<String, Object> observation = browser.step(step.get("do"));
+            awaitSubmitted(db, jobsBefore);
             Map<String, Object> files = new LinkedHashMap<>();
             for (int i = 0; i < seeded.size(); i++) {
                 SeededTable table = seeded.get(i);
@@ -105,6 +107,34 @@ public final class Adapter {
                 ResultSet last = select.executeQuery("SELECT coalesce(max(id), 0) FROM job_submissions")) {
             last.next();
             return last.getLong(1);
+        }
+    }
+
+    /**
+     * Waits until every job submitted during the step has been claimed and has ended, so the next case's seed
+     * does not delete a data set the reader is still writing.
+     */
+    private static void awaitSubmitted(Connection db, long after) throws SQLException, InterruptedException {
+        long deadline = System.nanoTime() + Duration.ofSeconds(120).toNanos();
+        while (true) {
+            boolean pending;
+            try (PreparedStatement select = db.prepareStatement("""
+                    select count(*) from job_submissions s
+                    left join job_submission_runs r on r.submission_id = s.id
+                    where s.id > ? and (r.submission_id is null or r.ended_at is null)""")) {
+                select.setLong(1, after);
+                try (ResultSet result = select.executeQuery()) {
+                    result.next();
+                    pending = result.getInt(1) > 0;
+                }
+            }
+            if (!pending) {
+                return;
+            }
+            if (System.nanoTime() > deadline) {
+                throw new IllegalStateException("a job submitted after " + after + " did not end");
+            }
+            Thread.sleep(50);
         }
     }
 

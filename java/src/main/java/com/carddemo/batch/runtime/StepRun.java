@@ -10,6 +10,7 @@ import java.util.Optional;
 
 import org.springframework.jdbc.core.simple.JdbcClient;
 
+import com.carddemo.batch.jcl.Dcb;
 import com.carddemo.batch.jcl.Disposition;
 import com.carddemo.batch.jcl.StepDef;
 import com.carddemo.batch.step.FileStatus;
@@ -17,6 +18,7 @@ import com.carddemo.batch.step.KeyedDataset;
 import com.carddemo.batch.step.SequentialInput;
 import com.carddemo.batch.step.SequentialOutput;
 import com.carddemo.batch.step.Step;
+import com.carddemo.vsam.KeyRange;
 
 /** A program's view of its running step, over the step's allocations. */
 final class StepRun implements Step {
@@ -94,6 +96,34 @@ final class StepRun implements Step {
     }
 
     @Override
+    public int lrecl(String dd) {
+        return switch (first(dd)) {
+            case Allocation.Stored stored -> stored.dataset().dcb().lrecl();
+            case Allocation.Sysout sysout -> sysout.dcb().map(Dcb::lrecl).orElse(0);
+            case Allocation.Table table -> table.table().recordLength();
+            case null, default -> 0;
+        };
+    }
+
+    @Override
+    public Optional<KeyRange> key(String dd) {
+        return switch (first(dd)) {
+            case Allocation.Table table -> Optional.of(table.table().key());
+            case Allocation.Stored stored -> stored.dataset().key();
+            case null, default -> Optional.empty();
+        };
+    }
+
+    @Override
+    public Optional<String> dsn(String dd) {
+        return switch (first(dd)) {
+            case Allocation.Table table -> Optional.of(table.table().dsn());
+            case Allocation.Stored stored -> Optional.of(stored.dataset().dsn());
+            case null, default -> Optional.empty();
+        };
+    }
+
+    @Override
     public KeyedDataset keyed(String dd) {
         List<Allocation> concatenation = dds.get(dd);
         return switch (concatenation == null ? null : concatenation.getFirst()) {
@@ -111,6 +141,11 @@ final class StepRun implements Step {
             spool.append(jobExecutionId, def.path(), Spool.DISPLAY, displayed);
         }
         outputs.forEach(BufferedOutput::closeIfOpen);
+    }
+
+    private Allocation first(String dd) {
+        List<Allocation> concatenation = dds.get(dd);
+        return concatenation == null || concatenation.isEmpty() ? null : concatenation.getFirst();
     }
 
     private List<byte[]> records(Allocation allocation) {
