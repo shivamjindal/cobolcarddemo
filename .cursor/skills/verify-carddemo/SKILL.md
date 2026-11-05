@@ -23,11 +23,13 @@ python3 characterization/harness/build.py
 
 Ready means the command exits 0 and prints `built ... online programs` and `built ... batch programs`. `run.py` also builds before running, so this step is only needed to see build errors on their own. There is no server: each screen task runs as one short-lived `cicsrun` process, and each batch job is one `jobrun` process. Each case gets a fresh copy of the seed data under `characterization/.build/runs/<case-id>/`, so runs never share state and two runs of different cases can go side by side. Two concurrent runs of the *same* case id clobber each other's run directory; give each a distinct `--evidence` path and do not run the same case twice at once.
 
+Inside a tmux session on the cloud VM, `LD_LIBRARY_PATH` is `/exec-daemon/tmux-root/lib`. The GnuCOBOL runtime `libcob` then loads that directory's `libncursesw.so.6`, prints `no version information available`, and every legacy batch case reports `ERROR`. Run `run.py` and `doctor.py` from tmux as `env -u LD_LIBRARY_PATH python3 characterization/run.py ...`.
+
 ### Java slice
 
 Prerequisites: JDK 21, Maven 3.9, Postgres 16 with role and database `carddemo` (password `carddemo`, allowed to create databases), Node 22 for the React client. On a fresh Ubuntu VM: `sudo apt-get install -y postgresql && sudo service postgresql start`, then `sudo -u postgres psql -c "CREATE ROLE carddemo LOGIN SUPERUSER PASSWORD 'carddemo'" -c "CREATE DATABASE carddemo OWNER carddemo"`.
 
-The `java` target needs no manual launch. `java/characterization-adapter` rebuilds the jar when a source is newer, creates database `carddemo_characterization` if it is missing, and keeps one warm server on `127.0.0.1:18080` (profile `characterization`, clock fixed at `2026-11-05 10:00`). It reseeds USRSEC, ACCTDATA, CUSTDATA, CARDDATA, CARDXREF and TRANSACT, and empties the `job_submissions` table, before every case, so cases never share state. Do not run two `--target java` runs at once: they share that database. A second checkout gets its own server and data with `CARDDEMO_CHARACTERIZATION_PORT=18081 CARDDEMO_CHARACTERIZATION_DB=carddemo_char_2`, and its own Spring test database with `CARDDEMO_TEST_DB=carddemo_test_2`. The server stops after ten idle minutes.
+The `java` target needs no manual launch. `java/characterization-adapter` rebuilds the jar when a source is newer, creates database `carddemo_characterization` if it is missing, and keeps one warm server on `127.0.0.1:18080` (profile `characterization`, clock fixed at `2026-11-05 10:00`, internal reader polling every 0.2 seconds). Before every case it reseeds the ten keyed datasets (USRSEC, ACCTDATA, CUSTDATA, CARDDATA, CARDXREF, TRANSACT, DISCGRP, TCATBALF, TRANCATG, TRANTYPE), empties the job queue (`job_submissions`, `job_submission_runs`), the spool and the sequential-dataset catalog (`datasets`, `dataset_records`), and reopens every CICS file, so cases never share state. Do not run two `--target java` runs at once: they share that database. A second checkout gets its own server and data with `CARDDEMO_CHARACTERIZATION_PORT=18081 CARDDEMO_CHARACTERIZATION_DB=carddemo_char_2`, and its own Spring test database with `CARDDEMO_TEST_DB=carddemo_test_2`. The server stops after ten idle minutes.
 
 To drive the slice by hand (API and React screens), use two long-lived tmux sessions:
 
@@ -108,20 +110,32 @@ Respond with `{"steps": [observation, ...]}`, one observation per step in the fo
 
 `characterization/reference_adapter.py` is a working adapter (it answers with the legacy harness) and the template to copy. `python3 characterization/run.py --target legacy-adapter` proves the protocol plumbing; build first, since `run.py` only builds for the `legacy` target.
 
-The first Java slice is registered: `java/characterization-adapter` (launcher) and `com.carddemo.characterization.Adapter` (the client). The client turns each step into the same HTTP calls the React app makes (`POST /api/session`, then `POST /api/screens/{screen}/{action}` or `invalid-key`), so a pass proves the API, not a test double. Its `features` are `signon`, `main-menu`, `admin-menu`, `user-list`, `user-add`, `user-update`, `user-delete`, `account-view`, `account-update`, `card-list`, `card-detail`, `card-update`, `transaction-list`, `transaction-view`, `transaction-add`, `bill-pay`, `report-submit`:
+The Java port is registered as target `java`: `java/characterization-adapter` (launcher) and `com.carddemo.characterization.Adapter` (the client). Its `features` are every feature with cases: the 17 online features (`signon` through `report-submit`) and the five batch features (`batch-posting`, `batch-interest`, `batch-statements`, `batch-reports`, `batch-extracts`). Run them all:
 
 ```bash
-python3 characterization/run.py --target java --feature signon --feature main-menu --feature admin-menu \
-  --feature user-list --feature user-add --feature user-update --feature user-delete \
-  --feature account-view --feature account-update --feature card-list --feature card-detail --feature card-update \
-  --feature transaction-list --feature transaction-view --feature transaction-add --feature bill-pay --feature report-submit
+python3 characterization/run.py --target java
 ```
 
-Ready means `java: 297 PASS` (signon 9, main-menu 10, admin-menu 10, user admin 49, account and card 119, transactions and bill pay 100). The first run builds the jar and starts the server, which takes about 30 seconds more. To port the next feature, add a `Screen` bean for each program, copying `useradmin/UserDeleteScreen` (a `Screen` returns an `Outcome`; the `Terminal` owns every 3270 rule, so a screen never touches attributes or cursor bytes), make sure `Adapter.SEEDED` lists every dataset its cases set up or write (today USRSEC, ACCTDATA, CUSTDATA, CARDDATA, CARDXREF and TRANSACT; `SeededTable` seeds and diffs any of them). A screen that submits a job records it through `JobSubmissions`, and the adapter reports the rows recorded during a step as that step's `queues`, and add the feature name to `features` once its cases pass. Pinned legacy defects are reproduced in methods annotated `@LegacyDefect`. `java/docs/legacy-defects.md` is generated from those annotations, and `mvn verify` fails when the file is stale.
+Ready means `java: 325 PASS`: 297 online (signon 9, main-menu 10, admin-menu 10, user admin 49, account and card 119, transactions and bill pay 100) and 28 batch (posting 12, interest 7, extracts 4, statements 3, reports 2). The first run builds the jar and starts the server, which takes about 30 seconds more.
+
+An online case runs over HTTP. The client turns each step into the same calls the React app makes (`POST /api/session`, then `POST /api/screens/{screen}/{action}` or `invalid-key`), so a pass proves the API, not a test double. A screen that submits a job records it through `JobSubmissions`. The adapter reports the rows recorded during a step as that step's `queues`, and waits until the internal reader has ended each of them before it diffs the files.
+
+A batch case runs through the same queue the online report submit uses (`BatchCase`):
+
+1. The adapter seeds the tables and the case's `setup`, then turns the case's `job` into a one-step deck: `//CHARZ JOB '<case id>'`, `//STEP01 EXEC PGM=<program>,PARM='<parm>'`, a `SYSOUT DD SYSOUT=*` for DISPLAY lines, and one DD per binding.
+2. It stages each binding the way `harness/batch.py` does. A keyed dataset is `DSN=<its cluster>,DISP=SHR` on the seeded table. A sequential dataset (DALYTRAN) is cataloged as `AWS.M2.CARDDEMO.<name>.PS` from the seed or `setup`. `{"dataset": X}` is a key-ordered flat copy cataloged as `AWS.M2.CARDDEMO.CHARZ.<dd>`. `{"lines": ...}` is `DD *` (80-byte cards only). `{"derive": "creastmt-trxfl"}` catalogs `AWS.M2.CARDDEMO.TRXFL.VSAM.KSDS` through `SortSpec.CreastmtTrxfl`, the CREASTMT sort. `{"output": ...}` is `DD SYSOUT=*` with `DCB=(RECFM=F,LRECL=<reclen>)`, or `DCB=(RECFM=V)` when the case says `"recfm": "V"`.
+3. It inserts the deck into `job_submissions` on TD queue `JOBS`. The warm server's `InternalReader` claims the row into `job_submission_runs`, parses the deck, and runs it on Spring Batch. The adapter polls the claim until `ended_at` is set (300 seconds at most).
+4. It observes what the harness observes: `completion` is the claim's completion label, `sysout` is STEP01's spooled `SYSOUT`, `files` diffs the ten tables, and each output DD's spool is decoded as the case asks. Fixed records are re-sliced to `reclen` first, as the harness does.
+
+`BatchGoldensIT` runs every case in `characterization/cases/batch/` through the same `BatchCase` with the internal reader of its own Spring context, so `mvn verify` checks all 28 batch goldens without `run.py`. To run one case on java, select it by id: `python3 characterization/run.py --target java --case posting-mixed-batch`.
+
+To port an online feature, add a `Screen` bean for each program, copying `useradmin/UserDeleteScreen` (a `Screen` returns an `Outcome`; the `Terminal` owns every 3270 rule, so a screen never touches attributes or cursor bytes). `SeededTable.SEEDED` lists the keyed datasets the adapter seeds and diffs. A case that sets up a keyed dataset outside that list is refused. To port a batch program, follow "Add a batch program" in `java/README.md`. Add the feature name to `features` only once its cases pass. Pinned legacy defects are reproduced in methods annotated `@LegacyDefect`. `LegacyDefectRegisterTest` checks each annotation's goldens exist and rewrites `java/docs/legacy-defects.md` from the annotations on every `mvn verify`, so commit the file it writes.
 
 ## Evidence
 
 Every run writes `characterization/.evidence/<timestamp>-<target>/` (or `--evidence DIR`): `report.json` (status per case with diffs), `<case-id>.json` (the actual observations), and `runs/<case-id>/` (the seeded `.dat` files after the run, `task.in`, `events.NN.jsonl` per CICS task with every CICS command issued, and batch `dd/` files). Proof standard: the case drives the user path (transid and keys, or the job's DD bindings), and the golden pins both the screen and the file side effects. A screen message alone does not prove a write; the `files` diff does.
+
+On the `java` target, `<case-id>.json` is the Java observation. A `runs/<case-id>/` directory there is a copy of the last legacy run of that case, not Java state. The Java side's evidence is in the server log, `java/target/characterization/server.log`, and in database `carddemo_characterization` (the spool and `job_submission_runs`), which holds only the last case because each case's seed clears it.
 
 ## Cleanup
 

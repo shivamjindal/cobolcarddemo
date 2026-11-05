@@ -4,7 +4,7 @@ This directory is the maintained source for verifying CardDemo's user-facing beh
 
 ## Baseline preconditions
 
-- `python3 characterization/doctor.py` prints only `ok` lines. For the Java slice, `python3 characterization/doctor.py --target java` does too.
+- `python3 characterization/doctor.py` prints only `ok` lines. For the Java slice, `python3 characterization/doctor.py --target java` does too. Inside tmux, prefix both with `env -u LD_LIBRARY_PATH`. Otherwise legacy batch cases report `ERROR` (`SKILL.md`, "Launch").
 - Seed data is the shipped ASCII data in `app/data/ASCII` plus `characterization/fixtures/seed/usrsec.txt` (converted from the EBCDIC USRSEC file). Every case starts from a fresh copy, edited by its `setup`.
 - Users: `ADMIN001`..`ADMIN005` (type A) and `USER0001`..`USER0005` (type U), all with password `PASSWORD`.
 - Clock: `2026-11-05 10:00:00.00` for CICS ASKTIME/FORMATTIME and COBOL `CURRENT-DATE`.
@@ -19,7 +19,9 @@ This directory is the maintained source for verifying CardDemo's user-facing beh
 
 ## Java slice coverage
 
-`signon`, `main-menu`, `admin-menu`, `user-list`, `user-add`, `user-update`, `user-delete`, `account-view`, `account-update`, `card-list`, `card-detail`, `card-update`, `transaction-list`, `transaction-view`, `transaction-add`, `bill-pay` and `report-submit` are ported: `--target java` on those features prints `java: 297 PASS`. Every other feature (the batch jobs) reports `SKIP`. Main menu options 1-10 and admin options 1-4 reach ported screens. Main option 11 and admin options 5-6 reach a placeholder screen in Java (`PendingProgramScreen`, a text reply naming the unported program), as does any program with no `Screen` bean.
+Every feature with cases is ported. `python3 characterization/run.py --target java` prints `java: 325 PASS`: 297 online cases across the 17 online features and 28 batch cases across `batch-posting`, `batch-interest`, `batch-statements`, `batch-reports` and `batch-extracts`. No feature reports `SKIP`. Main menu options 1-10 and admin options 1-4 reach ported screens. Main option 11 and admin options 5-6 reach a placeholder screen in Java (`PendingProgramScreen`, a text reply naming the unported program), as does any program with no `Screen` bean.
+
+On the Java slice a batch case is a one-step deck that the adapter submits to TD queue `JOBS`. The warm server's internal reader runs the deck, and the adapter reads the completion, spool and table diffs back (`SKILL.md`, "Adding a Java slice"). The report submit (`report-submit`, CORPT00C) queues a deck that the reader runs as the TRANREPT procedure. The adapter waits for that run to end, but the golden compares only the queued cards. The CLOSEFIL and OPENFIL jobs, WAITSTEP and the scheduler chains have no goldens. Spring tests cover them (`java/README.md`, "Batch").
 
 ## Proof and skip reporting
 
