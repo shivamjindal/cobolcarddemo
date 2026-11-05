@@ -5,8 +5,8 @@ import java.math.RoundingMode;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 
-/** The GnuCOBOL numeric reads COACTUPC's edits depend on: NUMVAL, NUMVAL-C and zoned DISPLAY fields. */
-final class Intrinsics {
+/** The GnuCOBOL numeric reads the account edits and CORPT00C's date parts depend on. */
+public final class Intrinsics {
 
     private static final String NUMBER = "(\\d+(?:\\.\\d*)?|\\.\\d+)";
     private static final String NUMBER_WITH_COMMAS = "(\\d[\\d,]*(?:\\.\\d*)?|\\.\\d+)";
@@ -44,6 +44,17 @@ final class Intrinsics {
             return signed(trailing.group(1), isNegative(trailing.group(2)));
         }
         throw new IllegalArgumentException("NUMVAL of '" + text + "'");
+    }
+
+    /**
+     * {@code COMPUTE n = FUNCTION NUMVAL-C(text)} into PIC 9({@code digits}), as the zero-padded image a
+     * MOVE back to the date field produces. Text that fails TEST-NUMVAL-C is the COBOL size error.
+     */
+    public static String numvalCImage(String text, int digits) {
+        if (!testNumvalC(text)) {
+            throw new IllegalArgumentException("NUMVAL-C of '" + text + "'");
+        }
+        return ("%0" + digits + "d").formatted(unsigned(numvalC(text), digits));
     }
 
     /** {@code FUNCTION NUMVAL-C(text)} of text that passes {@link #testNumvalC}. */
