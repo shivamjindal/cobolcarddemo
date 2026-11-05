@@ -3,12 +3,18 @@
 A case's "job" names the program and binds each DD to one of:
   "DATASET"                              keyed datasets load as indexed files, others as
                                          fixed-length sequential files; changes are diffed
-  {"dataset": "X", "as": "sequential"}   a keyed dataset handed over as a flat file
+  {"dataset": "X", "as": "sequential"}   a keyed dataset handed over as a flat file; "seed": true
+                                         takes the seed records instead of the run's copy and
+                                         "where": {FIELD: [values]} keeps only matching records
   {"lines": [...], "reclen": n}          an inline sequential input (a PARM card)
   {"output": "NAME", "reclen": n}        a sequential output captured as records
   {"output": "NAME", "recfm": "V"}       a variable-length output
-    outputs may add "decode_as": "DATASET" (decode with that record layout) or "hex": true
+    outputs may add "decode_as": "DATASET" (decode with that record layout), "copybook": path
+    (decode with that copybook, for records no dataset describes) or "hex": true
   {"derive": "creastmt-trxfl"}           the CREASTMT SORT step output (see derive_trxfl)
+The job may add "psb": NAME (run as an IMS DL/I region with that PSB's PCB masks; the
+DL/I stub works on the run's PAUTSUM0/PAUTDTL1 and GSAM PCBs write to their JCL DDs) and
+"sysin": [lines] (ACCEPT FROM SYSIN input).
 Observed: return code (or user abend), SYSOUT lines, dataset diffs, output records.
 """
 import os
@@ -19,8 +25,9 @@ from pathlib import Path
 
 import build
 import db2
+from copybook import load_layout
 from datasets import Datasets
-from online import db2_env
+from online import db2_env, uses_db2
 
 FIXED_CLOCK = "2026/11/05 10:00:00.00"
 LOADER = """       IDENTIFICATION DIVISION.
@@ -137,7 +144,10 @@ def run_job(case, run_dir, install=()):
     libs, extra = db2_env(install, "batch")
     env = dict(os.environ, COB_LIBRARY_PATH=":".join(libs + [str(build.BATCH)]), COB_CURRENT_DATE=FIXED_CLOCK,
                COB_VARSEQ_FORMAT="0", **extra)
-    if install:
+    if "psb" in job:
+        env.update(DLI_PSB=job["psb"], DLI_PSBLIB=str(build.PSBLIB))
+    sysin = "".join(l + "\n" for l in job.get("sysin", [])).encode("latin-1")
+    if uses_db2(install):
         db2.reset(data, run_dir)
     before = data.snapshot(run_dir)
     keyed, outputs = {}, {}
@@ -160,7 +170,11 @@ def run_job(case, run_dir, install=()):
             else:
                 path.write_bytes(b"".join(data.read(run_dir, spec)))
         elif "dataset" in spec:
-            path.write_bytes(b"".join(data.read(run_dir, spec["dataset"])))
+            name = spec["dataset"]
+            recs = data.seed_records(name) if spec.get("seed") else data.read(run_dir, name)
+            if "where" in spec:
+                recs = data.select(name, recs, spec["where"])
+            path.write_bytes(b"".join(recs))
         elif "lines" in spec:
             path.write_bytes(b"".join(l.encode("latin-1").ljust(spec["reclen"], b" ")
                                       for l in spec["lines"]))
@@ -173,14 +187,14 @@ def run_job(case, run_dir, install=()):
         elif "output" in spec:
             outputs[dd] = spec
     proc = subprocess.run([str(build.BATCH / "jobrun"), job["program"], job.get("parm", "")], env=env, cwd=run_dir,
-                          capture_output=True, timeout=300)
+                          input=sysin, capture_output=True, timeout=300)
     stderr = proc.stderr.decode("latin-1")
     abend = re.search(r"HARNESS-ABEND (\S+)", stderr)
     obs = {"completion": abend.group(1) if abend else f"RC={proc.returncode}",
            "sysout": [l.rstrip() for l in proc.stdout.decode("latin-1").splitlines()]}
     if not abend and proc.returncode not in (0, 4, 8, 12, 16):
         obs["_stderr"] = stderr[-2000:]
-    if install:
+    if uses_db2(install):
         db2.dump(data, run_dir)
     for dd, (spec, exe) in keyed.items():
         flat = run_dir / f"{spec}.dat"
@@ -196,6 +210,10 @@ def run_job(case, run_dir, install=()):
         if "decode_as" in spec:
             rows = [data.decode(spec["decode_as"], r.ljust(data.datasets[spec["decode_as"]]["reclen"], b" "))
                     for r in recs]
+        elif "copybook" in spec:
+            lay = load_layout(build.REPO / spec["copybook"])
+            rows = [{k: v.rstrip() if isinstance(v, str) else v for k, v in lay.decode(r).items()
+                     if "FILLER" not in k} for r in recs]
         elif spec.get("hex"):
             rows = [r.hex() for r in recs]
         else:

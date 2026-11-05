@@ -8,7 +8,9 @@
  *
  * Files are fixed-length text records, one per line, kept sorted by key.
  * CSD defines every CardDemo file RECOVERY(NONE), so writes go straight to
- * disk and neither SYNCPOINT ROLLBACK nor ABEND backs them out.
+ * disk and neither SYNCPOINT ROLLBACK nor ABEND backs them out. IMS, MQ and
+ * AUTHFRDS changes (region.h) commit at SYNCPOINT or normal task end and are
+ * discarded by SYNCPOINT ROLLBACK or an abend.
  */
 #include <stdarg.h>
 #include <stddef.h>
@@ -18,6 +20,7 @@
 #include <string.h>
 #include <time.h>
 #include <libcob.h>
+#include "region.h"
 
 /* sqlstub.c: ends the Db2 unit of work (commit 1, rollback 0). */
 void sql_end(int commit);
@@ -47,7 +50,7 @@ struct req {
 #pragma pack(pop)
 
 enum { NORMAL = 0, NOTFND = 13, DUPREC = 14, DUPKEY = 15, INVREQ = 16, NOTOPEN = 19,
-       ENDFILE = 20, PGMIDERR = 27, MAPFAIL = 36 };
+       ENDFILE = 20, LENGERR = 22, PGMIDERR = 27, ENDDATA = 29, MAPFAIL = 36 };
 
 static int all_high_values(const char *key, int len) {
     for (int i = 0; i < len; i++)
@@ -78,6 +81,9 @@ static char xctl_program[9];
 static unsigned char xctl_commarea[COMMAREA_MAX];
 static int xctl_len = -1;
 static int returned;
+static int link_depth;
+static unsigned char start_data[COMMAREA_MAX];
+static int start_len = -1;
 
 static void hex(FILE *f, const unsigned char *p, int n) {
     for (int i = 0; i < n; i++) fprintf(f, "%02x", p[i]);
@@ -412,6 +418,8 @@ int CICSAPI(struct req *r, struct eib *e, char *a0, char *a1, char *a2, char *a3
         int i = argidx(r, "FROM");
         int n = r->len > 0 ? r->len : r->arglen[i];
         event_data("send_text", "", (unsigned char *)a[i], n);
+    } else if (!strcmp(fn, "RETURN") && link_depth > 0) {
+        event("link_return", "\"depth\":%d", link_depth);
     } else if (!strcmp(fn, "RETURN")) {
         int i = argidx(r, "COMMAREA");
         int n = i < 0 ? 0 : (r->len > 0 ? r->len : r->arglen[i]);
@@ -430,6 +438,33 @@ int CICSAPI(struct req *r, struct eib *e, char *a0, char *a1, char *a2, char *a3
             strcpy(xctl_program, name);
             event("xctl", "\"program\":\"%s\"", name);
         }
+    } else if (!strcmp(fn, "LINK")) {
+        /* The linked program runs on the caller's commarea storage, so its changes are
+           what the caller sees after the LINK. */
+        if (!cob_resolve(name)) {
+            rc = PGMIDERR;
+            event("link_failed", "\"program\":\"%s\"", name);
+        } else {
+            static char empty[1];
+            int i = argidx(r, "COMMAREA");
+            struct eib child = *e;
+            child.calen = (int16_t)(i < 0 ? 0 : (r->len > 0 ? r->len : r->arglen[i]));
+            void *args[2] = {&child, i < 0 ? empty : a[i]};
+            event("link", "\"program\":\"%s\",\"calen\":%d", name, child.calen);
+            link_depth++;
+            cob_call(name, 2, args);
+            link_depth--;
+            cob_cancel(name);
+        }
+    } else if (!strcmp(fn, "RETRIEVE")) {
+        int i = argidx(r, "INTO");
+        if (start_len < 0) {
+            rc = ENDDATA;
+        } else {
+            copy_out(a[i], r->arglen[i], (char *)start_data, start_len);
+            if (start_len > r->arglen[i]) rc = LENGERR;
+        }
+        event("retrieve", "\"resp\":%d", rc);
     } else if (!strcmp(fn, "INQUIRE")) {
         int i = argidx(r, "PROGRAM");
         char prog[9];
@@ -455,6 +490,26 @@ int CICSAPI(struct req *r, struct eib *e, char *a0, char *a1, char *a2, char *a3
             else snprintf(buf, sizeof buf, "%04d%02d%02d", tm.tm_year + 1900, tm.tm_mon + 1, tm.tm_mday);
             put_text(a[i], r->arglen[i], buf);
         }
+        if ((i = argidx(r, "MMDDYYYY")) >= 0) {
+            if (ds) snprintf(buf, sizeof buf, "%02d%c%02d%c%04d", tm.tm_mon + 1, ds, tm.tm_mday, ds, tm.tm_year + 1900);
+            else snprintf(buf, sizeof buf, "%02d%02d%04d", tm.tm_mon + 1, tm.tm_mday, tm.tm_year + 1900);
+            put_text(a[i], r->arglen[i], buf);
+        }
+        if ((i = argidx(r, "YYMMDD")) >= 0) {
+            if (ds) snprintf(buf, sizeof buf, "%02d%c%02d%c%02d", tm.tm_year % 100, ds, tm.tm_mon + 1, ds, tm.tm_mday);
+            else snprintf(buf, sizeof buf, "%02d%02d%02d", tm.tm_year % 100, tm.tm_mon + 1, tm.tm_mday);
+            put_text(a[i], r->arglen[i], buf);
+        }
+        if ((i = argidx(r, "YYDDD")) >= 0) {
+            time_t t = timegm(&tm);
+            struct tm day;
+            gmtime_r(&t, &day);
+            if (ds) snprintf(buf, sizeof buf, "%02d%c%03d", day.tm_year % 100, ds, day.tm_yday + 1);
+            else snprintf(buf, sizeof buf, "%02d%03d", day.tm_year % 100, day.tm_yday + 1);
+            put_text(a[i], r->arglen[i], buf);
+        }
+        if ((i = argidx(r, "MILLISECONDS")) >= 0)
+            memset(a[i], 0, r->arglen[i]);
         if ((i = argidx(r, "MMDDYY")) >= 0) {
             if (ds) snprintf(buf, sizeof buf, "%02d%c%02d%c%02d", tm.tm_mon + 1, ds, tm.tm_mday, ds, tm.tm_year % 100);
             else snprintf(buf, sizeof buf, "%02d%02d%02d", tm.tm_mon + 1, tm.tm_mday, tm.tm_year % 100);
@@ -472,6 +527,10 @@ int CICSAPI(struct req *r, struct eib *e, char *a0, char *a1, char *a2, char *a3
         snprintf(meta, sizeof meta, "\"queue\":\"%s\",", name);
         event_data("writeq_td", meta, (unsigned char *)a[i], n);
     } else if (!strcmp(fn, "SYNCPOINT")) {
+        /* A syncpoint ends the unit of work and, under DBCTL, releases the PSB. */
+        if (has_flag(r, "ROLLBACK")) uow_rollback();
+        else uow_commit();
+        dli_unschedule();
         event("syncpoint", "\"rollback\":%s", has_flag(r, "ROLLBACK") ? "true" : "false");
         sql_end(!has_flag(r, "ROLLBACK"));
     } else if (!strcmp(fn, "ABEND")) {
@@ -505,6 +564,8 @@ static const char *condition_abend(int resp) {
     case NOTOPEN: return "AEIS";
     case ENDFILE: return "AEIT";
     case PGMIDERR: return "AEI0";
+    case ENDDATA: return "AEI2";
+    case LENGERR: return "AEIV";
     case MAPFAIL: return "AEI9";
     default: return "HUNS";
     }
@@ -562,8 +623,10 @@ int main(int argc, char **argv) {
         else if (!strncmp(line, "aid=", 4)) sscanf(line + 4, "%x", (unsigned *)&aid);
         else if (!strncmp(line, "commarea=", 9)) calen = unhex(line + 9, commarea);
         else if (!strncmp(line, "map=", 4)) task_map_len = unhex(line + 4, task_map);
+        else if (!strncmp(line, "start_data=", 11)) start_len = unhex(line + 11, start_data);
     }
     if (in) fclose(in);
+    region_init(session);
 
     cob_init(0, NULL);
     struct eib eib;
@@ -595,6 +658,8 @@ int main(int argc, char **argv) {
         if (!returned) event("return", "\"transid\":\"\",\"data\":\"\",\"implicit\":true");
         break;
     }
+    uow_commit();
+    dli_unschedule();
     sql_end(1);
     fclose(events);
     cob_stop_run(0);

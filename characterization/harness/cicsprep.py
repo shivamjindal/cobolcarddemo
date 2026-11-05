@@ -7,11 +7,13 @@ RIDFLD, COMMAREA, ...) are passed by reference, everything else is a flag.
 import re
 import sys
 
+import authfrds_sql
+
 RESP_CODES = {
     "NORMAL": 0, "ERROR": 1, "EOF": 4, "DSIDERR": 12, "FILENOTFOUND": 12, "NOTFND": 13,
     "DUPREC": 14, "DUPKEY": 15, "INVREQ": 16, "IOERR": 17, "NOSPACE": 18, "NOTOPEN": 19,
     "ENDFILE": 20, "ILLOGIC": 21, "LENGERR": 22, "PGMIDERR": 27, "TRANSIDERR": 28,
-    "MAPFAIL": 36, "QIDERR": 44, "DISABLED": 84,
+    "ENDDATA": 29, "MAPFAIL": 36, "QIDERR": 44, "DISABLED": 84,
 }
 NAME_OPTS = {"MAP": "CICS-NAME", "FILE": "CICS-NAME", "DATASET": "CICS-NAME",
              "PROGRAM": "CICS-NAME", "QUEUE": "CICS-NAME", "ABCODE": "CICS-NAME",
@@ -19,7 +21,8 @@ NAME_OPTS = {"MAP": "CICS-NAME", "FILE": "CICS-NAME", "DATASET": "CICS-NAME",
 NUM_OPTS = {"LENGTH": "CICS-LEN", "FLENGTH": "CICS-LEN", "KEYLENGTH": "CICS-KEYLEN"}
 IGNORED_ARG_OPTS = {"LABEL", "CURSOR", "REQID"}
 DATA_OPTS = {"INTO", "FROM", "RIDFLD", "COMMAREA", "APPLID", "SYSID", "ABSTIME",
-             "YYYYMMDD", "MMDDYYYY", "MMDDYY", "DDMMYY", "YYMMDD", "DATE", "TIME",
+             "YYYYMMDD", "MMDDYYYY", "MMDDYY", "DDMMYY", "YYMMDD", "YYDDD", "DATE", "TIME",
+             "MILLISECONDS",
              "DATESEP", "TIMESEP", "TEXT", "USERID", "TERMID", "OPID"}
 TWO_WORD_VERBS = {"SEND", "RECEIVE", "HANDLE", "IGNORE"}
 
@@ -171,14 +174,56 @@ class Translator:
         return stmts
 
 
+def translate_dli(body):
+    """EXEC DLI -> DLI-REQ moves plus CALL 'DLIEXEC' (runtime/dli.c)."""
+    opts = list(scan_options(body))
+    verb, rest = opts[0][0], opts[1:]
+    stmts = ["INITIALIZE DLI-REQ", f"MOVE '{verb}' TO DLI-FN"]
+    io, where, nseg = None, [None, None], 0
+    for key, arg in rest:
+        if key == "PCB":
+            stmts.append(f"MOVE {arg} TO DLI-PCBNO")
+        elif key == "PSB":
+            name = arg[1:-1].strip() if arg.startswith("(") else f"'{arg}'"
+            stmts.append(f"MOVE {name} TO DLI-PSB")
+        elif key == "SEGMENT":
+            nseg += 1
+            if nseg > 2:
+                raise ValueError("EXEC DLI with more than two SEGMENT options")
+            name = arg[1:-1].strip() if arg.startswith("(") else f"'{arg}'"
+            stmts.append(f"MOVE {name} TO DLI-SEG{nseg}")
+        elif key == "WHERE":
+            m = re.fullmatch(r"([A-Z0-9#@$]+)\s*(=|>=|<=|>|<|EQ|GE|LE|GT|LT|NE)\s*([A-Z0-9-]+)",
+                             arg.strip(), re.I)
+            if not m or not nseg:
+                raise ValueError(f"unsupported WHERE {arg!r}")
+            field, op, value = m.groups()
+            stmts += [f"MOVE '{field.upper()}' TO DLI-FLD{nseg}", f"MOVE '{op}' TO DLI-OP{nseg}",
+                      f"MOVE LENGTH OF {value} TO DLI-W{nseg}LEN"]
+            where[nseg - 1] = value
+        elif key in ("INTO", "FROM"):
+            io = arg
+            stmts.append(f"MOVE LENGTH OF {arg} TO DLI-IOLEN")
+        elif key in ("USING", "SEGLENGTH", "NODHABEND", "ID"):
+            continue
+        else:
+            raise ValueError(f"unsupported EXEC DLI option {key}")
+    args = [io or "DLI-REQ", where[0] or "DLI-REQ", where[1] or "DLI-REQ"]
+    stmts.append(f"CALL 'DLIEXEC' USING DLI-REQ DLZDIB {' '.join(args)} END-CALL")
+    return stmts
+
+
 def replace_dfhresp(code):
     return re.sub(r"DFHRESP\s*\(\s*([A-Z0-9]+)\s*\)",
                   lambda m: str(RESP_CODES[m.group(1).upper()]), code, flags=re.I)
 
 
-def translate(src_text, program):
+def translate(src_text, program, batch=False):
+    """batch=True: an IMS batch program; only EXEC DLI is translated, the divisions stay."""
     tr = Translator(program)
     lines = [l.rstrip("\n\r") for l in src_text.splitlines()]
+    has_dli = any(re.search(r"\bEXEC\s+DLI\b", code_area(l), re.I)
+                  for l in lines if not is_comment(l))
     out = []
     i = 0
     saw_link = saw_commarea = False
@@ -190,6 +235,16 @@ def translate(src_text, program):
             continue
         code = code_area(line)
         upper = code.upper()
+        if has_dli and re.search(r"\bWORKING-STORAGE\s+SECTION\b", upper):
+            out += [line[:72], "       COPY DLIDIB.", "       COPY DLIREQ."]
+            i += 1
+            continue
+        if batch and re.search(r"\bEXEC\s+CICS\b", upper):
+            raise ValueError(f"EXEC CICS in batch program {program}")
+        if batch and not re.search(r"\bEXEC\s+(DLI|SQL)\b", upper):
+            out.append(line[:72])
+            i += 1
+            continue
         if re.search(r"\bLINKAGE\s+SECTION\b", upper):
             out.append("       COPY CICSREQ.")
             out.append(line[:72])
@@ -209,11 +264,12 @@ def translate(src_text, program):
             continue
         if re.search(r"\b01\s+DFHCOMMAREA\b", upper):
             saw_commarea = True
-        m = re.search(r"\bEXEC\s+CICS\b", code, re.I)
+        m = re.search(r"\bEXEC\s+(CICS|DLI|SQL)\b", code, re.I)
         if not m:
             out.append(line[:7] + replace_dfhresp(code) if len(line) > 7 else line)
             i += 1
             continue
+        kind = m.group(1).upper()
         prefix = code[:m.start()]
         body = code[m.end():]
         start = i
@@ -226,7 +282,17 @@ def translate(src_text, program):
         body = body[:e.start()]
         if prefix.strip():
             out.append(lines[start][:7] + prefix)
-        out += wrap(tr.translate_block(body))
+        if kind == "CICS":
+            out += wrap(tr.translate_block(body))
+        elif kind == "DLI":
+            out += wrap(translate_dli(body))
+        else:
+            what, result = authfrds_sql.translate(body, program)
+            if what == "data":
+                out += result
+                suffix = "" if suffix == "." else suffix
+            else:
+                out += wrap(result)
         if suffix:
             out.append("           " + suffix)
         i += 1

@@ -135,7 +135,7 @@ def parse_bms(path):
 
 def _map_source(kind, name):
     """A mapset's BMS or symbolic-map member, in the base app or an optional extension."""
-    for root in (REPO / "app", REPO / "app" / "app-transaction-type-db2"):
+    for root in [REPO / "app"] + sorted(p for p in (REPO / "app").glob("app-*") if p.is_dir()):
         for candidate in (name, name.lower(), name[:-3] + name[-3:].lower()):
             if (root / kind / candidate).exists():
                 return root / kind / candidate

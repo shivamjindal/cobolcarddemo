@@ -12,21 +12,37 @@ from pathlib import Path
 
 import cicsprep
 import sqlprep
+import ims
 
 HERE = Path(__file__).resolve().parent
 REPO = HERE.parents[1]
 BUILD = REPO / "characterization" / ".build"
 ONLINE = BUILD / "online"
 BATCH = BUILD / "batch"
-# The optional Db2 transaction-type extension builds into its own libraries, so a case sees
-# its programs only when it installs the extension (see online.py and batch.py).
+# Optional extensions build into their own libraries, so a case sees their programs only
+# when it installs the extension (see online.EXTENSIONS).
 DB2_EXT = REPO / "app" / "app-transaction-type-db2"
 ONLINE_DB2 = BUILD / "online-db2"
 BATCH_DB2 = BUILD / "batch-db2"
+AUTH_EXT = REPO / "app" / "app-authorization-ims-db2-mq"
+ONLINE_AUTH = BUILD / "online-auth"
+MQ_EXT = REPO / "app" / "app-vsam-mq"
+ONLINE_MQ = BUILD / "online-mq"
 COPY_PATHS = [HERE / "runtime" / "copy", REPO / "app" / "cpy", REPO / "app" / "cpy-bms",
               DB2_EXT / "cpy", DB2_EXT / "cpy-bms"]
-COBC = ["cobc", "-std=ibm", "-fsign=EBCDIC", "-fdefaultbyte=0", "-ftab-width=4"] + \
-       [f"-I{p}" for p in COPY_PATHS]
+COBC_FLAGS = ["cobc", "-std=ibm", "-fsign=EBCDIC", "-fdefaultbyte=0", "-ftab-width=4"]
+COBC = COBC_FLAGS + [f"-I{p}" for p in COPY_PATHS]
+
+# Online programs of the IMS / MQ extensions: library -> programs.
+EXT_ONLINE_PROGRAMS = {ONLINE_AUTH: ["COPAUS0C", "COPAUS1C", "COPAUS2C", "COPAUA0C"],
+                       ONLINE_MQ: ["COACCT01", "CODATE01"]}
+# IMS batch programs: EXEC DLI ones go through cicsprep in batch mode, CBLTDLI ones compile as is.
+IMS_BATCH_EXEC = ["CBPAUP0C"]
+IMS_BATCH_CALL = ["PAUDBLOD", "PAUDBUNL", "DBUNLDGS"]
+PSBLIB = BUILD / "psbs.cfg"
+RUNTIME_C = ["cicsstub.c", "region.c", "dli.c", "mq.c", "authfrds.c", "sqlstub.c"]
+BATCH_RUNTIME_C = ["jobrun.c", "region.c", "dli.c", "mq.c", "authfrds.c", "sqlstub.c"]
+COPYBOOKS = sorted((HERE / "runtime" / "copy").glob("*.cpy"))
 
 ONLINE_PROGRAMS = ["COSGN00C", "COMEN01C", "COADM01C", "COUSR00C", "COUSR01C", "COUSR02C",
                    "COUSR03C", "COACTVWC", "COACTUPC", "COCRDLIC", "COCRDSLC", "COCRDUPC",
@@ -45,12 +61,19 @@ DISABLED = {"CBSTM03A": ("SET ADDRESS OF PSA-BLOCK   TO PSAPTR.", "DISPLAY ': ' 
 
 
 def source(program):
-    for d in (REPO / "app" / "cbl", DB2_EXT / "cbl"):
+    for d in (REPO / "app", DB2_EXT, AUTH_EXT, MQ_EXT):
         for ext in (".cbl", ".CBL"):
-            p = d / f"{program}{ext}"
+            p = d / "cbl" / f"{program}{ext}"
             if p.exists():
                 return p
     raise FileNotFoundError(program)
+
+
+def cobc(src):
+    """COBC with the source's extension copybooks ahead of the base ones."""
+    app = src.parent.parent
+    extra = [] if app == REPO / "app" else [app / "cpy", app / "cpy-bms"]
+    return COBC_FLAGS + [f"-I{p}" for p in COPY_PATHS[:1] + extra + COPY_PATHS[1:]]
 
 
 def stale(target, *inputs):
@@ -63,16 +86,21 @@ def run(cmd, cwd):
         raise RuntimeError(f"{' '.join(map(str, cmd))}\n{proc.stdout}{proc.stderr}")
 
 
-def build_online_program(program):
+def build_translated(program, dest, batch=False):
     src = source(program)
-    out = ONLINE / f"{program}.so"
-    translated = ONLINE / "src" / f"{program}.cbl"
-    if not stale(out, src, HERE / "cicsprep.py", HERE / "build.py"):
+    out = dest / f"{program}.so"
+    translated = dest / "src" / f"{program}.cbl"
+    if not stale(out, src, HERE / "cicsprep.py", HERE / "authfrds_sql.py", HERE / "build.py",
+                 *COPYBOOKS):
         return
     translated.parent.mkdir(parents=True, exist_ok=True)
-    translated.write_text(cicsprep.translate(src.read_text(encoding="latin-1"), program),
+    translated.write_text(cicsprep.translate(src.read_text(encoding="latin-1"), program, batch),
                           encoding="latin-1")
-    run(COBC + ["-m", "-o", str(out), str(translated)], ONLINE)
+    run(cobc(src) + ["-m", "-o", str(out), str(translated)], dest)
+
+
+def build_online_program(program):
+    build_translated(program, ONLINE)
 
 
 def build_sql_program(program, dest, online):
@@ -114,22 +142,22 @@ def build_subprogram(program, dest):
     if stale(out, src, HERE / "build.py"):
         if program in DISABLED:
             src = disable(program, src, dest)
-        run(COBC + ["-m", "-o", str(out), str(src)], dest)
+        run(cobc(source(program)) + ["-m", "-o", str(out), str(src)], dest)
 
 
-def link(exe, main, cwd):
+def link(exe, sources):
     """A driver with the SQL runtime linked in, exported so CALL 'SQLEXEC' and 'DSNTIAC' resolve."""
-    sql = HERE / "runtime" / "sqlstub.c"
-    if stale(exe, main, sql):
+    srcs = [HERE / "runtime" / c for c in sources]
+    if stale(exe, *srcs, HERE / "runtime" / "region.h"):
         flags = subprocess.check_output(["cob-config", "--cflags"], text=True).split()
         libs = subprocess.check_output(["cob-config", "--libs"], text=True).split()
         pq = subprocess.check_output(["pkg-config", "--cflags", "--libs", "libpq"], text=True).split()
-        run(["gcc", "-O1", "-o", str(exe), str(main), str(sql), *flags, *pq, *libs, "-rdynamic"], cwd)
+        run(["gcc", "-O1", "-o", str(exe), *map(str, srcs), *flags, *pq, *libs, "-rdynamic"], exe.parent)
 
 
 def build_runtime():
     ONLINE.mkdir(parents=True, exist_ok=True)
-    link(ONLINE / "cicsrun", HERE / "runtime" / "cicsstub.c", ONLINE)
+    link(ONLINE / "cicsrun", RUNTIME_C)
     le = HERE / "runtime" / "lestubs.c"
     if stale(ONLINE / "CEEDAYS.so", le):
         run(["gcc", "-O1", "-shared", "-fPIC", "-o", str(ONLINE / "CEEDAYS.so"), str(le)], ONLINE)
@@ -145,6 +173,13 @@ def build_online():
     ONLINE_DB2.mkdir(parents=True, exist_ok=True)
     with ThreadPoolExecutor(max_workers=os.cpu_count()) as pool:
         list(pool.map(lambda p: build_sql_program(p, ONLINE_DB2, True), DB2_ONLINE_PROGRAMS))
+    jobs = []
+    for dest, programs in EXT_ONLINE_PROGRAMS.items():
+        dest.mkdir(parents=True, exist_ok=True)
+        jobs += [(p, dest) for p in programs]
+    with ThreadPoolExecutor(max_workers=os.cpu_count()) as pool:
+        list(pool.map(lambda j: build_translated(*j), jobs))
+    ims.write_library(PSBLIB)
 
 
 def build_batch():
@@ -156,9 +191,11 @@ def build_batch():
     for program in BATCH_SUBPROGRAMS:
         build_subprogram(program, BATCH)
 
-    link(BATCH / "jobrun", HERE / "runtime" / "jobrun.c", BATCH)
+    link(BATCH / "jobrun", BATCH_RUNTIME_C)
     with ThreadPoolExecutor(max_workers=os.cpu_count()) as pool:
-        list(pool.map(lambda p: build_subprogram(p, BATCH), BATCH_PROGRAMS))
+        list(pool.map(lambda p: build_subprogram(p, BATCH), BATCH_PROGRAMS + IMS_BATCH_CALL))
+        list(pool.map(lambda p: build_translated(p, BATCH, batch=True), IMS_BATCH_EXEC))
+    ims.write_library(PSBLIB)
     BATCH_DB2.mkdir(parents=True, exist_ok=True)
     for program in DB2_BATCH_PROGRAMS:
         build_sql_program(program, BATCH_DB2, False)
