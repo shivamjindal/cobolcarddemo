@@ -19,6 +19,21 @@ public final class Chains {
 
     private static final String RELOAD = "reference data reload, outside the batch slice";
 
+    static final Chain CA7_030_POSTING = new Chain("CA7_030_POSTING", Chain.Scheduler.CA7, "030", List.of(
+            job(LibraryJob.CLOSEFIL), new Member.Optional("CBPAUP0J", "IMS"), job(LibraryJob.POSTTRAN),
+            job(LibraryJob.WAITSTEP), job(LibraryJob.OPENFIL)),
+            "CA-7 SCHID 030; QTM=0100; the export has no days", Optional.empty());
+
+    static final Chain CA7_030_EXTRACTS = new Chain("CA7_030_EXTRACTS", Chain.Scheduler.CA7, "030", List.of(
+            job(LibraryJob.CLOSEFIL), job(LibraryJob.READACCT), job(LibraryJob.READCARD), job(LibraryJob.READCUST),
+            job(LibraryJob.READXREF), job(LibraryJob.WAITSTEP), job(LibraryJob.OPENFIL)),
+            "CA-7 SCHID 030; QTM=0100; the export has no days", Optional.empty());
+
+    static final Chain CA7_030_STATEMENTS = new Chain("CA7_030_STATEMENTS", Chain.Scheduler.CA7, "030", List.of(
+            job(LibraryJob.CLOSEFIL), job(LibraryJob.CREASTMT), new Member.Optional("TXT2PDF1", "REXX"),
+            job(LibraryJob.WAITSTEP), job(LibraryJob.OPENFIL)),
+            "CA-7 SCHID 030; QTM=0100; the export has no days", Optional.empty());
+
     /** SCHID 030, then the 031 and 032 tails its WAITSTEP triggers; no step of the walk opens the files again. */
     static final Chain CA7_030_REFERENCE = new Chain("CA7_030_REFERENCE", Chain.Scheduler.CA7, "030", List.of(
             job(LibraryJob.CLOSEFIL), new Member.Unported("TRANTYPE", RELOAD), job(LibraryJob.WAITSTEP),
@@ -30,6 +45,17 @@ public final class Chains {
             job(LibraryJob.CLOSEFIL), new Member.Unported("PRTCATBL", "category balance print, outside the batch slice"),
             job(LibraryJob.WAITSTEP), job(LibraryJob.OPENFIL)),
             "CA-7 SCHID 031; QTM=0100; the export has no days", Optional.empty());
+
+    static final Chain CONTROLM_DAILY_BACKUP = new Chain("CONTROLM_DAILY_BACKUP", Chain.Scheduler.CONTROL_M,
+            "DAILY-TransactionBackup", List.of(
+            job(LibraryJob.CLOSEFIL), job(LibraryJob.TRANBKP), job(LibraryJob.WAITSTEP), job(LibraryJob.OPENFIL)),
+            "Control-M folder DAYS=ALL; TIMETO=23:00", Optional.empty());
+
+    static final Chain CONTROLM_MONTHLY_INTEREST = new Chain("CONTROLM_MONTHLY_INTEREST", Chain.Scheduler.CONTROL_M,
+            "MONTHLY-InterestCalculation", List.of(
+            job(LibraryJob.CLOSEFIL), job(LibraryJob.INTCALC), job(LibraryJob.COMBTRAN), job(LibraryJob.WAITSTEP),
+            job(LibraryJob.OPENFIL)),
+            "Control-M folder MONTHLY-InterestCalculation; no day of month; TIMETO=23:00", Optional.empty());
 
     /** Both Saturday folders wait on MNTTRDB2's condition; TRANEXTR, the other folder's only job, runs no CLOSEFIL. */
     static final Chain CONTROLM_WEEKLY_DISCLOSURE = new Chain("CONTROLM_WEEKLY_DISCLOSURE", Chain.Scheduler.CONTROL_M,
@@ -43,7 +69,8 @@ public final class Chains {
     private final Map<String, Chain> byName;
 
     public Chains() {
-        this(List.of(CA7_030_REFERENCE, CA7_031_CATBAL, CONTROLM_WEEKLY_DISCLOSURE));
+        this(List.of(CA7_030_POSTING, CA7_030_EXTRACTS, CA7_030_STATEMENTS, CA7_030_REFERENCE, CA7_031_CATBAL,
+                CONTROLM_DAILY_BACKUP, CONTROLM_MONTHLY_INTEREST, CONTROLM_WEEKLY_DISCLOSURE));
     }
 
     private Chains(List<Chain> chains) {
