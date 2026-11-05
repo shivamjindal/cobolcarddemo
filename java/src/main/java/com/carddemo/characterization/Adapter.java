@@ -11,6 +11,7 @@ import java.net.http.HttpResponse;
 import java.nio.file.Path;
 import java.sql.Connection;
 import java.sql.DriverManager;
+import java.sql.Statement;
 import java.util.ArrayList;
 import java.util.HashSet;
 import java.util.LinkedHashMap;
@@ -22,6 +23,8 @@ import java.util.TreeMap;
 import com.carddemo.online.BmsField;
 import com.carddemo.online.MapId;
 import com.carddemo.online.maps.Maps;
+import com.carddemo.vsam.SchemaGenerator;
+import com.carddemo.vsam.TableDef;
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.fasterxml.jackson.databind.node.ObjectNode;
@@ -36,7 +39,7 @@ public final class Adapter {
 
     private static final ObjectMapper JSON = new ObjectMapper();
     private static final Set<String> IGNORED_FIELDS = Set.of("CURDATE", "CURTIME", "APPLID", "SYSID", "TITLE01", "TITLE02");
-    private static final String SEEDED = "USRSEC";
+    private static final List<String> SEEDED = List.of("USRSEC", "ACCTDATA", "CUSTDATA", "CARDDATA", "CARDXREF");
 
     public static void main(String[] args) throws Exception {
         JsonNode request = JSON.readTree(System.in);
@@ -46,28 +49,59 @@ public final class Adapter {
         JsonNode testCase = request.get("case");
         JsonNode setup = testCase.path("setup");
         setup.fieldNames().forEachRemaining(name -> {
-            if (!name.equals(SEEDED)) {
-                throw new IllegalArgumentException("the java target seeds " + SEEDED + " only; the case sets up " + name);
+            if (!SEEDED.contains(name)) {
+                throw new IllegalArgumentException("the java target seeds " + SEEDED + "; the case sets up " + name);
             }
         });
         Path registryFile = Path.of(request.get("datasets").asText()).toAbsolutePath();
         Path repo = registryFile.getParent().getParent().getParent();
-        SeededTable users = SeededTable.of(JSON.readTree(registryFile.toFile()), repo, SEEDED);
+        JsonNode registry = JSON.readTree(registryFile.toFile());
+        List<TableDef> tables = SchemaGenerator.generate(repo.resolve("app")).tables();
+        List<SeededTable> seeded = new ArrayList<>();
+        for (String name : SEEDED) {
+            seeded.add(SeededTable.of(registry, repo, name, tables));
+        }
         URI server = URI.create(env("CARDDEMO_CHARACTERIZATION_URL", "http://127.0.0.1:18080"));
         try (Connection db = DriverManager.getConnection(
                 env("CARDDEMO_CHARACTERIZATION_JDBC_URL", "jdbc:postgresql://localhost:5432/carddemo_characterization"),
                 env("CARDDEMO_JDBC_USER", "carddemo"), env("CARDDEMO_JDBC_PASSWORD", "carddemo"))) {
-            users.materialize(db, setup.path(SEEDED));
+            seed(db, seeded, setup);
             Browser browser = new Browser(server);
             List<Map<String, Object>> observations = new ArrayList<>();
             for (JsonNode step : testCase.get("steps")) {
-                TreeMap<String, String> before = users.snapshot(db);
+                List<TreeMap<String, String>> before = new ArrayList<>();
+                for (SeededTable table : seeded) {
+                    before.add(table.snapshot(db));
+                }
                 Map<String, Object> observation = browser.step(step.get("do"));
-                users.diff(before, users.snapshot(db)).ifPresent(d -> observation.put("files", Map.of(users.name(), d)));
+                Map<String, Object> files = new LinkedHashMap<>();
+                for (int i = 0; i < seeded.size(); i++) {
+                    SeededTable table = seeded.get(i);
+                    table.diff(before.get(i), table.snapshot(db)).ifPresent(d -> files.put(table.name(), d));
+                }
+                if (!files.isEmpty()) {
+                    observation.put("files", files);
+                }
                 observations.add(observation);
             }
             System.out.print(JSON.writeValueAsString(Map.of("steps", observations)));
         }
+    }
+
+    /**
+     * Every dataset in one transaction. A case may delete a record others refer to, as the harness's
+     * text files allow, so foreign-key triggers are off while seeding.
+     */
+    private static void seed(Connection db, List<SeededTable> seeded, JsonNode setup) throws Exception {
+        db.setAutoCommit(false);
+        try (Statement replica = db.createStatement()) {
+            replica.execute("SET LOCAL session_replication_role = replica");
+        }
+        for (SeededTable table : seeded) {
+            table.materialize(db, setup.path(table.name()));
+        }
+        db.commit();
+        db.setAutoCommit(true);
     }
 
     private static String env(String name, String fallback) {

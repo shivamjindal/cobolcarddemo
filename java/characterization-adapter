@@ -2,11 +2,17 @@
 # The java target of characterization/run.py: one case on stdin, its observations on stdout.
 # Keeps one warm server (profile characterization, 127.0.0.1:18080, database carddemo_characterization)
 # per jar build and rebuilds the jar when a source is newer. `characterization/cleanup.sh stop` stops it.
+# CARDDEMO_CHARACTERIZATION_PORT and CARDDEMO_CHARACTERIZATION_DB give a second checkout its own server and data.
 set -euo pipefail
 here="$(cd "$(dirname "$0")" && pwd)"
 state="$here/target/characterization"
 jar="$here/target/carddemo-0.1.0.jar"
-url="http://127.0.0.1:${CARDDEMO_CHARACTERIZATION_PORT:-18080}"
+port="${CARDDEMO_CHARACTERIZATION_PORT:-18080}"
+db="${CARDDEMO_CHARACTERIZATION_DB:-carddemo_characterization}"
+url="http://127.0.0.1:$port"
+export CARDDEMO_CHARACTERIZATION_PORT="$port"
+export CARDDEMO_CHARACTERIZATION_URL="$url"
+export CARDDEMO_CHARACTERIZATION_JDBC_URL="jdbc:postgresql://localhost:5432/$db"
 export PGPASSWORD="${CARDDEMO_JDBC_PASSWORD:-carddemo}"
 pg=(-h localhost -U "${CARDDEMO_JDBC_USER:-carddemo}")
 
@@ -32,8 +38,8 @@ if ! running || [[ "$(cat "$state/server.build" 2>/dev/null)" != "$build" ]] || 
     echo "$url answers, but not from a server this launcher started; stop it first" >&2
     exit 1
   fi
-  if [[ -z "$(psql "${pg[@]}" -d postgres -tAc "SELECT 1 FROM pg_database WHERE datname = 'carddemo_characterization'")" ]]; then
-    createdb "${pg[@]}" carddemo_characterization
+  if [[ -z "$(psql "${pg[@]}" -d postgres -tAc "SELECT 1 FROM pg_database WHERE datname = '$db'")" ]]; then
+    createdb "${pg[@]}" "$db"
   fi
   setsid nohup java -jar "$jar" --spring.profiles.active=characterization \
     </dev/null >"$state/server.log" 2>&1 9>&- &
