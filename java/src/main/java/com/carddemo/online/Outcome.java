@@ -27,10 +27,11 @@ record Transfer(ProgramName to, Optional<Handoff> handoff, IdentityChange identi
 record End(String text) implements Outcome {}
 
 /**
- * The task abends on a condition the program has no RESP or HANDLE for. Its writes are backed out,
- * and with no RETURN TRANSID the conversation and its COMMAREA are gone.
+ * The task abends, on a condition the program has no RESP or HANDLE for or by EXEC CICS ABEND. Its writes
+ * are backed out, and with no RETURN TRANSID the conversation and its COMMAREA are gone. {@code sent} is the
+ * text the program sent just before an EXEC CICS ABEND, which stays on the terminal.
  */
-record Abend(String code) implements Outcome {}
+record Abend(String code, Optional<String> sent) implements Outcome {}
 
 /** What an XCTL does to the terminal's identity. Applied after the task commits. */
 sealed interface IdentityChange {

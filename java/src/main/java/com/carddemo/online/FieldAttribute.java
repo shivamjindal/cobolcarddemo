@@ -15,7 +15,9 @@ public enum FieldAttribute {
     /**
      * DFHBMBRY. Bright is unprotected with MDT off, and those are the two bits the terminal keeps.
      */
-    BMBRY(false, false);
+    BMBRY(false, false),
+    /** DFHBMDAR, X'4C': dark, and unprotected with MDT off. */
+    BMDAR(false, false);
 
     private final boolean protect;
     private final boolean mdt;

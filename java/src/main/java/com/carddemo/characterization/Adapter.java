@@ -227,9 +227,10 @@ public final class Adapter {
             case "text" -> observation.put("text", reply.get("text").asText());
             case "ended" -> {
                 observation.put("text", reply.get("text").asText());
-                observation.put("session", "ended");
                 if (reply.hasNonNull("abend")) {
                     observation.put("abend", reply.get("abend").asText());
+                } else {
+                    observation.put("session", "ended");
                 }
             }
             case "screen" -> {

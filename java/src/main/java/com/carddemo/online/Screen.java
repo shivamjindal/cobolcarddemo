@@ -94,7 +94,12 @@ public abstract class Screen<F extends Enum<F> & MapField, A extends Enum<A> & S
 
     /** The CICS abend a command raises when the program has no RESP for its condition, such as AEIP for INVREQ. */
     protected final Outcome abend(String code) {
-        return new Abend(code);
+        return new Abend(code, Optional.empty());
+    }
+
+    /** SEND FROM(text) ERASE, then EXEC CICS ABEND, as the programs' ABEND-ROUTINE does. */
+    protected final Outcome sendTextAndAbend(String text, String code) {
+        return new Abend(code, Optional.of(text));
     }
 
     /** This path of the program belongs to a later slice. */
