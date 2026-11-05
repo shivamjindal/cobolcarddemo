@@ -51,7 +51,7 @@ public final class SchemaGenerator {
             throw new IllegalArgumentException(dataset.table() + " copybook length " + layout.recordLength()
                     + " != " + cluster.dsn() + " MAXLRECL " + cluster.recordLength());
         }
-        List<byte[]> records = records(appRoot, dataset, layout.recordLength());
+        List<byte[]> records = Records.read(Records.dataFile(appRoot, dataset), layout.recordLength());
         String where = dataset.table() + "/" + layout.recordName();
         List<Column> columns = new ArrayList<>();
         List<String> reasons = new ArrayList<>();
@@ -166,19 +166,6 @@ public final class SchemaGenerator {
             throw new IllegalArgumentException(dataset.table() + " matched " + found.size() + " clusters for " + suffix);
         }
         return found.get(0);
-    }
-
-    private static List<byte[]> records(Path appRoot, Dataset dataset, int length) throws IOException {
-        byte[] all = Files.readAllBytes(appRoot.resolve("data").resolve("EBCDIC").resolve(dataset.dataFile()));
-        if (length <= 0 || all.length % length != 0) {
-            throw new IllegalArgumentException(dataset.dataFile() + " length " + all.length
-                    + " is not a multiple of " + length);
-        }
-        List<byte[]> records = new ArrayList<>();
-        for (int offset = 0; offset < all.length; offset += length) {
-            records.add(java.util.Arrays.copyOfRange(all, offset, offset + length));
-        }
-        return records;
     }
 
     private static Column column(List<Column> columns, Field field) {
