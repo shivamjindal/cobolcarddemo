@@ -1,6 +1,6 @@
 # Batch jobs
 
-The nightly jobs post the daily transaction file, compute interest, produce statements and reports, and extract files. Each case runs one COBOL step with the DD bindings of its JCL and checks the return code, SYSOUT, file changes and output files. All five features run on the `legacy` and `java` targets.
+The nightly jobs post the daily transaction file, compute interest, produce statements and reports, and extract files. Each case runs one COBOL step with the DD bindings of its JCL and checks the return code, SYSOUT, file changes and output files. All seven features run on the `legacy` and `java` targets.
 
 ## Sub-features
 
@@ -9,21 +9,24 @@ The nightly jobs post the daily transaction file, compute interest, produce stat
 - `batch-statements` CREASTMT: the SORT step builds TRXFL from TRANSACT, then `CBSTM03A`/`CBSTM03B` write the text and HTML statements.
 - `batch-reports` TRANREPT `CBTRN03C`: the transaction detail report for a DATEPARM range.
 - `batch-extracts` `CBACT01C`, `CBACT02C`, `CBACT03C`, `CBCUS01C`: list or extract the master files.
+- `batch-reference` TRANTYPE, TRANCATG, TCATBALF, DISCGRP: IDCAMS deletes and redefines the cluster, then REPRO loads it from `<member>.PS`. A key not above the last one loaded is rejected; three rejects end RC 8, the fourth ends RC 12 and stops the load. A missing `.PS` ends the REPRO step `JCL ERROR` after the cluster was already emptied.
+- `batch-catbal` PRTCATBL: backs TCATBALF up to `TCATBALF.BKUP(+1)` and SORTs it into the 40-byte report `TCATBALF.REPT`. The balance is printed with `EDIT=(TTTTTTTTT.TT)`, so a negative balance prints without its sign.
 
 ## How to get to it (user POV)
 
-- Operators submit the JCL in `app/jcl` (POSTTRAN, INTCALC, CREASTMT, TRANREPT, READACCT, READCARD, READXREF, READCUST).
+- Operators submit the JCL in `app/jcl` (POSTTRAN, INTCALC, CREASTMT, TRANREPT, READACCT, READCARD, READXREF, READCUST, TRANTYPE, TRANCATG, TCATBALF, DISCGRP, PRTCATBL).
 - On Java the same members are `LibraryJob` entries, run by the scheduler chains or by the `operator` profile (`java/README.md`, "Batch"). The online report submit (main option 9) runs TRANREPT through the internal reader.
 
 ## Driving it with run.py
 
 Preconditions: baseline; cases in `characterization/cases/batch/`. Inside tmux, run every command below as `env -u LD_LIBRARY_PATH python3 ...`. Otherwise each legacy case reports `ERROR`.
 
-- **All jobs.** Run `python3 characterization/run.py --feature batch-posting --feature batch-interest --feature batch-statements --feature batch-reports --feature batch-extracts`. Expect 28 PASS (posting 12, interest 7, extracts 4, statements 3, reports 2).
+- **All jobs.** Run `python3 characterization/run.py --feature batch-posting --feature batch-interest --feature batch-statements --feature batch-reports --feature batch-extracts --feature batch-reference --feature batch-catbal`. Expect 39 PASS (posting 12, interest 7, extracts 4, statements 3, reports 2, reference 8, catbal 3).
 - **Posting rules.** Run `--feature batch-posting`. `posting-mixed-batch` shows one run accepting two records, rejecting an invalid card (100) and an over-limit amount (102), with `TRANSACTIONS PROCESSED :000000004` and RC 4.
 - **Statements.** Run `--case statement-one-account`. `outputs.STMTFILE` is the printed statement; `outputs.HTMLFILE` is the HTML version.
 - **Java slice.** Add `--target java` to any command above. Expect the same counts. One case is `python3 characterization/run.py --target java --case posting-mixed-batch`. The adapter submits the case as a one-step deck to TD queue `JOBS`, and the warm server's internal reader runs it on Spring Batch (`SKILL.md`, "Adding a Java slice").
-- **Without run.py.** `cd java && mvn verify` runs all 28 goldens in `BatchGoldensIT` through the same deck path.
+- **Reloads and PRTCATBL.** Run `--feature batch-reference --feature batch-catbal`. `trancatg-reload-out-of-sequence-hits-error-limit` shows the ERRORLIMIT stop; `catbal-print-drops-balance-sign` shows the unsigned report.
+- **Without run.py.** `cd java && mvn verify` runs all 39 goldens in `BatchGoldensIT` through the same deck path.
 
 ## Gotchas
 
@@ -33,4 +36,6 @@ Preconditions: baseline; cases in `characterization/cases/batch/`. Inside tmux, 
 - CBSTM03A's table holds 10 transactions per card; more than that is undefined behavior and not characterized.
 - Full-seed runs are pinned with `"match": "subset"` on completion and SYSOUT only; the focused cases pin every file change.
 - On Java the case deck is not the library JCL. It is job `CHARZ` with one step, `STEP01`, and output DDs are `SYSOUT=*` read back from the spool. A `{"dataset": X}` binding is a flat copy cataloged as `AWS.M2.CARDDEMO.CHARZ.<dd>`. `{"derive": "creastmt-trxfl"}` builds TRXFL with the adapter's `SortSpec.CreastmtTrxfl`, not by running CREASTMT's SORT step. The library jobs themselves (CREASTMT, TRANBKP, COMBTRAN, the CLOSEFIL and OPENFIL gate, WAITSTEP) and the chains have no goldens. Spring tests such as `RunnableChainsIT`, `BatchWindowJobsIT` and `UtilityStatementsIT` cover them.
+- The reload and PRTCATBL goldens (provenance `utility-model`) come from `harness/library.py`, a model of IEFBR14, IDCAMS and DFSORT written from the IBM documentation, because GnuCOBOL has none of them. Two rules in it are assumptions worth knowing: SORTOUT truncation of PRTCATBL's 41-byte OUTREC to LRECL 40 ends RC 0 (DFSORT's TRUNC=RC0 default), and an empty TCATBALF cluster copies 0 records at RC 0 (real VSAM may refuse to open a never-loaded cluster; not pinned by a golden).
+- On Java a library case's deck is the member's own text, so `JclDeck` must parse it; `LibraryJob` holds the same jobs for the chains, and a test checks the two agree.
 - Do not run two `--target java` runs at once. They share database `carddemo_characterization`, and each case's seed clears the job queue and spool the other run is reading.

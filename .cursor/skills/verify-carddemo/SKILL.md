@@ -88,7 +88,7 @@ Online: `map`; `fields` (non-empty values; clock, applid and title fields exclud
 ### Recording new goldens
 
 1. Write the case without any `expect`, then run `python3 characterization/run.py --record --case <id>`. Recording fills `expect` on **every** step of the selected cases; delete lead-in expectations you do not want.
-2. Review each recording against the COBOL source before committing. A recording is a golden only when the source agrees. If the source disagrees, decide whether it is a legacy quirk (keep it, name it in the title) or a harness artifact (switch the case to `"provenance": "source-derived"`, hand-write the expectation, report the harness gap).
+2. Review each recording against the COBOL source before committing. Library cases (provenance `utility-model`) are the exception: GnuCOBOL has no IEFBR14, IDCAMS or DFSORT, so `harness/library.py` models those members from their JCL and the IBM utility rules stated in its docstrings, and a recording is reviewed against those rules. A recording is a golden only when the source agrees. If the source disagrees, decide whether it is a legacy quirk (keep it, name it in the title) or a harness artifact (switch the case to `"provenance": "source-derived"`, hand-write the expectation, report the harness gap).
 3. Re-run without `--record`; it must PASS.
 
 ### Adding a Java slice (target protocol)
@@ -110,13 +110,13 @@ Respond with `{"steps": [observation, ...]}`, one observation per step in the fo
 
 `characterization/reference_adapter.py` is a working adapter (it answers with the legacy harness) and the template to copy. `python3 characterization/run.py --target legacy-adapter` proves the protocol plumbing; build first, since `run.py` only builds for the `legacy` target.
 
-The Java port is registered as target `java`: `java/characterization-adapter` (launcher) and `com.carddemo.characterization.Adapter` (the client). Its `features` are every feature with cases: the 17 online features (`signon` through `report-submit`) and the five batch features (`batch-posting`, `batch-interest`, `batch-statements`, `batch-reports`, `batch-extracts`). Run them all:
+The Java port is registered as target `java`: `java/characterization-adapter` (launcher) and `com.carddemo.characterization.Adapter` (the client). Its `features` are every feature with cases: the 17 online features (`signon` through `report-submit`) and the seven batch features (`batch-posting`, `batch-interest`, `batch-statements`, `batch-reports`, `batch-extracts`, `batch-reference`, `batch-catbal`). Run them all:
 
 ```bash
 python3 characterization/run.py --target java
 ```
 
-Ready means `java: 325 PASS`: 297 online (signon 9, main-menu 10, admin-menu 10, user admin 49, account and card 119, transactions and bill pay 100) and 28 batch (posting 12, interest 7, extracts 4, statements 3, reports 2). The first run builds the jar and starts the server, which takes about 30 seconds more.
+Ready means `java: 336 PASS`: 297 online (signon 9, main-menu 10, admin-menu 10, user admin 49, account and card 119, transactions and bill pay 100) and 39 batch (posting 12, interest 7, extracts 4, statements 3, reports 2, reference reloads 8, category-balance print 3). The first run builds the jar and starts the server, which takes about 30 seconds more.
 
 An online case runs over HTTP. The client turns each step into the same calls the React app makes (`POST /api/session`, then `POST /api/screens/{screen}/{action}` or `invalid-key`), so a pass proves the API, not a test double. A screen that submits a job records it through `JobSubmissions`. The adapter reports the rows recorded during a step as that step's `queues`, and waits until the internal reader has ended each of them before it diffs the files.
 
@@ -125,9 +125,11 @@ A batch case runs through the same queue the online report submit uses (`BatchCa
 1. The adapter seeds the tables and the case's `setup`, then turns the case's `job` into a one-step deck: `//CHARZ JOB '<case id>'`, `//STEP01 EXEC PGM=<program>,PARM='<parm>'`, a `SYSOUT DD SYSOUT=*` for DISPLAY lines, and one DD per binding.
 2. It stages each binding the way `harness/batch.py` does. A keyed dataset is `DSN=<its cluster>,DISP=SHR` on the seeded table. A sequential dataset (DALYTRAN) is cataloged as `AWS.M2.CARDDEMO.<name>.PS` from the seed or `setup`. `{"dataset": X}` is a key-ordered flat copy cataloged as `AWS.M2.CARDDEMO.CHARZ.<dd>`. `{"lines": ...}` is `DD *` (80-byte cards only). `{"derive": "creastmt-trxfl"}` catalogs `AWS.M2.CARDDEMO.TRXFL.VSAM.KSDS` through `SortSpec.CreastmtTrxfl`, the CREASTMT sort. `{"output": ...}` is `DD SYSOUT=*` with `DCB=(RECFM=F,LRECL=<reclen>)`, or `DCB=(RECFM=V)` when the case says `"recfm": "V"`.
 3. It inserts the deck into `job_submissions` on TD queue `JOBS`. The warm server's `InternalReader` claims the row into `job_submission_runs`, parses the deck, and runs it on Spring Batch. The adapter polls the claim until `ended_at` is set (300 seconds at most).
+A library case (`"job": {"library": MEMBER, ...}`) instead submits the member's own text from `app/jcl/<MEMBER>.jcl` as the deck, after cataloging the sequential data sets the case lists under `datasets`. It observes `completion`, each step's completion under `steps` (the step path as JCL names it, such as `STEP05R.PRC001`), `files`, and the data sets listed under `observe` (generation names such as `BKUP(0)` allowed; `null` when not cataloged).
+
 4. It observes what the harness observes: `completion` is the claim's completion label, `sysout` is STEP01's spooled `SYSOUT`, `files` diffs the ten tables, and each output DD's spool is decoded as the case asks. Fixed records are re-sliced to `reclen` first, as the harness does.
 
-`BatchGoldensIT` runs every case in `characterization/cases/batch/` through the same `BatchCase` with the internal reader of its own Spring context, so `mvn verify` checks all 28 batch goldens without `run.py`. To run one case on java, select it by id: `python3 characterization/run.py --target java --case posting-mixed-batch`.
+`BatchGoldensIT` runs every case in `characterization/cases/batch/` through the same `BatchCase` with the internal reader of its own Spring context, so `mvn verify` checks all 39 batch goldens without `run.py`. To run one case on java, select it by id: `python3 characterization/run.py --target java --case posting-mixed-batch`.
 
 To port an online feature, add a `Screen` bean for each program, copying `useradmin/UserDeleteScreen` (a `Screen` returns an `Outcome`; the `Terminal` owns every 3270 rule, so a screen never touches attributes or cursor bytes). `SeededTable.SEEDED` lists the keyed datasets the adapter seeds and diffs. A case that sets up a keyed dataset outside that list is refused. To port a batch program, follow "Add a batch program" in `java/README.md`. Add the feature name to `features` only once its cases pass. Pinned legacy defects are reproduced in methods annotated `@LegacyDefect`. `LegacyDefectRegisterTest` checks each annotation's goldens exist and rewrites `java/docs/legacy-defects.md` from the annotations on every `mvn verify`, so commit the file it writes.
 

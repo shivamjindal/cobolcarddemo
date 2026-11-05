@@ -16,7 +16,7 @@ The command writes `src/main/resources/db/migration/V1__vsam_ksds_tables.sql` an
 
 `V3__online_transactions.sql` is written by hand too. COTRN02C writes a bare date into TRAN-ORIG-TS, so `transactions.tran_orig_ts` is text like `tran_proc_ts`, and the loader writes the 26-character timestamp there. COBIL00C writes LOW-VALUES into TRAN-CARD-NUM when an account has no card cross-reference, so NULL in `transactions.tran_card_num` means all LOW-VALUES. The foreign key from a transaction to its category is gone, because COTRN02C checks only that the codes are numeric. Table `job_submissions` holds one row per job a program writes to a TD queue, as CORPT00C does to `JOBS`. The internal reader runs those jobs (see [Batch](#batch)).
 
-`V4__batch.sql` and `V5__tcatbalf_filler.sql` are written by hand for the batch layer. They are described under [Batch](#batch).
+`V4__batch.sql`, `V5__tcatbalf_filler.sql` and `V10__reference_filler.sql` are written by hand for the batch layer. They are described under [Batch](#batch).
 
 ## Regenerate the screen maps
 
@@ -81,13 +81,13 @@ From the repository root:
 python3 characterization/run.py --target java
 ```
 
-The command prints `java: 325 PASS`: 297 online cases and 28 batch cases. The features the java target covers are listed in `characterization/targets.json`.
+The command prints `java: 336 PASS`: 297 online cases and 39 batch cases. The features the java target covers are listed in `characterization/targets.json`.
 
 `characterization-adapter` rebuilds the jar when a source is newer than it. It keeps one server on `127.0.0.1:18080` under profile `characterization`, against database `carddemo_characterization` and a clock fixed at 2026-11-05 10:00. Before every case it seeds the ten KSDS tables from the harness seeds named in `characterization/fixtures/datasets.json`, empties the job queue, the spool and the dataset catalog, and opens every CICS file. It does all of that in one transaction with foreign-key triggers off, because a case may delete a record others refer to. A step's new `job_submissions` rows are its `queues` observation. A batch case is submitted as a one-step deck to queue `JOBS`, and the server's internal reader runs it. `CARDDEMO_CHARACTERIZATION_PORT` and `CARDDEMO_CHARACTERIZATION_DB` give a second checkout its own server and database. The server stops after ten idle minutes, or with `characterization/cleanup.sh stop`.
 
 ## Batch
 
-The nine COBOL batch programs run as Spring Batch jobs against the same tables as the web app. Each JCL step is one tasklet step that runs outside a transaction, so what a step wrote before it abended stays written, as with VSAM. The 28 batch goldens pin their behavior.
+The nine COBOL batch programs run as Spring Batch jobs against the same tables as the web app. Each JCL step is one tasklet step that runs outside a transaction, so what a step wrote before it abended stays written, as with VSAM. Five utility-only members (the reference reloads and PRTCATBL) run the same way. The 39 batch goldens pin their behavior.
 
 ### Packages
 
@@ -119,7 +119,7 @@ Under `src/main/java/com/carddemo`:
 - `job_submissions.procedure`, `start_date` and `end_date` become nullable, because only CORPT00C's decks carry them. `accounts.acct_reissue_date` becomes nullable, and NULL means spaces.
 - Five foreign keys are dropped. VSAM has none, and batch posts balances and transactions that they would reject.
 
-`V5__tcatbalf_filler.sql` adds `transaction_category_balances.tran_cat_filler`, because CBACT04C DISPLAYs the record with its filler.
+`V5__tcatbalf_filler.sql` adds `transaction_category_balances.tran_cat_filler`, because CBACT04C DISPLAYs the record with its filler. `V10__reference_filler.sql` adds `transaction_types.tran_type_filler`, `transaction_categories.tran_catg_filler` and `disclosure_groups.dis_group_filler`, because a reload copies record images byte for byte and the shipped files' filler is zeros. The `load` profile still writes only the copybook fields, so after a bootstrap load these fillers are spaces until a reload writes them. V6 to V9 and V20 and up are reserved for the Db2 and IMS/MQ modules.
 
 ### How a job is represented
 
@@ -149,15 +149,18 @@ The CLOSEFIL and OPENFIL jobs run SDSF on the JCL's ISFIN cards, such as `/F CIC
 
 ### Chains and calendars
 
-`Chains` registers the eight chains of `app/scheduler`. Five can run, and each is CLOSEFIL, the business jobs, WAITSTEP and OPENFIL:
+`Chains` registers the eight chains of `app/scheduler`. All eight can run. Each is CLOSEFIL, the business jobs, WAITSTEP and OPENFIL, except that the reference walk repeats CLOSEFIL and WAITSTEP per member and never opens the files, as in the CA-7 export:
 
 - `CA7_030_POSTING`: POSTTRAN.
 - `CA7_030_EXTRACTS`: READACCT, READCARD, READCUST, READXREF.
 - `CA7_030_STATEMENTS`: CREASTMT.
 - `CONTROLM_DAILY_BACKUP`: TRANBKP.
 - `CONTROLM_MONTHLY_INTEREST`: INTCALC, COMBTRAN.
+- `CA7_030_REFERENCE`: TRANTYPE, TRANCATG, TCATBALF.
+- `CA7_031_CATBAL`: PRTCATBL.
+- `CONTROLM_WEEKLY_DISCLOSURE`: DISCGRP.
 
-`CA7_030_REFERENCE`, `CA7_031_CATBAL` and `CONTROLM_WEEKLY_DISCLOSURE` hold an `Unported` member (a reference-data reload or PRTCATBL) and cannot start. The IMS, Db2 and REXX jobs (CBPAUP0J, MNTTRDB2, TRANEXTR, TXT2PDF1) are `Optional` members. They are recorded as bypassed, and the chain goes on.
+A reload needs its `<member>.PS` cataloged first, for example with operator `receive AWS.M2.CARDDEMO.TRANTYPE.PS 60 ../app/data/ASCII/trantype.txt`. Without it the REPRO step ends JCL ERROR after the cluster was emptied, and the chain stops. `Member.Unported` remains for a member that cannot run here. The IMS, Db2 and REXX jobs (CBPAUP0J, MNTTRDB2, TRANEXTR, TXT2PDF1) are `Optional` members. They are recorded as bypassed, and the chain goes on.
 
 `ChainRunner` runs a chain as one Spring Batch job named after the chain, identified by its order date, with one step per member. Each member runs as its own JCL job, so COND and generations stay inside that member. A member that ends above RC 4, abends or ends in a JCL error stops the chain. A chain stopped between CLOSEFIL and OPENFIL leaves those files closed until it is restarted or an operator opens them. `start` runs a chain once per order date. `restart` reruns a failed chain from the member that failed and skips the members that ended OK. `abandon` records a run whose JVM died as FAILED, so `restart` accepts it.
 
