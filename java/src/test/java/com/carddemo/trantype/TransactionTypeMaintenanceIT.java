@@ -9,6 +9,7 @@ import java.net.http.HttpRequest;
 import java.net.http.HttpResponse;
 import java.util.List;
 import java.util.Map;
+import java.util.Set;
 
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.BeforeEach;
@@ -21,6 +22,8 @@ import org.springframework.test.context.DynamicPropertyRegistry;
 import org.springframework.test.context.DynamicPropertySource;
 
 import com.carddemo.TestDatabase;
+import com.carddemo.cics.CicsRegion;
+import com.carddemo.cics.Extension;
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
 
@@ -50,8 +53,12 @@ class TransactionTypeMaintenanceIT {
     @Autowired
     private JdbcTemplate jdbc;
 
+    @Autowired
+    private CicsRegion region;
+
     @BeforeEach
     void seed() {
+        region.install(Set.of(Extension.TRANSACTION_TYPE_DB2));
         dropTrigger();
         jdbc.update("delete from carddemo.transaction_type where tr_type in ('91', '92')");
         jdbc.update("insert into carddemo.transaction_type (tr_type, tr_description) values ('91', 'SEEDED')");
