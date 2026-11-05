@@ -83,7 +83,7 @@ From the repository root:
 python3 characterization/run.py --target java
 ```
 
-The command prints `java: 1 FAIL, 380 PASS, 43 SKIP`: 340 online cases and 40 batch cases pass, and the 43 `tran-type-list` cases wait for COTRTLIC. The one failure is `tran-type-maint-from-list-f2`, which reaches COTRTUPC through COTRTLIC. The features the java target covers are listed in `characterization/targets.json`.
+The command prints `java: 424 PASS`: 384 online cases and 40 batch cases. The features the java target covers are listed in `characterization/targets.json`.
 
 `characterization-adapter` rebuilds the jar when a source is newer than it. It keeps one server on `127.0.0.1:18080` under profile `characterization`, against database `carddemo_characterization` and a clock fixed at 2026-11-05 10:00. Before every case it seeds the ten KSDS tables and the two Db2 tables from the harness seeds named in `characterization/fixtures/datasets.json`, empties the job queue, the spool and the dataset catalog, opens every CICS file, and installs the extensions the case's `install` lists (none by default). A Db2 row is seeded, snapshotted and diffed as the harness's image: the key, a two-digit length, then the 50-byte description. It does all of that in one transaction with foreign-key triggers off, because a case may delete a record others refer to. A step's new `job_submissions` rows are its `queues` observation. A batch case is submitted as a one-step deck to queue `JOBS`, and the server's internal reader runs it. `CARDDEMO_CHARACTERIZATION_PORT` and `CARDDEMO_CHARACTERIZATION_DB` give a second checkout its own server and database. The server stops after ten idle minutes, or with `characterization/cleanup.sh stop`.
 
@@ -204,7 +204,7 @@ The exit code is 0 when the command did its work. It is 4 when a chain did not c
 
 ## Db2 transaction types
 
-The optional extension `app/app-transaction-type-db2` keeps transaction types in Db2 tables. Its batch program COBTUPDT and its maintenance screen COTRTUPC (CTTU) are ported. Its list screen COTRTLIC (CTLI) is not ported yet.
+The optional extension `app/app-transaction-type-db2` keeps transaction types in Db2 tables. Its batch program COBTUPDT, its list screen COTRTLIC (CTLI) and its maintenance screen COTRTUPC (CTTU) are ported.
 
 ### Schema
 
@@ -212,6 +212,8 @@ The optional extension `app/app-transaction-type-db2` keeps transaction types in
 
 - `carddemo.transaction_type`: `tr_type char(2)` key and `tr_description varchar(50)`.
 - `carddemo.transaction_type_category`: `trc_type_code`, `trc_type_category` and `trc_cat_data`, keyed on the code and the category. Its foreign key to `transaction_type` is `ON DELETE RESTRICT`, so deleting a type that has categories answers SQLCODE -532.
+
+These are separate from the VSAM-loaded `transaction_types` and `transaction_categories`, because the legacy system keeps two stores with different contents (the Db2 load cards are upper case and spell type 06 `REVERAL`; VSAM has `Reversal`) and VSAM sees Db2 only through the weekly TRANEXTR extract and reloads, which are not ported. Merging them would change what the base screens show after a Db2 edit.
 
 The text columns collate `"C"`, so they sort and compare byte by byte, as the harness's tables do. V6 also creates `sysibm.sysdummy1`, which the extension's priming query selects from. `spring.flyway.schemas` lists `carddemo` and `sysibm`, so a Flyway clean drops them too.
 
@@ -242,6 +244,10 @@ Every statement runs under its own savepoint in the caller's transaction. A fail
 `LibraryJob.MNTTRDB2` mirrors the extension's JCL: IKJEFT01 reads SYSTSIN `DSN SYSTEM(DAZ1)` then `RUN PROGRAM(COBTUPDT) PLAN(CARDDEMO)` and runs COBTUPDT on its own step, against the `INPFILE` data set. DBRMLIB and STEPLIB are left out, because RUN binds nothing and programs are beans. Any other TSO command ends the step RC 12, and a program with no bean abends `S806`. `CONTROLM_WEEKLY_DISCLOSURE` runs MNTTRDB2 as a job.
 
 COBTUPDT reads 53-byte records: the action (A, U, D, or * for a comment), the two-character type code and the description. An error DISPLAYs the message and ends the step RC 4. Its four `@LegacyDefect` methods pin the defects its goldens show.
+
+### COTRTLIC
+
+`trantype.TranTypeListScreen` is COTRTLIC, admin menu option 5 or transid CTLI: pages of seven types read through forward and backward cursors, type and description filters (the description is a SQL `LIKE`, with `ESCAPE ''` because Db2's LIKE has no escape character and Postgres defaults to backslash), `U` to edit a description in place and `D` to delete, both saved with F10, and F2 to COTRTUPC. A CTLI with no COMMAREA opens the list without sign-on, as the COBOL does; leaving it signs in the blank admin identity the COBOL builds. Its eleven `@LegacyDefect` methods are listed in `docs/legacy-defects.md`.
 
 ### COTRTUPC
 
