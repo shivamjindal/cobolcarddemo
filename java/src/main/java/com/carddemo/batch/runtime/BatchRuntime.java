@@ -81,6 +81,9 @@ public final class BatchRuntime {
         return switch (identity) {
             case RunIdentity.Submitted submitted -> new JobParametersBuilder()
                     .addLong("submission", submitted.submissionId(), true).toJobParameters();
+            case RunIdentity.Chained chained -> new JobParametersBuilder()
+                    .addLong("chainExecution", chained.chainExecutionId(), true)
+                    .addLong("member", (long) chained.member(), true).toJobParameters();
         };
     }
 

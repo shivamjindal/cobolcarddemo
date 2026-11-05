@@ -8,4 +8,10 @@ public sealed interface RunIdentity {
 
     /** A deck read from {@code job_submissions} row {@code submissionId}. */
     record Submitted(long submissionId) implements RunIdentity {}
+
+    /**
+     * Member {@code member} of the chain run {@code chainExecutionId}. A restarted chain is a new execution, so
+     * the member it reruns runs again from its first step.
+     */
+    record Chained(long chainExecutionId, int member) implements RunIdentity {}
 }
