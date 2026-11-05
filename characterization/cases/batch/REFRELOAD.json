@@ -1,0 +1,534 @@
+{
+  "feature": "batch-reference",
+  "kind": "batch",
+  "programs": [
+    "TRANTYPE",
+    "TRANCATG",
+    "TCATBALF",
+    "DISCGRP"
+  ],
+  "cases": [
+    {
+      "id": "trantype-reload-seed-unchanged",
+      "title": "Reloading TRANTYPE from its own seed changes nothing",
+      "provenance": "utility-model",
+      "source": "TRANTYPE STEP05-STEP15",
+      "setup": {},
+      "job": {
+        "library": "TRANTYPE",
+        "datasets": {
+          "AWS.M2.CARDDEMO.TRANTYPE.PS": {
+            "layout": "TRANTYPE",
+            "seed": true
+          }
+        }
+      },
+      "expect": {
+        "completion": "RC=0",
+        "steps": {
+          "STEP05": "RC=0",
+          "STEP10": "RC=0",
+          "STEP15": "RC=0"
+        }
+      }
+    },
+    {
+      "id": "trantype-reload-replaces-the-table",
+      "title": "The cluster holds exactly the PS records after the reload",
+      "provenance": "utility-model",
+      "source": "TRANTYPE STEP10 DEFINE, STEP15 REPRO",
+      "setup": {
+        "TRANTYPE": {
+          "delete": [
+            "01"
+          ]
+        }
+      },
+      "job": {
+        "library": "TRANTYPE",
+        "datasets": {
+          "AWS.M2.CARDDEMO.TRANTYPE.PS": {
+            "layout": "TRANTYPE",
+            "records": [
+              {
+                "TRAN-TYPE": "01",
+                "TRAN-TYPE-DESC": "Purchase"
+              },
+              {
+                "TRAN-TYPE": "02",
+                "TRAN-TYPE-DESC": "Payment by phone"
+              },
+              {
+                "TRAN-TYPE": "09",
+                "TRAN-TYPE-DESC": "Chargeback"
+              }
+            ]
+          }
+        }
+      },
+      "expect": {
+        "completion": "RC=0",
+        "steps": {
+          "STEP05": "RC=0",
+          "STEP10": "RC=0",
+          "STEP15": "RC=0"
+        },
+        "files": {
+          "TRANTYPE": {
+            "inserted": [
+              {
+                "TRAN-TYPE": "01",
+                "TRAN-TYPE-DESC": "Purchase"
+              },
+              {
+                "TRAN-TYPE": "09",
+                "TRAN-TYPE-DESC": "Chargeback"
+              }
+            ],
+            "updated": [
+              {
+                "key": "02",
+                "changed": {
+                  "TRAN-TYPE-DESC": [
+                    "Payment",
+                    "Payment by phone"
+                  ]
+                }
+              }
+            ],
+            "deleted": [
+              "03",
+              "04",
+              "05",
+              "06",
+              "07"
+            ]
+          }
+        }
+      }
+    },
+    {
+      "id": "trantype-reload-duplicate-key",
+      "title": "A duplicate key is rejected and the step ends RC 8",
+      "provenance": "utility-model",
+      "source": "TRANTYPE STEP15 REPRO into an empty KSDS",
+      "setup": {},
+      "job": {
+        "library": "TRANTYPE",
+        "datasets": {
+          "AWS.M2.CARDDEMO.TRANTYPE.PS": {
+            "layout": "TRANTYPE",
+            "records": [
+              {
+                "TRAN-TYPE": "01",
+                "TRAN-TYPE-DESC": "Purchase"
+              },
+              {
+                "TRAN-TYPE": "02",
+                "TRAN-TYPE-DESC": "Payment"
+              },
+              {
+                "TRAN-TYPE": "02",
+                "TRAN-TYPE-DESC": "Payment again"
+              },
+              {
+                "TRAN-TYPE": "03",
+                "TRAN-TYPE-DESC": "Credit"
+              }
+            ]
+          }
+        }
+      },
+      "expect": {
+        "completion": "RC=8",
+        "steps": {
+          "STEP05": "RC=0",
+          "STEP10": "RC=0",
+          "STEP15": "RC=8"
+        },
+        "files": {
+          "TRANTYPE": {
+            "updated": [
+              {
+                "key": "01",
+                "changed": {}
+              },
+              {
+                "key": "02",
+                "changed": {}
+              },
+              {
+                "key": "03",
+                "changed": {}
+              }
+            ],
+            "deleted": [
+              "04",
+              "05",
+              "06",
+              "07"
+            ]
+          }
+        }
+      }
+    },
+    {
+      "id": "trancatg-reload-seed-unchanged",
+      "title": "Reloading TRANCATG from its own seed changes nothing",
+      "provenance": "utility-model",
+      "source": "TRANCATG STEP05-STEP15",
+      "setup": {},
+      "job": {
+        "library": "TRANCATG",
+        "datasets": {
+          "AWS.M2.CARDDEMO.TRANCATG.PS": {
+            "layout": "TRANCATG",
+            "seed": true
+          }
+        }
+      },
+      "expect": {
+        "completion": "RC=0",
+        "steps": {
+          "STEP05": "RC=0",
+          "STEP10": "RC=0",
+          "STEP15": "RC=0"
+        }
+      }
+    },
+    {
+      "id": "trancatg-reload-out-of-sequence-hits-error-limit",
+      "title": "The fourth rejected record ends REPRO RC 12 and later records are not loaded",
+      "provenance": "utility-model",
+      "source": "TRANCATG STEP15 REPRO ERRORLIMIT",
+      "setup": {},
+      "job": {
+        "library": "TRANCATG",
+        "datasets": {
+          "AWS.M2.CARDDEMO.TRANCATG.PS": {
+            "layout": "TRANCATG",
+            "records": [
+              {
+                "TRAN-TYPE-CD": "01",
+                "TRAN-CAT-CD": "0001",
+                "TRAN-CAT-TYPE-DESC": "Regular Sales Draft"
+              },
+              {
+                "TRAN-TYPE-CD": "01",
+                "TRAN-CAT-CD": "0003",
+                "TRAN-CAT-TYPE-DESC": "Cash Advance"
+              },
+              {
+                "TRAN-TYPE-CD": "01",
+                "TRAN-CAT-CD": "0002",
+                "TRAN-CAT-TYPE-DESC": "Out of order"
+              },
+              {
+                "TRAN-TYPE-CD": "01",
+                "TRAN-CAT-CD": "0003",
+                "TRAN-CAT-TYPE-DESC": "Duplicate"
+              },
+              {
+                "TRAN-TYPE-CD": "01",
+                "TRAN-CAT-CD": "0001",
+                "TRAN-CAT-TYPE-DESC": "Behind"
+              },
+              {
+                "TRAN-TYPE-CD": "01",
+                "TRAN-CAT-CD": "0002",
+                "TRAN-CAT-TYPE-DESC": "Fourth error"
+              },
+              {
+                "TRAN-TYPE-CD": "02",
+                "TRAN-CAT-CD": "0001",
+                "TRAN-CAT-TYPE-DESC": "Never loaded"
+              }
+            ]
+          }
+        }
+      },
+      "expect": {
+        "completion": "RC=12",
+        "steps": {
+          "STEP05": "RC=0",
+          "STEP10": "RC=0",
+          "STEP15": "RC=12"
+        },
+        "files": {
+          "TRANCATG": {
+            "updated": [
+              {
+                "key": "010001",
+                "changed": {}
+              },
+              {
+                "key": "010003",
+                "changed": {
+                  "TRAN-CAT-TYPE-DESC": [
+                    "Convenience Check Debit",
+                    "Cash Advance"
+                  ]
+                }
+              }
+            ],
+            "deleted": [
+              "010002",
+              "010004",
+              "010005",
+              "020001",
+              "020002",
+              "020003",
+              "030001",
+              "030002",
+              "030003",
+              "040001",
+              "040002",
+              "040003",
+              "050001",
+              "060001",
+              "060002",
+              "070001"
+            ]
+          }
+        }
+      }
+    },
+    {
+      "id": "tcatbalf-reload-three-rejects",
+      "title": "Three rejected records end REPRO RC 8 and the rest load",
+      "provenance": "utility-model",
+      "source": "TCATBALF STEP15 REPRO",
+      "setup": {},
+      "job": {
+        "library": "TCATBALF",
+        "datasets": {
+          "AWS.M2.CARDDEMO.TCATBALF.PS": {
+            "layout": "TCATBALF",
+            "records": [
+              {
+                "TRANCAT-ACCT-ID": "00000000001",
+                "TRANCAT-TYPE-CD": "01",
+                "TRANCAT-CD": "0001",
+                "TRAN-CAT-BAL": "120.50"
+              },
+              {
+                "TRANCAT-ACCT-ID": "00000000001",
+                "TRANCAT-TYPE-CD": "01",
+                "TRANCAT-CD": "0001",
+                "TRAN-CAT-BAL": "1.00"
+              },
+              {
+                "TRANCAT-ACCT-ID": "00000000002",
+                "TRANCAT-TYPE-CD": "01",
+                "TRANCAT-CD": "0001",
+                "TRAN-CAT-BAL": "-75.25"
+              },
+              {
+                "TRANCAT-ACCT-ID": "00000000001",
+                "TRANCAT-TYPE-CD": "02",
+                "TRANCAT-CD": "0001",
+                "TRAN-CAT-BAL": "2.00"
+              },
+              {
+                "TRANCAT-ACCT-ID": "00000000002",
+                "TRANCAT-TYPE-CD": "01",
+                "TRANCAT-CD": "0001",
+                "TRAN-CAT-BAL": "3.00"
+              },
+              {
+                "TRANCAT-ACCT-ID": "00000000003",
+                "TRANCAT-TYPE-CD": "01",
+                "TRANCAT-CD": "0001",
+                "TRAN-CAT-BAL": "0.00"
+              }
+            ]
+          }
+        }
+      },
+      "expect": {
+        "completion": "RC=8",
+        "steps": {
+          "STEP05": "RC=0",
+          "STEP10": "RC=0",
+          "STEP15": "RC=8"
+        },
+        "files": {
+          "TCATBALF": {
+            "updated": [
+              {
+                "key": "00000000001010001",
+                "changed": {
+                  "TRAN-CAT-BAL": [
+                    "0.00",
+                    "120.50"
+                  ]
+                }
+              },
+              {
+                "key": "00000000002010001",
+                "changed": {
+                  "TRAN-CAT-BAL": [
+                    "0.00",
+                    "-75.25"
+                  ]
+                }
+              },
+              {
+                "key": "00000000003010001",
+                "changed": {}
+              }
+            ],
+            "deleted": [
+              "00000000004010001",
+              "00000000005010001",
+              "00000000006010001",
+              "00000000007010001",
+              "00000000008010001",
+              "00000000009010001",
+              "00000000010010001",
+              "00000000011010001",
+              "00000000012010001",
+              "00000000013010001",
+              "00000000014010001",
+              "00000000015010001",
+              "00000000016010001",
+              "00000000017010001",
+              "00000000018010001",
+              "00000000019010001",
+              "00000000020010001",
+              "00000000021010001",
+              "00000000022010001",
+              "00000000023010001",
+              "00000000024010001",
+              "00000000025010001",
+              "00000000026010001",
+              "00000000027010001",
+              "00000000028010001",
+              "00000000029010001",
+              "00000000030010001",
+              "00000000031010001",
+              "00000000032010001",
+              "00000000033010001",
+              "00000000034010001",
+              "00000000035010001",
+              "00000000036010001",
+              "00000000037010001",
+              "00000000038010001",
+              "00000000039010001",
+              "00000000040010001",
+              "00000000041010001",
+              "00000000042010001",
+              "00000000043010001",
+              "00000000044010001",
+              "00000000045010001",
+              "00000000046010001",
+              "00000000047010001",
+              "00000000048010001",
+              "00000000049010001",
+              "00000000050010001"
+            ]
+          }
+        }
+      }
+    },
+    {
+      "id": "discgrp-reload-seed-unchanged",
+      "title": "Reloading DISCGRP from its own seed changes nothing",
+      "provenance": "utility-model",
+      "source": "DISCGRP STEP05-STEP15",
+      "setup": {},
+      "job": {
+        "library": "DISCGRP",
+        "datasets": {
+          "AWS.M2.CARDDEMO.DISCGRP.PS": {
+            "layout": "DISCGRP",
+            "seed": true
+          }
+        }
+      },
+      "expect": {
+        "completion": "RC=0",
+        "steps": {
+          "STEP05": "RC=0",
+          "STEP10": "RC=0",
+          "STEP15": "RC=0"
+        }
+      }
+    },
+    {
+      "id": "discgrp-reload-missing-input-empties-cluster",
+      "title": "With no DISCGRP.PS the reload ends JCL ERROR after the cluster was deleted and defined",
+      "provenance": "utility-model",
+      "source": "DISCGRP STEP15 DISP=SHR allocation",
+      "setup": {},
+      "job": {
+        "library": "DISCGRP"
+      },
+      "expect": {
+        "completion": "JCL ERROR",
+        "steps": {
+          "STEP05": "RC=0",
+          "STEP10": "RC=0",
+          "STEP15": "JCL ERROR"
+        },
+        "files": {
+          "DISCGRP": {
+            "deleted": [
+              "A000000000010001",
+              "A000000000010002",
+              "A000000000010003",
+              "A000000000010004",
+              "A000000000020001",
+              "A000000000020002",
+              "A000000000020003",
+              "A000000000030001",
+              "A000000000030002",
+              "A000000000030003",
+              "A000000000040001",
+              "A000000000040002",
+              "A000000000040003",
+              "A000000000050001",
+              "A000000000060001",
+              "A000000000060002",
+              "A000000000070001",
+              "DEFAULT   010001",
+              "DEFAULT   010002",
+              "DEFAULT   010003",
+              "DEFAULT   010004",
+              "DEFAULT   020001",
+              "DEFAULT   020002",
+              "DEFAULT   020003",
+              "DEFAULT   030001",
+              "DEFAULT   030002",
+              "DEFAULT   030003",
+              "DEFAULT   040001",
+              "DEFAULT   040002",
+              "DEFAULT   040003",
+              "DEFAULT   050001",
+              "DEFAULT   060001",
+              "DEFAULT   060002",
+              "DEFAULT   070001",
+              "ZEROAPR   010001",
+              "ZEROAPR   010002",
+              "ZEROAPR   010003",
+              "ZEROAPR   010004",
+              "ZEROAPR   020001",
+              "ZEROAPR   020002",
+              "ZEROAPR   020003",
+              "ZEROAPR   030001",
+              "ZEROAPR   030002",
+              "ZEROAPR   030003",
+              "ZEROAPR   040001",
+              "ZEROAPR   040002",
+              "ZEROAPR   040003",
+              "ZEROAPR   050001",
+              "ZEROAPR   060001",
+              "ZEROAPR   060002",
+              "ZEROAPR   070001"
+            ]
+          }
+        }
+      }
+    }
+  ]
+}

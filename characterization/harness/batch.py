@@ -10,6 +10,7 @@ A case's "job" names the program and binds each DD to one of:
     outputs may add "decode_as": "DATASET" (decode with that record layout) or "hex": true
   {"derive": "creastmt-trxfl"}           the CREASTMT SORT step output (see derive_trxfl)
 Observed: return code (or user abend), SYSOUT lines, dataset diffs, output records.
+A "job" with "library" instead of "program" runs a utility-only app/jcl member (see library.py).
 """
 import os
 import re
@@ -124,6 +125,9 @@ def _records(raw, reclen, recfm):
 
 
 def run_job(case, run_dir):
+    if "library" in case["job"]:
+        import library
+        return library.run_library(case, run_dir)
     run_dir = Path(run_dir)
     if run_dir.exists():
         import shutil
