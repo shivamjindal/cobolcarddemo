@@ -11,8 +11,12 @@ import java.net.http.HttpResponse;
 import java.nio.file.Path;
 import java.sql.Connection;
 import java.sql.DriverManager;
+import java.sql.PreparedStatement;
+import java.sql.ResultSet;
+import java.sql.SQLException;
 import java.sql.Statement;
 import java.util.ArrayList;
+import java.util.Arrays;
 import java.util.HashSet;
 import java.util.LinkedHashMap;
 import java.util.List;
@@ -39,7 +43,7 @@ public final class Adapter {
 
     private static final ObjectMapper JSON = new ObjectMapper();
     private static final Set<String> IGNORED_FIELDS = Set.of("CURDATE", "CURTIME", "APPLID", "SYSID", "TITLE01", "TITLE02");
-    private static final List<String> SEEDED = List.of("USRSEC", "ACCTDATA", "CUSTDATA", "CARDDATA", "CARDXREF");
+    private static final List<String> SEEDED = List.of("USRSEC", "ACCTDATA", "CUSTDATA", "CARDDATA", "CARDXREF", "TRANSACT");
 
     public static void main(String[] args) throws Exception {
         JsonNode request = JSON.readTree(System.in);
@@ -73,6 +77,7 @@ public final class Adapter {
                 for (SeededTable table : seeded) {
                     before.add(table.snapshot(db));
                 }
+                long jobsBefore = lastJob(db);
                 Map<String, Object> observation = browser.step(step.get("do"));
                 Map<String, Object> files = new LinkedHashMap<>();
                 for (int i = 0; i < seeded.size(); i++) {
@@ -82,6 +87,10 @@ public final class Adapter {
                 if (!files.isEmpty()) {
                     observation.put("files", files);
                 }
+                Map<String, List<String>> queues = queued(db, jobsBefore);
+                if (!queues.isEmpty()) {
+                    observation.put("queues", queues);
+                }
                 observations.add(observation);
             }
             System.out.print(JSON.writeValueAsString(Map.of("steps", observations)));
@@ -89,19 +98,43 @@ public final class Adapter {
     }
 
     /**
-     * Every dataset in one transaction. A case may delete a record others refer to, as the harness's
-     * text files allow, so foreign-key triggers are off while seeding.
+     * Every dataset and the empty TD queues in one transaction. A case may delete a record others refer
+     * to, as the harness's text files allow, so foreign-key triggers are off while seeding.
      */
     private static void seed(Connection db, List<SeededTable> seeded, JsonNode setup) throws Exception {
         db.setAutoCommit(false);
         try (Statement replica = db.createStatement()) {
             replica.execute("SET LOCAL session_replication_role = replica");
+            replica.execute("DELETE FROM job_submissions");
         }
         for (SeededTable table : seeded) {
             table.materialize(db, setup.path(table.name()));
         }
         db.commit();
         db.setAutoCommit(true);
+    }
+
+    private static long lastJob(Connection db) throws SQLException {
+        try (Statement select = db.createStatement();
+                ResultSet last = select.executeQuery("SELECT coalesce(max(id), 0) FROM job_submissions")) {
+            last.next();
+            return last.getLong(1);
+        }
+    }
+
+    /** The harness's {@code queues}: each TD queue's lines of the jobs submitted after job {@code after}, in order. */
+    private static Map<String, List<String>> queued(Connection db, long after) throws SQLException {
+        Map<String, List<String>> queues = new LinkedHashMap<>();
+        try (PreparedStatement select = db.prepareStatement("SELECT queue, jcl FROM job_submissions WHERE id > ? ORDER BY id")) {
+            select.setLong(1, after);
+            try (ResultSet jobs = select.executeQuery()) {
+                while (jobs.next()) {
+                    queues.computeIfAbsent(jobs.getString("queue"), queue -> new ArrayList<>())
+                            .addAll(Arrays.asList((String[]) jobs.getArray("jcl").getArray()));
+                }
+            }
+        }
+        return queues;
     }
 
     private static String env(String name, String fallback) {
