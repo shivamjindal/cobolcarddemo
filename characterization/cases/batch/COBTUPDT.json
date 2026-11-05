@@ -1,0 +1,443 @@
+{
+  "feature": "batch-tran-type-maint",
+  "kind": "batch",
+  "programs": [
+    "COBTUPDT"
+  ],
+  "install": [
+    "transaction-type-db2"
+  ],
+  "cases": [
+    {
+      "id": "batch-tran-type-add-update-delete",
+      "title": "Add, update and delete transaction types in one run",
+      "provenance": "observed",
+      "source": "COBTUPDT 10031-INSERT-DB, 10032-UPDATE-DB, 10033-DELETE-DB",
+      "setup": {
+        "TRANSACTION_TYPE": {
+          "upsert": [
+            {
+              "TR-TYPE": "09",
+              "TR-DESCRIPTION": "OBSOLETE"
+            }
+          ]
+        }
+      },
+      "job": {
+        "program": "COBTUPDT",
+        "dd": {
+          "INPFILE": {
+            "lines": [
+              "A08INSTALLMENT",
+              "U02PAYMENT RECEIVED",
+              "D09"
+            ],
+            "reclen": 53
+          }
+        }
+      },
+      "expect": {
+        "completion": "RC=0",
+        "sysout": [
+          "OPEN FILE OK",
+          "PROCESSING   A08INSTALLMENT",
+          "ADDING RECORD",
+          "RECORD INSERTED SUCCESSFULLY",
+          "PROCESSING   U02PAYMENT RECEIVED",
+          "UPDATING RECORD",
+          "RECORD UPDATED SUCCESSFULLY",
+          "PROCESSING   D09",
+          "DELETING RECORD",
+          "RECORD DELETED SUCCESSFULLY"
+        ],
+        "files": {
+          "TRANSACTION_TYPE": {
+            "inserted": [
+              {
+                "TR-TYPE": "08",
+                "TR-DESCRIPTION-LEN": "50",
+                "TR-DESCRIPTION": "INSTALLMENT"
+              }
+            ],
+            "updated": [
+              {
+                "key": "02",
+                "changed": {
+                  "TR-DESCRIPTION-LEN": [
+                    "7",
+                    "50"
+                  ],
+                  "TR-DESCRIPTION": [
+                    "PAYMENT",
+                    "PAYMENT RECEIVED"
+                  ]
+                }
+              }
+            ],
+            "deleted": [
+              "09"
+            ]
+          }
+        }
+      }
+    },
+    {
+      "id": "batch-tran-type-comment-line",
+      "title": "An asterisk in column 1 is a comment and changes nothing",
+      "provenance": "observed",
+      "source": "COBTUPDT 1003-TREAT-RECORD WHEN '*'",
+      "job": {
+        "program": "COBTUPDT",
+        "dd": {
+          "INPFILE": {
+            "lines": [
+              "*A08NOT ADDED"
+            ],
+            "reclen": 53
+          }
+        }
+      },
+      "expect": {
+        "completion": "RC=0",
+        "sysout": [
+          "OPEN FILE OK",
+          "PROCESSING   *A08NOT ADDED",
+          "IGNORING COMMENTED LINE"
+        ]
+      }
+    },
+    {
+      "id": "batch-tran-type-empty-input",
+      "title": "An empty input file opens, reads nothing and ends RC=0",
+      "provenance": "observed",
+      "source": "COBTUPDT 0001-OPEN-FILES, 1001-READ-NEXT-RECORDS",
+      "job": {
+        "program": "COBTUPDT",
+        "dd": {
+          "INPFILE": {
+            "lines": [],
+            "reclen": 53
+          }
+        }
+      },
+      "expect": {
+        "completion": "RC=0",
+        "sysout": [
+          "OPEN FILE OK"
+        ]
+      }
+    },
+    {
+      "id": "batch-tran-type-duplicate-add",
+      "title": "Adding an existing type is SQLCODE -803; the run goes on and ends RC=4",
+      "provenance": "observed",
+      "source": "COBTUPDT 10031-INSERT-DB SQLCODE < 0, 9999-ABEND",
+      "job": {
+        "program": "COBTUPDT",
+        "dd": {
+          "INPFILE": {
+            "lines": [
+              "A01DUPLICATE"
+            ],
+            "reclen": 53
+          }
+        }
+      },
+      "expect": {
+        "completion": "RC=4",
+        "sysout": [
+          "OPEN FILE OK",
+          "PROCESSING   A01DUPLICATE",
+          "ADDING RECORD",
+          "Error accessing: TRANSACTION_TYPE table. SQLCODE: -803"
+        ]
+      }
+    },
+    {
+      "id": "batch-tran-type-update-missing",
+      "title": "Updating a missing type is SQLCODE +100: No records found, RC=4",
+      "provenance": "observed",
+      "source": "COBTUPDT 10032-UPDATE-DB SQLCODE = +100",
+      "job": {
+        "program": "COBTUPDT",
+        "dd": {
+          "INPFILE": {
+            "lines": [
+              "U99NOWHERE"
+            ],
+            "reclen": 53
+          }
+        }
+      },
+      "expect": {
+        "completion": "RC=4",
+        "sysout": [
+          "OPEN FILE OK",
+          "PROCESSING   U99NOWHERE",
+          "UPDATING RECORD",
+          "No records found."
+        ]
+      }
+    },
+    {
+      "id": "batch-tran-type-delete-missing",
+      "title": "Deleting a missing type is SQLCODE +100: No records found, RC=4",
+      "provenance": "observed",
+      "source": "COBTUPDT 10033-DELETE-DB SQLCODE = +100",
+      "job": {
+        "program": "COBTUPDT",
+        "dd": {
+          "INPFILE": {
+            "lines": [
+              "D99"
+            ],
+            "reclen": 53
+          }
+        }
+      },
+      "expect": {
+        "completion": "RC=4",
+        "sysout": [
+          "OPEN FILE OK",
+          "PROCESSING   D99",
+          "DELETING RECORD",
+          "No records found."
+        ]
+      }
+    },
+    {
+      "id": "batch-tran-type-delete-with-categories",
+      "title": "Deleting a type that has categories is SQLCODE -532 (ON DELETE RESTRICT); the row stays",
+      "provenance": "observed",
+      "source": "COBTUPDT 10033-DELETE-DB SQLCODE < 0; DDL TRNTYCAT ON DELETE RESTRICT",
+      "job": {
+        "program": "COBTUPDT",
+        "dd": {
+          "INPFILE": {
+            "lines": [
+              "D01"
+            ],
+            "reclen": 53
+          }
+        }
+      },
+      "expect": {
+        "completion": "RC=4",
+        "sysout": [
+          "OPEN FILE OK",
+          "PROCESSING   D01",
+          "DELETING RECORD",
+          "Error accessing: TRANSACTION_TYPE table. SQLCODE: -532"
+        ]
+      }
+    },
+    {
+      "id": "batch-tran-type-invalid-action",
+      "title": "An action other than A, U, D or * is rejected and the run goes on",
+      "provenance": "observed",
+      "source": "COBTUPDT 1003-TREAT-RECORD WHEN OTHER",
+      "job": {
+        "program": "COBTUPDT",
+        "dd": {
+          "INPFILE": {
+            "lines": [
+              "X05REFUND",
+              "a08LOWER CASE"
+            ],
+            "reclen": 53
+          }
+        }
+      },
+      "expect": {
+        "completion": "RC=4",
+        "sysout": [
+          "OPEN FILE OK",
+          "PROCESSING   X05REFUND",
+          "ERROR: TYPE NOT VALID",
+          "PROCESSING   a08LOWER CASE",
+          "ERROR: TYPE NOT VALID"
+        ]
+      }
+    },
+    {
+      "id": "batch-tran-type-message-keeps-stale-tail",
+      "title": "Legacy defect: STRING into WS-RETURN-MSG never clears it, so a shorter message keeps the tail of the previous one",
+      "provenance": "observed",
+      "source": "COBTUPDT 10032-UPDATE-DB/10033-DELETE-DB STRING ... INTO WS-RETURN-MSG",
+      "job": {
+        "program": "COBTUPDT",
+        "dd": {
+          "INPFILE": {
+            "lines": [
+              "A01DUPLICATE",
+              "U99NOWHERE",
+              "XBAD"
+            ],
+            "reclen": 53
+          }
+        }
+      },
+      "expect": {
+        "completion": "RC=4",
+        "sysout": [
+          "OPEN FILE OK",
+          "PROCESSING   A01DUPLICATE",
+          "ADDING RECORD",
+          "Error accessing: TRANSACTION_TYPE table. SQLCODE: -803",
+          "PROCESSING   U99NOWHERE",
+          "UPDATING RECORD",
+          "No records found.TRANSACTION_TYPE table. SQLCODE: -803",
+          "PROCESSING   XBAD",
+          "ERROR: TYPE NOT VALIDSACTION_TYPE table. SQLCODE: -803"
+        ]
+      }
+    },
+    {
+      "id": "batch-tran-type-later-sql-resets-rc",
+      "title": "Legacy defect: the next SQL call resets RETURN-CODE, so an error followed by a good record ends RC=0",
+      "provenance": "observed",
+      "source": "COBTUPDT 9999-ABEND MOVE 4 TO RETURN-CODE; the CALL the precompiler generates sets RETURN-CODE",
+      "job": {
+        "program": "COBTUPDT",
+        "dd": {
+          "INPFILE": {
+            "lines": [
+              "A01DUPLICATE",
+              "U02PAYMENT"
+            ],
+            "reclen": 53
+          }
+        }
+      },
+      "expect": {
+        "completion": "RC=0",
+        "sysout": [
+          "OPEN FILE OK",
+          "PROCESSING   A01DUPLICATE",
+          "ADDING RECORD",
+          "Error accessing: TRANSACTION_TYPE table. SQLCODE: -803",
+          "PROCESSING   U02PAYMENT",
+          "UPDATING RECORD",
+          "RECORD UPDATED SUCCESSFULLY"
+        ],
+        "files": {
+          "TRANSACTION_TYPE": {
+            "updated": [
+              {
+                "key": "02",
+                "changed": {
+                  "TR-DESCRIPTION-LEN": [
+                    "7",
+                    "50"
+                  ]
+                }
+              }
+            ]
+          }
+        }
+      }
+    },
+    {
+      "id": "batch-tran-type-add-keeps-trailing-blanks",
+      "title": "Legacy defect: the add binds the fixed 50-byte INPUT-REC-DESC, so the VARCHAR keeps its trailing blanks (length 50); the update does the same",
+      "provenance": "observed",
+      "source": "COBTUPDT 10031-INSERT-DB :INPUT-REC-DESC PIC X(50)",
+      "job": {
+        "program": "COBTUPDT",
+        "dd": {
+          "INPFILE": {
+            "lines": [
+              "A08SHORT",
+              "U03ALSO SHORT"
+            ],
+            "reclen": 53
+          }
+        }
+      },
+      "expect": {
+        "completion": "RC=0",
+        "sysout": [
+          "OPEN FILE OK",
+          "PROCESSING   A08SHORT",
+          "ADDING RECORD",
+          "RECORD INSERTED SUCCESSFULLY",
+          "PROCESSING   U03ALSO SHORT",
+          "UPDATING RECORD",
+          "RECORD UPDATED SUCCESSFULLY"
+        ],
+        "files": {
+          "TRANSACTION_TYPE": {
+            "inserted": [
+              {
+                "TR-TYPE": "08",
+                "TR-DESCRIPTION-LEN": "50",
+                "TR-DESCRIPTION": "SHORT"
+              }
+            ],
+            "updated": [
+              {
+                "key": "03",
+                "changed": {
+                  "TR-DESCRIPTION-LEN": [
+                    "6",
+                    "50"
+                  ],
+                  "TR-DESCRIPTION": [
+                    "CREDIT",
+                    "ALSO SHORT"
+                  ]
+                }
+              }
+            ]
+          }
+        }
+      }
+    },
+    {
+      "id": "batch-tran-type-code-not-validated",
+      "title": "Legacy defect: the type code is not checked for digits, so letters and a blank second byte are added",
+      "provenance": "observed",
+      "source": "COBTUPDT 10031-INSERT-DB (no edit of INPUT-REC-NUMBER)",
+      "job": {
+        "program": "COBTUPDT",
+        "dd": {
+          "INPFILE": {
+            "lines": [
+              "AABLETTERS",
+              "A9 ONE DIGIT"
+            ],
+            "reclen": 53
+          }
+        }
+      },
+      "expect": {
+        "completion": "RC=0",
+        "sysout": [
+          "OPEN FILE OK",
+          "PROCESSING   AABLETTERS",
+          "ADDING RECORD",
+          "RECORD INSERTED SUCCESSFULLY",
+          "PROCESSING   A9 ONE DIGIT",
+          "ADDING RECORD",
+          "RECORD INSERTED SUCCESSFULLY"
+        ],
+        "files": {
+          "TRANSACTION_TYPE": {
+            "inserted": [
+              {
+                "TR-TYPE": "9",
+                "TR-DESCRIPTION-LEN": "50",
+                "TR-DESCRIPTION": "ONE DIGIT"
+              },
+              {
+                "TR-TYPE": "AB",
+                "TR-DESCRIPTION-LEN": "50",
+                "TR-DESCRIPTION": "LETTERS"
+              }
+            ]
+          }
+        }
+      }
+    }
+  ]
+}
