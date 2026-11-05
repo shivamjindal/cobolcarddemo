@@ -60,17 +60,20 @@ def compare(expected, actual, subset, path="$"):
 
 
 def run_legacy(suite, case, workdir):
+    install = suite.get("install", [])
     if suite["kind"] == "online":
         import online
-        return online.run_journey([s["do"] for s in case["steps"]], workdir, case.get("setup"))
+        return online.run_journey([s["do"] for s in case["steps"]], workdir, case.get("setup"), install)
     import batch
-    return [batch.run_job(case, workdir)]
+    return [batch.run_job(case, workdir, install)]
 
 
 def run_external(target, suite, case):
     request = {"kind": suite["kind"], "feature": suite["feature"],
                "datasets": str(ROOT / "fixtures" / "datasets.json"),
                "case": {k: case[k] for k in ("id", "setup", "steps", "job") if k in case}}
+    if suite.get("install"):
+        request["case"]["install"] = suite["install"]
     if "steps" in request["case"]:
         request["case"]["steps"] = [{"do": s["do"]} for s in case["steps"]]
     proc = subprocess.run(target["command"], input=json.dumps(request), capture_output=True,

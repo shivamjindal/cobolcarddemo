@@ -24,12 +24,16 @@ import com.carddemo.batch.programs.Cbcus01c;
 import com.carddemo.batch.programs.Cbstm03a;
 import com.carddemo.batch.programs.Cbtrn02c;
 import com.carddemo.batch.programs.Iefbr14;
+import com.carddemo.batch.programs.Ikjeft01;
 import com.carddemo.batch.programs.Cobswait;
 import com.carddemo.batch.programs.Sdsf;
 import com.carddemo.batch.utilities.Idcams;
 import com.carddemo.batch.utilities.Sort;
 
-/** The members of {@code app/jcl} that run here, as typed JCL. STEPLIB is left out: programs come from the program library. */
+/**
+ * The members of {@code app/jcl}, and of an optional extension's {@code jcl}, that run here, as typed JCL. STEPLIB
+ * is left out: programs come from the program library.
+ */
 public enum LibraryJob {
     READCARD(JobDef.of("READCARD", program("STEP05", Cbact02c.NAME,
             shr("CARDFILE", "AWS.M2.CARDDEMO.CARDDATA.VSAM.KSDS"), sysout("SYSOUT"), sysout("SYSPRINT")))),
@@ -164,7 +168,13 @@ public enum LibraryJob {
             " /F CICSAWSA,'CEMT SET FIL(CXACAIX ) OPE'",
             " /F CICSAWSA,'CEMT SET FIL(USRSEC ) OPE'")))),
     WAITSTEP(JobDef.of("WAITSTEP", program("WAIT", Cobswait.NAME, sysout("SYSOUT"),
-            instream("SYSIN", "00003600      VALUE IN CENTISECONDS"))));
+            instream("SYSIN", "00003600      VALUE IN CENTISECONDS")))),
+    /** {@code app/app-transaction-type-db2/jcl/MNTTRDB2.jcl}. DBRMLIB is left out too: RUN does not bind. */
+    MNTTRDB2(JobDef.of("MNTTRDB2", program("STEP1", Ikjeft01.NAME,
+            sysout("SYSTSPRT"), shr("INPFILE", "INPFILE"),
+            instream("SYSTSIN",
+                    "     DSN SYSTEM(DAZ1)",
+                    "          RUN PROGRAM(COBTUPDT) PLAN(CARDDEMO)"))));
 
     private final JobDef job;
 

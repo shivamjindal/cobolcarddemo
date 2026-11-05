@@ -19,6 +19,9 @@
 #include <time.h>
 #include <libcob.h>
 
+/* sqlstub.c: ends the Db2 unit of work (commit 1, rollback 0). */
+void sql_end(int commit);
+
 #pragma pack(push, 1)
 struct eib {
     int32_t time, date;
@@ -470,8 +473,10 @@ int CICSAPI(struct req *r, struct eib *e, char *a0, char *a1, char *a2, char *a3
         event_data("writeq_td", meta, (unsigned char *)a[i], n);
     } else if (!strcmp(fn, "SYNCPOINT")) {
         event("syncpoint", "\"rollback\":%s", has_flag(r, "ROLLBACK") ? "true" : "false");
+        sql_end(!has_flag(r, "ROLLBACK"));
     } else if (!strcmp(fn, "ABEND")) {
         event("abend", "\"code\":\"%s\"", name);
+        sql_end(0);
         cob_stop_run(0);
     } else if (!strcmp(fn, "READ") || !strcmp(fn, "WRITE") || !strcmp(fn, "REWRITE") ||
                !strcmp(fn, "DELETE") || !strcmp(fn, "STARTBR") || !strcmp(fn, "READNEXT") ||
@@ -509,6 +514,7 @@ int CICSABND(struct req *r) {
     char fn[17];
     trim_copy(fn, r->fn, 16);
     event("abend", "\"code\":\"%s\",\"command\":\"%s\",\"resp\":%d", condition_abend(r->resp), fn, r->resp);
+    sql_end(0);
     cob_stop_run(0);
     return 0;
 }
@@ -589,6 +595,7 @@ int main(int argc, char **argv) {
         if (!returned) event("return", "\"transid\":\"\",\"data\":\"\",\"implicit\":true");
         break;
     }
+    sql_end(1);
     fclose(events);
     cob_stop_run(0);
     return 0;

@@ -1,0 +1,4279 @@
+{
+  "feature": "tran-type-list",
+  "kind": "online",
+  "programs": [
+    "COTRTLIC"
+  ],
+  "install": [
+    "transaction-type-db2"
+  ],
+  "cases": [
+    {
+      "id": "tran-type-list-first-page",
+      "title": "Admin menu option 5 lists the seven seeded types on page 1",
+      "provenance": "observed",
+      "source": "COTRTLIC 0000-MAIN (CDEMO-PGM-ENTER from COADM01C), WHEN OTHER, 8000-READ-FORWARD",
+      "steps": [
+        {
+          "do": {
+            "transid": "CC00"
+          }
+        },
+        {
+          "do": {
+            "aid": "ENTER",
+            "fields": {
+              "USERID": "ADMIN001",
+              "PASSWD": "PASSWORD"
+            }
+          }
+        },
+        {
+          "do": {
+            "aid": "ENTER",
+            "fields": {
+              "OPTION": "5"
+            }
+          },
+          "expect": {
+            "map": "CTRTLIA",
+            "fields": {
+              "TRNNAME": "CTLI",
+              "PGMNAME": "COTRTLIC",
+              "PAGENO": "1",
+              "TRTTYP1": "01",
+              "TRTYPD1": "PURCHASE",
+              "TRTTYP2": "02",
+              "TRTYPD2": "PAYMENT",
+              "TRTTYP3": "03",
+              "TRTYPD3": "CREDIT",
+              "TRTTYP4": "04",
+              "TRTYPD4": "AUTHORIZATION",
+              "TRTTYP5": "05",
+              "TRTYPD5": "REFUND",
+              "TRTTYP6": "06",
+              "TRTYPD6": "REVERAL",
+              "TRTTYP7": "07",
+              "TRTYPD7": "ADJUSTMENT",
+              "INFOMSG": "  Type U to update, D to delete any record",
+              "BUTNF02": "F2=Add",
+              "BUTNF03": "F3=Exit",
+              "BUTNF07": "F7=Page Up",
+              "BUTNF08": "F8=Page Dn",
+              "BUTNF10": "F10=Save"
+            },
+            "protected": [
+              "TRTYPD1",
+              "TRTYPD2",
+              "TRTYPD3",
+              "TRTYPD4",
+              "TRTYPD5",
+              "TRTYPD6",
+              "TRTYPD7"
+            ],
+            "unprotected": [
+              "TRTSEL1",
+              "TRTSEL2",
+              "TRTSEL3",
+              "TRTSEL4",
+              "TRTSEL5",
+              "TRTSEL6",
+              "TRTSEL7"
+            ],
+            "cursor": "TRTYPE"
+          }
+        }
+      ]
+    },
+    {
+      "id": "tran-type-list-direct-transid",
+      "title": "Legacy defect: CTLI typed on a blank screen opens the admin list without sign-on",
+      "provenance": "observed",
+      "source": "COTRTLIC 0000-MAIN EIBCALEN = 0 (sets CDEMO-USRTYP-ADMIN), WHEN OTHER",
+      "steps": [
+        {
+          "do": {
+            "transid": "CTLI"
+          },
+          "expect": {
+            "map": "CTRTLIA",
+            "fields": {
+              "TRNNAME": "CTLI",
+              "PGMNAME": "COTRTLIC",
+              "PAGENO": "1",
+              "TRTTYP1": "01",
+              "TRTYPD1": "PURCHASE",
+              "TRTTYP2": "02",
+              "TRTYPD2": "PAYMENT",
+              "TRTTYP3": "03",
+              "TRTYPD3": "CREDIT",
+              "TRTTYP4": "04",
+              "TRTYPD4": "AUTHORIZATION",
+              "TRTTYP5": "05",
+              "TRTYPD5": "REFUND",
+              "TRTTYP6": "06",
+              "TRTYPD6": "REVERAL",
+              "TRTTYP7": "07",
+              "TRTYPD7": "ADJUSTMENT",
+              "INFOMSG": "  Type U to update, D to delete any record",
+              "BUTNF02": "F2=Add",
+              "BUTNF03": "F3=Exit",
+              "BUTNF07": "F7=Page Up",
+              "BUTNF08": "F8=Page Dn",
+              "BUTNF10": "F10=Save"
+            },
+            "protected": [
+              "TRTYPD1",
+              "TRTYPD2",
+              "TRTYPD3",
+              "TRTYPD4",
+              "TRTYPD5",
+              "TRTYPD6",
+              "TRTYPD7"
+            ],
+            "unprotected": [
+              "TRTSEL1",
+              "TRTSEL2",
+              "TRTSEL3",
+              "TRTSEL4",
+              "TRTSEL5",
+              "TRTSEL6",
+              "TRTSEL7"
+            ],
+            "cursor": "TRTYPE"
+          }
+        }
+      ]
+    },
+    {
+      "id": "tran-type-list-direct-transid-exit",
+      "title": "F3 from a list opened by typing CTLI goes to the admin menu",
+      "provenance": "observed",
+      "source": "COTRTLIC 0000-MAIN CCARD-AID-PFK03 (from tranid CTLI -> CA00 / COADM01C)",
+      "steps": [
+        {
+          "do": {
+            "transid": "CTLI"
+          }
+        },
+        {
+          "do": {
+            "aid": "PF3"
+          },
+          "expect": {
+            "map": "COADM1A",
+            "fields": {
+              "TRNNAME": "CA00",
+              "PGMNAME": "COADM01C",
+              "OPTN001": "01. User List (Security)",
+              "OPTN002": "02. User Add (Security)",
+              "OPTN003": "03. User Update (Security)",
+              "OPTN004": "04. User Delete (Security)",
+              "OPTN005": "05. Transaction Type List/Update (Db2)",
+              "OPTN006": "06. Transaction Type Maintenance (Db2)"
+            },
+            "cursor": "OPTION"
+          }
+        }
+      ]
+    },
+    {
+      "id": "tran-type-list-enter-no-change",
+      "title": "ENTER with nothing typed redisplays page 1 unchanged",
+      "provenance": "observed",
+      "source": "COTRTLIC 0000-MAIN WHEN OTHER (start key WS-CA-FIRST-TR-CODE)",
+      "steps": [
+        {
+          "do": {
+            "transid": "CC00"
+          }
+        },
+        {
+          "do": {
+            "aid": "ENTER",
+            "fields": {
+              "USERID": "ADMIN001",
+              "PASSWD": "PASSWORD"
+            }
+          }
+        },
+        {
+          "do": {
+            "aid": "ENTER",
+            "fields": {
+              "OPTION": "5"
+            }
+          }
+        },
+        {
+          "do": {
+            "aid": "ENTER"
+          },
+          "expect": {
+            "map": "CTRTLIA",
+            "fields": {
+              "TRNNAME": "CTLI",
+              "PGMNAME": "COTRTLIC",
+              "PAGENO": "1",
+              "TRTTYP1": "01",
+              "TRTYPD1": "PURCHASE",
+              "TRTTYP2": "02",
+              "TRTYPD2": "PAYMENT",
+              "TRTTYP3": "03",
+              "TRTYPD3": "CREDIT",
+              "TRTTYP4": "04",
+              "TRTYPD4": "AUTHORIZATION",
+              "TRTTYP5": "05",
+              "TRTYPD5": "REFUND",
+              "TRTTYP6": "06",
+              "TRTYPD6": "REVERAL",
+              "TRTTYP7": "07",
+              "TRTYPD7": "ADJUSTMENT",
+              "INFOMSG": "  Type U to update, D to delete any record",
+              "BUTNF02": "F2=Add",
+              "BUTNF03": "F3=Exit",
+              "BUTNF07": "F7=Page Up",
+              "BUTNF08": "F8=Page Dn",
+              "BUTNF10": "F10=Save"
+            },
+            "protected": [
+              "TRTYPD1",
+              "TRTYPD2",
+              "TRTYPD3",
+              "TRTYPD4",
+              "TRTYPD5",
+              "TRTYPD6",
+              "TRTYPD7"
+            ],
+            "unprotected": [
+              "TRTSEL1",
+              "TRTSEL2",
+              "TRTSEL3",
+              "TRTSEL4",
+              "TRTSEL5",
+              "TRTSEL6",
+              "TRTSEL7"
+            ],
+            "cursor": "TRTYPE"
+          }
+        }
+      ]
+    },
+    {
+      "id": "tran-type-list-page-down",
+      "title": "F8 shows the next seven types on page 2",
+      "provenance": "observed",
+      "source": "COTRTLIC WHEN CCARD-AID-PFK08 AND CA-NEXT-PAGE-EXISTS, 8000-READ-FORWARD",
+      "setup": {
+        "TRANSACTION_TYPE": {
+          "upsert": [
+            {
+              "TR-TYPE": "08",
+              "TR-DESCRIPTION": "INSTALLMENT"
+            },
+            {
+              "TR-TYPE": "09",
+              "TR-DESCRIPTION": "CASH ADVANCE"
+            },
+            {
+              "TR-TYPE": "10",
+              "TR-DESCRIPTION": "BALANCE TRANSFER"
+            },
+            {
+              "TR-TYPE": "11",
+              "TR-DESCRIPTION": "ANNUAL FEE"
+            },
+            {
+              "TR-TYPE": "12",
+              "TR-DESCRIPTION": "INTEREST"
+            },
+            {
+              "TR-TYPE": "13",
+              "TR-DESCRIPTION": "CHARGEBACK"
+            },
+            {
+              "TR-TYPE": "14",
+              "TR-DESCRIPTION": "DISPUTE"
+            },
+            {
+              "TR-TYPE": "15",
+              "TR-DESCRIPTION": "REWARD"
+            },
+            {
+              "TR-TYPE": "16",
+              "TR-DESCRIPTION": "REBATE"
+            },
+            {
+              "TR-TYPE": "17",
+              "TR-DESCRIPTION": "WRITE OFF"
+            }
+          ]
+        }
+      },
+      "steps": [
+        {
+          "do": {
+            "transid": "CC00"
+          }
+        },
+        {
+          "do": {
+            "aid": "ENTER",
+            "fields": {
+              "USERID": "ADMIN001",
+              "PASSWD": "PASSWORD"
+            }
+          }
+        },
+        {
+          "do": {
+            "aid": "ENTER",
+            "fields": {
+              "OPTION": "5"
+            }
+          }
+        },
+        {
+          "do": {
+            "aid": "PF8"
+          },
+          "expect": {
+            "map": "CTRTLIA",
+            "fields": {
+              "TRNNAME": "CTLI",
+              "PGMNAME": "COTRTLIC",
+              "PAGENO": "2",
+              "TRTTYP1": "08",
+              "TRTYPD1": "INSTALLMENT",
+              "TRTTYP2": "09",
+              "TRTYPD2": "CASH ADVANCE",
+              "TRTTYP3": "10",
+              "TRTYPD3": "BALANCE TRANSFER",
+              "TRTTYP4": "11",
+              "TRTYPD4": "ANNUAL FEE",
+              "TRTTYP5": "12",
+              "TRTYPD5": "INTEREST",
+              "TRTTYP6": "13",
+              "TRTYPD6": "CHARGEBACK",
+              "TRTTYP7": "14",
+              "TRTYPD7": "DISPUTE",
+              "INFOMSG": "  Type U to update, D to delete any record",
+              "BUTNF02": "F2=Add",
+              "BUTNF03": "F3=Exit",
+              "BUTNF07": "F7=Page Up",
+              "BUTNF08": "F8=Page Dn",
+              "BUTNF10": "F10=Save"
+            },
+            "protected": [
+              "TRTYPD1",
+              "TRTYPD2",
+              "TRTYPD3",
+              "TRTYPD4",
+              "TRTYPD5",
+              "TRTYPD6",
+              "TRTYPD7"
+            ],
+            "unprotected": [
+              "TRTSEL1",
+              "TRTSEL2",
+              "TRTSEL3",
+              "TRTSEL4",
+              "TRTSEL5",
+              "TRTSEL6",
+              "TRTSEL7"
+            ],
+            "cursor": "TRTYPE"
+          }
+        }
+      ]
+    },
+    {
+      "id": "tran-type-list-page-down-to-last",
+      "title": "F8 onto the last, partial page says there are no more pages",
+      "provenance": "observed",
+      "source": "COTRTLIC 8000-READ-FORWARD SQLCODE +100 with PF8 (WS-MESG-NO-MORE-RECORDS), 2500-SETUP-MESSAGE",
+      "setup": {
+        "TRANSACTION_TYPE": {
+          "upsert": [
+            {
+              "TR-TYPE": "08",
+              "TR-DESCRIPTION": "INSTALLMENT"
+            },
+            {
+              "TR-TYPE": "09",
+              "TR-DESCRIPTION": "CASH ADVANCE"
+            },
+            {
+              "TR-TYPE": "10",
+              "TR-DESCRIPTION": "BALANCE TRANSFER"
+            },
+            {
+              "TR-TYPE": "11",
+              "TR-DESCRIPTION": "ANNUAL FEE"
+            },
+            {
+              "TR-TYPE": "12",
+              "TR-DESCRIPTION": "INTEREST"
+            },
+            {
+              "TR-TYPE": "13",
+              "TR-DESCRIPTION": "CHARGEBACK"
+            },
+            {
+              "TR-TYPE": "14",
+              "TR-DESCRIPTION": "DISPUTE"
+            },
+            {
+              "TR-TYPE": "15",
+              "TR-DESCRIPTION": "REWARD"
+            },
+            {
+              "TR-TYPE": "16",
+              "TR-DESCRIPTION": "REBATE"
+            },
+            {
+              "TR-TYPE": "17",
+              "TR-DESCRIPTION": "WRITE OFF"
+            }
+          ]
+        }
+      },
+      "steps": [
+        {
+          "do": {
+            "transid": "CC00"
+          }
+        },
+        {
+          "do": {
+            "aid": "ENTER",
+            "fields": {
+              "USERID": "ADMIN001",
+              "PASSWD": "PASSWORD"
+            }
+          }
+        },
+        {
+          "do": {
+            "aid": "ENTER",
+            "fields": {
+              "OPTION": "5"
+            }
+          }
+        },
+        {
+          "do": {
+            "aid": "PF8"
+          }
+        },
+        {
+          "do": {
+            "aid": "PF8"
+          },
+          "expect": {
+            "map": "CTRTLIA",
+            "fields": {
+              "TRNNAME": "CTLI",
+              "PGMNAME": "COTRTLIC",
+              "PAGENO": "3",
+              "TRTTYP1": "15",
+              "TRTYPD1": "REWARD",
+              "TRTTYP2": "16",
+              "TRTYPD2": "REBATE",
+              "TRTTYP3": "17",
+              "TRTYPD3": "WRITE OFF",
+              "INFOMSG": "  Type U to update, D to delete any record",
+              "ERRMSG": "No more pages for these search conditions",
+              "BUTNF02": "F2=Add",
+              "BUTNF03": "F3=Exit",
+              "BUTNF07": "F7=Page Up",
+              "BUTNF08": "F8=Page Dn",
+              "BUTNF10": "F10=Save"
+            },
+            "protected": [
+              "TRTYPD1",
+              "TRTYPD2",
+              "TRTYPD3",
+              "TRTYPD4",
+              "TRTYPD5",
+              "TRTYPD6",
+              "TRTYPD7"
+            ],
+            "unprotected": [
+              "TRTSEL1",
+              "TRTSEL2",
+              "TRTSEL3"
+            ],
+            "cursor": "TRTYPE"
+          }
+        }
+      ]
+    },
+    {
+      "id": "tran-type-list-page-down-single-page",
+      "title": "F8 on the only page: first press says no more pages for the search, second says no more pages to display",
+      "provenance": "observed",
+      "source": "COTRTLIC 8000-READ-FORWARD inner FETCH +100 with PF8; 2500-SETUP-MESSAGE CA-LAST-PAGE-SHOWN",
+      "steps": [
+        {
+          "do": {
+            "transid": "CC00"
+          }
+        },
+        {
+          "do": {
+            "aid": "ENTER",
+            "fields": {
+              "USERID": "ADMIN001",
+              "PASSWD": "PASSWORD"
+            }
+          }
+        },
+        {
+          "do": {
+            "aid": "ENTER",
+            "fields": {
+              "OPTION": "5"
+            }
+          }
+        },
+        {
+          "do": {
+            "aid": "PF8"
+          },
+          "expect": {
+            "map": "CTRTLIA",
+            "fields": {
+              "TRNNAME": "CTLI",
+              "PGMNAME": "COTRTLIC",
+              "PAGENO": "1",
+              "TRTTYP1": "01",
+              "TRTYPD1": "PURCHASE",
+              "TRTTYP2": "02",
+              "TRTYPD2": "PAYMENT",
+              "TRTTYP3": "03",
+              "TRTYPD3": "CREDIT",
+              "TRTTYP4": "04",
+              "TRTYPD4": "AUTHORIZATION",
+              "TRTTYP5": "05",
+              "TRTYPD5": "REFUND",
+              "TRTTYP6": "06",
+              "TRTYPD6": "REVERAL",
+              "TRTTYP7": "07",
+              "TRTYPD7": "ADJUSTMENT",
+              "INFOMSG": "  Type U to update, D to delete any record",
+              "ERRMSG": "No more pages for these search conditions",
+              "BUTNF02": "F2=Add",
+              "BUTNF03": "F3=Exit",
+              "BUTNF07": "F7=Page Up",
+              "BUTNF08": "F8=Page Dn",
+              "BUTNF10": "F10=Save"
+            },
+            "protected": [
+              "TRTYPD1",
+              "TRTYPD2",
+              "TRTYPD3",
+              "TRTYPD4",
+              "TRTYPD5",
+              "TRTYPD6",
+              "TRTYPD7"
+            ],
+            "unprotected": [
+              "TRTSEL1",
+              "TRTSEL2",
+              "TRTSEL3",
+              "TRTSEL4",
+              "TRTSEL5",
+              "TRTSEL6",
+              "TRTSEL7"
+            ],
+            "cursor": "TRTYPE"
+          }
+        },
+        {
+          "do": {
+            "aid": "PF8"
+          },
+          "expect": {
+            "map": "CTRTLIA",
+            "fields": {
+              "TRNNAME": "CTLI",
+              "PGMNAME": "COTRTLIC",
+              "PAGENO": "1",
+              "TRTTYP1": "01",
+              "TRTYPD1": "PURCHASE",
+              "TRTTYP2": "02",
+              "TRTYPD2": "PAYMENT",
+              "TRTTYP3": "03",
+              "TRTYPD3": "CREDIT",
+              "TRTTYP4": "04",
+              "TRTYPD4": "AUTHORIZATION",
+              "TRTTYP5": "05",
+              "TRTYPD5": "REFUND",
+              "TRTTYP6": "06",
+              "TRTYPD6": "REVERAL",
+              "TRTTYP7": "07",
+              "TRTYPD7": "ADJUSTMENT",
+              "ERRMSG": "No more pages to display",
+              "BUTNF02": "F2=Add",
+              "BUTNF03": "F3=Exit",
+              "BUTNF07": "F7=Page Up",
+              "BUTNF08": "F8=Page Dn",
+              "BUTNF10": "F10=Save"
+            },
+            "protected": [
+              "TRTYPD1",
+              "TRTYPD2",
+              "TRTYPD3",
+              "TRTYPD4",
+              "TRTYPD5",
+              "TRTYPD6",
+              "TRTYPD7"
+            ],
+            "unprotected": [
+              "TRTSEL1",
+              "TRTSEL2",
+              "TRTSEL3",
+              "TRTSEL4",
+              "TRTSEL5",
+              "TRTSEL6",
+              "TRTSEL7"
+            ],
+            "cursor": "TRTYPE"
+          }
+        }
+      ]
+    },
+    {
+      "id": "tran-type-list-page-up-on-first",
+      "title": "F7 on page 1 says there are no previous pages",
+      "provenance": "observed",
+      "source": "COTRTLIC WHEN CCARD-AID-PFK07 AND CA-FIRST-PAGE; 2500-SETUP-MESSAGE",
+      "setup": {
+        "TRANSACTION_TYPE": {
+          "upsert": [
+            {
+              "TR-TYPE": "08",
+              "TR-DESCRIPTION": "INSTALLMENT"
+            },
+            {
+              "TR-TYPE": "09",
+              "TR-DESCRIPTION": "CASH ADVANCE"
+            },
+            {
+              "TR-TYPE": "10",
+              "TR-DESCRIPTION": "BALANCE TRANSFER"
+            },
+            {
+              "TR-TYPE": "11",
+              "TR-DESCRIPTION": "ANNUAL FEE"
+            },
+            {
+              "TR-TYPE": "12",
+              "TR-DESCRIPTION": "INTEREST"
+            },
+            {
+              "TR-TYPE": "13",
+              "TR-DESCRIPTION": "CHARGEBACK"
+            },
+            {
+              "TR-TYPE": "14",
+              "TR-DESCRIPTION": "DISPUTE"
+            },
+            {
+              "TR-TYPE": "15",
+              "TR-DESCRIPTION": "REWARD"
+            },
+            {
+              "TR-TYPE": "16",
+              "TR-DESCRIPTION": "REBATE"
+            },
+            {
+              "TR-TYPE": "17",
+              "TR-DESCRIPTION": "WRITE OFF"
+            }
+          ]
+        }
+      },
+      "steps": [
+        {
+          "do": {
+            "transid": "CC00"
+          }
+        },
+        {
+          "do": {
+            "aid": "ENTER",
+            "fields": {
+              "USERID": "ADMIN001",
+              "PASSWD": "PASSWORD"
+            }
+          }
+        },
+        {
+          "do": {
+            "aid": "ENTER",
+            "fields": {
+              "OPTION": "5"
+            }
+          }
+        },
+        {
+          "do": {
+            "aid": "PF7"
+          },
+          "expect": {
+            "map": "CTRTLIA",
+            "fields": {
+              "TRNNAME": "CTLI",
+              "PGMNAME": "COTRTLIC",
+              "PAGENO": "1",
+              "TRTTYP1": "01",
+              "TRTYPD1": "PURCHASE",
+              "TRTTYP2": "02",
+              "TRTYPD2": "PAYMENT",
+              "TRTTYP3": "03",
+              "TRTYPD3": "CREDIT",
+              "TRTTYP4": "04",
+              "TRTYPD4": "AUTHORIZATION",
+              "TRTTYP5": "05",
+              "TRTYPD5": "REFUND",
+              "TRTTYP6": "06",
+              "TRTYPD6": "REVERAL",
+              "TRTTYP7": "07",
+              "TRTYPD7": "ADJUSTMENT",
+              "ERRMSG": "No previous pages to display",
+              "BUTNF02": "F2=Add",
+              "BUTNF03": "F3=Exit",
+              "BUTNF07": "F7=Page Up",
+              "BUTNF08": "F8=Page Dn",
+              "BUTNF10": "F10=Save"
+            },
+            "protected": [
+              "TRTYPD1",
+              "TRTYPD2",
+              "TRTYPD3",
+              "TRTYPD4",
+              "TRTYPD5",
+              "TRTYPD6",
+              "TRTYPD7"
+            ],
+            "unprotected": [
+              "TRTSEL1",
+              "TRTSEL2",
+              "TRTSEL3",
+              "TRTSEL4",
+              "TRTSEL5",
+              "TRTSEL6",
+              "TRTSEL7"
+            ],
+            "cursor": "TRTYPE"
+          }
+        }
+      ]
+    },
+    {
+      "id": "tran-type-list-page-up",
+      "title": "Legacy defect: F7 from page 2 reads back to page 1 but already says 'No previous pages to display'",
+      "provenance": "observed",
+      "source": "COTRTLIC WHEN CCARD-AID-PFK07 AND NOT CA-FIRST-PAGE, 8100-READ-BACKWARDS; 2500-SETUP-MESSAGE tests CA-FIRST-PAGE after the SUBTRACT",
+      "setup": {
+        "TRANSACTION_TYPE": {
+          "upsert": [
+            {
+              "TR-TYPE": "08",
+              "TR-DESCRIPTION": "INSTALLMENT"
+            },
+            {
+              "TR-TYPE": "09",
+              "TR-DESCRIPTION": "CASH ADVANCE"
+            },
+            {
+              "TR-TYPE": "10",
+              "TR-DESCRIPTION": "BALANCE TRANSFER"
+            },
+            {
+              "TR-TYPE": "11",
+              "TR-DESCRIPTION": "ANNUAL FEE"
+            },
+            {
+              "TR-TYPE": "12",
+              "TR-DESCRIPTION": "INTEREST"
+            },
+            {
+              "TR-TYPE": "13",
+              "TR-DESCRIPTION": "CHARGEBACK"
+            },
+            {
+              "TR-TYPE": "14",
+              "TR-DESCRIPTION": "DISPUTE"
+            },
+            {
+              "TR-TYPE": "15",
+              "TR-DESCRIPTION": "REWARD"
+            },
+            {
+              "TR-TYPE": "16",
+              "TR-DESCRIPTION": "REBATE"
+            },
+            {
+              "TR-TYPE": "17",
+              "TR-DESCRIPTION": "WRITE OFF"
+            }
+          ]
+        }
+      },
+      "steps": [
+        {
+          "do": {
+            "transid": "CC00"
+          }
+        },
+        {
+          "do": {
+            "aid": "ENTER",
+            "fields": {
+              "USERID": "ADMIN001",
+              "PASSWD": "PASSWORD"
+            }
+          }
+        },
+        {
+          "do": {
+            "aid": "ENTER",
+            "fields": {
+              "OPTION": "5"
+            }
+          }
+        },
+        {
+          "do": {
+            "aid": "PF8"
+          }
+        },
+        {
+          "do": {
+            "aid": "PF7"
+          },
+          "expect": {
+            "map": "CTRTLIA",
+            "fields": {
+              "TRNNAME": "CTLI",
+              "PGMNAME": "COTRTLIC",
+              "PAGENO": "1",
+              "TRTTYP1": "01",
+              "TRTYPD1": "PURCHASE",
+              "TRTTYP2": "02",
+              "TRTYPD2": "PAYMENT",
+              "TRTTYP3": "03",
+              "TRTYPD3": "CREDIT",
+              "TRTTYP4": "04",
+              "TRTYPD4": "AUTHORIZATION",
+              "TRTTYP5": "05",
+              "TRTYPD5": "REFUND",
+              "TRTTYP6": "06",
+              "TRTYPD6": "REVERAL",
+              "TRTTYP7": "07",
+              "TRTYPD7": "ADJUSTMENT",
+              "ERRMSG": "No previous pages to display",
+              "BUTNF02": "F2=Add",
+              "BUTNF03": "F3=Exit",
+              "BUTNF07": "F7=Page Up",
+              "BUTNF08": "F8=Page Dn",
+              "BUTNF10": "F10=Save"
+            },
+            "protected": [
+              "TRTYPD1",
+              "TRTYPD2",
+              "TRTYPD3",
+              "TRTYPD4",
+              "TRTYPD5",
+              "TRTYPD6",
+              "TRTYPD7"
+            ],
+            "unprotected": [
+              "TRTSEL1",
+              "TRTSEL2",
+              "TRTSEL3",
+              "TRTSEL4",
+              "TRTSEL5",
+              "TRTSEL6",
+              "TRTSEL7"
+            ],
+            "cursor": "TRTYPE"
+          }
+        }
+      ]
+    },
+    {
+      "id": "tran-type-list-page-up-from-last",
+      "title": "F7 from the last page shows the full page 2 before it",
+      "provenance": "observed",
+      "source": "COTRTLIC 8100-READ-BACKWARDS (C-TR-TYPE-BACKWARD ORDER BY TR_TYPE DESC)",
+      "setup": {
+        "TRANSACTION_TYPE": {
+          "upsert": [
+            {
+              "TR-TYPE": "08",
+              "TR-DESCRIPTION": "INSTALLMENT"
+            },
+            {
+              "TR-TYPE": "09",
+              "TR-DESCRIPTION": "CASH ADVANCE"
+            },
+            {
+              "TR-TYPE": "10",
+              "TR-DESCRIPTION": "BALANCE TRANSFER"
+            },
+            {
+              "TR-TYPE": "11",
+              "TR-DESCRIPTION": "ANNUAL FEE"
+            },
+            {
+              "TR-TYPE": "12",
+              "TR-DESCRIPTION": "INTEREST"
+            },
+            {
+              "TR-TYPE": "13",
+              "TR-DESCRIPTION": "CHARGEBACK"
+            },
+            {
+              "TR-TYPE": "14",
+              "TR-DESCRIPTION": "DISPUTE"
+            },
+            {
+              "TR-TYPE": "15",
+              "TR-DESCRIPTION": "REWARD"
+            },
+            {
+              "TR-TYPE": "16",
+              "TR-DESCRIPTION": "REBATE"
+            },
+            {
+              "TR-TYPE": "17",
+              "TR-DESCRIPTION": "WRITE OFF"
+            }
+          ]
+        }
+      },
+      "steps": [
+        {
+          "do": {
+            "transid": "CC00"
+          }
+        },
+        {
+          "do": {
+            "aid": "ENTER",
+            "fields": {
+              "USERID": "ADMIN001",
+              "PASSWD": "PASSWORD"
+            }
+          }
+        },
+        {
+          "do": {
+            "aid": "ENTER",
+            "fields": {
+              "OPTION": "5"
+            }
+          }
+        },
+        {
+          "do": {
+            "aid": "PF8"
+          }
+        },
+        {
+          "do": {
+            "aid": "PF8"
+          }
+        },
+        {
+          "do": {
+            "aid": "PF7"
+          },
+          "expect": {
+            "map": "CTRTLIA",
+            "fields": {
+              "TRNNAME": "CTLI",
+              "PGMNAME": "COTRTLIC",
+              "PAGENO": "2",
+              "TRTTYP1": "08",
+              "TRTYPD1": "INSTALLMENT",
+              "TRTTYP2": "09",
+              "TRTYPD2": "CASH ADVANCE",
+              "TRTTYP3": "10",
+              "TRTYPD3": "BALANCE TRANSFER",
+              "TRTTYP4": "11",
+              "TRTYPD4": "ANNUAL FEE",
+              "TRTTYP5": "12",
+              "TRTYPD5": "INTEREST",
+              "TRTTYP6": "13",
+              "TRTYPD6": "CHARGEBACK",
+              "TRTTYP7": "14",
+              "TRTYPD7": "DISPUTE",
+              "INFOMSG": "  Type U to update, D to delete any record",
+              "BUTNF02": "F2=Add",
+              "BUTNF03": "F3=Exit",
+              "BUTNF07": "F7=Page Up",
+              "BUTNF08": "F8=Page Dn",
+              "BUTNF10": "F10=Save"
+            },
+            "protected": [
+              "TRTYPD1",
+              "TRTYPD2",
+              "TRTYPD3",
+              "TRTYPD4",
+              "TRTYPD5",
+              "TRTYPD6",
+              "TRTYPD7"
+            ],
+            "unprotected": [
+              "TRTSEL1",
+              "TRTSEL2",
+              "TRTSEL3",
+              "TRTSEL4",
+              "TRTSEL5",
+              "TRTSEL6",
+              "TRTSEL7"
+            ],
+            "cursor": "TRTYPE"
+          }
+        }
+      ]
+    },
+    {
+      "id": "tran-type-list-enter-keeps-page",
+      "title": "ENTER on page 2 rereads page 2 from its first key",
+      "provenance": "observed",
+      "source": "COTRTLIC WHEN OTHER (start key WS-CA-FIRST-TR-CODE)",
+      "setup": {
+        "TRANSACTION_TYPE": {
+          "upsert": [
+            {
+              "TR-TYPE": "08",
+              "TR-DESCRIPTION": "INSTALLMENT"
+            },
+            {
+              "TR-TYPE": "09",
+              "TR-DESCRIPTION": "CASH ADVANCE"
+            },
+            {
+              "TR-TYPE": "10",
+              "TR-DESCRIPTION": "BALANCE TRANSFER"
+            },
+            {
+              "TR-TYPE": "11",
+              "TR-DESCRIPTION": "ANNUAL FEE"
+            },
+            {
+              "TR-TYPE": "12",
+              "TR-DESCRIPTION": "INTEREST"
+            },
+            {
+              "TR-TYPE": "13",
+              "TR-DESCRIPTION": "CHARGEBACK"
+            },
+            {
+              "TR-TYPE": "14",
+              "TR-DESCRIPTION": "DISPUTE"
+            },
+            {
+              "TR-TYPE": "15",
+              "TR-DESCRIPTION": "REWARD"
+            },
+            {
+              "TR-TYPE": "16",
+              "TR-DESCRIPTION": "REBATE"
+            },
+            {
+              "TR-TYPE": "17",
+              "TR-DESCRIPTION": "WRITE OFF"
+            }
+          ]
+        }
+      },
+      "steps": [
+        {
+          "do": {
+            "transid": "CC00"
+          }
+        },
+        {
+          "do": {
+            "aid": "ENTER",
+            "fields": {
+              "USERID": "ADMIN001",
+              "PASSWD": "PASSWORD"
+            }
+          }
+        },
+        {
+          "do": {
+            "aid": "ENTER",
+            "fields": {
+              "OPTION": "5"
+            }
+          }
+        },
+        {
+          "do": {
+            "aid": "PF8"
+          }
+        },
+        {
+          "do": {
+            "aid": "ENTER"
+          },
+          "expect": {
+            "map": "CTRTLIA",
+            "fields": {
+              "TRNNAME": "CTLI",
+              "PGMNAME": "COTRTLIC",
+              "PAGENO": "2",
+              "TRTTYP1": "08",
+              "TRTYPD1": "INSTALLMENT",
+              "TRTTYP2": "09",
+              "TRTYPD2": "CASH ADVANCE",
+              "TRTTYP3": "10",
+              "TRTYPD3": "BALANCE TRANSFER",
+              "TRTTYP4": "11",
+              "TRTYPD4": "ANNUAL FEE",
+              "TRTTYP5": "12",
+              "TRTYPD5": "INTEREST",
+              "TRTTYP6": "13",
+              "TRTYPD6": "CHARGEBACK",
+              "TRTTYP7": "14",
+              "TRTYPD7": "DISPUTE",
+              "INFOMSG": "  Type U to update, D to delete any record",
+              "BUTNF02": "F2=Add",
+              "BUTNF03": "F3=Exit",
+              "BUTNF07": "F7=Page Up",
+              "BUTNF08": "F8=Page Dn",
+              "BUTNF10": "F10=Save"
+            },
+            "protected": [
+              "TRTYPD1",
+              "TRTYPD2",
+              "TRTYPD3",
+              "TRTYPD4",
+              "TRTYPD5",
+              "TRTYPD6",
+              "TRTYPD7"
+            ],
+            "unprotected": [
+              "TRTSEL1",
+              "TRTSEL2",
+              "TRTSEL3",
+              "TRTSEL4",
+              "TRTSEL5",
+              "TRTSEL6",
+              "TRTSEL7"
+            ],
+            "cursor": "TRTYPE"
+          }
+        }
+      ]
+    },
+    {
+      "id": "tran-type-list-type-filter",
+      "title": "A two-digit type filter lists only that type",
+      "provenance": "observed",
+      "source": "COTRTLIC 1220-EDIT-TYPECD, 1290-CROSS-EDITS, C-TR-TYPE-FORWARD TR_TYPE = filter",
+      "steps": [
+        {
+          "do": {
+            "transid": "CC00"
+          }
+        },
+        {
+          "do": {
+            "aid": "ENTER",
+            "fields": {
+              "USERID": "ADMIN001",
+              "PASSWD": "PASSWORD"
+            }
+          }
+        },
+        {
+          "do": {
+            "aid": "ENTER",
+            "fields": {
+              "OPTION": "5"
+            }
+          }
+        },
+        {
+          "do": {
+            "aid": "ENTER",
+            "fields": {
+              "TRTYPE": "03"
+            }
+          },
+          "expect": {
+            "map": "CTRTLIA",
+            "fields": {
+              "TRNNAME": "CTLI",
+              "PGMNAME": "COTRTLIC",
+              "PAGENO": "1",
+              "TRTYPE": "03",
+              "TRTTYP1": "03",
+              "TRTYPD1": "CREDIT",
+              "INFOMSG": "  Type U to update, D to delete any record",
+              "BUTNF02": "F2=Add",
+              "BUTNF03": "F3=Exit",
+              "BUTNF07": "F7=Page Up",
+              "BUTNF08": "F8=Page Dn",
+              "BUTNF10": "F10=Save"
+            },
+            "protected": [
+              "TRTYPD1",
+              "TRTYPD2",
+              "TRTYPD3",
+              "TRTYPD4",
+              "TRTYPD5",
+              "TRTYPD6",
+              "TRTYPD7"
+            ],
+            "unprotected": [
+              "TRTSEL1"
+            ],
+            "cursor": "TRTYPE"
+          }
+        }
+      ]
+    },
+    {
+      "id": "tran-type-list-type-filter-non-numeric",
+      "title": "Legacy defect: a rejected type filter keeps the previous rows listed (protected) and shows page 0",
+      "provenance": "observed",
+      "source": "COTRTLIC 1220-EDIT-TYPECD NOT NUMERIC; 1220-EDIT-TYPECD-EXIT INITIALIZE WS-CA-PAGING-VARIABLES; WHEN INPUT-ERROR skips 8000-READ-FORWARD",
+      "steps": [
+        {
+          "do": {
+            "transid": "CC00"
+          }
+        },
+        {
+          "do": {
+            "aid": "ENTER",
+            "fields": {
+              "USERID": "ADMIN001",
+              "PASSWD": "PASSWORD"
+            }
+          }
+        },
+        {
+          "do": {
+            "aid": "ENTER",
+            "fields": {
+              "OPTION": "5"
+            }
+          }
+        },
+        {
+          "do": {
+            "aid": "ENTER",
+            "fields": {
+              "TRTYPE": "AB"
+            }
+          },
+          "expect": {
+            "map": "CTRTLIA",
+            "fields": {
+              "TRNNAME": "CTLI",
+              "PGMNAME": "COTRTLIC",
+              "PAGENO": "0",
+              "TRTYPE": "AB",
+              "TRTTYP1": "01",
+              "TRTYPD1": "PURCHASE",
+              "TRTTYP2": "02",
+              "TRTYPD2": "PAYMENT",
+              "TRTTYP3": "03",
+              "TRTYPD3": "CREDIT",
+              "TRTTYP4": "04",
+              "TRTYPD4": "AUTHORIZATION",
+              "TRTTYP5": "05",
+              "TRTYPD5": "REFUND",
+              "TRTTYP6": "06",
+              "TRTYPD6": "REVERAL",
+              "TRTTYP7": "07",
+              "TRTYPD7": "ADJUSTMENT",
+              "ERRMSG": "TYPE CODE FILTER,IF SUPPLIED MUST BE A 2 DIGIT NUMBER",
+              "BUTNF02": "F2=Add",
+              "BUTNF03": "F3=Exit",
+              "BUTNF07": "F7=Page Up",
+              "BUTNF08": "F8=Page Dn",
+              "BUTNF10": "F10=Save"
+            },
+            "colors": {
+              "TRTYPE": "RED"
+            },
+            "protected": [
+              "TRTYPD1",
+              "TRTYPD2",
+              "TRTYPD3",
+              "TRTYPD4",
+              "TRTYPD5",
+              "TRTYPD6",
+              "TRTYPD7"
+            ],
+            "cursor": "TRTYPE"
+          }
+        }
+      ]
+    },
+    {
+      "id": "tran-type-list-type-filter-no-match",
+      "title": "A numeric type filter with no row reports no records for the filter (previous rows stay, page 0)",
+      "provenance": "observed",
+      "source": "COTRTLIC 1290-CROSS-EDITS 9100-CHECK-FILTERS COUNT = 0",
+      "steps": [
+        {
+          "do": {
+            "transid": "CC00"
+          }
+        },
+        {
+          "do": {
+            "aid": "ENTER",
+            "fields": {
+              "USERID": "ADMIN001",
+              "PASSWD": "PASSWORD"
+            }
+          }
+        },
+        {
+          "do": {
+            "aid": "ENTER",
+            "fields": {
+              "OPTION": "5"
+            }
+          }
+        },
+        {
+          "do": {
+            "aid": "ENTER",
+            "fields": {
+              "TRTYPE": "99"
+            }
+          },
+          "expect": {
+            "map": "CTRTLIA",
+            "fields": {
+              "TRNNAME": "CTLI",
+              "PGMNAME": "COTRTLIC",
+              "PAGENO": "0",
+              "TRTYPE": "99",
+              "TRTTYP1": "01",
+              "TRTYPD1": "PURCHASE",
+              "TRTTYP2": "02",
+              "TRTYPD2": "PAYMENT",
+              "TRTTYP3": "03",
+              "TRTYPD3": "CREDIT",
+              "TRTTYP4": "04",
+              "TRTYPD4": "AUTHORIZATION",
+              "TRTTYP5": "05",
+              "TRTYPD5": "REFUND",
+              "TRTTYP6": "06",
+              "TRTYPD6": "REVERAL",
+              "TRTTYP7": "07",
+              "TRTYPD7": "ADJUSTMENT",
+              "ERRMSG": "No Records found for these filter conditions",
+              "BUTNF02": "F2=Add",
+              "BUTNF03": "F3=Exit",
+              "BUTNF07": "F7=Page Up",
+              "BUTNF08": "F8=Page Dn",
+              "BUTNF10": "F10=Save"
+            },
+            "colors": {
+              "TRTYPE": "RED"
+            },
+            "protected": [
+              "TRTYPD1",
+              "TRTYPD2",
+              "TRTYPD3",
+              "TRTYPD4",
+              "TRTYPD5",
+              "TRTYPD6",
+              "TRTYPD7"
+            ],
+            "cursor": "TRTYPE"
+          }
+        }
+      ]
+    },
+    {
+      "id": "tran-type-list-type-filter-zero",
+      "title": "A type filter of 00 counts as no filter and is erased from the filter field",
+      "provenance": "observed",
+      "source": "COTRTLIC 1220-EDIT-TYPECD WS-IN-TYPE-CD EQUAL ZEROS; 2400-SETUP-SCREEN-ATTRS WS-IN-TYPE-CD = 0",
+      "steps": [
+        {
+          "do": {
+            "transid": "CC00"
+          }
+        },
+        {
+          "do": {
+            "aid": "ENTER",
+            "fields": {
+              "USERID": "ADMIN001",
+              "PASSWD": "PASSWORD"
+            }
+          }
+        },
+        {
+          "do": {
+            "aid": "ENTER",
+            "fields": {
+              "OPTION": "5"
+            }
+          }
+        },
+        {
+          "do": {
+            "aid": "ENTER",
+            "fields": {
+              "TRTYPE": "00"
+            }
+          },
+          "expect": {
+            "map": "CTRTLIA",
+            "fields": {
+              "TRNNAME": "CTLI",
+              "PGMNAME": "COTRTLIC",
+              "PAGENO": "1",
+              "TRTTYP1": "01",
+              "TRTYPD1": "PURCHASE",
+              "TRTTYP2": "02",
+              "TRTYPD2": "PAYMENT",
+              "TRTTYP3": "03",
+              "TRTYPD3": "CREDIT",
+              "TRTTYP4": "04",
+              "TRTYPD4": "AUTHORIZATION",
+              "TRTTYP5": "05",
+              "TRTYPD5": "REFUND",
+              "TRTTYP6": "06",
+              "TRTYPD6": "REVERAL",
+              "TRTTYP7": "07",
+              "TRTYPD7": "ADJUSTMENT",
+              "INFOMSG": "  Type U to update, D to delete any record",
+              "BUTNF02": "F2=Add",
+              "BUTNF03": "F3=Exit",
+              "BUTNF07": "F7=Page Up",
+              "BUTNF08": "F8=Page Dn",
+              "BUTNF10": "F10=Save"
+            },
+            "protected": [
+              "TRTYPD1",
+              "TRTYPD2",
+              "TRTYPD3",
+              "TRTYPD4",
+              "TRTYPD5",
+              "TRTYPD6",
+              "TRTYPD7"
+            ],
+            "unprotected": [
+              "TRTSEL1",
+              "TRTSEL2",
+              "TRTSEL3",
+              "TRTSEL4",
+              "TRTSEL5",
+              "TRTSEL6",
+              "TRTSEL7"
+            ],
+            "cursor": "TRTYPE"
+          }
+        }
+      ]
+    },
+    {
+      "id": "tran-type-list-type-filter-cleared",
+      "title": "Erasing the type filter lists every type again",
+      "provenance": "observed",
+      "source": "COTRTLIC 1220-EDIT-TYPECD-EXIT filter changed, INITIALIZE WS-CA-PAGING-VARIABLES",
+      "steps": [
+        {
+          "do": {
+            "transid": "CC00"
+          }
+        },
+        {
+          "do": {
+            "aid": "ENTER",
+            "fields": {
+              "USERID": "ADMIN001",
+              "PASSWD": "PASSWORD"
+            }
+          }
+        },
+        {
+          "do": {
+            "aid": "ENTER",
+            "fields": {
+              "OPTION": "5"
+            }
+          }
+        },
+        {
+          "do": {
+            "aid": "ENTER",
+            "fields": {
+              "TRTYPE": "03"
+            }
+          }
+        },
+        {
+          "do": {
+            "aid": "ENTER",
+            "fields": {
+              "TRTYPE": ""
+            }
+          },
+          "expect": {
+            "map": "CTRTLIA",
+            "fields": {
+              "TRNNAME": "CTLI",
+              "PGMNAME": "COTRTLIC",
+              "PAGENO": "1",
+              "TRTTYP1": "01",
+              "TRTYPD1": "PURCHASE",
+              "TRTTYP2": "02",
+              "TRTYPD2": "PAYMENT",
+              "TRTTYP3": "03",
+              "TRTYPD3": "CREDIT",
+              "TRTTYP4": "04",
+              "TRTYPD4": "AUTHORIZATION",
+              "TRTTYP5": "05",
+              "TRTYPD5": "REFUND",
+              "TRTTYP6": "06",
+              "TRTYPD6": "REVERAL",
+              "TRTTYP7": "07",
+              "TRTYPD7": "ADJUSTMENT",
+              "INFOMSG": "  Type U to update, D to delete any record",
+              "BUTNF02": "F2=Add",
+              "BUTNF03": "F3=Exit",
+              "BUTNF07": "F7=Page Up",
+              "BUTNF08": "F8=Page Dn",
+              "BUTNF10": "F10=Save"
+            },
+            "protected": [
+              "TRTYPD1",
+              "TRTYPD2",
+              "TRTYPD3",
+              "TRTYPD4",
+              "TRTYPD5",
+              "TRTYPD6",
+              "TRTYPD7"
+            ],
+            "unprotected": [
+              "TRTSEL1",
+              "TRTSEL2",
+              "TRTSEL3",
+              "TRTSEL4",
+              "TRTSEL5",
+              "TRTSEL6",
+              "TRTSEL7"
+            ],
+            "cursor": "TRTYPE"
+          }
+        }
+      ]
+    },
+    {
+      "id": "tran-type-list-desc-filter",
+      "title": "A description filter matches any description containing the text",
+      "provenance": "observed",
+      "source": "COTRTLIC 1230-EDIT-DESC ('%' TRIM '%'), C-TR-TYPE-FORWARD LIKE",
+      "steps": [
+        {
+          "do": {
+            "transid": "CC00"
+          }
+        },
+        {
+          "do": {
+            "aid": "ENTER",
+            "fields": {
+              "USERID": "ADMIN001",
+              "PASSWD": "PASSWORD"
+            }
+          }
+        },
+        {
+          "do": {
+            "aid": "ENTER",
+            "fields": {
+              "OPTION": "5"
+            }
+          }
+        },
+        {
+          "do": {
+            "aid": "ENTER",
+            "fields": {
+              "TRDESC": "PAY"
+            }
+          },
+          "expect": {
+            "map": "CTRTLIA",
+            "fields": {
+              "TRNNAME": "CTLI",
+              "PGMNAME": "COTRTLIC",
+              "PAGENO": "1",
+              "TRDESC": "PAY",
+              "TRTTYP1": "02",
+              "TRTYPD1": "PAYMENT",
+              "INFOMSG": "  Type U to update, D to delete any record",
+              "BUTNF02": "F2=Add",
+              "BUTNF03": "F3=Exit",
+              "BUTNF07": "F7=Page Up",
+              "BUTNF08": "F8=Page Dn",
+              "BUTNF10": "F10=Save"
+            },
+            "protected": [
+              "TRTYPD1",
+              "TRTYPD2",
+              "TRTYPD3",
+              "TRTYPD4",
+              "TRTYPD5",
+              "TRTYPD6",
+              "TRTYPD7"
+            ],
+            "unprotected": [
+              "TRTSEL1"
+            ],
+            "cursor": "TRTYPE"
+          }
+        }
+      ]
+    },
+    {
+      "id": "tran-type-list-desc-filter-percent",
+      "title": "A % typed in the description filter is a LIKE wildcard",
+      "provenance": "observed",
+      "source": "COTRTLIC 1230-EDIT-DESC, C-TR-TYPE-FORWARD TR_DESCRIPTION LIKE",
+      "steps": [
+        {
+          "do": {
+            "transid": "CC00"
+          }
+        },
+        {
+          "do": {
+            "aid": "ENTER",
+            "fields": {
+              "USERID": "ADMIN001",
+              "PASSWD": "PASSWORD"
+            }
+          }
+        },
+        {
+          "do": {
+            "aid": "ENTER",
+            "fields": {
+              "OPTION": "5"
+            }
+          }
+        },
+        {
+          "do": {
+            "aid": "ENTER",
+            "fields": {
+              "TRDESC": "A%E"
+            }
+          },
+          "expect": {
+            "map": "CTRTLIA",
+            "fields": {
+              "TRNNAME": "CTLI",
+              "PGMNAME": "COTRTLIC",
+              "PAGENO": "1",
+              "TRDESC": "A%E",
+              "TRTTYP1": "01",
+              "TRTYPD1": "PURCHASE",
+              "TRTTYP2": "02",
+              "TRTYPD2": "PAYMENT",
+              "TRTTYP3": "07",
+              "TRTYPD3": "ADJUSTMENT",
+              "INFOMSG": "  Type U to update, D to delete any record",
+              "BUTNF02": "F2=Add",
+              "BUTNF03": "F3=Exit",
+              "BUTNF07": "F7=Page Up",
+              "BUTNF08": "F8=Page Dn",
+              "BUTNF10": "F10=Save"
+            },
+            "protected": [
+              "TRTYPD1",
+              "TRTYPD2",
+              "TRTYPD3",
+              "TRTYPD4",
+              "TRTYPD5",
+              "TRTYPD6",
+              "TRTYPD7"
+            ],
+            "unprotected": [
+              "TRTSEL1",
+              "TRTSEL2",
+              "TRTSEL3"
+            ],
+            "cursor": "TRTYPE"
+          }
+        }
+      ]
+    },
+    {
+      "id": "tran-type-list-desc-filter-lowercase",
+      "title": "A lowercase description filter matches nothing: LIKE is case-sensitive (previous rows stay, page 0)",
+      "provenance": "observed",
+      "source": "COTRTLIC 1290-CROSS-EDITS 9100-CHECK-FILTERS COUNT = 0 (FLG-DESCFILTER-NOT-OK)",
+      "steps": [
+        {
+          "do": {
+            "transid": "CC00"
+          }
+        },
+        {
+          "do": {
+            "aid": "ENTER",
+            "fields": {
+              "USERID": "ADMIN001",
+              "PASSWD": "PASSWORD"
+            }
+          }
+        },
+        {
+          "do": {
+            "aid": "ENTER",
+            "fields": {
+              "OPTION": "5"
+            }
+          }
+        },
+        {
+          "do": {
+            "aid": "ENTER",
+            "fields": {
+              "TRDESC": "pay"
+            }
+          },
+          "expect": {
+            "map": "CTRTLIA",
+            "fields": {
+              "TRNNAME": "CTLI",
+              "PGMNAME": "COTRTLIC",
+              "PAGENO": "0",
+              "TRDESC": "pay",
+              "TRTTYP1": "01",
+              "TRTYPD1": "PURCHASE",
+              "TRTTYP2": "02",
+              "TRTYPD2": "PAYMENT",
+              "TRTTYP3": "03",
+              "TRTYPD3": "CREDIT",
+              "TRTTYP4": "04",
+              "TRTYPD4": "AUTHORIZATION",
+              "TRTTYP5": "05",
+              "TRTYPD5": "REFUND",
+              "TRTTYP6": "06",
+              "TRTYPD6": "REVERAL",
+              "TRTTYP7": "07",
+              "TRTYPD7": "ADJUSTMENT",
+              "ERRMSG": "No Records found for these filter conditions",
+              "BUTNF02": "F2=Add",
+              "BUTNF03": "F3=Exit",
+              "BUTNF07": "F7=Page Up",
+              "BUTNF08": "F8=Page Dn",
+              "BUTNF10": "F10=Save"
+            },
+            "colors": {
+              "TRDESC": "RED"
+            },
+            "protected": [
+              "TRTYPD1",
+              "TRTYPD2",
+              "TRTYPD3",
+              "TRTYPD4",
+              "TRTYPD5",
+              "TRTYPD6",
+              "TRTYPD7"
+            ],
+            "cursor": "TRDESC"
+          }
+        }
+      ]
+    },
+    {
+      "id": "tran-type-list-desc-filter-paging",
+      "title": "Paging with a description filter pages through matching rows only",
+      "provenance": "observed",
+      "source": "COTRTLIC C-TR-TYPE-FORWARD with WS-EDIT-DESC-FLAG = '1', WHEN PFK08",
+      "setup": {
+        "TRANSACTION_TYPE": {
+          "upsert": [
+            {
+              "TR-TYPE": "08",
+              "TR-DESCRIPTION": "INSTALLMENT"
+            },
+            {
+              "TR-TYPE": "09",
+              "TR-DESCRIPTION": "CASH ADVANCE"
+            },
+            {
+              "TR-TYPE": "10",
+              "TR-DESCRIPTION": "BALANCE TRANSFER"
+            },
+            {
+              "TR-TYPE": "11",
+              "TR-DESCRIPTION": "ANNUAL FEE"
+            },
+            {
+              "TR-TYPE": "12",
+              "TR-DESCRIPTION": "INTEREST"
+            },
+            {
+              "TR-TYPE": "13",
+              "TR-DESCRIPTION": "CHARGEBACK"
+            },
+            {
+              "TR-TYPE": "14",
+              "TR-DESCRIPTION": "DISPUTE"
+            },
+            {
+              "TR-TYPE": "15",
+              "TR-DESCRIPTION": "REWARD"
+            },
+            {
+              "TR-TYPE": "16",
+              "TR-DESCRIPTION": "REBATE"
+            },
+            {
+              "TR-TYPE": "17",
+              "TR-DESCRIPTION": "WRITE OFF"
+            }
+          ]
+        }
+      },
+      "steps": [
+        {
+          "do": {
+            "transid": "CC00"
+          }
+        },
+        {
+          "do": {
+            "aid": "ENTER",
+            "fields": {
+              "USERID": "ADMIN001",
+              "PASSWD": "PASSWORD"
+            }
+          }
+        },
+        {
+          "do": {
+            "aid": "ENTER",
+            "fields": {
+              "OPTION": "5"
+            }
+          }
+        },
+        {
+          "do": {
+            "aid": "ENTER",
+            "fields": {
+              "TRDESC": "E"
+            }
+          }
+        },
+        {
+          "do": {
+            "aid": "PF8"
+          },
+          "expect": {
+            "map": "CTRTLIA",
+            "fields": {
+              "TRNNAME": "CTLI",
+              "PGMNAME": "COTRTLIC",
+              "PAGENO": "2",
+              "TRDESC": "E",
+              "TRTTYP1": "09",
+              "TRTYPD1": "CASH ADVANCE",
+              "TRTTYP2": "10",
+              "TRTYPD2": "BALANCE TRANSFER",
+              "TRTTYP3": "11",
+              "TRTYPD3": "ANNUAL FEE",
+              "TRTTYP4": "12",
+              "TRTYPD4": "INTEREST",
+              "TRTTYP5": "13",
+              "TRTYPD5": "CHARGEBACK",
+              "TRTTYP6": "14",
+              "TRTYPD6": "DISPUTE",
+              "TRTTYP7": "15",
+              "TRTYPD7": "REWARD",
+              "INFOMSG": "  Type U to update, D to delete any record",
+              "BUTNF02": "F2=Add",
+              "BUTNF03": "F3=Exit",
+              "BUTNF07": "F7=Page Up",
+              "BUTNF08": "F8=Page Dn",
+              "BUTNF10": "F10=Save"
+            },
+            "protected": [
+              "TRTYPD1",
+              "TRTYPD2",
+              "TRTYPD3",
+              "TRTYPD4",
+              "TRTYPD5",
+              "TRTYPD6",
+              "TRTYPD7"
+            ],
+            "unprotected": [
+              "TRTSEL1",
+              "TRTSEL2",
+              "TRTSEL3",
+              "TRTSEL4",
+              "TRTSEL5",
+              "TRTSEL6",
+              "TRTSEL7"
+            ],
+            "cursor": "TRTYPE"
+          }
+        }
+      ]
+    },
+    {
+      "id": "tran-type-list-combined-filters",
+      "title": "Type and description filters combine with AND",
+      "provenance": "observed",
+      "source": "COTRTLIC 1290-CROSS-EDITS, C-TR-TYPE-FORWARD",
+      "steps": [
+        {
+          "do": {
+            "transid": "CC00"
+          }
+        },
+        {
+          "do": {
+            "aid": "ENTER",
+            "fields": {
+              "USERID": "ADMIN001",
+              "PASSWD": "PASSWORD"
+            }
+          }
+        },
+        {
+          "do": {
+            "aid": "ENTER",
+            "fields": {
+              "OPTION": "5"
+            }
+          }
+        },
+        {
+          "do": {
+            "aid": "ENTER",
+            "fields": {
+              "TRTYPE": "02",
+              "TRDESC": "PAY"
+            }
+          },
+          "expect": {
+            "map": "CTRTLIA",
+            "fields": {
+              "TRNNAME": "CTLI",
+              "PGMNAME": "COTRTLIC",
+              "PAGENO": "1",
+              "TRTYPE": "02",
+              "TRDESC": "PAY",
+              "TRTTYP1": "02",
+              "TRTYPD1": "PAYMENT",
+              "INFOMSG": "  Type U to update, D to delete any record",
+              "BUTNF02": "F2=Add",
+              "BUTNF03": "F3=Exit",
+              "BUTNF07": "F7=Page Up",
+              "BUTNF08": "F8=Page Dn",
+              "BUTNF10": "F10=Save"
+            },
+            "protected": [
+              "TRTYPD1",
+              "TRTYPD2",
+              "TRTYPD3",
+              "TRTYPD4",
+              "TRTYPD5",
+              "TRTYPD6",
+              "TRTYPD7"
+            ],
+            "unprotected": [
+              "TRTSEL1"
+            ],
+            "cursor": "TRTYPE"
+          }
+        }
+      ]
+    },
+    {
+      "id": "tran-type-list-combined-filters-no-match",
+      "title": "Type and description filters that match nothing together mark both filters in error",
+      "provenance": "observed",
+      "source": "COTRTLIC 1290-CROSS-EDITS COUNT = 0 sets FLG-TYPEFILTER-NOT-OK and FLG-DESCFILTER-NOT-OK",
+      "steps": [
+        {
+          "do": {
+            "transid": "CC00"
+          }
+        },
+        {
+          "do": {
+            "aid": "ENTER",
+            "fields": {
+              "USERID": "ADMIN001",
+              "PASSWD": "PASSWORD"
+            }
+          }
+        },
+        {
+          "do": {
+            "aid": "ENTER",
+            "fields": {
+              "OPTION": "5"
+            }
+          }
+        },
+        {
+          "do": {
+            "aid": "ENTER",
+            "fields": {
+              "TRTYPE": "01",
+              "TRDESC": "PAY"
+            }
+          },
+          "expect": {
+            "map": "CTRTLIA",
+            "fields": {
+              "TRNNAME": "CTLI",
+              "PGMNAME": "COTRTLIC",
+              "PAGENO": "0",
+              "TRTYPE": "01",
+              "TRDESC": "PAY",
+              "TRTTYP1": "01",
+              "TRTYPD1": "PURCHASE",
+              "TRTTYP2": "02",
+              "TRTYPD2": "PAYMENT",
+              "TRTTYP3": "03",
+              "TRTYPD3": "CREDIT",
+              "TRTTYP4": "04",
+              "TRTYPD4": "AUTHORIZATION",
+              "TRTTYP5": "05",
+              "TRTYPD5": "REFUND",
+              "TRTTYP6": "06",
+              "TRTYPD6": "REVERAL",
+              "TRTTYP7": "07",
+              "TRTYPD7": "ADJUSTMENT",
+              "ERRMSG": "No Records found for these filter conditions",
+              "BUTNF02": "F2=Add",
+              "BUTNF03": "F3=Exit",
+              "BUTNF07": "F7=Page Up",
+              "BUTNF08": "F8=Page Dn",
+              "BUTNF10": "F10=Save"
+            },
+            "colors": {
+              "TRTYPE": "RED",
+              "TRDESC": "RED"
+            },
+            "protected": [
+              "TRTYPD1",
+              "TRTYPD2",
+              "TRTYPD3",
+              "TRTYPD4",
+              "TRTYPD5",
+              "TRTYPD6",
+              "TRTYPD7"
+            ],
+            "cursor": "TRTYPE"
+          }
+        }
+      ]
+    },
+    {
+      "id": "tran-type-list-select-update",
+      "title": "Legacy quirk: U on a row opens its description for edit and also says no change was detected",
+      "provenance": "observed",
+      "source": "COTRTLIC 1211-EDIT-ARRAY-DESC (WS-MESG-NO-CHANGES-DETECTED), WHEN ENTER AND WS-UPDATES-REQUESTED, 2200-SETUP-ARRAY-ATTRIBS",
+      "steps": [
+        {
+          "do": {
+            "transid": "CC00"
+          }
+        },
+        {
+          "do": {
+            "aid": "ENTER",
+            "fields": {
+              "USERID": "ADMIN001",
+              "PASSWD": "PASSWORD"
+            }
+          }
+        },
+        {
+          "do": {
+            "aid": "ENTER",
+            "fields": {
+              "OPTION": "5"
+            }
+          }
+        },
+        {
+          "do": {
+            "aid": "ENTER",
+            "fields": {
+              "TRTSEL2": "U"
+            }
+          },
+          "expect": {
+            "map": "CTRTLIA",
+            "fields": {
+              "TRNNAME": "CTLI",
+              "PGMNAME": "COTRTLIC",
+              "PAGENO": "1",
+              "TRTTYP1": "01",
+              "TRTYPD1": "PURCHASE",
+              "TRTSEL2": "U",
+              "TRTTYP2": "02",
+              "TRTYPD2": "PAYMENT",
+              "TRTTYP3": "03",
+              "TRTYPD3": "CREDIT",
+              "TRTTYP4": "04",
+              "TRTYPD4": "AUTHORIZATION",
+              "TRTTYP5": "05",
+              "TRTYPD5": "REFUND",
+              "TRTTYP6": "06",
+              "TRTYPD6": "REVERAL",
+              "TRTTYP7": "07",
+              "TRTYPD7": "ADJUSTMENT",
+              "INFOMSG": "  Update HIGHLIGHTED row. Press F10 to save",
+              "ERRMSG": "No change detected with respect to database values.",
+              "BUTNF02": "F2=Add",
+              "BUTNF03": "F3=Exit",
+              "BUTNF07": "F7=Page Up",
+              "BUTNF08": "F8=Page Dn",
+              "BUTNF10": "F10=Save"
+            },
+            "colors": {
+              "TRTYPE": "BLUE",
+              "TRDESC": "BLUE",
+              "TRTTYP2": "NEUTR"
+            },
+            "protected": [
+              "TRDESC",
+              "TRTYPD1",
+              "TRTYPD3",
+              "TRTYPD4",
+              "TRTYPD5",
+              "TRTYPD6",
+              "TRTYPD7",
+              "TRTYPE"
+            ],
+            "unprotected": [
+              "TRTSEL1",
+              "TRTSEL2",
+              "TRTSEL3",
+              "TRTSEL4",
+              "TRTSEL5",
+              "TRTSEL6",
+              "TRTSEL7"
+            ],
+            "cursor": "TRTYPD2"
+          }
+        }
+      ]
+    },
+    {
+      "id": "tran-type-list-update-save",
+      "title": "Legacy defect: F10 saves the new description padded to 50 (TR-DESCRIPTION-LEN 50)",
+      "provenance": "observed",
+      "source": "COTRTLIC 9200-UPDATE-RECORD (DCL-TR-DESCRIPTION-LEN = FUNCTION LENGTH of the 50-byte field), SYNCPOINT",
+      "steps": [
+        {
+          "do": {
+            "transid": "CC00"
+          }
+        },
+        {
+          "do": {
+            "aid": "ENTER",
+            "fields": {
+              "USERID": "ADMIN001",
+              "PASSWD": "PASSWORD"
+            }
+          }
+        },
+        {
+          "do": {
+            "aid": "ENTER",
+            "fields": {
+              "OPTION": "5"
+            }
+          }
+        },
+        {
+          "do": {
+            "aid": "ENTER",
+            "fields": {
+              "TRTSEL2": "U"
+            }
+          }
+        },
+        {
+          "do": {
+            "aid": "PF10",
+            "fields": {
+              "TRTYPD2": "PAYMENT RECEIVED"
+            }
+          },
+          "expect": {
+            "map": "CTRTLIA",
+            "fields": {
+              "TRNNAME": "CTLI",
+              "PGMNAME": "COTRTLIC",
+              "PAGENO": "1",
+              "TRTTYP1": "01",
+              "TRTYPD1": "PURCHASE",
+              "TRTTYP2": "02",
+              "TRTYPD2": "PAYMENT RECEIVED",
+              "TRTTYP3": "03",
+              "TRTYPD3": "CREDIT",
+              "TRTTYP4": "04",
+              "TRTYPD4": "AUTHORIZATION",
+              "TRTTYP5": "05",
+              "TRTYPD5": "REFUND",
+              "TRTTYP6": "06",
+              "TRTYPD6": "REVERAL",
+              "TRTTYP7": "07",
+              "TRTYPD7": "ADJUSTMENT",
+              "INFOMSG": "         HIGHLIGHTED row was updated",
+              "BUTNF02": "F2=Add",
+              "BUTNF03": "F3=Exit",
+              "BUTNF07": "F7=Page Up",
+              "BUTNF08": "F8=Page Dn",
+              "BUTNF10": "F10=Save"
+            },
+            "colors": {
+              "TRTYPE": "BLUE",
+              "TRDESC": "BLUE",
+              "TRTTYP2": "NEUTR",
+              "TRTYPD2": "NEUTR"
+            },
+            "protected": [
+              "TRDESC",
+              "TRTYPD1",
+              "TRTYPD2",
+              "TRTYPD3",
+              "TRTYPD4",
+              "TRTYPD5",
+              "TRTYPD6",
+              "TRTYPD7",
+              "TRTYPE"
+            ],
+            "unprotected": [
+              "TRTSEL1",
+              "TRTSEL2",
+              "TRTSEL3",
+              "TRTSEL4",
+              "TRTSEL5",
+              "TRTSEL6",
+              "TRTSEL7"
+            ],
+            "cursor": "TRTSEL2",
+            "files": {
+              "TRANSACTION_TYPE": {
+                "updated": [
+                  {
+                    "key": "02",
+                    "changed": {
+                      "TR-DESCRIPTION-LEN": [
+                        "7",
+                        "50"
+                      ],
+                      "TR-DESCRIPTION": [
+                        "PAYMENT",
+                        "PAYMENT RECEIVED"
+                      ]
+                    }
+                  }
+                ]
+              }
+            }
+          }
+        }
+      ]
+    },
+    {
+      "id": "tran-type-list-update-enter-before-save",
+      "title": "ENTER after editing a description keeps the edit pending without saving",
+      "provenance": "observed",
+      "source": "COTRTLIC WHEN ENTER AND WS-UPDATES-REQUESTED, 2300-SCREEN-ARRAY-INIT CHANGES-HAVE-OCCURRED",
+      "steps": [
+        {
+          "do": {
+            "transid": "CC00"
+          }
+        },
+        {
+          "do": {
+            "aid": "ENTER",
+            "fields": {
+              "USERID": "ADMIN001",
+              "PASSWD": "PASSWORD"
+            }
+          }
+        },
+        {
+          "do": {
+            "aid": "ENTER",
+            "fields": {
+              "OPTION": "5"
+            }
+          }
+        },
+        {
+          "do": {
+            "aid": "ENTER",
+            "fields": {
+              "TRTSEL2": "U"
+            }
+          }
+        },
+        {
+          "do": {
+            "aid": "ENTER",
+            "fields": {
+              "TRTYPD2": "PAYMENT RECEIVED"
+            }
+          },
+          "expect": {
+            "map": "CTRTLIA",
+            "fields": {
+              "TRNNAME": "CTLI",
+              "PGMNAME": "COTRTLIC",
+              "PAGENO": "1",
+              "TRTTYP1": "01",
+              "TRTYPD1": "PURCHASE",
+              "TRTSEL2": "U",
+              "TRTTYP2": "02",
+              "TRTYPD2": "PAYMENT RECEIVED",
+              "TRTTYP3": "03",
+              "TRTYPD3": "CREDIT",
+              "TRTTYP4": "04",
+              "TRTYPD4": "AUTHORIZATION",
+              "TRTTYP5": "05",
+              "TRTYPD5": "REFUND",
+              "TRTTYP6": "06",
+              "TRTYPD6": "REVERAL",
+              "TRTTYP7": "07",
+              "TRTYPD7": "ADJUSTMENT",
+              "INFOMSG": "  Update HIGHLIGHTED row. Press F10 to save",
+              "BUTNF02": "F2=Add",
+              "BUTNF03": "F3=Exit",
+              "BUTNF07": "F7=Page Up",
+              "BUTNF08": "F8=Page Dn",
+              "BUTNF10": "F10=Save"
+            },
+            "colors": {
+              "TRTYPE": "BLUE",
+              "TRDESC": "BLUE",
+              "TRTTYP2": "NEUTR"
+            },
+            "protected": [
+              "TRDESC",
+              "TRTYPD1",
+              "TRTYPD3",
+              "TRTYPD4",
+              "TRTYPD5",
+              "TRTYPD6",
+              "TRTYPD7",
+              "TRTYPE"
+            ],
+            "unprotected": [
+              "TRTSEL1",
+              "TRTSEL2",
+              "TRTSEL3",
+              "TRTSEL4",
+              "TRTSEL5",
+              "TRTSEL6",
+              "TRTSEL7"
+            ],
+            "cursor": "TRTYPD2"
+          }
+        }
+      ]
+    },
+    {
+      "id": "tran-type-list-update-blank-desc",
+      "title": "F10 with the description erased is refused: Transaction Desc must be supplied",
+      "provenance": "observed",
+      "source": "COTRTLIC 1240-EDIT-ALPHANUM-REQD blank, WHEN INPUT-ERROR, 2300 LIT-ASTERISK",
+      "steps": [
+        {
+          "do": {
+            "transid": "CC00"
+          }
+        },
+        {
+          "do": {
+            "aid": "ENTER",
+            "fields": {
+              "USERID": "ADMIN001",
+              "PASSWD": "PASSWORD"
+            }
+          }
+        },
+        {
+          "do": {
+            "aid": "ENTER",
+            "fields": {
+              "OPTION": "5"
+            }
+          }
+        },
+        {
+          "do": {
+            "aid": "ENTER",
+            "fields": {
+              "TRTSEL2": "U"
+            }
+          }
+        },
+        {
+          "do": {
+            "aid": "PF10",
+            "fields": {
+              "TRTYPD2": ""
+            }
+          },
+          "expect": {
+            "map": "CTRTLIA",
+            "fields": {
+              "TRNNAME": "CTLI",
+              "PGMNAME": "COTRTLIC",
+              "PAGENO": "1",
+              "TRTTYP1": "01",
+              "TRTYPD1": "PURCHASE",
+              "TRTSEL2": "U",
+              "TRTTYP2": "02",
+              "TRTYPD2": "*",
+              "TRTTYP3": "03",
+              "TRTYPD3": "CREDIT",
+              "TRTTYP4": "04",
+              "TRTYPD4": "AUTHORIZATION",
+              "TRTTYP5": "05",
+              "TRTYPD5": "REFUND",
+              "TRTTYP6": "06",
+              "TRTYPD6": "REVERAL",
+              "TRTTYP7": "07",
+              "TRTYPD7": "ADJUSTMENT",
+              "INFOMSG": "  Type U to update, D to delete any record",
+              "ERRMSG": "Transaction Desc must be supplied.",
+              "BUTNF02": "F2=Add",
+              "BUTNF03": "F3=Exit",
+              "BUTNF07": "F7=Page Up",
+              "BUTNF08": "F8=Page Dn",
+              "BUTNF10": "F10=Save"
+            },
+            "colors": {
+              "TRTYPE": "BLUE",
+              "TRDESC": "BLUE",
+              "TRTTYP2": "NEUTR",
+              "TRTYPD2": "RED"
+            },
+            "protected": [
+              "TRDESC",
+              "TRTYPD1",
+              "TRTYPD3",
+              "TRTYPD4",
+              "TRTYPD5",
+              "TRTYPD6",
+              "TRTYPD7",
+              "TRTYPE"
+            ],
+            "unprotected": [
+              "TRTSEL1",
+              "TRTSEL2",
+              "TRTSEL3",
+              "TRTSEL4",
+              "TRTSEL5",
+              "TRTSEL6",
+              "TRTSEL7"
+            ],
+            "cursor": "TRTYPD2"
+          }
+        }
+      ]
+    },
+    {
+      "id": "tran-type-list-update-invalid-desc",
+      "title": "F10 with punctuation in the description is refused",
+      "provenance": "observed",
+      "source": "COTRTLIC 1240-EDIT-ALPHANUM-REQD 'can have numbers or alphabets only.'",
+      "steps": [
+        {
+          "do": {
+            "transid": "CC00"
+          }
+        },
+        {
+          "do": {
+            "aid": "ENTER",
+            "fields": {
+              "USERID": "ADMIN001",
+              "PASSWD": "PASSWORD"
+            }
+          }
+        },
+        {
+          "do": {
+            "aid": "ENTER",
+            "fields": {
+              "OPTION": "5"
+            }
+          }
+        },
+        {
+          "do": {
+            "aid": "ENTER",
+            "fields": {
+              "TRTSEL2": "U"
+            }
+          }
+        },
+        {
+          "do": {
+            "aid": "PF10",
+            "fields": {
+              "TRTYPD2": "PAY-MENT"
+            }
+          },
+          "expect": {
+            "map": "CTRTLIA",
+            "fields": {
+              "TRNNAME": "CTLI",
+              "PGMNAME": "COTRTLIC",
+              "PAGENO": "1",
+              "TRTTYP1": "01",
+              "TRTYPD1": "PURCHASE",
+              "TRTSEL2": "U",
+              "TRTTYP2": "02",
+              "TRTYPD2": "PAY-MENT",
+              "TRTTYP3": "03",
+              "TRTYPD3": "CREDIT",
+              "TRTTYP4": "04",
+              "TRTYPD4": "AUTHORIZATION",
+              "TRTTYP5": "05",
+              "TRTYPD5": "REFUND",
+              "TRTTYP6": "06",
+              "TRTYPD6": "REVERAL",
+              "TRTTYP7": "07",
+              "TRTYPD7": "ADJUSTMENT",
+              "INFOMSG": "  Type U to update, D to delete any record",
+              "ERRMSG": "Transaction Desc can have numbers or alphabets only.",
+              "BUTNF02": "F2=Add",
+              "BUTNF03": "F3=Exit",
+              "BUTNF07": "F7=Page Up",
+              "BUTNF08": "F8=Page Dn",
+              "BUTNF10": "F10=Save"
+            },
+            "colors": {
+              "TRTYPE": "BLUE",
+              "TRDESC": "BLUE",
+              "TRTTYP2": "NEUTR",
+              "TRTYPD2": "RED"
+            },
+            "protected": [
+              "TRDESC",
+              "TRTYPD1",
+              "TRTYPD3",
+              "TRTYPD4",
+              "TRTYPD5",
+              "TRTYPD6",
+              "TRTYPD7",
+              "TRTYPE"
+            ],
+            "unprotected": [
+              "TRTSEL1",
+              "TRTSEL2",
+              "TRTSEL3",
+              "TRTSEL4",
+              "TRTSEL5",
+              "TRTSEL6",
+              "TRTSEL7"
+            ],
+            "cursor": "TRTYPD2"
+          }
+        }
+      ]
+    },
+    {
+      "id": "tran-type-list-update-case-only",
+      "title": "Legacy defect: a case-only edit says 'No change detected' yet F10 writes it",
+      "provenance": "observed",
+      "source": "COTRTLIC 1211-EDIT-ARRAY-DESC compares UPPER-CASE; WHEN PFK10 still runs 9200-UPDATE-RECORD",
+      "steps": [
+        {
+          "do": {
+            "transid": "CC00"
+          }
+        },
+        {
+          "do": {
+            "aid": "ENTER",
+            "fields": {
+              "USERID": "ADMIN001",
+              "PASSWD": "PASSWORD"
+            }
+          }
+        },
+        {
+          "do": {
+            "aid": "ENTER",
+            "fields": {
+              "OPTION": "5"
+            }
+          }
+        },
+        {
+          "do": {
+            "aid": "ENTER",
+            "fields": {
+              "TRTSEL2": "U"
+            }
+          }
+        },
+        {
+          "do": {
+            "aid": "PF10",
+            "fields": {
+              "TRTYPD2": "payment"
+            }
+          },
+          "expect": {
+            "map": "CTRTLIA",
+            "fields": {
+              "TRNNAME": "CTLI",
+              "PGMNAME": "COTRTLIC",
+              "PAGENO": "1",
+              "TRTTYP1": "01",
+              "TRTYPD1": "PURCHASE",
+              "TRTTYP2": "02",
+              "TRTYPD2": "payment",
+              "TRTTYP3": "03",
+              "TRTYPD3": "CREDIT",
+              "TRTTYP4": "04",
+              "TRTYPD4": "AUTHORIZATION",
+              "TRTTYP5": "05",
+              "TRTYPD5": "REFUND",
+              "TRTTYP6": "06",
+              "TRTYPD6": "REVERAL",
+              "TRTTYP7": "07",
+              "TRTYPD7": "ADJUSTMENT",
+              "INFOMSG": "         HIGHLIGHTED row was updated",
+              "ERRMSG": "No change detected with respect to database values.",
+              "BUTNF02": "F2=Add",
+              "BUTNF03": "F3=Exit",
+              "BUTNF07": "F7=Page Up",
+              "BUTNF08": "F8=Page Dn",
+              "BUTNF10": "F10=Save"
+            },
+            "colors": {
+              "TRTYPE": "BLUE",
+              "TRDESC": "BLUE",
+              "TRTTYP2": "NEUTR",
+              "TRTYPD2": "NEUTR"
+            },
+            "protected": [
+              "TRDESC",
+              "TRTYPD1",
+              "TRTYPD2",
+              "TRTYPD3",
+              "TRTYPD4",
+              "TRTYPD5",
+              "TRTYPD6",
+              "TRTYPD7",
+              "TRTYPE"
+            ],
+            "unprotected": [
+              "TRTSEL1",
+              "TRTSEL2",
+              "TRTSEL3",
+              "TRTSEL4",
+              "TRTSEL5",
+              "TRTSEL6",
+              "TRTSEL7"
+            ],
+            "cursor": "TRTSEL2",
+            "files": {
+              "TRANSACTION_TYPE": {
+                "updated": [
+                  {
+                    "key": "02",
+                    "changed": {
+                      "TR-DESCRIPTION-LEN": [
+                        "7",
+                        "50"
+                      ],
+                      "TR-DESCRIPTION": [
+                        "PAYMENT",
+                        "payment"
+                      ]
+                    }
+                  }
+                ]
+              }
+            }
+          }
+        }
+      ]
+    },
+    {
+      "id": "tran-type-list-update-unchanged-save",
+      "title": "Legacy defect: F10 with no edit says 'No change detected' yet rewrites the row with length 50",
+      "provenance": "observed",
+      "source": "COTRTLIC WHEN PFK10 AND WS-UPDATES-REQUESTED runs 9200-UPDATE-RECORD without checking NO-CHANGES-FOUND",
+      "steps": [
+        {
+          "do": {
+            "transid": "CC00"
+          }
+        },
+        {
+          "do": {
+            "aid": "ENTER",
+            "fields": {
+              "USERID": "ADMIN001",
+              "PASSWD": "PASSWORD"
+            }
+          }
+        },
+        {
+          "do": {
+            "aid": "ENTER",
+            "fields": {
+              "OPTION": "5"
+            }
+          }
+        },
+        {
+          "do": {
+            "aid": "ENTER",
+            "fields": {
+              "TRTSEL2": "U"
+            }
+          }
+        },
+        {
+          "do": {
+            "aid": "PF10"
+          },
+          "expect": {
+            "map": "CTRTLIA",
+            "fields": {
+              "TRNNAME": "CTLI",
+              "PGMNAME": "COTRTLIC",
+              "PAGENO": "1",
+              "TRTTYP1": "01",
+              "TRTYPD1": "PURCHASE",
+              "TRTTYP2": "02",
+              "TRTYPD2": "PAYMENT",
+              "TRTTYP3": "03",
+              "TRTYPD3": "CREDIT",
+              "TRTTYP4": "04",
+              "TRTYPD4": "AUTHORIZATION",
+              "TRTTYP5": "05",
+              "TRTYPD5": "REFUND",
+              "TRTTYP6": "06",
+              "TRTYPD6": "REVERAL",
+              "TRTTYP7": "07",
+              "TRTYPD7": "ADJUSTMENT",
+              "INFOMSG": "         HIGHLIGHTED row was updated",
+              "ERRMSG": "No change detected with respect to database values.",
+              "BUTNF02": "F2=Add",
+              "BUTNF03": "F3=Exit",
+              "BUTNF07": "F7=Page Up",
+              "BUTNF08": "F8=Page Dn",
+              "BUTNF10": "F10=Save"
+            },
+            "colors": {
+              "TRTYPE": "BLUE",
+              "TRDESC": "BLUE",
+              "TRTTYP2": "NEUTR",
+              "TRTYPD2": "NEUTR"
+            },
+            "protected": [
+              "TRDESC",
+              "TRTYPD1",
+              "TRTYPD2",
+              "TRTYPD3",
+              "TRTYPD4",
+              "TRTYPD5",
+              "TRTYPD6",
+              "TRTYPD7",
+              "TRTYPE"
+            ],
+            "unprotected": [
+              "TRTSEL1",
+              "TRTSEL2",
+              "TRTSEL3",
+              "TRTSEL4",
+              "TRTSEL5",
+              "TRTSEL6",
+              "TRTSEL7"
+            ],
+            "cursor": "TRTSEL2",
+            "files": {
+              "TRANSACTION_TYPE": {
+                "updated": [
+                  {
+                    "key": "02",
+                    "changed": {
+                      "TR-DESCRIPTION-LEN": [
+                        "7",
+                        "50"
+                      ]
+                    }
+                  }
+                ]
+              }
+            }
+          }
+        }
+      ]
+    },
+    {
+      "id": "tran-type-list-select-delete",
+      "title": "D on a row highlights it and asks for F10 to confirm",
+      "provenance": "observed",
+      "source": "COTRTLIC WHEN ENTER AND WS-DELETES-REQUESTED, 2200/2300 DELETE-REQUESTED-ON, 2500 WS-INFORM-DELETE",
+      "steps": [
+        {
+          "do": {
+            "transid": "CC00"
+          }
+        },
+        {
+          "do": {
+            "aid": "ENTER",
+            "fields": {
+              "USERID": "ADMIN001",
+              "PASSWD": "PASSWORD"
+            }
+          }
+        },
+        {
+          "do": {
+            "aid": "ENTER",
+            "fields": {
+              "OPTION": "5"
+            }
+          }
+        },
+        {
+          "do": {
+            "aid": "ENTER",
+            "fields": {
+              "TRTSEL1": "D"
+            }
+          },
+          "expect": {
+            "map": "CTRTLIA",
+            "fields": {
+              "TRNNAME": "CTLI",
+              "PGMNAME": "COTRTLIC",
+              "PAGENO": "1",
+              "TRTSEL1": "D",
+              "TRTTYP1": "01",
+              "TRTYPD1": "PURCHASE",
+              "TRTTYP2": "02",
+              "TRTYPD2": "PAYMENT",
+              "TRTTYP3": "03",
+              "TRTYPD3": "CREDIT",
+              "TRTTYP4": "04",
+              "TRTYPD4": "AUTHORIZATION",
+              "TRTTYP5": "05",
+              "TRTYPD5": "REFUND",
+              "TRTTYP6": "06",
+              "TRTYPD6": "REVERAL",
+              "TRTTYP7": "07",
+              "TRTYPD7": "ADJUSTMENT",
+              "INFOMSG": "Delete HIGHLIGHTED row ? Press F10 to confirm",
+              "BUTNF02": "F2=Add",
+              "BUTNF03": "F3=Exit",
+              "BUTNF07": "F7=Page Up",
+              "BUTNF08": "F8=Page Dn",
+              "BUTNF10": "F10=Save"
+            },
+            "colors": {
+              "TRTYPE": "BLUE",
+              "TRDESC": "BLUE",
+              "TRTTYP1": "NEUTR",
+              "TRTYPD1": "NEUTR"
+            },
+            "protected": [
+              "TRDESC",
+              "TRTYPD1",
+              "TRTYPD2",
+              "TRTYPD3",
+              "TRTYPD4",
+              "TRTYPD5",
+              "TRTYPD6",
+              "TRTYPD7",
+              "TRTYPE"
+            ],
+            "unprotected": [
+              "TRTSEL1",
+              "TRTSEL2",
+              "TRTSEL3",
+              "TRTSEL4",
+              "TRTSEL5",
+              "TRTSEL6",
+              "TRTSEL7"
+            ],
+            "cursor": "TRTSEL1"
+          }
+        }
+      ]
+    },
+    {
+      "id": "tran-type-list-delete-child-records",
+      "title": "Deleting a seeded type is refused (Db2 SQLCODE -532, child categories) and the row stays; the message ends 'DSNTIAC CD12' because INITIALIZE zeroes the DSNTIAC message-area length",
+      "provenance": "observed",
+      "source": "COTRTLIC 9300-DELETE-RECORD SQLCODE = -532 keeps CA-DELETE-REQUESTED; next ENTER rereads the row; COTRTLIC 0000-MAIN INITIALIZE WS-MISC-STORAGE zeroes WS-DSNTIAC-MESG-LEN, so DSNTIAC returns 12 (area under 240 bytes) and CSDB2RPY appends 'DSNTIAC CD' + the code",
+      "steps": [
+        {
+          "do": {
+            "transid": "CC00"
+          },
+          "expect": {
+            "map": "COSGN0A",
+            "fields": {
+              "TRNNAME": "CC00",
+              "PGMNAME": "COSGN00C",
+              "PASSWD": "________"
+            },
+            "cursor": "USERID"
+          }
+        },
+        {
+          "do": {
+            "aid": "ENTER",
+            "fields": {
+              "USERID": "ADMIN001",
+              "PASSWD": "PASSWORD"
+            }
+          },
+          "expect": {
+            "map": "COADM1A",
+            "fields": {
+              "TRNNAME": "CA00",
+              "PGMNAME": "COADM01C",
+              "OPTN001": "01. User List (Security)",
+              "OPTN002": "02. User Add (Security)",
+              "OPTN003": "03. User Update (Security)",
+              "OPTN004": "04. User Delete (Security)",
+              "OPTN005": "05. Transaction Type List/Update (Db2)",
+              "OPTN006": "06. Transaction Type Maintenance (Db2)"
+            },
+            "cursor": "OPTION"
+          }
+        },
+        {
+          "do": {
+            "aid": "ENTER",
+            "fields": {
+              "OPTION": "5"
+            }
+          },
+          "expect": {
+            "map": "CTRTLIA",
+            "fields": {
+              "TRNNAME": "CTLI",
+              "PGMNAME": "COTRTLIC",
+              "PAGENO": "1",
+              "TRTTYP1": "01",
+              "TRTYPD1": "PURCHASE",
+              "TRTTYP2": "02",
+              "TRTYPD2": "PAYMENT",
+              "TRTTYP3": "03",
+              "TRTYPD3": "CREDIT",
+              "TRTTYP4": "04",
+              "TRTYPD4": "AUTHORIZATION",
+              "TRTTYP5": "05",
+              "TRTYPD5": "REFUND",
+              "TRTTYP6": "06",
+              "TRTYPD6": "REVERAL",
+              "TRTTYP7": "07",
+              "TRTYPD7": "ADJUSTMENT",
+              "INFOMSG": "  Type U to update, D to delete any record",
+              "BUTNF02": "F2=Add",
+              "BUTNF03": "F3=Exit",
+              "BUTNF07": "F7=Page Up",
+              "BUTNF08": "F8=Page Dn",
+              "BUTNF10": "F10=Save"
+            },
+            "protected": [
+              "TRTYPD1",
+              "TRTYPD2",
+              "TRTYPD3",
+              "TRTYPD4",
+              "TRTYPD5",
+              "TRTYPD6",
+              "TRTYPD7"
+            ],
+            "unprotected": [
+              "TRTSEL1",
+              "TRTSEL2",
+              "TRTSEL3",
+              "TRTSEL4",
+              "TRTSEL5",
+              "TRTSEL6",
+              "TRTSEL7"
+            ],
+            "cursor": "TRTYPE"
+          }
+        },
+        {
+          "do": {
+            "aid": "ENTER",
+            "fields": {
+              "TRTSEL1": "D"
+            }
+          },
+          "expect": {
+            "map": "CTRTLIA",
+            "fields": {
+              "TRNNAME": "CTLI",
+              "PGMNAME": "COTRTLIC",
+              "PAGENO": "1",
+              "TRTSEL1": "D",
+              "TRTTYP1": "01",
+              "TRTYPD1": "PURCHASE",
+              "TRTTYP2": "02",
+              "TRTYPD2": "PAYMENT",
+              "TRTTYP3": "03",
+              "TRTYPD3": "CREDIT",
+              "TRTTYP4": "04",
+              "TRTYPD4": "AUTHORIZATION",
+              "TRTTYP5": "05",
+              "TRTYPD5": "REFUND",
+              "TRTTYP6": "06",
+              "TRTYPD6": "REVERAL",
+              "TRTTYP7": "07",
+              "TRTYPD7": "ADJUSTMENT",
+              "INFOMSG": "Delete HIGHLIGHTED row ? Press F10 to confirm",
+              "BUTNF02": "F2=Add",
+              "BUTNF03": "F3=Exit",
+              "BUTNF07": "F7=Page Up",
+              "BUTNF08": "F8=Page Dn",
+              "BUTNF10": "F10=Save"
+            },
+            "colors": {
+              "TRTYPE": "BLUE",
+              "TRDESC": "BLUE",
+              "TRTTYP1": "NEUTR",
+              "TRTYPD1": "NEUTR"
+            },
+            "protected": [
+              "TRDESC",
+              "TRTYPD1",
+              "TRTYPD2",
+              "TRTYPD3",
+              "TRTYPD4",
+              "TRTYPD5",
+              "TRTYPD6",
+              "TRTYPD7",
+              "TRTYPE"
+            ],
+            "unprotected": [
+              "TRTSEL1",
+              "TRTSEL2",
+              "TRTSEL3",
+              "TRTSEL4",
+              "TRTSEL5",
+              "TRTSEL6",
+              "TRTSEL7"
+            ],
+            "cursor": "TRTSEL1"
+          }
+        },
+        {
+          "do": {
+            "aid": "PF10"
+          },
+          "expect": {
+            "map": "CTRTLIA",
+            "fields": {
+              "TRNNAME": "CTLI",
+              "PGMNAME": "COTRTLIC",
+              "PAGENO": "1",
+              "TRTSEL1": "D",
+              "TRTTYP1": "01",
+              "TRTYPD1": "PURCHASE",
+              "TRTTYP2": "02",
+              "TRTYPD2": "PAYMENT",
+              "TRTTYP3": "03",
+              "TRTYPD3": "CREDIT",
+              "TRTTYP4": "04",
+              "TRTYPD4": "AUTHORIZATION",
+              "TRTTYP5": "05",
+              "TRTYPD5": "REFUND",
+              "TRTTYP6": "06",
+              "TRTYPD6": "REVERAL",
+              "TRTTYP7": "07",
+              "TRTYPD7": "ADJUSTMENT",
+              "INFOMSG": "  Type U to update, D to delete any record",
+              "ERRMSG": "Please delete associated child records first: SQLCODE: -532 DSNTIAC CD12",
+              "BUTNF02": "F2=Add",
+              "BUTNF03": "F3=Exit",
+              "BUTNF07": "F7=Page Up",
+              "BUTNF08": "F8=Page Dn",
+              "BUTNF10": "F10=Save"
+            },
+            "colors": {
+              "TRTYPE": "BLUE",
+              "TRDESC": "BLUE",
+              "TRTTYP1": "NEUTR",
+              "TRTYPD1": "NEUTR"
+            },
+            "protected": [
+              "TRDESC",
+              "TRTYPD1",
+              "TRTYPD2",
+              "TRTYPD3",
+              "TRTYPD4",
+              "TRTYPD5",
+              "TRTYPD6",
+              "TRTYPD7",
+              "TRTYPE"
+            ],
+            "unprotected": [
+              "TRTSEL1",
+              "TRTSEL2",
+              "TRTSEL3",
+              "TRTSEL4",
+              "TRTSEL5",
+              "TRTSEL6",
+              "TRTSEL7"
+            ],
+            "cursor": "TRTSEL1"
+          }
+        },
+        {
+          "do": {
+            "aid": "ENTER"
+          },
+          "expect": {
+            "map": "CTRTLIA",
+            "fields": {
+              "TRNNAME": "CTLI",
+              "PGMNAME": "COTRTLIC",
+              "PAGENO": "1",
+              "TRTSEL1": "D",
+              "TRTTYP1": "01",
+              "TRTYPD1": "PURCHASE",
+              "TRTTYP2": "02",
+              "TRTYPD2": "PAYMENT",
+              "TRTTYP3": "03",
+              "TRTYPD3": "CREDIT",
+              "TRTTYP4": "04",
+              "TRTYPD4": "AUTHORIZATION",
+              "TRTTYP5": "05",
+              "TRTYPD5": "REFUND",
+              "TRTTYP6": "06",
+              "TRTYPD6": "REVERAL",
+              "TRTTYP7": "07",
+              "TRTYPD7": "ADJUSTMENT",
+              "INFOMSG": "Delete HIGHLIGHTED row ? Press F10 to confirm",
+              "BUTNF02": "F2=Add",
+              "BUTNF03": "F3=Exit",
+              "BUTNF07": "F7=Page Up",
+              "BUTNF08": "F8=Page Dn",
+              "BUTNF10": "F10=Save"
+            },
+            "colors": {
+              "TRTYPE": "BLUE",
+              "TRDESC": "BLUE",
+              "TRTTYP1": "NEUTR",
+              "TRTYPD1": "NEUTR"
+            },
+            "protected": [
+              "TRDESC",
+              "TRTYPD1",
+              "TRTYPD2",
+              "TRTYPD3",
+              "TRTYPD4",
+              "TRTYPD5",
+              "TRTYPD6",
+              "TRTYPD7",
+              "TRTYPE"
+            ],
+            "unprotected": [
+              "TRTSEL1",
+              "TRTSEL2",
+              "TRTSEL3",
+              "TRTSEL4",
+              "TRTSEL5",
+              "TRTSEL6",
+              "TRTSEL7"
+            ],
+            "cursor": "TRTSEL1"
+          }
+        }
+      ]
+    },
+    {
+      "id": "tran-type-list-delete-confirm",
+      "title": "Legacy quirk: F10 deletes a type with no categories but the deleted row stays on screen",
+      "provenance": "observed",
+      "source": "COTRTLIC 9300-DELETE-RECORD SQLCODE = 0, SYNCPOINT; 2000-SEND-MAP before reread; FLG-DELETED-YES",
+      "setup": {
+        "TRANSACTION_TYPE": {
+          "upsert": [
+            {
+              "TR-TYPE": "08",
+              "TR-DESCRIPTION": "INSTALLMENT"
+            }
+          ]
+        }
+      },
+      "steps": [
+        {
+          "do": {
+            "transid": "CC00"
+          }
+        },
+        {
+          "do": {
+            "aid": "ENTER",
+            "fields": {
+              "USERID": "ADMIN001",
+              "PASSWD": "PASSWORD"
+            }
+          }
+        },
+        {
+          "do": {
+            "aid": "ENTER",
+            "fields": {
+              "OPTION": "5"
+            }
+          }
+        },
+        {
+          "do": {
+            "aid": "PF8"
+          }
+        },
+        {
+          "do": {
+            "aid": "ENTER",
+            "fields": {
+              "TRTSEL1": "D"
+            }
+          }
+        },
+        {
+          "do": {
+            "aid": "PF10"
+          },
+          "expect": {
+            "map": "CTRTLIA",
+            "fields": {
+              "TRNNAME": "CTLI",
+              "PGMNAME": "COTRTLIC",
+              "PAGENO": "2",
+              "TRTTYP1": "08",
+              "TRTYPD1": "INSTALLMENT",
+              "INFOMSG": "HIGHLIGHTED row deleted.Hit Enter to continue",
+              "BUTNF02": "F2=Add",
+              "BUTNF03": "F3=Exit",
+              "BUTNF07": "F7=Page Up",
+              "BUTNF08": "F8=Page Dn",
+              "BUTNF10": "F10=Save"
+            },
+            "colors": {
+              "TRTYPE": "BLUE",
+              "TRDESC": "BLUE",
+              "TRTTYP1": "NEUTR",
+              "TRTYPD1": "NEUTR"
+            },
+            "protected": [
+              "TRDESC",
+              "TRTYPD1",
+              "TRTYPD2",
+              "TRTYPD3",
+              "TRTYPD4",
+              "TRTYPD5",
+              "TRTYPD6",
+              "TRTYPD7",
+              "TRTYPE"
+            ],
+            "unprotected": [
+              "TRTSEL1"
+            ],
+            "cursor": "TRTSEL1",
+            "files": {
+              "TRANSACTION_TYPE": {
+                "deleted": [
+                  "08"
+                ]
+              }
+            }
+          }
+        }
+      ]
+    },
+    {
+      "id": "tran-type-list-delete-then-enter",
+      "title": "After a delete, ENTER with the same type filter finds no record: the row is gone",
+      "provenance": "observed",
+      "source": "COTRTLIC FLG-DELETED-YES INITIALIZE commarea; next ENTER 1290-CROSS-EDITS COUNT = 0",
+      "setup": {
+        "TRANSACTION_TYPE": {
+          "upsert": [
+            {
+              "TR-TYPE": "08",
+              "TR-DESCRIPTION": "INSTALLMENT"
+            }
+          ]
+        }
+      },
+      "steps": [
+        {
+          "do": {
+            "transid": "CC00"
+          }
+        },
+        {
+          "do": {
+            "aid": "ENTER",
+            "fields": {
+              "USERID": "ADMIN001",
+              "PASSWD": "PASSWORD"
+            }
+          }
+        },
+        {
+          "do": {
+            "aid": "ENTER",
+            "fields": {
+              "OPTION": "5"
+            }
+          }
+        },
+        {
+          "do": {
+            "aid": "ENTER",
+            "fields": {
+              "TRTYPE": "08"
+            }
+          }
+        },
+        {
+          "do": {
+            "aid": "ENTER",
+            "fields": {
+              "TRTSEL1": "D"
+            }
+          }
+        },
+        {
+          "do": {
+            "aid": "PF10"
+          }
+        },
+        {
+          "do": {
+            "aid": "ENTER"
+          },
+          "expect": {
+            "map": "CTRTLIA",
+            "fields": {
+              "TRNNAME": "CTLI",
+              "PGMNAME": "COTRTLIC",
+              "PAGENO": "0",
+              "TRTYPE": "08",
+              "ERRMSG": "No Records found for these filter conditions",
+              "BUTNF02": "F2=Add",
+              "BUTNF03": "F3=Exit",
+              "BUTNF07": "F7=Page Up",
+              "BUTNF08": "F8=Page Dn",
+              "BUTNF10": "F10=Save"
+            },
+            "colors": {
+              "TRTYPE": "RED"
+            },
+            "protected": [
+              "TRTYPD1",
+              "TRTYPD2",
+              "TRTYPD3",
+              "TRTYPD4",
+              "TRTYPD5",
+              "TRTYPD6",
+              "TRTYPD7"
+            ],
+            "cursor": "TRTYPE"
+          }
+        }
+      ]
+    },
+    {
+      "id": "tran-type-list-delete-moved-selection",
+      "title": "Moving the D to another row before F10 asks to confirm the new row instead of deleting",
+      "provenance": "observed",
+      "source": "COTRTLIC 0000-MAIN PFK10 with FLG-ROW-SELECTION-CHANGED-YES treated as ENTER",
+      "steps": [
+        {
+          "do": {
+            "transid": "CC00"
+          }
+        },
+        {
+          "do": {
+            "aid": "ENTER",
+            "fields": {
+              "USERID": "ADMIN001",
+              "PASSWD": "PASSWORD"
+            }
+          }
+        },
+        {
+          "do": {
+            "aid": "ENTER",
+            "fields": {
+              "OPTION": "5"
+            }
+          }
+        },
+        {
+          "do": {
+            "aid": "ENTER",
+            "fields": {
+              "TRTSEL1": "D"
+            }
+          }
+        },
+        {
+          "do": {
+            "aid": "PF10",
+            "fields": {
+              "TRTSEL1": "",
+              "TRTSEL2": "D"
+            }
+          },
+          "expect": {
+            "map": "CTRTLIA",
+            "fields": {
+              "TRNNAME": "CTLI",
+              "PGMNAME": "COTRTLIC",
+              "PAGENO": "1",
+              "TRTTYP1": "01",
+              "TRTYPD1": "PURCHASE",
+              "TRTSEL2": "D",
+              "TRTTYP2": "02",
+              "TRTYPD2": "PAYMENT",
+              "TRTTYP3": "03",
+              "TRTYPD3": "CREDIT",
+              "TRTTYP4": "04",
+              "TRTYPD4": "AUTHORIZATION",
+              "TRTTYP5": "05",
+              "TRTYPD5": "REFUND",
+              "TRTTYP6": "06",
+              "TRTYPD6": "REVERAL",
+              "TRTTYP7": "07",
+              "TRTYPD7": "ADJUSTMENT",
+              "INFOMSG": "Delete HIGHLIGHTED row ? Press F10 to confirm",
+              "BUTNF02": "F2=Add",
+              "BUTNF03": "F3=Exit",
+              "BUTNF07": "F7=Page Up",
+              "BUTNF08": "F8=Page Dn",
+              "BUTNF10": "F10=Save"
+            },
+            "colors": {
+              "TRTYPE": "BLUE",
+              "TRDESC": "BLUE",
+              "TRTTYP2": "NEUTR",
+              "TRTYPD2": "NEUTR"
+            },
+            "protected": [
+              "TRDESC",
+              "TRTYPD1",
+              "TRTYPD2",
+              "TRTYPD3",
+              "TRTYPD4",
+              "TRTYPD5",
+              "TRTYPD6",
+              "TRTYPD7",
+              "TRTYPE"
+            ],
+            "unprotected": [
+              "TRTSEL1",
+              "TRTSEL2",
+              "TRTSEL3",
+              "TRTSEL4",
+              "TRTSEL5",
+              "TRTSEL6",
+              "TRTSEL7"
+            ],
+            "cursor": "TRTSEL2"
+          }
+        }
+      ]
+    },
+    {
+      "id": "tran-type-list-update-switched-to-delete",
+      "title": "Legacy defect: changing a pending U to D and pressing F10 deletes without the delete confirmation",
+      "provenance": "observed",
+      "source": "COTRTLIC 0000-MAIN PFK10 valid on CA-UPDATE-REQUESTED; WHEN PFK10 AND WS-DELETES-REQUESTED runs 9300-DELETE-RECORD",
+      "setup": {
+        "TRANSACTION_TYPE": {
+          "upsert": [
+            {
+              "TR-TYPE": "08",
+              "TR-DESCRIPTION": "INSTALLMENT"
+            }
+          ]
+        }
+      },
+      "steps": [
+        {
+          "do": {
+            "transid": "CC00"
+          }
+        },
+        {
+          "do": {
+            "aid": "ENTER",
+            "fields": {
+              "USERID": "ADMIN001",
+              "PASSWD": "PASSWORD"
+            }
+          }
+        },
+        {
+          "do": {
+            "aid": "ENTER",
+            "fields": {
+              "OPTION": "5"
+            }
+          }
+        },
+        {
+          "do": {
+            "aid": "ENTER",
+            "fields": {
+              "TRTYPE": "08"
+            }
+          }
+        },
+        {
+          "do": {
+            "aid": "ENTER",
+            "fields": {
+              "TRTSEL1": "U"
+            }
+          }
+        },
+        {
+          "do": {
+            "aid": "PF10",
+            "fields": {
+              "TRTSEL1": "D"
+            }
+          },
+          "expect": {
+            "map": "CTRTLIA",
+            "fields": {
+              "TRNNAME": "CTLI",
+              "PGMNAME": "COTRTLIC",
+              "PAGENO": "1",
+              "TRTYPE": "08",
+              "TRTTYP1": "08",
+              "TRTYPD1": "INSTALLMENT",
+              "INFOMSG": "HIGHLIGHTED row deleted.Hit Enter to continue",
+              "BUTNF02": "F2=Add",
+              "BUTNF03": "F3=Exit",
+              "BUTNF07": "F7=Page Up",
+              "BUTNF08": "F8=Page Dn",
+              "BUTNF10": "F10=Save"
+            },
+            "colors": {
+              "TRTYPE": "BLUE",
+              "TRDESC": "BLUE",
+              "TRTTYP1": "NEUTR",
+              "TRTYPD1": "NEUTR"
+            },
+            "protected": [
+              "TRDESC",
+              "TRTYPD1",
+              "TRTYPD2",
+              "TRTYPD3",
+              "TRTYPD4",
+              "TRTYPD5",
+              "TRTYPD6",
+              "TRTYPD7",
+              "TRTYPE"
+            ],
+            "unprotected": [
+              "TRTSEL1"
+            ],
+            "cursor": "TRTSEL1",
+            "files": {
+              "TRANSACTION_TYPE": {
+                "deleted": [
+                  "08"
+                ]
+              }
+            }
+          }
+        }
+      ]
+    },
+    {
+      "id": "tran-type-list-invalid-action-code",
+      "title": "An action code other than U or D is rejected",
+      "provenance": "observed",
+      "source": "COTRTLIC 1210-EDIT-ARRAY WHEN OTHER (WS-MESG-INVALID-ACTION-CODE)",
+      "steps": [
+        {
+          "do": {
+            "transid": "CC00"
+          }
+        },
+        {
+          "do": {
+            "aid": "ENTER",
+            "fields": {
+              "USERID": "ADMIN001",
+              "PASSWD": "PASSWORD"
+            }
+          }
+        },
+        {
+          "do": {
+            "aid": "ENTER",
+            "fields": {
+              "OPTION": "5"
+            }
+          }
+        },
+        {
+          "do": {
+            "aid": "ENTER",
+            "fields": {
+              "TRTSEL3": "X"
+            }
+          },
+          "expect": {
+            "map": "CTRTLIA",
+            "fields": {
+              "TRNNAME": "CTLI",
+              "PGMNAME": "COTRTLIC",
+              "PAGENO": "1",
+              "TRTTYP1": "01",
+              "TRTYPD1": "PURCHASE",
+              "TRTTYP2": "02",
+              "TRTYPD2": "PAYMENT",
+              "TRTSEL3": "X",
+              "TRTTYP3": "03",
+              "TRTYPD3": "CREDIT",
+              "TRTTYP4": "04",
+              "TRTYPD4": "AUTHORIZATION",
+              "TRTTYP5": "05",
+              "TRTYPD5": "REFUND",
+              "TRTTYP6": "06",
+              "TRTYPD6": "REVERAL",
+              "TRTTYP7": "07",
+              "TRTYPD7": "ADJUSTMENT",
+              "INFOMSG": "  Type U to update, D to delete any record",
+              "ERRMSG": "Action code selected is invalid",
+              "BUTNF02": "F2=Add",
+              "BUTNF03": "F3=Exit",
+              "BUTNF07": "F7=Page Up",
+              "BUTNF08": "F8=Page Dn",
+              "BUTNF10": "F10=Save"
+            },
+            "colors": {
+              "TRTYPE": "BLUE",
+              "TRDESC": "BLUE",
+              "TRTSEL3": "RED"
+            },
+            "protected": [
+              "TRDESC",
+              "TRTYPD1",
+              "TRTYPD2",
+              "TRTYPD3",
+              "TRTYPD4",
+              "TRTYPD5",
+              "TRTYPD6",
+              "TRTYPD7",
+              "TRTYPE"
+            ],
+            "unprotected": [
+              "TRTSEL1",
+              "TRTSEL2",
+              "TRTSEL3",
+              "TRTSEL4",
+              "TRTSEL5",
+              "TRTSEL6",
+              "TRTSEL7"
+            ],
+            "cursor": "TRTSEL3"
+          }
+        }
+      ]
+    },
+    {
+      "id": "tran-type-list-lowercase-action-code",
+      "title": "A lowercase u is rejected as an invalid action code",
+      "provenance": "observed",
+      "source": "COTRTLIC 1210-EDIT-ARRAY SELECT-OK VALUES 'D', 'U' only",
+      "steps": [
+        {
+          "do": {
+            "transid": "CC00"
+          }
+        },
+        {
+          "do": {
+            "aid": "ENTER",
+            "fields": {
+              "USERID": "ADMIN001",
+              "PASSWD": "PASSWORD"
+            }
+          }
+        },
+        {
+          "do": {
+            "aid": "ENTER",
+            "fields": {
+              "OPTION": "5"
+            }
+          }
+        },
+        {
+          "do": {
+            "aid": "ENTER",
+            "fields": {
+              "TRTSEL3": "u"
+            }
+          },
+          "expect": {
+            "map": "CTRTLIA",
+            "fields": {
+              "TRNNAME": "CTLI",
+              "PGMNAME": "COTRTLIC",
+              "PAGENO": "1",
+              "TRTTYP1": "01",
+              "TRTYPD1": "PURCHASE",
+              "TRTTYP2": "02",
+              "TRTYPD2": "PAYMENT",
+              "TRTSEL3": "u",
+              "TRTTYP3": "03",
+              "TRTYPD3": "CREDIT",
+              "TRTTYP4": "04",
+              "TRTYPD4": "AUTHORIZATION",
+              "TRTTYP5": "05",
+              "TRTYPD5": "REFUND",
+              "TRTTYP6": "06",
+              "TRTYPD6": "REVERAL",
+              "TRTTYP7": "07",
+              "TRTYPD7": "ADJUSTMENT",
+              "INFOMSG": "  Type U to update, D to delete any record",
+              "ERRMSG": "Action code selected is invalid",
+              "BUTNF02": "F2=Add",
+              "BUTNF03": "F3=Exit",
+              "BUTNF07": "F7=Page Up",
+              "BUTNF08": "F8=Page Dn",
+              "BUTNF10": "F10=Save"
+            },
+            "colors": {
+              "TRTYPE": "BLUE",
+              "TRDESC": "BLUE",
+              "TRTSEL3": "RED"
+            },
+            "protected": [
+              "TRDESC",
+              "TRTYPD1",
+              "TRTYPD2",
+              "TRTYPD3",
+              "TRTYPD4",
+              "TRTYPD5",
+              "TRTYPD6",
+              "TRTYPD7",
+              "TRTYPE"
+            ],
+            "unprotected": [
+              "TRTSEL1",
+              "TRTSEL2",
+              "TRTSEL3",
+              "TRTSEL4",
+              "TRTSEL5",
+              "TRTSEL6",
+              "TRTSEL7"
+            ],
+            "cursor": "TRTSEL3"
+          }
+        }
+      ]
+    },
+    {
+      "id": "tran-type-list-more-than-one-action",
+      "title": "Selecting two rows is rejected: Please select only 1 action",
+      "provenance": "observed",
+      "source": "COTRTLIC 1210-EDIT-ARRAY WS-MORETHAN1ACTION",
+      "steps": [
+        {
+          "do": {
+            "transid": "CC00"
+          }
+        },
+        {
+          "do": {
+            "aid": "ENTER",
+            "fields": {
+              "USERID": "ADMIN001",
+              "PASSWD": "PASSWORD"
+            }
+          }
+        },
+        {
+          "do": {
+            "aid": "ENTER",
+            "fields": {
+              "OPTION": "5"
+            }
+          }
+        },
+        {
+          "do": {
+            "aid": "ENTER",
+            "fields": {
+              "TRTSEL1": "U",
+              "TRTSEL3": "D"
+            }
+          },
+          "expect": {
+            "map": "CTRTLIA",
+            "fields": {
+              "TRNNAME": "CTLI",
+              "PGMNAME": "COTRTLIC",
+              "PAGENO": "1",
+              "TRTSEL1": "U",
+              "TRTTYP1": "01",
+              "TRTYPD1": "PURCHASE",
+              "TRTTYP2": "02",
+              "TRTYPD2": "PAYMENT",
+              "TRTSEL3": "D",
+              "TRTTYP3": "03",
+              "TRTYPD3": "CREDIT",
+              "TRTTYP4": "04",
+              "TRTYPD4": "AUTHORIZATION",
+              "TRTTYP5": "05",
+              "TRTYPD5": "REFUND",
+              "TRTTYP6": "06",
+              "TRTYPD6": "REVERAL",
+              "TRTTYP7": "07",
+              "TRTYPD7": "ADJUSTMENT",
+              "INFOMSG": "  Type U to update, D to delete any record",
+              "ERRMSG": "Please select only 1 action",
+              "BUTNF02": "F2=Add",
+              "BUTNF03": "F3=Exit",
+              "BUTNF07": "F7=Page Up",
+              "BUTNF08": "F8=Page Dn",
+              "BUTNF10": "F10=Save"
+            },
+            "colors": {
+              "TRTYPE": "BLUE",
+              "TRDESC": "BLUE",
+              "TRTSEL1": "RED",
+              "TRTSEL3": "RED"
+            },
+            "protected": [
+              "TRDESC",
+              "TRTYPD1",
+              "TRTYPD2",
+              "TRTYPD3",
+              "TRTYPD4",
+              "TRTYPD5",
+              "TRTYPD6",
+              "TRTYPD7",
+              "TRTYPE"
+            ],
+            "unprotected": [
+              "TRTSEL1",
+              "TRTSEL2",
+              "TRTSEL3",
+              "TRTSEL4",
+              "TRTSEL5",
+              "TRTSEL6",
+              "TRTSEL7"
+            ],
+            "cursor": "TRTSEL1"
+          }
+        }
+      ]
+    },
+    {
+      "id": "tran-type-list-f10-nothing-pending",
+      "title": "F10 with no pending update or delete acts as ENTER",
+      "provenance": "observed",
+      "source": "COTRTLIC 0000-MAIN PFK10 valid only with CA-DELETE-REQUESTED or CA-UPDATE-REQUESTED",
+      "steps": [
+        {
+          "do": {
+            "transid": "CC00"
+          }
+        },
+        {
+          "do": {
+            "aid": "ENTER",
+            "fields": {
+              "USERID": "ADMIN001",
+              "PASSWD": "PASSWORD"
+            }
+          }
+        },
+        {
+          "do": {
+            "aid": "ENTER",
+            "fields": {
+              "OPTION": "5"
+            }
+          }
+        },
+        {
+          "do": {
+            "aid": "PF10"
+          },
+          "expect": {
+            "map": "CTRTLIA",
+            "fields": {
+              "TRNNAME": "CTLI",
+              "PGMNAME": "COTRTLIC",
+              "PAGENO": "1",
+              "TRTTYP1": "01",
+              "TRTYPD1": "PURCHASE",
+              "TRTTYP2": "02",
+              "TRTYPD2": "PAYMENT",
+              "TRTTYP3": "03",
+              "TRTYPD3": "CREDIT",
+              "TRTTYP4": "04",
+              "TRTYPD4": "AUTHORIZATION",
+              "TRTTYP5": "05",
+              "TRTYPD5": "REFUND",
+              "TRTTYP6": "06",
+              "TRTYPD6": "REVERAL",
+              "TRTTYP7": "07",
+              "TRTYPD7": "ADJUSTMENT",
+              "INFOMSG": "  Type U to update, D to delete any record",
+              "BUTNF02": "F2=Add",
+              "BUTNF03": "F3=Exit",
+              "BUTNF07": "F7=Page Up",
+              "BUTNF08": "F8=Page Dn",
+              "BUTNF10": "F10=Save"
+            },
+            "protected": [
+              "TRTYPD1",
+              "TRTYPD2",
+              "TRTYPD3",
+              "TRTYPD4",
+              "TRTYPD5",
+              "TRTYPD6",
+              "TRTYPD7"
+            ],
+            "unprotected": [
+              "TRTSEL1",
+              "TRTSEL2",
+              "TRTSEL3",
+              "TRTSEL4",
+              "TRTSEL5",
+              "TRTSEL6",
+              "TRTSEL7"
+            ],
+            "cursor": "TRTYPE"
+          }
+        }
+      ]
+    },
+    {
+      "id": "tran-type-list-invalid-key",
+      "title": "An unbound key (PF9) acts as ENTER",
+      "provenance": "observed",
+      "source": "COTRTLIC 0000-MAIN PFK-INVALID -> CCARD-AID-ENTER",
+      "steps": [
+        {
+          "do": {
+            "transid": "CC00"
+          }
+        },
+        {
+          "do": {
+            "aid": "ENTER",
+            "fields": {
+              "USERID": "ADMIN001",
+              "PASSWD": "PASSWORD"
+            }
+          }
+        },
+        {
+          "do": {
+            "aid": "ENTER",
+            "fields": {
+              "OPTION": "5"
+            }
+          }
+        },
+        {
+          "do": {
+            "aid": "PF9"
+          },
+          "expect": {
+            "map": "CTRTLIA",
+            "fields": {
+              "TRNNAME": "CTLI",
+              "PGMNAME": "COTRTLIC",
+              "PAGENO": "1",
+              "TRTTYP1": "01",
+              "TRTYPD1": "PURCHASE",
+              "TRTTYP2": "02",
+              "TRTYPD2": "PAYMENT",
+              "TRTTYP3": "03",
+              "TRTYPD3": "CREDIT",
+              "TRTTYP4": "04",
+              "TRTYPD4": "AUTHORIZATION",
+              "TRTTYP5": "05",
+              "TRTYPD5": "REFUND",
+              "TRTTYP6": "06",
+              "TRTYPD6": "REVERAL",
+              "TRTTYP7": "07",
+              "TRTYPD7": "ADJUSTMENT",
+              "INFOMSG": "  Type U to update, D to delete any record",
+              "BUTNF02": "F2=Add",
+              "BUTNF03": "F3=Exit",
+              "BUTNF07": "F7=Page Up",
+              "BUTNF08": "F8=Page Dn",
+              "BUTNF10": "F10=Save"
+            },
+            "protected": [
+              "TRTYPD1",
+              "TRTYPD2",
+              "TRTYPD3",
+              "TRTYPD4",
+              "TRTYPD5",
+              "TRTYPD6",
+              "TRTYPD7"
+            ],
+            "unprotected": [
+              "TRTSEL1",
+              "TRTSEL2",
+              "TRTSEL3",
+              "TRTSEL4",
+              "TRTSEL5",
+              "TRTSEL6",
+              "TRTSEL7"
+            ],
+            "cursor": "TRTYPE"
+          }
+        }
+      ]
+    },
+    {
+      "id": "tran-type-list-clear-key",
+      "title": "CLEAR redisplays the list and drops the active type filter",
+      "provenance": "observed",
+      "source": "COTRTLIC 0000-MAIN PFK-INVALID -> CCARD-AID-ENTER; 1100-RECEIVE-SCREEN with no input",
+      "steps": [
+        {
+          "do": {
+            "transid": "CC00"
+          }
+        },
+        {
+          "do": {
+            "aid": "ENTER",
+            "fields": {
+              "USERID": "ADMIN001",
+              "PASSWD": "PASSWORD"
+            }
+          }
+        },
+        {
+          "do": {
+            "aid": "ENTER",
+            "fields": {
+              "OPTION": "5"
+            }
+          }
+        },
+        {
+          "do": {
+            "aid": "ENTER",
+            "fields": {
+              "TRTYPE": "03"
+            }
+          }
+        },
+        {
+          "do": {
+            "aid": "CLEAR"
+          },
+          "expect": {
+            "map": "CTRTLIA",
+            "fields": {
+              "TRNNAME": "CTLI",
+              "PGMNAME": "COTRTLIC",
+              "PAGENO": "1",
+              "TRTTYP1": "01",
+              "TRTYPD1": "PURCHASE",
+              "TRTTYP2": "02",
+              "TRTYPD2": "PAYMENT",
+              "TRTTYP3": "03",
+              "TRTYPD3": "CREDIT",
+              "TRTTYP4": "04",
+              "TRTYPD4": "AUTHORIZATION",
+              "TRTTYP5": "05",
+              "TRTYPD5": "REFUND",
+              "TRTTYP6": "06",
+              "TRTYPD6": "REVERAL",
+              "TRTTYP7": "07",
+              "TRTYPD7": "ADJUSTMENT",
+              "INFOMSG": "  Type U to update, D to delete any record",
+              "BUTNF02": "F2=Add",
+              "BUTNF03": "F3=Exit",
+              "BUTNF07": "F7=Page Up",
+              "BUTNF08": "F8=Page Dn",
+              "BUTNF10": "F10=Save"
+            },
+            "protected": [
+              "TRTYPD1",
+              "TRTYPD2",
+              "TRTYPD3",
+              "TRTYPD4",
+              "TRTYPD5",
+              "TRTYPD6",
+              "TRTYPD7"
+            ],
+            "unprotected": [
+              "TRTSEL1",
+              "TRTSEL2",
+              "TRTSEL3",
+              "TRTSEL4",
+              "TRTSEL5",
+              "TRTSEL6",
+              "TRTSEL7"
+            ],
+            "cursor": "TRTYPE"
+          }
+        }
+      ]
+    },
+    {
+      "id": "tran-type-list-f2-add",
+      "title": "F2 hands off to the transaction type add/update screen (COTRTUPC)",
+      "provenance": "observed",
+      "source": "COTRTLIC 0000-MAIN CCARD-AID-PFK02 XCTL LIT-ADDTPGM",
+      "steps": [
+        {
+          "do": {
+            "transid": "CC00"
+          }
+        },
+        {
+          "do": {
+            "aid": "ENTER",
+            "fields": {
+              "USERID": "ADMIN001",
+              "PASSWD": "PASSWORD"
+            }
+          }
+        },
+        {
+          "do": {
+            "aid": "ENTER",
+            "fields": {
+              "OPTION": "5"
+            }
+          }
+        },
+        {
+          "do": {
+            "aid": "PF2"
+          },
+          "expect": {
+            "map": "CTRTUPA",
+            "fields": {
+              "TRNNAME": "CTTU",
+              "PGMNAME": "COTRTUPC",
+              "INFOMSG": "Enter transaction type to be maintained",
+              "FKEYS": "ENTER=Process F3=Exit",
+              "FKEY04": "F4=Delete",
+              "FKEY05": "F5=Save",
+              "FKEY06": "F6=Add",
+              "FKEY12": "F12=Cancel"
+            },
+            "protected": [
+              "TRTYDSC"
+            ],
+            "cursor": "TRTYPCD"
+          }
+        }
+      ]
+    },
+    {
+      "id": "tran-type-list-f3-exit",
+      "title": "F3 returns to the admin menu",
+      "provenance": "observed",
+      "source": "COTRTLIC 0000-MAIN CCARD-AID-PFK03 SYNCPOINT, XCTL COADM01C",
+      "steps": [
+        {
+          "do": {
+            "transid": "CC00"
+          }
+        },
+        {
+          "do": {
+            "aid": "ENTER",
+            "fields": {
+              "USERID": "ADMIN001",
+              "PASSWD": "PASSWORD"
+            }
+          }
+        },
+        {
+          "do": {
+            "aid": "ENTER",
+            "fields": {
+              "OPTION": "5"
+            }
+          }
+        },
+        {
+          "do": {
+            "aid": "PF3"
+          },
+          "expect": {
+            "map": "COADM1A",
+            "fields": {
+              "TRNNAME": "CA00",
+              "PGMNAME": "COADM01C",
+              "OPTN001": "01. User List (Security)",
+              "OPTN002": "02. User Add (Security)",
+              "OPTN003": "03. User Update (Security)",
+              "OPTN004": "04. User Delete (Security)",
+              "OPTN005": "05. Transaction Type List/Update (Db2)",
+              "OPTN006": "06. Transaction Type Maintenance (Db2)"
+            },
+            "cursor": "OPTION"
+          }
+        }
+      ]
+    }
+  ]
+}

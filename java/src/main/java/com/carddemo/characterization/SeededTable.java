@@ -12,6 +12,7 @@ import java.sql.SQLException;
 import java.sql.Statement;
 import java.util.ArrayList;
 import java.util.Arrays;
+import java.util.Collection;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
@@ -19,6 +20,7 @@ import java.util.Optional;
 import java.util.TreeMap;
 import java.util.TreeSet;
 
+import com.carddemo.cics.Extension;
 import com.carddemo.records.Fields;
 import com.carddemo.records.KeyedTable;
 import com.carddemo.records.RecordImage;
@@ -26,7 +28,8 @@ import com.carddemo.vsam.Column;
 import com.fasterxml.jackson.databind.JsonNode;
 
 /**
- * One KSDS of the harness registry held in its Postgres table. Seeding, snapshots and diffs follow
+ * One keyed dataset of the harness registry held in Postgres: a KSDS in its V1 table, or a Db2 table of the
+ * transaction-type extension as row images. Seeding, snapshots and diffs follow
  * {@code characterization/harness/datasets.py}: records are keyed by their latin-1 key characters, and the
  * diff decodes fields the way the harness does, so the two compare equal.
  */
@@ -34,28 +37,42 @@ public final class SeededTable {
 
     /** Every keyed dataset of the registry. */
     static final List<String> SEEDED = List.of("USRSEC", "ACCTDATA", "CUSTDATA", "CARDDATA", "CARDXREF", "TRANSACT",
-            "DISCGRP", "TCATBALF", "TRANCATG", "TRANTYPE");
+            "DISCGRP", "TCATBALF", "TRANCATG", "TRANTYPE", "TRANSACTION_TYPE", "TRANSACTION_TYPE_CATEGORY");
+
+    /** Where a dataset's records live. */
+    interface Store {
+        int recordLength();
+
+        int keyOffset();
+
+        int keyLength();
+
+        List<byte[]> records(Connection db) throws SQLException;
+
+        /** The table holds exactly {@code records} afterwards. */
+        void replace(Connection db, Collection<byte[]> records) throws SQLException;
+    }
 
     private final String name;
-    private final KeyedTable table;
+    private final Store store;
     private final HarnessLayout layout;
     private final Path seed;
 
-    private SeededTable(String name, KeyedTable table, HarnessLayout layout, Path seed) {
+    private SeededTable(String name, Store store, HarnessLayout layout, Path seed) {
         this.name = name;
-        this.table = table;
+        this.store = store;
         this.layout = layout;
         this.seed = seed;
     }
 
     static SeededTable of(JsonNode registry, Path repo, String name) throws IOException {
-        KeyedTable table = KeyedTable.valueOf(name);
         JsonNode entry = registry.path("datasets").path(name);
-        if (entry.get("reclen").asInt() != table.recordLength() || entry.get("key").get(0).asInt() != table.key().offset()
-                || entry.get("key").get(1).asInt() != table.key().length()) {
-            throw new IllegalArgumentException(name + " in the registry does not match " + table.dsn());
+        Store store = entry.has("db2") ? Db2Table.valueOf(name) : new Ksds(KeyedTable.valueOf(name));
+        if (entry.get("reclen").asInt() != store.recordLength() || entry.get("key").get(0).asInt() != store.keyOffset()
+                || entry.get("key").get(1).asInt() != store.keyLength()) {
+            throw new IllegalArgumentException(name + " in the registry does not match its table");
         }
-        return new SeededTable(name, table, HarnessLayout.of(repo, registry, name), repo.resolve(entry.get("source").asText()));
+        return new SeededTable(name, store, HarnessLayout.of(repo, registry, name), repo.resolve(entry.get("source").asText()));
     }
 
     public static List<SeededTable> all(JsonNode registry, Path repo) throws IOException {
@@ -67,21 +84,26 @@ public final class SeededTable {
     }
 
     /**
-     * Every table from its seed and the case's edits, with no job queued, claimed or spooled, no data set
-     * cataloged and every CICS file open, in one transaction. A case may delete a record others refer to, as the
-     * harness's text files allow, so foreign-key triggers are off while seeding, and with them the cascades.
+     * Every table from its seed and the case's {@code setup}, with no job queued, claimed or spooled, no data set
+     * cataloged, every CICS file open and only the case's {@code install} extensions installed, in one
+     * transaction. A case may delete a record others refer to, as the harness's text files allow, so foreign-key
+     * triggers are off while seeding, and with them the cascades.
      */
-    public static void seed(Connection db, List<SeededTable> tables, JsonNode setup) throws IOException, SQLException {
+    public static void seed(Connection db, List<SeededTable> tables, JsonNode testCase) throws IOException, SQLException {
+        List<String> install = new ArrayList<>();
+        testCase.path("install").forEach(extension -> install.add(Extension.byId(extension.asText()).id()));
         db.setAutoCommit(false);
-        try (Statement replica = db.createStatement()) {
+        try (Statement replica = db.createStatement();
+                PreparedStatement region = db.prepareStatement("UPDATE cics_region SET closed = '{}', installed = ?")) {
             replica.execute("SET LOCAL session_replication_role = replica");
             for (String batchState : List.of("job_submission_runs", "job_submissions", "spool", "dataset_records", "datasets")) {
                 replica.execute("DELETE FROM " + batchState);
             }
-            replica.execute("UPDATE cics_region SET closed = '{}'");
+            region.setArray(1, db.createArrayOf("text", install.toArray()));
+            region.executeUpdate();
         }
         for (SeededTable table : tables) {
-            table.materialize(db, setup.path(table.name()));
+            table.materialize(db, testCase.path("setup").path(table.name()));
         }
         db.commit();
         db.setAutoCommit(true);
@@ -89,10 +111,6 @@ public final class SeededTable {
 
     String name() {
         return name;
-    }
-
-    KeyedTable table() {
-        return table;
     }
 
     HarnessLayout layout() {
@@ -105,7 +123,7 @@ public final class SeededTable {
         if (edit.has("replace")) {
             edit.get("replace").forEach(r -> records.add(layout.encode(r, null)));
         } else {
-            records.addAll(seedRecords(seed, table.recordLength()));
+            records.addAll(seedRecords(seed, store.recordLength()));
         }
         TreeMap<String, byte[]> byKey = new TreeMap<>();
         records.forEach(r -> byKey.put(key(r), r));
@@ -115,23 +133,17 @@ public final class SeededTable {
             byKey.put(key(fresh), base == null ? fresh : layout.encode(upsert, base));
         }
         for (JsonNode delete : edit.path("delete")) {
-            byte[] key = Fields.spaces(table.key().length());
+            byte[] key = Fields.spaces(store.keyLength());
             Fields.text(key, 0, key.length, delete.asText());
             byKey.remove(new String(key, ISO_8859_1));
         }
-        write(db, byKey.values());
+        store.replace(db, byKey.values());
     }
 
     /** Record by key, as the harness snapshots a {@code .dat} file. */
     TreeMap<String, byte[]> snapshot(Connection db) throws SQLException {
         TreeMap<String, byte[]> byKey = new TreeMap<>();
-        try (Statement select = db.createStatement();
-                ResultSet rows = select.executeQuery("SELECT " + columns() + " FROM " + table.table())) {
-            while (rows.next()) {
-                byte[] record = RecordImage.of(table, rows);
-                byKey.put(key(record), record);
-            }
-        }
+        store.records(db).forEach(record -> byKey.put(key(record), record));
         return byKey;
     }
 
@@ -187,28 +199,60 @@ public final class SeededTable {
         return records;
     }
 
-    private void write(Connection db, Iterable<byte[]> records) throws SQLException {
-        String placeholders = String.join(",", table.columns().stream().map(c -> "?").toList());
-        try (Statement delete = db.createStatement();
-                PreparedStatement insert = db.prepareStatement(
-                        "INSERT INTO " + table.table() + " (" + columns() + ") VALUES (" + placeholders + ")")) {
-            delete.execute("DELETE FROM " + table.table());
-            for (byte[] record : records) {
-                Object[] values = RecordImage.columns(table, record);
-                for (int i = 0; i < values.length; i++) {
-                    insert.setObject(i + 1, values[i]);
-                }
-                insert.addBatch();
-            }
-            insert.executeBatch();
-        }
-    }
-
-    private String columns() {
-        return String.join(", ", table.columns().stream().map(Column::name).toList());
-    }
-
     private String key(byte[] record) {
-        return new String(record, table.key().offset(), table.key().length(), ISO_8859_1);
+        return new String(record, store.keyOffset(), store.keyLength(), ISO_8859_1);
+    }
+
+    /** A KSDS in its V1 table, one column per stored field. */
+    private record Ksds(KeyedTable table) implements Store {
+
+        @Override
+        public int recordLength() {
+            return table.recordLength();
+        }
+
+        @Override
+        public int keyOffset() {
+            return table.key().offset();
+        }
+
+        @Override
+        public int keyLength() {
+            return table.key().length();
+        }
+
+        @Override
+        public List<byte[]> records(Connection db) throws SQLException {
+            List<byte[]> records = new ArrayList<>();
+            try (Statement select = db.createStatement();
+                    ResultSet rows = select.executeQuery("SELECT " + columns() + " FROM " + table.table())) {
+                while (rows.next()) {
+                    records.add(RecordImage.of(table, rows));
+                }
+            }
+            return records;
+        }
+
+        @Override
+        public void replace(Connection db, Collection<byte[]> records) throws SQLException {
+            String placeholders = String.join(",", table.columns().stream().map(c -> "?").toList());
+            try (Statement delete = db.createStatement();
+                    PreparedStatement insert = db.prepareStatement(
+                            "INSERT INTO " + table.table() + " (" + columns() + ") VALUES (" + placeholders + ")")) {
+                delete.execute("DELETE FROM " + table.table());
+                for (byte[] record : records) {
+                    Object[] values = RecordImage.columns(table, record);
+                    for (int i = 0; i < values.length; i++) {
+                        insert.setObject(i + 1, values[i]);
+                    }
+                    insert.addBatch();
+                }
+                insert.executeBatch();
+            }
+        }
+
+        private String columns() {
+            return String.join(", ", table.columns().stream().map(Column::name).toList());
+        }
     }
 }

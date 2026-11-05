@@ -156,7 +156,7 @@ class RunnableChainsIT {
     void statementsMatchTheGoldenForTheSameSeed() throws Exception {
         JsonNode suite = JSON.readTree(STATEMENTS.toFile());
         for (JsonNode testCase : suite.get("cases")) {
-            seed(testCase.get("setup"));
+            seed(testCase);
             List<byte[]> transactions = transactions();
 
             ChainRun run = start("CA7_030_STATEMENTS", day());
@@ -226,11 +226,11 @@ class RunnableChainsIT {
         return DAY.plusDays(dates++);
     }
 
-    private void seed(JsonNode setup) throws Exception {
+    private void seed(JsonNode testCase) throws Exception {
         JsonNode registry = JSON.readTree(REGISTRY.toFile());
         Path repo = REGISTRY.toAbsolutePath().normalize().getParent().getParent().getParent();
         try (Connection connection = dataSource.getConnection()) {
-            SeededTable.seed(connection, SeededTable.all(registry, repo), setup);
+            SeededTable.seed(connection, SeededTable.all(registry, repo), testCase);
         }
     }
 

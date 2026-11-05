@@ -93,6 +93,9 @@ class BatchGoldensIT {
                 sent.set(key, testCase.get(key));
             }
         }
+        if (suite.has("install")) {
+            sent.set("install", suite.get("install"));
+        }
         Map<String, Object> observation = BatchCase.of(request).run(dataSource, clock);
         List<String> diffs = testCase.has("expect")
                 ? compare(testCase.get("expect"), visible(JSON.valueToTree(observation)),

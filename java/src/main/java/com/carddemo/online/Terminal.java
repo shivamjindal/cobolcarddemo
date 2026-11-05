@@ -70,8 +70,8 @@ final class Terminal implements Serializable {
         for (F field : map.fields()) {
             Cell cell = cells.get(field.name());
             String value = out.value(field);
-            if (value != null) {
-                cell.value = value;
+            if (value != null && (value.isEmpty() || value.chars().anyMatch(c -> c != 0))) {
+                cell.value = value.replace('\0', ' ');
             }
             FieldAttribute attribute = out.attributeOf(field);
             if (attribute != null) {

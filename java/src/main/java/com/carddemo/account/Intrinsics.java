@@ -5,7 +5,7 @@ import java.math.RoundingMode;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 
-/** The GnuCOBOL numeric reads the account edits and CORPT00C's date parts depend on. */
+/** The GnuCOBOL numeric reads the account edits, CORPT00C's date parts and COTRTUPC's type code depend on. */
 public final class Intrinsics {
 
     private static final String NUMBER = "(\\d+(?:\\.\\d*)?|\\.\\d+)";
@@ -24,7 +24,7 @@ public final class Intrinsics {
     private Intrinsics() {}
 
     /** {@code FUNCTION TEST-NUMVAL(text) = 0}. */
-    static boolean testNumval(String text) {
+    public static boolean testNumval(String text) {
         return NUMVAL_LEADING.matcher(text).matches() || NUMVAL_TRAILING.matcher(text).matches();
     }
 
@@ -34,7 +34,7 @@ public final class Intrinsics {
     }
 
     /** {@code FUNCTION NUMVAL(text)} of text that passes {@link #testNumval}. */
-    static BigDecimal numval(String text) {
+    public static BigDecimal numval(String text) {
         Matcher leading = NUMVAL_LEADING.matcher(text);
         if (leading.matches()) {
             return signed(leading.group(2), "-".equals(leading.group(1)));
@@ -86,7 +86,7 @@ public final class Intrinsics {
     }
 
     /** {@code COMPUTE n = value} into a PIC 9(digits): no sign, no decimals, high digits dropped. */
-    static int unsigned(BigDecimal value, int digits) {
+    public static int unsigned(BigDecimal value, int digits) {
         return value.abs().setScale(0, RoundingMode.DOWN).remainder(BigDecimal.TEN.pow(digits)).intValueExact();
     }
 

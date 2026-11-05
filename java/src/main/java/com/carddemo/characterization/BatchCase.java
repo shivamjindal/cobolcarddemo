@@ -33,6 +33,7 @@ import com.carddemo.batch.utilities.SortSpec;
 import com.carddemo.jobs.JdbcJobSubmissions;
 import com.carddemo.jobs.JobQueue;
 import com.carddemo.jobs.SubmittedJob;
+import com.carddemo.records.Fields;
 import com.carddemo.records.KeyedTable;
 import com.carddemo.vsam.KeyRange;
 import com.fasterxml.jackson.databind.JsonNode;
@@ -88,7 +89,7 @@ final class BatchCase {
         });
         List<SeededTable> tables = SeededTable.all(registry, repo);
         try (Connection connection = db.getConnection()) {
-            SeededTable.seed(connection, tables, setup);
+            SeededTable.seed(connection, tables, testCase);
             List<String> deck = stage(job, setup, connection, tables, datasets);
             List<TreeMap<String, byte[]>> before = new ArrayList<>();
             for (SeededTable table : tables) {
@@ -138,6 +139,7 @@ final class BatchCase {
      *   "DATASET" sequential     DSN=AWS.M2.CARDDEMO.&lt;name&gt;.PS,DISP=SHR, staged from setup or seed
      *   {"dataset": X}           DSN=AWS.M2.CARDDEMO.CHARZ.&lt;dd&gt;,DISP=SHR, a key-ordered flat copy of X
      *   {"lines", reclen 80}     DD * with the lines
+     *   {"lines", reclen n}      DSN=AWS.M2.CARDDEMO.CHARZ.&lt;dd&gt;,DISP=SHR, the lines as n-byte records
      *   {"derive": "creastmt-trxfl"}  DSN=AWS.M2.CARDDEMO.TRXFL.VSAM.KSDS,DISP=SHR, staged through CREASTMT's sort
      *   {"output", reclen|recfm} DD SYSOUT=*,DCB=(RECFM=F,LRECL=reclen) or DCB=(RECFM=V)
      * </pre>
@@ -168,13 +170,21 @@ final class BatchCase {
                         ? sequentialRecords(source, setup)
                         : List.copyOf(table(tables, source).snapshot(connection).values()));
                 deck.add(dsn(name, dsn));
-            } else if (spec.has("lines")) {
-                if (spec.path("reclen").asInt() != CARD) {
-                    throw new IllegalArgumentException(name + ": instream cards are " + CARD + " bytes, not " + spec.get("reclen"));
-                }
+            } else if (spec.has("lines") && spec.path("reclen").asInt() == CARD) {
                 deck.add("//" + name + " DD *");
                 spec.get("lines").forEach(line -> deck.add(line.asText()));
                 deck.add("/*");
+            } else if (spec.has("lines")) {
+                int reclen = spec.get("reclen").asInt();
+                List<byte[]> records = new ArrayList<>();
+                spec.get("lines").forEach(line -> {
+                    byte[] record = Fields.spaces(reclen);
+                    Fields.text(record, 0, reclen, line.asText());
+                    records.add(record);
+                });
+                String dsn = QUALIFIER + JOB + "." + name;
+                datasets.stage(dsn, new Dcb(Dcb.Recfm.F, reclen), Optional.empty(), records);
+                deck.add(dsn(name, dsn));
             } else if (spec.path("derive").asText().equals("creastmt-trxfl")) {
                 List<byte[]> transactions = List.copyOf(table(tables, "TRANSACT").snapshot(connection).values());
                 datasets.stage(TRXFL, new Dcb(Dcb.Recfm.F, 350), Optional.of(new KeyRange(0, 32)),

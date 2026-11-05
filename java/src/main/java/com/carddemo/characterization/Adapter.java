@@ -74,7 +74,7 @@ public final class Adapter {
         Path registryFile = Path.of(request.get("datasets").asText()).toAbsolutePath();
         Path repo = registryFile.getParent().getParent().getParent();
         List<SeededTable> seeded = SeededTable.all(JSON.readTree(registryFile.toFile()), repo);
-        SeededTable.seed(db, seeded, setup);
+        SeededTable.seed(db, seeded, testCase);
         Browser browser = new Browser(URI.create(env("CARDDEMO_CHARACTERIZATION_URL", "http://127.0.0.1:18080")));
         List<Map<String, Object>> observations = new ArrayList<>();
         for (JsonNode step : testCase.get("steps")) {
@@ -227,9 +227,10 @@ public final class Adapter {
             case "text" -> observation.put("text", reply.get("text").asText());
             case "ended" -> {
                 observation.put("text", reply.get("text").asText());
-                observation.put("session", "ended");
                 if (reply.hasNonNull("abend")) {
                     observation.put("abend", reply.get("abend").asText());
+                } else {
+                    observation.put("session", "ended");
                 }
             }
             case "screen" -> {

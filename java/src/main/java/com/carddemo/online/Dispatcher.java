@@ -173,7 +173,8 @@ final class Dispatcher {
                 return new Result.Ok(new EndedReply(next, terminal.text().orElseThrow(), null));
             }
             case Abend abend -> {
-                terminal.sendText(header.abendMessage(screen.ref().transid().orElseThrow(), abend.code()));
+                terminal.sendText(abend.sent()
+                        .orElseGet(() -> header.abendMessage(screen.ref().transid().orElseThrow(), abend.code())));
                 identity.signOff(request, response);
                 return new Result.Ok(new EndedReply(next, terminal.text().orElseThrow(), abend.code()));
             }

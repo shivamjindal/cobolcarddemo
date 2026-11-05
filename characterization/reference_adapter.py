@@ -20,10 +20,11 @@ def main():
         workdir = Path(tmp) / case["id"]
         if request["kind"] == "online":
             import online
-            steps = online.run_journey([s["do"] for s in case["steps"]], workdir, case.get("setup"))
+            steps = online.run_journey([s["do"] for s in case["steps"]], workdir, case.get("setup"),
+                                       case.get("install", []))
         else:
             import batch
-            steps = [batch.run_job(case, workdir)]
+            steps = [batch.run_job(case, workdir, case.get("install", []))]
     json.dump({"steps": steps}, sys.stdout)
 
 

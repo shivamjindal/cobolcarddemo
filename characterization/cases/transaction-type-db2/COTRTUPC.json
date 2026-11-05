@@ -1,0 +1,3139 @@
+{
+  "feature": "tran-type-maint",
+  "kind": "online",
+  "programs": [
+    "COTRTUPC"
+  ],
+  "install": [
+    "transaction-type-db2"
+  ],
+  "cases": [
+    {
+      "id": "tran-type-maint-first-display",
+      "title": "Admin menu option 6 shows the empty maintenance screen with only the type code open",
+      "provenance": "observed",
+      "source": "app/app-transaction-type-db2/cbl/COTRTUPC.cbl 0000-MAIN (NOT CDEMO-PGM-REENTER from COADM01C), 3000-SEND-MAP",
+      "steps": [
+        {
+          "do": {
+            "transid": "CC00"
+          }
+        },
+        {
+          "do": {
+            "aid": "ENTER",
+            "fields": {
+              "USERID": "ADMIN001",
+              "PASSWD": "PASSWORD"
+            }
+          }
+        },
+        {
+          "do": {
+            "aid": "ENTER",
+            "fields": {
+              "OPTION": "6"
+            }
+          },
+          "expect": {
+            "map": "CTRTUPA",
+            "fields": {
+              "TRNNAME": "CTTU",
+              "PGMNAME": "COTRTUPC",
+              "INFOMSG": "Enter transaction type to be maintained",
+              "FKEYS": "ENTER=Process F3=Exit",
+              "FKEY04": "F4=Delete",
+              "FKEY05": "F5=Save",
+              "FKEY06": "F6=Add",
+              "FKEY12": "F12=Cancel"
+            },
+            "protected": [
+              "TRTYDSC"
+            ],
+            "cursor": "TRTYPCD"
+          }
+        }
+      ]
+    },
+    {
+      "id": "tran-type-maint-search-blank",
+      "title": "ENTER with no type code asks for one and marks the field with a red *",
+      "provenance": "observed",
+      "source": "app/app-transaction-type-db2/cbl/COTRTUPC.cbl 1245-EDIT-NUM-REQD blank, 3300-SETUP-SCREEN-ATTRS FLG-TRANFILTER-BLANK",
+      "steps": [
+        {
+          "do": {
+            "transid": "CC00"
+          }
+        },
+        {
+          "do": {
+            "aid": "ENTER",
+            "fields": {
+              "USERID": "ADMIN001",
+              "PASSWD": "PASSWORD"
+            }
+          }
+        },
+        {
+          "do": {
+            "aid": "ENTER",
+            "fields": {
+              "OPTION": "6"
+            }
+          }
+        },
+        {
+          "do": {
+            "aid": "ENTER",
+            "fields": {
+              "TRTYPCD": ""
+            }
+          },
+          "expect": {
+            "map": "CTRTUPA",
+            "fields": {
+              "TRNNAME": "CTTU",
+              "PGMNAME": "COTRTUPC",
+              "TRTYPCD": "*",
+              "INFOMSG": "Enter transaction type to be maintained",
+              "ERRMSG": "Tran Type code must be supplied.",
+              "FKEYS": "ENTER=Process F3=Exit",
+              "FKEY04": "F4=Delete",
+              "FKEY05": "F5=Save",
+              "FKEY06": "F6=Add",
+              "FKEY12": "F12=Cancel"
+            },
+            "colors": {
+              "TRTYPCD": "RED"
+            },
+            "protected": [
+              "TRTYDSC"
+            ],
+            "cursor": "TRTYPCD"
+          }
+        }
+      ]
+    },
+    {
+      "id": "tran-type-maint-search-star",
+      "title": "A * in the type code counts as blank",
+      "provenance": "observed",
+      "source": "app/app-transaction-type-db2/cbl/COTRTUPC.cbl 1150-STORE-MAP-IN-NEW '*', 1245-EDIT-NUM-REQD",
+      "steps": [
+        {
+          "do": {
+            "transid": "CC00"
+          }
+        },
+        {
+          "do": {
+            "aid": "ENTER",
+            "fields": {
+              "USERID": "ADMIN001",
+              "PASSWD": "PASSWORD"
+            }
+          }
+        },
+        {
+          "do": {
+            "aid": "ENTER",
+            "fields": {
+              "OPTION": "6"
+            }
+          }
+        },
+        {
+          "do": {
+            "aid": "ENTER",
+            "fields": {
+              "TRTYPCD": "*"
+            }
+          },
+          "expect": {
+            "map": "CTRTUPA",
+            "fields": {
+              "TRNNAME": "CTTU",
+              "PGMNAME": "COTRTUPC",
+              "TRTYPCD": "*",
+              "INFOMSG": "Enter transaction type to be maintained",
+              "ERRMSG": "Tran Type code must be supplied.",
+              "FKEYS": "ENTER=Process F3=Exit",
+              "FKEY04": "F4=Delete",
+              "FKEY05": "F5=Save",
+              "FKEY06": "F6=Add",
+              "FKEY12": "F12=Cancel"
+            },
+            "colors": {
+              "TRTYPCD": "RED"
+            },
+            "protected": [
+              "TRTYDSC"
+            ],
+            "cursor": "TRTYPCD"
+          }
+        }
+      ]
+    },
+    {
+      "id": "tran-type-maint-search-non-numeric",
+      "title": "A non-numeric type code is rejected and the field is cleared and turned red",
+      "provenance": "observed",
+      "source": "app/app-transaction-type-db2/cbl/COTRTUPC.cbl 1245-EDIT-NUM-REQD TEST-NUMVAL, 3201-SHOW-INITIAL-VALUES",
+      "steps": [
+        {
+          "do": {
+            "transid": "CC00"
+          }
+        },
+        {
+          "do": {
+            "aid": "ENTER",
+            "fields": {
+              "USERID": "ADMIN001",
+              "PASSWD": "PASSWORD"
+            }
+          }
+        },
+        {
+          "do": {
+            "aid": "ENTER",
+            "fields": {
+              "OPTION": "6"
+            }
+          }
+        },
+        {
+          "do": {
+            "aid": "ENTER",
+            "fields": {
+              "TRTYPCD": "AB"
+            }
+          },
+          "expect": {
+            "map": "CTRTUPA",
+            "fields": {
+              "TRNNAME": "CTTU",
+              "PGMNAME": "COTRTUPC",
+              "INFOMSG": "Enter transaction type to be maintained",
+              "ERRMSG": "Tran Type code must be numeric.",
+              "FKEYS": "ENTER=Process F3=Exit",
+              "FKEY04": "F4=Delete",
+              "FKEY05": "F5=Save",
+              "FKEY06": "F6=Add",
+              "FKEY12": "F12=Cancel"
+            },
+            "colors": {
+              "TRTYPCD": "RED"
+            },
+            "protected": [
+              "TRTYDSC"
+            ],
+            "cursor": "TRTYPCD"
+          }
+        }
+      ]
+    },
+    {
+      "id": "tran-type-maint-search-zero",
+      "title": "Type code 00 is rejected as zero",
+      "provenance": "observed",
+      "source": "app/app-transaction-type-db2/cbl/COTRTUPC.cbl 1245-EDIT-NUM-REQD NUMVAL = 0",
+      "steps": [
+        {
+          "do": {
+            "transid": "CC00"
+          }
+        },
+        {
+          "do": {
+            "aid": "ENTER",
+            "fields": {
+              "USERID": "ADMIN001",
+              "PASSWD": "PASSWORD"
+            }
+          }
+        },
+        {
+          "do": {
+            "aid": "ENTER",
+            "fields": {
+              "OPTION": "6"
+            }
+          }
+        },
+        {
+          "do": {
+            "aid": "ENTER",
+            "fields": {
+              "TRTYPCD": "00"
+            }
+          },
+          "expect": {
+            "map": "CTRTUPA",
+            "fields": {
+              "TRNNAME": "CTTU",
+              "PGMNAME": "COTRTUPC",
+              "INFOMSG": "Enter transaction type to be maintained",
+              "ERRMSG": "Tran Type code must not be zero.",
+              "FKEYS": "ENTER=Process F3=Exit",
+              "FKEY04": "F4=Delete",
+              "FKEY05": "F5=Save",
+              "FKEY06": "F6=Add",
+              "FKEY12": "F12=Cancel"
+            },
+            "colors": {
+              "TRTYPCD": "RED"
+            },
+            "protected": [
+              "TRTYDSC"
+            ],
+            "cursor": "TRTYPCD"
+          }
+        }
+      ]
+    },
+    {
+      "id": "tran-type-maint-search-not-found",
+      "title": "An unknown type code offers to add it with F5",
+      "provenance": "observed",
+      "source": "app/app-transaction-type-db2/cbl/COTRTUPC.cbl 9100-GET-TRANSACTION-TYPE SQLCODE +100, 3250-SETUP-INFOMSG TTUP-DETAILS-NOT-FOUND",
+      "steps": [
+        {
+          "do": {
+            "transid": "CC00"
+          }
+        },
+        {
+          "do": {
+            "aid": "ENTER",
+            "fields": {
+              "USERID": "ADMIN001",
+              "PASSWD": "PASSWORD"
+            }
+          }
+        },
+        {
+          "do": {
+            "aid": "ENTER",
+            "fields": {
+              "OPTION": "6"
+            }
+          }
+        },
+        {
+          "do": {
+            "aid": "ENTER",
+            "fields": {
+              "TRTYPCD": "08"
+            }
+          },
+          "expect": {
+            "map": "CTRTUPA",
+            "fields": {
+              "TRNNAME": "CTTU",
+              "PGMNAME": "COTRTUPC",
+              "TRTYPCD": "08",
+              "INFOMSG": "    Press F05 to add. F12 to cancel",
+              "ERRMSG": "No record found for this key in database",
+              "FKEYS": "ENTER=Process F3=Exit",
+              "FKEY04": "F4=Delete",
+              "FKEY05": "F5=Save",
+              "FKEY06": "F6=Add",
+              "FKEY12": "F12=Cancel"
+            },
+            "colors": {
+              "TRTYPCD": "RED"
+            },
+            "protected": [
+              "TRTYDSC"
+            ],
+            "cursor": "TRTYPCD"
+          }
+        }
+      ]
+    },
+    {
+      "id": "tran-type-maint-search-found",
+      "title": "Legacy defect: a fetched type opens its description for edit but shows the search prompt instead of 'Update transaction type details shown.'",
+      "provenance": "observed",
+      "source": "app/app-transaction-type-db2/cbl/COTRTUPC.cbl 9100-GET-TRANSACTION-TYPE, 9500-STORE-FETCHED-DATA, 3202-SHOW-ORIGINAL-VALUES",
+      "steps": [
+        {
+          "do": {
+            "transid": "CC00"
+          }
+        },
+        {
+          "do": {
+            "aid": "ENTER",
+            "fields": {
+              "USERID": "ADMIN001",
+              "PASSWD": "PASSWORD"
+            }
+          }
+        },
+        {
+          "do": {
+            "aid": "ENTER",
+            "fields": {
+              "OPTION": "6"
+            }
+          }
+        },
+        {
+          "do": {
+            "aid": "ENTER",
+            "fields": {
+              "TRTYPCD": "01"
+            }
+          },
+          "expect": {
+            "map": "CTRTUPA",
+            "fields": {
+              "TRNNAME": "CTTU",
+              "PGMNAME": "COTRTUPC",
+              "TRTYPCD": "01",
+              "TRTYDSC": "PURCHASE",
+              "INFOMSG": "Enter transaction type to be maintained",
+              "FKEYS": "ENTER=Process F3=Exit",
+              "FKEY04": "F4=Delete",
+              "FKEY05": "F5=Save",
+              "FKEY06": "F6=Add",
+              "FKEY12": "F12=Cancel"
+            },
+            "protected": [
+              "TRTYPCD"
+            ],
+            "cursor": "TRTYDSC"
+          }
+        }
+      ]
+    },
+    {
+      "id": "tran-type-maint-search-single-digit",
+      "title": "A one-digit type code is zero-padded before the read",
+      "provenance": "observed",
+      "source": "app/app-transaction-type-db2/cbl/COTRTUPC.cbl 1210-EDIT-TRANTYPE NUMVAL into WS-EDIT-NUMERIC-2",
+      "steps": [
+        {
+          "do": {
+            "transid": "CC00"
+          }
+        },
+        {
+          "do": {
+            "aid": "ENTER",
+            "fields": {
+              "USERID": "ADMIN001",
+              "PASSWD": "PASSWORD"
+            }
+          }
+        },
+        {
+          "do": {
+            "aid": "ENTER",
+            "fields": {
+              "OPTION": "6"
+            }
+          }
+        },
+        {
+          "do": {
+            "aid": "ENTER",
+            "fields": {
+              "TRTYPCD": "5"
+            }
+          },
+          "expect": {
+            "map": "CTRTUPA",
+            "fields": {
+              "TRNNAME": "CTTU",
+              "PGMNAME": "COTRTUPC",
+              "TRTYPCD": "05",
+              "TRTYDSC": "REFUND",
+              "INFOMSG": "Enter transaction type to be maintained",
+              "FKEYS": "ENTER=Process F3=Exit",
+              "FKEY04": "F4=Delete",
+              "FKEY05": "F5=Save",
+              "FKEY06": "F6=Add",
+              "FKEY12": "F12=Cancel"
+            },
+            "protected": [
+              "TRTYPCD"
+            ],
+            "cursor": "TRTYDSC"
+          }
+        }
+      ]
+    },
+    {
+      "id": "tran-type-maint-search-negative",
+      "title": "Legacy defect: type code -1 passes the numeric edit and fetches type 01",
+      "provenance": "observed",
+      "source": "app/app-transaction-type-db2/cbl/COTRTUPC.cbl 1210-EDIT-TRANTYPE NUMVAL(-1) into unsigned PIC 9(02)",
+      "steps": [
+        {
+          "do": {
+            "transid": "CC00"
+          }
+        },
+        {
+          "do": {
+            "aid": "ENTER",
+            "fields": {
+              "USERID": "ADMIN001",
+              "PASSWD": "PASSWORD"
+            }
+          }
+        },
+        {
+          "do": {
+            "aid": "ENTER",
+            "fields": {
+              "OPTION": "6"
+            }
+          }
+        },
+        {
+          "do": {
+            "aid": "ENTER",
+            "fields": {
+              "TRTYPCD": "-1"
+            }
+          },
+          "expect": {
+            "map": "CTRTUPA",
+            "fields": {
+              "TRNNAME": "CTTU",
+              "PGMNAME": "COTRTUPC",
+              "TRTYPCD": "01",
+              "TRTYDSC": "PURCHASE",
+              "INFOMSG": "Enter transaction type to be maintained",
+              "FKEYS": "ENTER=Process F3=Exit",
+              "FKEY04": "F4=Delete",
+              "FKEY05": "F5=Save",
+              "FKEY06": "F6=Add",
+              "FKEY12": "F12=Cancel"
+            },
+            "protected": [
+              "TRTYPCD"
+            ],
+            "cursor": "TRTYDSC"
+          }
+        }
+      ]
+    },
+    {
+      "id": "tran-type-maint-edit-no-change",
+      "title": "ENTER on a fetched type without edits reports no change",
+      "provenance": "observed",
+      "source": "app/app-transaction-type-db2/cbl/COTRTUPC.cbl 1205-COMPARE-OLD-NEW NO-CHANGES-DETECTED",
+      "steps": [
+        {
+          "do": {
+            "transid": "CC00"
+          }
+        },
+        {
+          "do": {
+            "aid": "ENTER",
+            "fields": {
+              "USERID": "ADMIN001",
+              "PASSWD": "PASSWORD"
+            }
+          }
+        },
+        {
+          "do": {
+            "aid": "ENTER",
+            "fields": {
+              "OPTION": "6"
+            }
+          }
+        },
+        {
+          "do": {
+            "aid": "ENTER",
+            "fields": {
+              "TRTYPCD": "01"
+            }
+          }
+        },
+        {
+          "do": {
+            "aid": "ENTER"
+          },
+          "expect": {
+            "map": "CTRTUPA",
+            "fields": {
+              "TRNNAME": "CTTU",
+              "PGMNAME": "COTRTUPC",
+              "TRTYPCD": "01",
+              "TRTYDSC": "PURCHASE",
+              "INFOMSG": "Enter transaction type to be maintained",
+              "ERRMSG": "No change detected with respect to values fetched.",
+              "FKEYS": "ENTER=Process F3=Exit",
+              "FKEY04": "F4=Delete",
+              "FKEY05": "F5=Save",
+              "FKEY06": "F6=Add",
+              "FKEY12": "F12=Cancel"
+            },
+            "protected": [
+              "TRTYPCD"
+            ],
+            "cursor": "TRTYDSC"
+          }
+        }
+      ]
+    },
+    {
+      "id": "tran-type-maint-edit-case-only",
+      "title": "Legacy quirk: a description change that only differs in case counts as no change",
+      "provenance": "observed",
+      "source": "app/app-transaction-type-db2/cbl/COTRTUPC.cbl 1205-COMPARE-OLD-NEW UPPER-CASE comparison",
+      "steps": [
+        {
+          "do": {
+            "transid": "CC00"
+          }
+        },
+        {
+          "do": {
+            "aid": "ENTER",
+            "fields": {
+              "USERID": "ADMIN001",
+              "PASSWD": "PASSWORD"
+            }
+          }
+        },
+        {
+          "do": {
+            "aid": "ENTER",
+            "fields": {
+              "OPTION": "6"
+            }
+          }
+        },
+        {
+          "do": {
+            "aid": "ENTER",
+            "fields": {
+              "TRTYPCD": "01"
+            }
+          }
+        },
+        {
+          "do": {
+            "aid": "ENTER",
+            "fields": {
+              "TRTYDSC": "purchase"
+            }
+          },
+          "expect": {
+            "map": "CTRTUPA",
+            "fields": {
+              "TRNNAME": "CTTU",
+              "PGMNAME": "COTRTUPC",
+              "TRTYPCD": "01",
+              "TRTYDSC": "PURCHASE",
+              "INFOMSG": "Enter transaction type to be maintained",
+              "ERRMSG": "No change detected with respect to values fetched.",
+              "FKEYS": "ENTER=Process F3=Exit",
+              "FKEY04": "F4=Delete",
+              "FKEY05": "F5=Save",
+              "FKEY06": "F6=Add",
+              "FKEY12": "F12=Cancel"
+            },
+            "protected": [
+              "TRTYPCD"
+            ],
+            "cursor": "TRTYDSC"
+          }
+        }
+      ]
+    },
+    {
+      "id": "tran-type-maint-edit-validated",
+      "title": "A valid new description locks the screen and asks for F5 to save",
+      "provenance": "observed",
+      "source": "app/app-transaction-type-db2/cbl/COTRTUPC.cbl 1200-EDIT-MAP-INPUTS TTUP-CHANGES-OK-NOT-CONFIRMED",
+      "steps": [
+        {
+          "do": {
+            "transid": "CC00"
+          }
+        },
+        {
+          "do": {
+            "aid": "ENTER",
+            "fields": {
+              "USERID": "ADMIN001",
+              "PASSWD": "PASSWORD"
+            }
+          }
+        },
+        {
+          "do": {
+            "aid": "ENTER",
+            "fields": {
+              "OPTION": "6"
+            }
+          }
+        },
+        {
+          "do": {
+            "aid": "ENTER",
+            "fields": {
+              "TRTYPCD": "01"
+            }
+          }
+        },
+        {
+          "do": {
+            "aid": "ENTER",
+            "fields": {
+              "TRTYDSC": "PURCHASES"
+            }
+          },
+          "expect": {
+            "map": "CTRTUPA",
+            "fields": {
+              "TRNNAME": "CTTU",
+              "PGMNAME": "COTRTUPC",
+              "TRTYPCD": "01",
+              "TRTYDSC": "PURCHASES",
+              "INFOMSG": "   Changes validated.Press F5 to save",
+              "FKEYS": "ENTER=Process F3=Exit",
+              "FKEY04": "F4=Delete",
+              "FKEY05": "F5=Save",
+              "FKEY06": "F6=Add",
+              "FKEY12": "F12=Cancel"
+            },
+            "protected": [
+              "TRTYDSC",
+              "TRTYPCD"
+            ],
+            "cursor": "TRTYDSC"
+          }
+        }
+      ]
+    },
+    {
+      "id": "tran-type-maint-edit-save",
+      "title": "Legacy defect: F5 saves the description padded to 50 with TR-DESCRIPTION-LEN 50",
+      "provenance": "observed",
+      "source": "app/app-transaction-type-db2/cbl/COTRTUPC.cbl 9600-WRITE-PROCESSING COMPUTE DCL-TR-DESCRIPTION-LEN = LENGTH(TTUP-NEW-TTYP-TYPE-DESC)",
+      "steps": [
+        {
+          "do": {
+            "transid": "CC00"
+          }
+        },
+        {
+          "do": {
+            "aid": "ENTER",
+            "fields": {
+              "USERID": "ADMIN001",
+              "PASSWD": "PASSWORD"
+            }
+          }
+        },
+        {
+          "do": {
+            "aid": "ENTER",
+            "fields": {
+              "OPTION": "6"
+            }
+          }
+        },
+        {
+          "do": {
+            "aid": "ENTER",
+            "fields": {
+              "TRTYPCD": "01"
+            }
+          }
+        },
+        {
+          "do": {
+            "aid": "ENTER",
+            "fields": {
+              "TRTYDSC": "PURCHASES"
+            }
+          }
+        },
+        {
+          "do": {
+            "aid": "PF5"
+          },
+          "expect": {
+            "map": "CTRTUPA",
+            "fields": {
+              "TRNNAME": "CTTU",
+              "PGMNAME": "COTRTUPC",
+              "TRTYPCD": "01",
+              "TRTYDSC": "PURCHASES",
+              "INFOMSG": "     Changes committed to database",
+              "FKEYS": "ENTER=Process F3=Exit",
+              "FKEY04": "F4=Delete",
+              "FKEY05": "F5=Save",
+              "FKEY06": "F6=Add",
+              "FKEY12": "F12=Cancel"
+            },
+            "protected": [
+              "TRTYDSC",
+              "TRTYPCD"
+            ],
+            "cursor": "TRTYPCD",
+            "files": {
+              "TRANSACTION_TYPE": {
+                "updated": [
+                  {
+                    "key": "01",
+                    "changed": {
+                      "TR-DESCRIPTION-LEN": [
+                        "8",
+                        "50"
+                      ],
+                      "TR-DESCRIPTION": [
+                        "PURCHASE",
+                        "PURCHASES"
+                      ]
+                    }
+                  }
+                ]
+              }
+            }
+          }
+        }
+      ]
+    },
+    {
+      "id": "tran-type-maint-edit-save-then-enter",
+      "title": "ENTER after a save returns to the empty search screen",
+      "provenance": "observed",
+      "source": "app/app-transaction-type-db2/cbl/COTRTUPC.cbl 0000-MAIN TTUP-CHANGES-OKAYED-AND-DONE resets to CDEMO-PGM-ENTER",
+      "steps": [
+        {
+          "do": {
+            "transid": "CC00"
+          }
+        },
+        {
+          "do": {
+            "aid": "ENTER",
+            "fields": {
+              "USERID": "ADMIN001",
+              "PASSWD": "PASSWORD"
+            }
+          }
+        },
+        {
+          "do": {
+            "aid": "ENTER",
+            "fields": {
+              "OPTION": "6"
+            }
+          }
+        },
+        {
+          "do": {
+            "aid": "ENTER",
+            "fields": {
+              "TRTYPCD": "01"
+            }
+          }
+        },
+        {
+          "do": {
+            "aid": "ENTER",
+            "fields": {
+              "TRTYDSC": "PURCHASES"
+            }
+          }
+        },
+        {
+          "do": {
+            "aid": "PF5"
+          }
+        },
+        {
+          "do": {
+            "aid": "ENTER"
+          },
+          "expect": {
+            "map": "CTRTUPA",
+            "fields": {
+              "TRNNAME": "CTTU",
+              "PGMNAME": "COTRTUPC",
+              "INFOMSG": "Enter transaction type to be maintained",
+              "FKEYS": "ENTER=Process F3=Exit",
+              "FKEY04": "F4=Delete",
+              "FKEY05": "F5=Save",
+              "FKEY06": "F6=Add",
+              "FKEY12": "F12=Cancel"
+            },
+            "protected": [
+              "TRTYDSC"
+            ],
+            "cursor": "TRTYPCD"
+          }
+        }
+      ]
+    },
+    {
+      "id": "tran-type-maint-edit-invalid-desc",
+      "title": "A description with punctuation is rejected and turned red",
+      "provenance": "observed",
+      "source": "app/app-transaction-type-db2/cbl/COTRTUPC.cbl 1230-EDIT-ALPHANUM-REQD, CSSETATY",
+      "steps": [
+        {
+          "do": {
+            "transid": "CC00"
+          }
+        },
+        {
+          "do": {
+            "aid": "ENTER",
+            "fields": {
+              "USERID": "ADMIN001",
+              "PASSWD": "PASSWORD"
+            }
+          }
+        },
+        {
+          "do": {
+            "aid": "ENTER",
+            "fields": {
+              "OPTION": "6"
+            }
+          }
+        },
+        {
+          "do": {
+            "aid": "ENTER",
+            "fields": {
+              "TRTYPCD": "01"
+            }
+          }
+        },
+        {
+          "do": {
+            "aid": "ENTER",
+            "fields": {
+              "TRTYDSC": "PURCHASE!"
+            }
+          },
+          "expect": {
+            "map": "CTRTUPA",
+            "fields": {
+              "TRNNAME": "CTTU",
+              "PGMNAME": "COTRTUPC",
+              "TRTYPCD": "01",
+              "TRTYDSC": "PURCHASE!",
+              "INFOMSG": " Update transaction type details shown.",
+              "ERRMSG": "Transaction Desc can have numbers or alphabets only.",
+              "FKEYS": "ENTER=Process F3=Exit",
+              "FKEY04": "F4=Delete",
+              "FKEY05": "F5=Save",
+              "FKEY06": "F6=Add",
+              "FKEY12": "F12=Cancel"
+            },
+            "colors": {
+              "TRTYDSC": "RED"
+            },
+            "protected": [
+              "TRTYPCD"
+            ],
+            "cursor": "TRTYDSC"
+          }
+        }
+      ]
+    },
+    {
+      "id": "tran-type-maint-edit-blank-desc",
+      "title": "An erased description is rejected and marked with a red *",
+      "provenance": "observed",
+      "source": "app/app-transaction-type-db2/cbl/COTRTUPC.cbl 1230-EDIT-ALPHANUM-REQD blank, CSSETATY",
+      "steps": [
+        {
+          "do": {
+            "transid": "CC00"
+          }
+        },
+        {
+          "do": {
+            "aid": "ENTER",
+            "fields": {
+              "USERID": "ADMIN001",
+              "PASSWD": "PASSWORD"
+            }
+          }
+        },
+        {
+          "do": {
+            "aid": "ENTER",
+            "fields": {
+              "OPTION": "6"
+            }
+          }
+        },
+        {
+          "do": {
+            "aid": "ENTER",
+            "fields": {
+              "TRTYPCD": "01"
+            }
+          }
+        },
+        {
+          "do": {
+            "aid": "ENTER",
+            "fields": {
+              "TRTYDSC": ""
+            }
+          },
+          "expect": {
+            "map": "CTRTUPA",
+            "fields": {
+              "TRNNAME": "CTTU",
+              "PGMNAME": "COTRTUPC",
+              "TRTYPCD": "01",
+              "TRTYDSC": "*",
+              "INFOMSG": " Update transaction type details shown.",
+              "ERRMSG": "Transaction Desc must be supplied.",
+              "FKEYS": "ENTER=Process F3=Exit",
+              "FKEY04": "F4=Delete",
+              "FKEY05": "F5=Save",
+              "FKEY06": "F6=Add",
+              "FKEY12": "F12=Cancel"
+            },
+            "colors": {
+              "TRTYDSC": "RED"
+            },
+            "protected": [
+              "TRTYPCD"
+            ],
+            "cursor": "TRTYDSC"
+          }
+        }
+      ]
+    },
+    {
+      "id": "tran-type-maint-edit-error-f12-rejected",
+      "title": "Legacy quirk: F12 is an invalid key after a failed description edit",
+      "provenance": "observed",
+      "source": "app/app-transaction-type-db2/cbl/COTRTUPC.cbl 0001-CHECK-PFKEYS (PFK12 not allowed in TTUP-CHANGES-NOT-OK)",
+      "steps": [
+        {
+          "do": {
+            "transid": "CC00"
+          }
+        },
+        {
+          "do": {
+            "aid": "ENTER",
+            "fields": {
+              "USERID": "ADMIN001",
+              "PASSWD": "PASSWORD"
+            }
+          }
+        },
+        {
+          "do": {
+            "aid": "ENTER",
+            "fields": {
+              "OPTION": "6"
+            }
+          }
+        },
+        {
+          "do": {
+            "aid": "ENTER",
+            "fields": {
+              "TRTYPCD": "01"
+            }
+          }
+        },
+        {
+          "do": {
+            "aid": "ENTER",
+            "fields": {
+              "TRTYDSC": "PURCHASE!"
+            }
+          }
+        },
+        {
+          "do": {
+            "aid": "PF12"
+          },
+          "expect": {
+            "map": "CTRTUPA",
+            "fields": {
+              "TRNNAME": "CTTU",
+              "PGMNAME": "COTRTUPC",
+              "TRTYPCD": "01",
+              "TRTYDSC": "PURCHASE!",
+              "INFOMSG": " Update transaction type details shown.",
+              "ERRMSG": "Invalid key pressed",
+              "FKEYS": "ENTER=Process F3=Exit",
+              "FKEY04": "F4=Delete",
+              "FKEY05": "F5=Save",
+              "FKEY06": "F6=Add",
+              "FKEY12": "F12=Cancel"
+            },
+            "protected": [
+              "TRTYPCD"
+            ],
+            "cursor": "TRTYDSC"
+          }
+        }
+      ]
+    },
+    {
+      "id": "tran-type-maint-edit-error-corrected",
+      "title": "Correcting a rejected description moves on to the save confirmation",
+      "provenance": "observed",
+      "source": "app/app-transaction-type-db2/cbl/COTRTUPC.cbl 1200-EDIT-MAP-INPUTS from TTUP-CHANGES-NOT-OK",
+      "steps": [
+        {
+          "do": {
+            "transid": "CC00"
+          }
+        },
+        {
+          "do": {
+            "aid": "ENTER",
+            "fields": {
+              "USERID": "ADMIN001",
+              "PASSWD": "PASSWORD"
+            }
+          }
+        },
+        {
+          "do": {
+            "aid": "ENTER",
+            "fields": {
+              "OPTION": "6"
+            }
+          }
+        },
+        {
+          "do": {
+            "aid": "ENTER",
+            "fields": {
+              "TRTYPCD": "01"
+            }
+          }
+        },
+        {
+          "do": {
+            "aid": "ENTER",
+            "fields": {
+              "TRTYDSC": "PURCHASE!"
+            }
+          }
+        },
+        {
+          "do": {
+            "aid": "ENTER",
+            "fields": {
+              "TRTYDSC": "PURCHASES"
+            }
+          },
+          "expect": {
+            "map": "CTRTUPA",
+            "fields": {
+              "TRNNAME": "CTTU",
+              "PGMNAME": "COTRTUPC",
+              "TRTYPCD": "01",
+              "TRTYDSC": "PURCHASES",
+              "INFOMSG": "   Changes validated.Press F5 to save",
+              "FKEYS": "ENTER=Process F3=Exit",
+              "FKEY04": "F4=Delete",
+              "FKEY05": "F5=Save",
+              "FKEY06": "F6=Add",
+              "FKEY12": "F12=Cancel"
+            },
+            "protected": [
+              "TRTYDSC",
+              "TRTYPCD"
+            ],
+            "cursor": "TRTYDSC"
+          }
+        }
+      ]
+    },
+    {
+      "id": "tran-type-maint-confirm-enter-redisplay",
+      "title": "ENTER on the save confirmation shows it again without saving",
+      "provenance": "observed",
+      "source": "app/app-transaction-type-db2/cbl/COTRTUPC.cbl 1200-EDIT-MAP-INPUTS TTUP-CHANGES-OK-NOT-CONFIRMED skips edits",
+      "steps": [
+        {
+          "do": {
+            "transid": "CC00"
+          }
+        },
+        {
+          "do": {
+            "aid": "ENTER",
+            "fields": {
+              "USERID": "ADMIN001",
+              "PASSWD": "PASSWORD"
+            }
+          }
+        },
+        {
+          "do": {
+            "aid": "ENTER",
+            "fields": {
+              "OPTION": "6"
+            }
+          }
+        },
+        {
+          "do": {
+            "aid": "ENTER",
+            "fields": {
+              "TRTYPCD": "01"
+            }
+          }
+        },
+        {
+          "do": {
+            "aid": "ENTER",
+            "fields": {
+              "TRTYDSC": "PURCHASES"
+            }
+          }
+        },
+        {
+          "do": {
+            "aid": "ENTER"
+          },
+          "expect": {
+            "map": "CTRTUPA",
+            "fields": {
+              "TRNNAME": "CTTU",
+              "PGMNAME": "COTRTUPC",
+              "TRTYPCD": "01",
+              "TRTYDSC": "PURCHASES",
+              "INFOMSG": "   Changes validated.Press F5 to save",
+              "FKEYS": "ENTER=Process F3=Exit",
+              "FKEY04": "F4=Delete",
+              "FKEY05": "F5=Save",
+              "FKEY06": "F6=Add",
+              "FKEY12": "F12=Cancel"
+            },
+            "protected": [
+              "TRTYDSC",
+              "TRTYPCD"
+            ],
+            "cursor": "TRTYDSC"
+          }
+        }
+      ]
+    },
+    {
+      "id": "tran-type-maint-confirm-f4-invalid",
+      "title": "F4 on the save confirmation is an invalid key",
+      "provenance": "observed",
+      "source": "app/app-transaction-type-db2/cbl/COTRTUPC.cbl 0001-CHECK-PFKEYS",
+      "steps": [
+        {
+          "do": {
+            "transid": "CC00"
+          }
+        },
+        {
+          "do": {
+            "aid": "ENTER",
+            "fields": {
+              "USERID": "ADMIN001",
+              "PASSWD": "PASSWORD"
+            }
+          }
+        },
+        {
+          "do": {
+            "aid": "ENTER",
+            "fields": {
+              "OPTION": "6"
+            }
+          }
+        },
+        {
+          "do": {
+            "aid": "ENTER",
+            "fields": {
+              "TRTYPCD": "01"
+            }
+          }
+        },
+        {
+          "do": {
+            "aid": "ENTER",
+            "fields": {
+              "TRTYDSC": "PURCHASES"
+            }
+          }
+        },
+        {
+          "do": {
+            "aid": "PF4"
+          },
+          "expect": {
+            "map": "CTRTUPA",
+            "fields": {
+              "TRNNAME": "CTTU",
+              "PGMNAME": "COTRTUPC",
+              "TRTYPCD": "01",
+              "TRTYDSC": "PURCHASES",
+              "INFOMSG": "   Changes validated.Press F5 to save",
+              "ERRMSG": "Invalid key pressed",
+              "FKEYS": "ENTER=Process F3=Exit",
+              "FKEY04": "F4=Delete",
+              "FKEY05": "F5=Save",
+              "FKEY06": "F6=Add",
+              "FKEY12": "F12=Cancel"
+            },
+            "protected": [
+              "TRTYDSC",
+              "TRTYPCD"
+            ],
+            "cursor": "TRTYDSC"
+          }
+        }
+      ]
+    },
+    {
+      "id": "tran-type-maint-confirm-f12-cancel",
+      "title": "F12 on the save confirmation cancels and shows the stored description again",
+      "provenance": "observed",
+      "source": "app/app-transaction-type-db2/cbl/COTRTUPC.cbl 2000-DECIDE-ACTION PFK12 TTUP-CHANGES-OK-NOT-CONFIRMED -> TTUP-CHANGES-BACKED-OUT",
+      "steps": [
+        {
+          "do": {
+            "transid": "CC00"
+          }
+        },
+        {
+          "do": {
+            "aid": "ENTER",
+            "fields": {
+              "USERID": "ADMIN001",
+              "PASSWD": "PASSWORD"
+            }
+          }
+        },
+        {
+          "do": {
+            "aid": "ENTER",
+            "fields": {
+              "OPTION": "6"
+            }
+          }
+        },
+        {
+          "do": {
+            "aid": "ENTER",
+            "fields": {
+              "TRTYPCD": "01"
+            }
+          }
+        },
+        {
+          "do": {
+            "aid": "ENTER",
+            "fields": {
+              "TRTYDSC": "PURCHASES"
+            }
+          }
+        },
+        {
+          "do": {
+            "aid": "PF12"
+          },
+          "expect": {
+            "map": "CTRTUPA",
+            "fields": {
+              "TRNNAME": "CTTU",
+              "PGMNAME": "COTRTUPC",
+              "TRTYPCD": "01",
+              "TRTYDSC": "PURCHASE",
+              "INFOMSG": " Update transaction type details shown.",
+              "ERRMSG": "Update was cancelled",
+              "FKEYS": "ENTER=Process F3=Exit",
+              "FKEY04": "F4=Delete",
+              "FKEY05": "F5=Save",
+              "FKEY06": "F6=Add",
+              "FKEY12": "F12=Cancel"
+            },
+            "protected": [
+              "TRTYPCD"
+            ],
+            "cursor": "TRTYDSC"
+          }
+        }
+      ]
+    },
+    {
+      "id": "tran-type-maint-cancelled-enter-no-change",
+      "title": "ENTER after a cancelled update with no edits reports no change",
+      "provenance": "observed",
+      "source": "app/app-transaction-type-db2/cbl/COTRTUPC.cbl 2000-DECIDE-ACTION TTUP-CHANGES-BACKED-OUT -> TTUP-CHANGES-NOT-OK",
+      "steps": [
+        {
+          "do": {
+            "transid": "CC00"
+          }
+        },
+        {
+          "do": {
+            "aid": "ENTER",
+            "fields": {
+              "USERID": "ADMIN001",
+              "PASSWD": "PASSWORD"
+            }
+          }
+        },
+        {
+          "do": {
+            "aid": "ENTER",
+            "fields": {
+              "OPTION": "6"
+            }
+          }
+        },
+        {
+          "do": {
+            "aid": "ENTER",
+            "fields": {
+              "TRTYPCD": "01"
+            }
+          }
+        },
+        {
+          "do": {
+            "aid": "ENTER",
+            "fields": {
+              "TRTYDSC": "PURCHASES"
+            }
+          }
+        },
+        {
+          "do": {
+            "aid": "PF12"
+          }
+        },
+        {
+          "do": {
+            "aid": "ENTER"
+          },
+          "expect": {
+            "map": "CTRTUPA",
+            "fields": {
+              "TRNNAME": "CTTU",
+              "PGMNAME": "COTRTUPC",
+              "TRTYPCD": "01",
+              "TRTYDSC": "PURCHASE",
+              "INFOMSG": " Update transaction type details shown.",
+              "ERRMSG": "No change detected with respect to values fetched.",
+              "FKEYS": "ENTER=Process F3=Exit",
+              "FKEY04": "F4=Delete",
+              "FKEY05": "F5=Save",
+              "FKEY06": "F6=Add",
+              "FKEY12": "F12=Cancel"
+            },
+            "protected": [
+              "TRTYPCD"
+            ],
+            "cursor": "TRTYDSC"
+          }
+        }
+      ]
+    },
+    {
+      "id": "tran-type-maint-cancelled-then-save",
+      "title": "After a cancel the user can edit again and save",
+      "provenance": "observed",
+      "source": "app/app-transaction-type-db2/cbl/COTRTUPC.cbl TTUP-CHANGES-BACKED-OUT -> TTUP-CHANGES-OK-NOT-CONFIRMED -> 9600-WRITE-PROCESSING",
+      "steps": [
+        {
+          "do": {
+            "transid": "CC00"
+          }
+        },
+        {
+          "do": {
+            "aid": "ENTER",
+            "fields": {
+              "USERID": "ADMIN001",
+              "PASSWD": "PASSWORD"
+            }
+          }
+        },
+        {
+          "do": {
+            "aid": "ENTER",
+            "fields": {
+              "OPTION": "6"
+            }
+          }
+        },
+        {
+          "do": {
+            "aid": "ENTER",
+            "fields": {
+              "TRTYPCD": "01"
+            }
+          }
+        },
+        {
+          "do": {
+            "aid": "ENTER",
+            "fields": {
+              "TRTYDSC": "PURCHASES"
+            }
+          }
+        },
+        {
+          "do": {
+            "aid": "PF12"
+          }
+        },
+        {
+          "do": {
+            "aid": "ENTER",
+            "fields": {
+              "TRTYDSC": "PURCHASE 2"
+            }
+          }
+        },
+        {
+          "do": {
+            "aid": "PF5"
+          },
+          "expect": {
+            "map": "CTRTUPA",
+            "fields": {
+              "TRNNAME": "CTTU",
+              "PGMNAME": "COTRTUPC",
+              "TRTYPCD": "01",
+              "TRTYDSC": "PURCHASE 2",
+              "INFOMSG": "     Changes committed to database",
+              "FKEYS": "ENTER=Process F3=Exit",
+              "FKEY04": "F4=Delete",
+              "FKEY05": "F5=Save",
+              "FKEY06": "F6=Add",
+              "FKEY12": "F12=Cancel"
+            },
+            "protected": [
+              "TRTYDSC",
+              "TRTYPCD"
+            ],
+            "cursor": "TRTYPCD",
+            "files": {
+              "TRANSACTION_TYPE": {
+                "updated": [
+                  {
+                    "key": "01",
+                    "changed": {
+                      "TR-DESCRIPTION-LEN": [
+                        "8",
+                        "50"
+                      ],
+                      "TR-DESCRIPTION": [
+                        "PURCHASE",
+                        "PURCHASE 2"
+                      ]
+                    }
+                  }
+                ]
+              }
+            }
+          }
+        }
+      ]
+    },
+    {
+      "id": "tran-type-maint-found-f12",
+      "title": "F12 on a fetched type returns to the empty search screen",
+      "provenance": "observed",
+      "source": "app/app-transaction-type-db2/cbl/COTRTUPC.cbl 0000-MAIN PFK12 AND TTUP-SHOW-DETAILS",
+      "steps": [
+        {
+          "do": {
+            "transid": "CC00"
+          }
+        },
+        {
+          "do": {
+            "aid": "ENTER",
+            "fields": {
+              "USERID": "ADMIN001",
+              "PASSWD": "PASSWORD"
+            }
+          }
+        },
+        {
+          "do": {
+            "aid": "ENTER",
+            "fields": {
+              "OPTION": "6"
+            }
+          }
+        },
+        {
+          "do": {
+            "aid": "ENTER",
+            "fields": {
+              "TRTYPCD": "01"
+            }
+          }
+        },
+        {
+          "do": {
+            "aid": "PF12"
+          },
+          "expect": {
+            "map": "CTRTUPA",
+            "fields": {
+              "TRNNAME": "CTTU",
+              "PGMNAME": "COTRTUPC",
+              "INFOMSG": "Enter transaction type to be maintained",
+              "FKEYS": "ENTER=Process F3=Exit",
+              "FKEY04": "F4=Delete",
+              "FKEY05": "F5=Save",
+              "FKEY06": "F6=Add",
+              "FKEY12": "F12=Cancel"
+            },
+            "protected": [
+              "TRTYDSC"
+            ],
+            "cursor": "TRTYPCD"
+          }
+        }
+      ]
+    },
+    {
+      "id": "tran-type-maint-found-f5-invalid",
+      "title": "F5 on a fetched type without edits is an invalid key",
+      "provenance": "observed",
+      "source": "app/app-transaction-type-db2/cbl/COTRTUPC.cbl 0001-CHECK-PFKEYS",
+      "steps": [
+        {
+          "do": {
+            "transid": "CC00"
+          }
+        },
+        {
+          "do": {
+            "aid": "ENTER",
+            "fields": {
+              "USERID": "ADMIN001",
+              "PASSWD": "PASSWORD"
+            }
+          }
+        },
+        {
+          "do": {
+            "aid": "ENTER",
+            "fields": {
+              "OPTION": "6"
+            }
+          }
+        },
+        {
+          "do": {
+            "aid": "ENTER",
+            "fields": {
+              "TRTYPCD": "01"
+            }
+          }
+        },
+        {
+          "do": {
+            "aid": "PF5"
+          },
+          "expect": {
+            "map": "CTRTUPA",
+            "fields": {
+              "TRNNAME": "CTTU",
+              "PGMNAME": "COTRTUPC",
+              "TRTYPCD": "01",
+              "TRTYDSC": "PURCHASE",
+              "INFOMSG": "Enter transaction type to be maintained",
+              "ERRMSG": "Invalid key pressed",
+              "FKEYS": "ENTER=Process F3=Exit",
+              "FKEY04": "F4=Delete",
+              "FKEY05": "F5=Save",
+              "FKEY06": "F6=Add",
+              "FKEY12": "F12=Cancel"
+            },
+            "protected": [
+              "TRTYPCD"
+            ],
+            "cursor": "TRTYDSC"
+          }
+        }
+      ]
+    },
+    {
+      "id": "tran-type-maint-found-f4-confirm",
+      "title": "Legacy quirk: F4 on a fetched type asks for F4 again and hides the ENTER/F3 legend as an unprotected dark field",
+      "provenance": "observed",
+      "source": "app/app-transaction-type-db2/cbl/COTRTUPC.cbl 0000-MAIN PFK04 AND TTUP-SHOW-DETAILS -> TTUP-CONFIRM-DELETE",
+      "steps": [
+        {
+          "do": {
+            "transid": "CC00"
+          }
+        },
+        {
+          "do": {
+            "aid": "ENTER",
+            "fields": {
+              "USERID": "ADMIN001",
+              "PASSWD": "PASSWORD"
+            }
+          }
+        },
+        {
+          "do": {
+            "aid": "ENTER",
+            "fields": {
+              "OPTION": "6"
+            }
+          }
+        },
+        {
+          "do": {
+            "aid": "ENTER",
+            "fields": {
+              "TRTYPCD": "01"
+            }
+          }
+        },
+        {
+          "do": {
+            "aid": "PF4"
+          },
+          "expect": {
+            "map": "CTRTUPA",
+            "fields": {
+              "TRNNAME": "CTTU",
+              "PGMNAME": "COTRTUPC",
+              "TRTYPCD": "01",
+              "TRTYDSC": "PURCHASE",
+              "INFOMSG": "Delete this record ? Press F4 to confirm",
+              "FKEYS": "ENTER=Process F3=Exit",
+              "FKEY04": "F4=Delete",
+              "FKEY05": "F5=Save",
+              "FKEY06": "F6=Add",
+              "FKEY12": "F12=Cancel"
+            },
+            "protected": [
+              "TRTYDSC",
+              "TRTYPCD"
+            ],
+            "unprotected": [
+              "FKEYS"
+            ],
+            "cursor": "TRTYPCD"
+          }
+        }
+      ]
+    },
+    {
+      "id": "tran-type-maint-delete-confirm-enter-rejected",
+      "title": "ENTER on the delete confirmation is an invalid key",
+      "provenance": "observed",
+      "source": "app/app-transaction-type-db2/cbl/COTRTUPC.cbl 0001-CHECK-PFKEYS (ENTER AND NOT TTUP-CONFIRM-DELETE)",
+      "steps": [
+        {
+          "do": {
+            "transid": "CC00"
+          }
+        },
+        {
+          "do": {
+            "aid": "ENTER",
+            "fields": {
+              "USERID": "ADMIN001",
+              "PASSWD": "PASSWORD"
+            }
+          }
+        },
+        {
+          "do": {
+            "aid": "ENTER",
+            "fields": {
+              "OPTION": "6"
+            }
+          }
+        },
+        {
+          "do": {
+            "aid": "ENTER",
+            "fields": {
+              "TRTYPCD": "01"
+            }
+          }
+        },
+        {
+          "do": {
+            "aid": "PF4"
+          }
+        },
+        {
+          "do": {
+            "aid": "ENTER"
+          },
+          "expect": {
+            "map": "CTRTUPA",
+            "fields": {
+              "TRNNAME": "CTTU",
+              "PGMNAME": "COTRTUPC",
+              "TRTYPCD": "01",
+              "TRTYDSC": "PURCHASE",
+              "INFOMSG": "Delete this record ? Press F4 to confirm",
+              "ERRMSG": "Invalid key pressed",
+              "FKEYS": "ENTER=Process F3=Exit",
+              "FKEY04": "F4=Delete",
+              "FKEY05": "F5=Save",
+              "FKEY06": "F6=Add",
+              "FKEY12": "F12=Cancel"
+            },
+            "protected": [
+              "TRTYDSC",
+              "TRTYPCD"
+            ],
+            "unprotected": [
+              "FKEYS"
+            ],
+            "cursor": "TRTYPCD"
+          }
+        }
+      ]
+    },
+    {
+      "id": "tran-type-maint-delete-confirm-f12",
+      "title": "F12 on the delete confirmation cancels the delete",
+      "provenance": "observed",
+      "source": "app/app-transaction-type-db2/cbl/COTRTUPC.cbl 2000-DECIDE-ACTION PFK12 TTUP-CONFIRM-DELETE",
+      "steps": [
+        {
+          "do": {
+            "transid": "CC00"
+          }
+        },
+        {
+          "do": {
+            "aid": "ENTER",
+            "fields": {
+              "USERID": "ADMIN001",
+              "PASSWD": "PASSWORD"
+            }
+          }
+        },
+        {
+          "do": {
+            "aid": "ENTER",
+            "fields": {
+              "OPTION": "6"
+            }
+          }
+        },
+        {
+          "do": {
+            "aid": "ENTER",
+            "fields": {
+              "TRTYPCD": "01"
+            }
+          }
+        },
+        {
+          "do": {
+            "aid": "PF4"
+          }
+        },
+        {
+          "do": {
+            "aid": "PF12"
+          },
+          "expect": {
+            "map": "CTRTUPA",
+            "fields": {
+              "TRNNAME": "CTTU",
+              "PGMNAME": "COTRTUPC",
+              "INFOMSG": "Enter transaction type to be maintained",
+              "ERRMSG": "Delete was cancelled",
+              "FKEYS": "ENTER=Process F3=Exit",
+              "FKEY04": "F4=Delete",
+              "FKEY05": "F5=Save",
+              "FKEY06": "F6=Add",
+              "FKEY12": "F12=Cancel"
+            },
+            "protected": [
+              "TRTYDSC"
+            ],
+            "cursor": "TRTYPCD"
+          }
+        }
+      ]
+    },
+    {
+      "id": "tran-type-maint-delete-success",
+      "title": "F4 twice deletes a type with no categories",
+      "provenance": "observed",
+      "source": "app/app-transaction-type-db2/cbl/COTRTUPC.cbl 9800-DELETE-PROCESSING SQLCODE 0",
+      "setup": {
+        "TRANSACTION_TYPE": {
+          "upsert": [
+            {
+              "TR-TYPE": "08",
+              "TR-DESCRIPTION": "INSTALLMENT"
+            }
+          ]
+        }
+      },
+      "steps": [
+        {
+          "do": {
+            "transid": "CC00"
+          }
+        },
+        {
+          "do": {
+            "aid": "ENTER",
+            "fields": {
+              "USERID": "ADMIN001",
+              "PASSWD": "PASSWORD"
+            }
+          }
+        },
+        {
+          "do": {
+            "aid": "ENTER",
+            "fields": {
+              "OPTION": "6"
+            }
+          }
+        },
+        {
+          "do": {
+            "aid": "ENTER",
+            "fields": {
+              "TRTYPCD": "08"
+            }
+          }
+        },
+        {
+          "do": {
+            "aid": "PF4"
+          }
+        },
+        {
+          "do": {
+            "aid": "PF4"
+          },
+          "expect": {
+            "map": "CTRTUPA",
+            "fields": {
+              "TRNNAME": "CTTU",
+              "PGMNAME": "COTRTUPC",
+              "TRTYPCD": "08",
+              "TRTYDSC": "INSTALLMENT",
+              "INFOMSG": "           Delete successful.",
+              "FKEYS": "ENTER=Process F3=Exit",
+              "FKEY04": "F4=Delete",
+              "FKEY05": "F5=Save",
+              "FKEY06": "F6=Add",
+              "FKEY12": "F12=Cancel"
+            },
+            "protected": [
+              "TRTYDSC",
+              "TRTYPCD"
+            ],
+            "cursor": "TRTYPCD",
+            "files": {
+              "TRANSACTION_TYPE": {
+                "deleted": [
+                  "08"
+                ]
+              }
+            }
+          }
+        }
+      ]
+    },
+    {
+      "id": "tran-type-maint-delete-success-then-enter",
+      "title": "ENTER after a delete returns to the empty search screen",
+      "provenance": "observed",
+      "source": "app/app-transaction-type-db2/cbl/COTRTUPC.cbl 0000-MAIN TTUP-DELETE-DONE resets to CDEMO-PGM-ENTER",
+      "setup": {
+        "TRANSACTION_TYPE": {
+          "upsert": [
+            {
+              "TR-TYPE": "08",
+              "TR-DESCRIPTION": "INSTALLMENT"
+            }
+          ]
+        }
+      },
+      "steps": [
+        {
+          "do": {
+            "transid": "CC00"
+          }
+        },
+        {
+          "do": {
+            "aid": "ENTER",
+            "fields": {
+              "USERID": "ADMIN001",
+              "PASSWD": "PASSWORD"
+            }
+          }
+        },
+        {
+          "do": {
+            "aid": "ENTER",
+            "fields": {
+              "OPTION": "6"
+            }
+          }
+        },
+        {
+          "do": {
+            "aid": "ENTER",
+            "fields": {
+              "TRTYPCD": "08"
+            }
+          }
+        },
+        {
+          "do": {
+            "aid": "PF4"
+          }
+        },
+        {
+          "do": {
+            "aid": "PF4"
+          }
+        },
+        {
+          "do": {
+            "aid": "ENTER"
+          },
+          "expect": {
+            "map": "CTRTUPA",
+            "fields": {
+              "TRNNAME": "CTTU",
+              "PGMNAME": "COTRTUPC",
+              "INFOMSG": "Enter transaction type to be maintained",
+              "FKEYS": "ENTER=Process F3=Exit",
+              "FKEY04": "F4=Delete",
+              "FKEY05": "F5=Save",
+              "FKEY06": "F6=Add",
+              "FKEY12": "F12=Cancel"
+            },
+            "protected": [
+              "TRTYDSC"
+            ],
+            "cursor": "TRTYPCD"
+          }
+        }
+      ]
+    },
+    {
+      "id": "tran-type-maint-delete-with-children",
+      "title": "Legacy defect: a delete rejected with -532 leaves the delete in progress, so the next ENTER abends 9999 and the row stays",
+      "provenance": "observed",
+      "source": "app/app-transaction-type-db2/cbl/COTRTUPC.cbl 9800-DELETE-PROCESSING -532 never sets TTUP-DELETE-FAILED; 2000-DECIDE-ACTION WHEN OTHER -> ABEND-ROUTINE; step 6 leaves ERRMSG unpinned: it strings SQLERRM OF SQLCA (binary SQLERRML plus Db2 tokens), which the harness fills with the Postgres message",
+      "steps": [
+        {
+          "do": {
+            "transid": "CC00"
+          }
+        },
+        {
+          "do": {
+            "aid": "ENTER",
+            "fields": {
+              "USERID": "ADMIN001",
+              "PASSWD": "PASSWORD"
+            }
+          }
+        },
+        {
+          "do": {
+            "aid": "ENTER",
+            "fields": {
+              "OPTION": "6"
+            }
+          }
+        },
+        {
+          "do": {
+            "aid": "ENTER",
+            "fields": {
+              "TRTYPCD": "01"
+            }
+          }
+        },
+        {
+          "do": {
+            "aid": "PF4"
+          }
+        },
+        {
+          "do": {
+            "aid": "PF4"
+          },
+          "expect": {
+            "map": "CTRTUPA",
+            "fields": {
+              "TRNNAME": "CTTU",
+              "PGMNAME": "COTRTUPC",
+              "TRTYPCD": "01",
+              "TRTYDSC": "PURCHASE",
+              "INFOMSG": "Enter transaction type to be maintained",
+              "FKEYS": "ENTER=Process F3=Exit",
+              "FKEY04": "F4=Delete",
+              "FKEY05": "F5=Save",
+              "FKEY06": "F6=Add",
+              "FKEY12": "F12=Cancel"
+            },
+            "protected": [
+              "TRTYDSC",
+              "TRTYPCD"
+            ],
+            "cursor": "TRTYPCD"
+          },
+          "match": "subset"
+        },
+        {
+          "do": {
+            "aid": "ENTER"
+          },
+          "expect": {
+            "abend": "9999",
+            "text": "9999COTRTUPC                                                  UNEXPECTED DATA SCENARIO"
+          }
+        },
+        {
+          "do": {
+            "transid": "CC00"
+          }
+        },
+        {
+          "do": {
+            "aid": "ENTER",
+            "fields": {
+              "USERID": "ADMIN001",
+              "PASSWD": "PASSWORD"
+            }
+          }
+        },
+        {
+          "do": {
+            "aid": "ENTER",
+            "fields": {
+              "OPTION": "6"
+            }
+          }
+        },
+        {
+          "do": {
+            "aid": "ENTER",
+            "fields": {
+              "TRTYPCD": "01"
+            }
+          },
+          "expect": {
+            "map": "CTRTUPA",
+            "fields": {
+              "TRNNAME": "CTTU",
+              "PGMNAME": "COTRTUPC",
+              "TRTYPCD": "01",
+              "TRTYDSC": "PURCHASE",
+              "INFOMSG": "Enter transaction type to be maintained",
+              "FKEYS": "ENTER=Process F3=Exit",
+              "FKEY04": "F4=Delete",
+              "FKEY05": "F5=Save",
+              "FKEY06": "F6=Add",
+              "FKEY12": "F12=Cancel"
+            },
+            "protected": [
+              "TRTYPCD"
+            ],
+            "cursor": "TRTYDSC"
+          }
+        }
+      ]
+    },
+    {
+      "id": "tran-type-maint-notfound-f5-create",
+      "title": "F5 on an unknown type opens the description for a new record",
+      "provenance": "observed",
+      "source": "app/app-transaction-type-db2/cbl/COTRTUPC.cbl 0000-MAIN PFK05 AND TTUP-DETAILS-NOT-FOUND -> TTUP-CREATE-NEW-RECORD",
+      "steps": [
+        {
+          "do": {
+            "transid": "CC00"
+          }
+        },
+        {
+          "do": {
+            "aid": "ENTER",
+            "fields": {
+              "USERID": "ADMIN001",
+              "PASSWD": "PASSWORD"
+            }
+          }
+        },
+        {
+          "do": {
+            "aid": "ENTER",
+            "fields": {
+              "OPTION": "6"
+            }
+          }
+        },
+        {
+          "do": {
+            "aid": "ENTER",
+            "fields": {
+              "TRTYPCD": "08"
+            }
+          }
+        },
+        {
+          "do": {
+            "aid": "PF5"
+          },
+          "expect": {
+            "map": "CTRTUPA",
+            "fields": {
+              "TRNNAME": "CTTU",
+              "PGMNAME": "COTRTUPC",
+              "TRTYPCD": "08",
+              "INFOMSG": "  Enter new transaction type details.",
+              "FKEYS": "ENTER=Process F3=Exit",
+              "FKEY04": "F4=Delete",
+              "FKEY05": "F5=Save",
+              "FKEY06": "F6=Add",
+              "FKEY12": "F12=Cancel"
+            },
+            "protected": [
+              "TRTYPCD"
+            ],
+            "cursor": "TRTYDSC"
+          }
+        }
+      ]
+    },
+    {
+      "id": "tran-type-maint-add-validated",
+      "title": "A description for a new type asks for F5 to save",
+      "provenance": "observed",
+      "source": "app/app-transaction-type-db2/cbl/COTRTUPC.cbl 1200-EDIT-MAP-INPUTS from TTUP-CREATE-NEW-RECORD",
+      "steps": [
+        {
+          "do": {
+            "transid": "CC00"
+          }
+        },
+        {
+          "do": {
+            "aid": "ENTER",
+            "fields": {
+              "USERID": "ADMIN001",
+              "PASSWD": "PASSWORD"
+            }
+          }
+        },
+        {
+          "do": {
+            "aid": "ENTER",
+            "fields": {
+              "OPTION": "6"
+            }
+          }
+        },
+        {
+          "do": {
+            "aid": "ENTER",
+            "fields": {
+              "TRTYPCD": "08"
+            }
+          }
+        },
+        {
+          "do": {
+            "aid": "PF5"
+          }
+        },
+        {
+          "do": {
+            "aid": "ENTER",
+            "fields": {
+              "TRTYDSC": "INSTALLMENT"
+            }
+          },
+          "expect": {
+            "map": "CTRTUPA",
+            "fields": {
+              "TRNNAME": "CTTU",
+              "PGMNAME": "COTRTUPC",
+              "TRTYPCD": "08",
+              "TRTYDSC": "INSTALLMENT",
+              "INFOMSG": "   Changes validated.Press F5 to save",
+              "FKEYS": "ENTER=Process F3=Exit",
+              "FKEY04": "F4=Delete",
+              "FKEY05": "F5=Save",
+              "FKEY06": "F6=Add",
+              "FKEY12": "F12=Cancel"
+            },
+            "protected": [
+              "TRTYDSC",
+              "TRTYPCD"
+            ],
+            "cursor": "TRTYDSC"
+          }
+        }
+      ]
+    },
+    {
+      "id": "tran-type-maint-add-save",
+      "title": "Legacy defect: F5 inserts the new type after the update finds no row, padded to 50 with TR-DESCRIPTION-LEN 50",
+      "provenance": "observed",
+      "source": "app/app-transaction-type-db2/cbl/COTRTUPC.cbl 9600-WRITE-PROCESSING SQLCODE +100 -> 9700-INSERT-RECORD",
+      "steps": [
+        {
+          "do": {
+            "transid": "CC00"
+          }
+        },
+        {
+          "do": {
+            "aid": "ENTER",
+            "fields": {
+              "USERID": "ADMIN001",
+              "PASSWD": "PASSWORD"
+            }
+          }
+        },
+        {
+          "do": {
+            "aid": "ENTER",
+            "fields": {
+              "OPTION": "6"
+            }
+          }
+        },
+        {
+          "do": {
+            "aid": "ENTER",
+            "fields": {
+              "TRTYPCD": "08"
+            }
+          }
+        },
+        {
+          "do": {
+            "aid": "PF5"
+          }
+        },
+        {
+          "do": {
+            "aid": "ENTER",
+            "fields": {
+              "TRTYDSC": "INSTALLMENT"
+            }
+          }
+        },
+        {
+          "do": {
+            "aid": "PF5"
+          },
+          "expect": {
+            "map": "CTRTUPA",
+            "fields": {
+              "TRNNAME": "CTTU",
+              "PGMNAME": "COTRTUPC",
+              "TRTYPCD": "08",
+              "TRTYDSC": "INSTALLMENT",
+              "INFOMSG": "     Changes committed to database",
+              "FKEYS": "ENTER=Process F3=Exit",
+              "FKEY04": "F4=Delete",
+              "FKEY05": "F5=Save",
+              "FKEY06": "F6=Add",
+              "FKEY12": "F12=Cancel"
+            },
+            "protected": [
+              "TRTYDSC",
+              "TRTYPCD"
+            ],
+            "cursor": "TRTYPCD",
+            "files": {
+              "TRANSACTION_TYPE": {
+                "inserted": [
+                  {
+                    "TR-TYPE": "08",
+                    "TR-DESCRIPTION-LEN": "50",
+                    "TR-DESCRIPTION": "INSTALLMENT"
+                  }
+                ]
+              }
+            }
+          }
+        }
+      ]
+    },
+    {
+      "id": "tran-type-maint-add-blank-desc",
+      "title": "ENTER on a new type with no description asks for one",
+      "provenance": "observed",
+      "source": "app/app-transaction-type-db2/cbl/COTRTUPC.cbl 1230-EDIT-ALPHANUM-REQD blank",
+      "steps": [
+        {
+          "do": {
+            "transid": "CC00"
+          }
+        },
+        {
+          "do": {
+            "aid": "ENTER",
+            "fields": {
+              "USERID": "ADMIN001",
+              "PASSWD": "PASSWORD"
+            }
+          }
+        },
+        {
+          "do": {
+            "aid": "ENTER",
+            "fields": {
+              "OPTION": "6"
+            }
+          }
+        },
+        {
+          "do": {
+            "aid": "ENTER",
+            "fields": {
+              "TRTYPCD": "08"
+            }
+          }
+        },
+        {
+          "do": {
+            "aid": "PF5"
+          }
+        },
+        {
+          "do": {
+            "aid": "ENTER"
+          },
+          "expect": {
+            "map": "CTRTUPA",
+            "fields": {
+              "TRNNAME": "CTTU",
+              "PGMNAME": "COTRTUPC",
+              "TRTYPCD": "08",
+              "TRTYDSC": "*",
+              "INFOMSG": " Update transaction type details shown.",
+              "ERRMSG": "Transaction Desc must be supplied.",
+              "FKEYS": "ENTER=Process F3=Exit",
+              "FKEY04": "F4=Delete",
+              "FKEY05": "F5=Save",
+              "FKEY06": "F6=Add",
+              "FKEY12": "F12=Cancel"
+            },
+            "colors": {
+              "TRTYDSC": "RED"
+            },
+            "protected": [
+              "TRTYPCD"
+            ],
+            "cursor": "TRTYDSC"
+          }
+        }
+      ]
+    },
+    {
+      "id": "tran-type-maint-add-cancel",
+      "title": "F12 on the add confirmation cancels and reopens the type code",
+      "provenance": "observed",
+      "source": "app/app-transaction-type-db2/cbl/COTRTUPC.cbl 2000-DECIDE-ACTION -> TTUP-CHANGES-BACKED-OUT with blank old type",
+      "steps": [
+        {
+          "do": {
+            "transid": "CC00"
+          }
+        },
+        {
+          "do": {
+            "aid": "ENTER",
+            "fields": {
+              "USERID": "ADMIN001",
+              "PASSWD": "PASSWORD"
+            }
+          }
+        },
+        {
+          "do": {
+            "aid": "ENTER",
+            "fields": {
+              "OPTION": "6"
+            }
+          }
+        },
+        {
+          "do": {
+            "aid": "ENTER",
+            "fields": {
+              "TRTYPCD": "08"
+            }
+          }
+        },
+        {
+          "do": {
+            "aid": "PF5"
+          }
+        },
+        {
+          "do": {
+            "aid": "ENTER",
+            "fields": {
+              "TRTYDSC": "INSTALLMENT"
+            }
+          }
+        },
+        {
+          "do": {
+            "aid": "PF12"
+          },
+          "expect": {
+            "map": "CTRTUPA",
+            "fields": {
+              "TRNNAME": "CTTU",
+              "PGMNAME": "COTRTUPC",
+              "INFOMSG": "Enter transaction type to be maintained",
+              "ERRMSG": "Update was cancelled",
+              "FKEYS": "ENTER=Process F3=Exit",
+              "FKEY04": "F4=Delete",
+              "FKEY05": "F5=Save",
+              "FKEY06": "F6=Add",
+              "FKEY12": "F12=Cancel"
+            },
+            "protected": [
+              "TRTYDSC"
+            ],
+            "cursor": "TRTYPCD"
+          }
+        }
+      ]
+    },
+    {
+      "id": "tran-type-maint-add-cancel-then-search-ignored",
+      "title": "Legacy quirk: the type code typed after a cancelled add is ignored",
+      "provenance": "observed",
+      "source": "app/app-transaction-type-db2/cbl/COTRTUPC.cbl 0000-MAIN TTUP-CHANGES-BACKED-OUT AND TTUP-OLD-DETAILS = SPACES resets before reading input",
+      "steps": [
+        {
+          "do": {
+            "transid": "CC00"
+          }
+        },
+        {
+          "do": {
+            "aid": "ENTER",
+            "fields": {
+              "USERID": "ADMIN001",
+              "PASSWD": "PASSWORD"
+            }
+          }
+        },
+        {
+          "do": {
+            "aid": "ENTER",
+            "fields": {
+              "OPTION": "6"
+            }
+          }
+        },
+        {
+          "do": {
+            "aid": "ENTER",
+            "fields": {
+              "TRTYPCD": "08"
+            }
+          }
+        },
+        {
+          "do": {
+            "aid": "PF5"
+          }
+        },
+        {
+          "do": {
+            "aid": "ENTER",
+            "fields": {
+              "TRTYDSC": "INSTALLMENT"
+            }
+          }
+        },
+        {
+          "do": {
+            "aid": "PF12"
+          }
+        },
+        {
+          "do": {
+            "aid": "ENTER",
+            "fields": {
+              "TRTYPCD": "01"
+            }
+          },
+          "expect": {
+            "map": "CTRTUPA",
+            "fields": {
+              "TRNNAME": "CTTU",
+              "PGMNAME": "COTRTUPC",
+              "INFOMSG": "Enter transaction type to be maintained",
+              "FKEYS": "ENTER=Process F3=Exit",
+              "FKEY04": "F4=Delete",
+              "FKEY05": "F5=Save",
+              "FKEY06": "F6=Add",
+              "FKEY12": "F12=Cancel"
+            },
+            "protected": [
+              "TRTYDSC"
+            ],
+            "cursor": "TRTYPCD"
+          }
+        }
+      ]
+    },
+    {
+      "id": "tran-type-maint-create-f12",
+      "title": "F12 while entering a new type returns to the empty search screen",
+      "provenance": "observed",
+      "source": "app/app-transaction-type-db2/cbl/COTRTUPC.cbl 0000-MAIN PFK12 AND TTUP-CREATE-NEW-RECORD",
+      "steps": [
+        {
+          "do": {
+            "transid": "CC00"
+          }
+        },
+        {
+          "do": {
+            "aid": "ENTER",
+            "fields": {
+              "USERID": "ADMIN001",
+              "PASSWD": "PASSWORD"
+            }
+          }
+        },
+        {
+          "do": {
+            "aid": "ENTER",
+            "fields": {
+              "OPTION": "6"
+            }
+          }
+        },
+        {
+          "do": {
+            "aid": "ENTER",
+            "fields": {
+              "TRTYPCD": "08"
+            }
+          }
+        },
+        {
+          "do": {
+            "aid": "PF5"
+          }
+        },
+        {
+          "do": {
+            "aid": "PF12"
+          },
+          "expect": {
+            "map": "CTRTUPA",
+            "fields": {
+              "TRNNAME": "CTTU",
+              "PGMNAME": "COTRTUPC",
+              "INFOMSG": "Enter transaction type to be maintained",
+              "FKEYS": "ENTER=Process F3=Exit",
+              "FKEY04": "F4=Delete",
+              "FKEY05": "F5=Save",
+              "FKEY06": "F6=Add",
+              "FKEY12": "F12=Cancel"
+            },
+            "protected": [
+              "TRTYDSC"
+            ],
+            "cursor": "TRTYPCD"
+          }
+        }
+      ]
+    },
+    {
+      "id": "tran-type-maint-notfound-f12",
+      "title": "F12 on the not-found screen returns to the empty search screen",
+      "provenance": "observed",
+      "source": "app/app-transaction-type-db2/cbl/COTRTUPC.cbl 0000-MAIN PFK12 AND TTUP-DETAILS-NOT-FOUND",
+      "steps": [
+        {
+          "do": {
+            "transid": "CC00"
+          }
+        },
+        {
+          "do": {
+            "aid": "ENTER",
+            "fields": {
+              "USERID": "ADMIN001",
+              "PASSWD": "PASSWORD"
+            }
+          }
+        },
+        {
+          "do": {
+            "aid": "ENTER",
+            "fields": {
+              "OPTION": "6"
+            }
+          }
+        },
+        {
+          "do": {
+            "aid": "ENTER",
+            "fields": {
+              "TRTYPCD": "08"
+            }
+          }
+        },
+        {
+          "do": {
+            "aid": "PF12"
+          },
+          "expect": {
+            "map": "CTRTUPA",
+            "fields": {
+              "TRNNAME": "CTTU",
+              "PGMNAME": "COTRTUPC",
+              "INFOMSG": "Enter transaction type to be maintained",
+              "FKEYS": "ENTER=Process F3=Exit",
+              "FKEY04": "F4=Delete",
+              "FKEY05": "F5=Save",
+              "FKEY06": "F6=Add",
+              "FKEY12": "F12=Cancel"
+            },
+            "protected": [
+              "TRTYDSC"
+            ],
+            "cursor": "TRTYPCD"
+          }
+        }
+      ]
+    },
+    {
+      "id": "tran-type-maint-notfound-enter-again",
+      "title": "ENTER again on the not-found screen reads the same key again",
+      "provenance": "observed",
+      "source": "app/app-transaction-type-db2/cbl/COTRTUPC.cbl 1150-STORE-MAP-IN-NEW / 1200-EDIT-MAP-INPUTS same key on TTUP-DETAILS-NOT-FOUND",
+      "steps": [
+        {
+          "do": {
+            "transid": "CC00"
+          }
+        },
+        {
+          "do": {
+            "aid": "ENTER",
+            "fields": {
+              "USERID": "ADMIN001",
+              "PASSWD": "PASSWORD"
+            }
+          }
+        },
+        {
+          "do": {
+            "aid": "ENTER",
+            "fields": {
+              "OPTION": "6"
+            }
+          }
+        },
+        {
+          "do": {
+            "aid": "ENTER",
+            "fields": {
+              "TRTYPCD": "08"
+            }
+          }
+        },
+        {
+          "do": {
+            "aid": "ENTER"
+          },
+          "expect": {
+            "map": "CTRTUPA",
+            "fields": {
+              "TRNNAME": "CTTU",
+              "PGMNAME": "COTRTUPC",
+              "TRTYPCD": "08",
+              "INFOMSG": "    Press F05 to add. F12 to cancel",
+              "ERRMSG": "No record found for this key in database",
+              "FKEYS": "ENTER=Process F3=Exit",
+              "FKEY04": "F4=Delete",
+              "FKEY05": "F5=Save",
+              "FKEY06": "F6=Add",
+              "FKEY12": "F12=Cancel"
+            },
+            "colors": {
+              "TRTYPCD": "RED"
+            },
+            "protected": [
+              "TRTYDSC"
+            ],
+            "cursor": "TRTYPCD"
+          }
+        }
+      ]
+    },
+    {
+      "id": "tran-type-maint-notfound-non-numeric-insert",
+      "title": "Legacy defect: a type code retyped on the not-found screen skips the numeric edit, so a non-numeric type is inserted",
+      "provenance": "observed",
+      "source": "app/app-transaction-type-db2/cbl/COTRTUPC.cbl 1200-EDIT-MAP-INPUTS skips 1210-EDIT-TRANTYPE on TTUP-DETAILS-NOT-FOUND",
+      "steps": [
+        {
+          "do": {
+            "transid": "CC00"
+          }
+        },
+        {
+          "do": {
+            "aid": "ENTER",
+            "fields": {
+              "USERID": "ADMIN001",
+              "PASSWD": "PASSWORD"
+            }
+          }
+        },
+        {
+          "do": {
+            "aid": "ENTER",
+            "fields": {
+              "OPTION": "6"
+            }
+          }
+        },
+        {
+          "do": {
+            "aid": "ENTER",
+            "fields": {
+              "TRTYPCD": "08"
+            }
+          }
+        },
+        {
+          "do": {
+            "aid": "ENTER",
+            "fields": {
+              "TRTYPCD": "AB"
+            }
+          },
+          "expect": {
+            "map": "CTRTUPA",
+            "fields": {
+              "TRNNAME": "CTTU",
+              "PGMNAME": "COTRTUPC",
+              "TRTYPCD": "AB",
+              "INFOMSG": "    Press F05 to add. F12 to cancel",
+              "ERRMSG": "No record found for this key in database",
+              "FKEYS": "ENTER=Process F3=Exit",
+              "FKEY04": "F4=Delete",
+              "FKEY05": "F5=Save",
+              "FKEY06": "F6=Add",
+              "FKEY12": "F12=Cancel"
+            },
+            "colors": {
+              "TRTYPCD": "RED"
+            },
+            "protected": [
+              "TRTYDSC"
+            ],
+            "cursor": "TRTYPCD"
+          }
+        },
+        {
+          "do": {
+            "aid": "PF5"
+          }
+        },
+        {
+          "do": {
+            "aid": "ENTER",
+            "fields": {
+              "TRTYDSC": "BOGUS"
+            }
+          }
+        },
+        {
+          "do": {
+            "aid": "PF5"
+          },
+          "expect": {
+            "map": "CTRTUPA",
+            "fields": {
+              "TRNNAME": "CTTU",
+              "PGMNAME": "COTRTUPC",
+              "TRTYPCD": "AB",
+              "TRTYDSC": "BOGUS",
+              "INFOMSG": "     Changes committed to database",
+              "FKEYS": "ENTER=Process F3=Exit",
+              "FKEY04": "F4=Delete",
+              "FKEY05": "F5=Save",
+              "FKEY06": "F6=Add",
+              "FKEY12": "F12=Cancel"
+            },
+            "protected": [
+              "TRTYDSC",
+              "TRTYPCD"
+            ],
+            "cursor": "TRTYPCD",
+            "files": {
+              "TRANSACTION_TYPE": {
+                "inserted": [
+                  {
+                    "TR-TYPE": "AB",
+                    "TR-DESCRIPTION-LEN": "50",
+                    "TR-DESCRIPTION": "BOGUS"
+                  }
+                ]
+              }
+            }
+          }
+        }
+      ]
+    },
+    {
+      "id": "tran-type-maint-exit-f3",
+      "title": "F3 returns to the admin menu",
+      "provenance": "observed",
+      "source": "app/app-transaction-type-db2/cbl/COTRTUPC.cbl 0000-MAIN PFK03 XCTL CDEMO-FROM-PROGRAM",
+      "steps": [
+        {
+          "do": {
+            "transid": "CC00"
+          }
+        },
+        {
+          "do": {
+            "aid": "ENTER",
+            "fields": {
+              "USERID": "ADMIN001",
+              "PASSWD": "PASSWORD"
+            }
+          }
+        },
+        {
+          "do": {
+            "aid": "ENTER",
+            "fields": {
+              "OPTION": "6"
+            }
+          }
+        },
+        {
+          "do": {
+            "aid": "PF3"
+          },
+          "expect": {
+            "map": "COADM1A",
+            "fields": {
+              "TRNNAME": "CA00",
+              "PGMNAME": "COADM01C",
+              "OPTN001": "01. User List (Security)",
+              "OPTN002": "02. User Add (Security)",
+              "OPTN003": "03. User Update (Security)",
+              "OPTN004": "04. User Delete (Security)",
+              "OPTN005": "05. Transaction Type List/Update (Db2)",
+              "OPTN006": "06. Transaction Type Maintenance (Db2)"
+            },
+            "cursor": "OPTION"
+          }
+        }
+      ]
+    },
+    {
+      "id": "tran-type-maint-invalid-key",
+      "title": "An unassigned key reports an invalid key and keeps the search screen",
+      "provenance": "observed",
+      "source": "app/app-transaction-type-db2/cbl/COTRTUPC.cbl 0001-CHECK-PFKEYS, WS-INVALID-KEY-PRESSED",
+      "steps": [
+        {
+          "do": {
+            "transid": "CC00"
+          }
+        },
+        {
+          "do": {
+            "aid": "ENTER",
+            "fields": {
+              "USERID": "ADMIN001",
+              "PASSWD": "PASSWORD"
+            }
+          }
+        },
+        {
+          "do": {
+            "aid": "ENTER",
+            "fields": {
+              "OPTION": "6"
+            }
+          }
+        },
+        {
+          "do": {
+            "aid": "PF7"
+          },
+          "expect": {
+            "map": "CTRTUPA",
+            "fields": {
+              "TRNNAME": "CTTU",
+              "PGMNAME": "COTRTUPC",
+              "INFOMSG": "Enter transaction type to be maintained",
+              "ERRMSG": "Invalid key pressed",
+              "FKEYS": "ENTER=Process F3=Exit",
+              "FKEY04": "F4=Delete",
+              "FKEY05": "F5=Save",
+              "FKEY06": "F6=Add",
+              "FKEY12": "F12=Cancel"
+            },
+            "protected": [
+              "TRTYDSC"
+            ],
+            "cursor": "TRTYPCD"
+          }
+        }
+      ]
+    },
+    {
+      "id": "tran-type-maint-from-list-f2",
+      "title": "F2 on the type list opens the same empty screen and F3 returns to the list",
+      "provenance": "observed",
+      "source": "app/app-transaction-type-db2/cbl/COTRTUPC.cbl 0000-MAIN NOT CDEMO-PGM-REENTER from COTRTLIC; PFK03 XCTL CDEMO-FROM-PROGRAM",
+      "steps": [
+        {
+          "do": {
+            "transid": "CC00"
+          }
+        },
+        {
+          "do": {
+            "aid": "ENTER",
+            "fields": {
+              "USERID": "ADMIN001",
+              "PASSWD": "PASSWORD"
+            }
+          }
+        },
+        {
+          "do": {
+            "aid": "ENTER",
+            "fields": {
+              "OPTION": "5"
+            }
+          }
+        },
+        {
+          "do": {
+            "aid": "PF2"
+          },
+          "expect": {
+            "map": "CTRTUPA",
+            "fields": {
+              "TRNNAME": "CTTU",
+              "PGMNAME": "COTRTUPC",
+              "INFOMSG": "Enter transaction type to be maintained",
+              "FKEYS": "ENTER=Process F3=Exit",
+              "FKEY04": "F4=Delete",
+              "FKEY05": "F5=Save",
+              "FKEY06": "F6=Add",
+              "FKEY12": "F12=Cancel"
+            },
+            "protected": [
+              "TRTYDSC"
+            ],
+            "cursor": "TRTYPCD"
+          }
+        },
+        {
+          "do": {
+            "aid": "PF3"
+          },
+          "expect": {
+            "map": "CTRTLIA",
+            "fields": {
+              "TRNNAME": "CTLI",
+              "PGMNAME": "COTRTLIC",
+              "PAGENO": "1",
+              "TRTTYP1": "01",
+              "TRTYPD1": "PURCHASE",
+              "TRTTYP2": "02",
+              "TRTYPD2": "PAYMENT",
+              "TRTTYP3": "03",
+              "TRTYPD3": "CREDIT",
+              "TRTTYP4": "04",
+              "TRTYPD4": "AUTHORIZATION",
+              "TRTTYP5": "05",
+              "TRTYPD5": "REFUND",
+              "TRTTYP6": "06",
+              "TRTYPD6": "REVERAL",
+              "TRTTYP7": "07",
+              "TRTYPD7": "ADJUSTMENT",
+              "INFOMSG": "  Type U to update, D to delete any record",
+              "BUTNF02": "F2=Add",
+              "BUTNF03": "F3=Exit",
+              "BUTNF07": "F7=Page Up",
+              "BUTNF08": "F8=Page Dn",
+              "BUTNF10": "F10=Save"
+            },
+            "protected": [
+              "TRTYPD1",
+              "TRTYPD2",
+              "TRTYPD3",
+              "TRTYPD4",
+              "TRTYPD5",
+              "TRTYPD6",
+              "TRTYPD7"
+            ],
+            "unprotected": [
+              "TRTSEL1",
+              "TRTSEL2",
+              "TRTSEL3",
+              "TRTSEL4",
+              "TRTSEL5",
+              "TRTSEL6",
+              "TRTSEL7"
+            ],
+            "cursor": "TRTYPE"
+          }
+        }
+      ]
+    }
+  ]
+}

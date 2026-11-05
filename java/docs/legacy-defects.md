@@ -247,6 +247,42 @@ MOVE of a short account id into ACCT-ID PIC 9(11) leaves it unpadded, so 1 is no
 - Pinned by `bill-pay-short-account-not-found`.
 - Fix: zero-pad a short numeric account id to 11 digits before the read.
 
+## `COBTUPDT-description-keeps-trailing-blanks`
+
+INSERT and UPDATE bind the fixed 50-byte INPUT-REC-DESC to the VARCHAR(50) TR_DESCRIPTION, so every description is stored with its trailing blanks, length 50.
+
+- Lives in [`Cobtupdt.description`](../src/main/java/com/carddemo/batch/programs/Cobtupdt.java).
+- Comes from the program logic.
+- Pinned by `batch-tran-type-add-keeps-trailing-blanks`, `batch-tran-type-add-update-delete`, `batch-tran-type-later-sql-resets-rc`, `batch-tran-type-code-not-validated`.
+- Fix: bind a VARCHAR host variable that holds the description without its trailing blanks.
+
+## `COBTUPDT-message-keeps-stale-tail`
+
+STRING ... DELIMITED BY SIZE INTO WS-RETURN-MSG replaces only the characters it moves and the message is never cleared, so a shorter message DISPLAYs with the tail of a longer one.
+
+- Lives in [`Cobtupdt.Run.string`](../src/main/java/com/carddemo/batch/programs/Cobtupdt.java).
+- Comes from the program logic.
+- Pinned by `batch-tran-type-message-keeps-stale-tail`.
+- Fix: MOVE SPACES TO WS-RETURN-MSG before each STRING.
+
+## `COBTUPDT-sql-resets-return-code`
+
+9999-ABEND sets RETURN-CODE to 4, but the CALL the precompiler generates for the next SQL statement sets RETURN-CODE again, so an error followed by a statement that succeeds ends the step RC 0.
+
+- Lives in [`Cobtupdt.Run.sql`](../src/main/java/com/carddemo/batch/programs/Cobtupdt.java).
+- Comes from the program logic.
+- Pinned by `batch-tran-type-later-sql-resets-rc`.
+- Fix: keep the highest return code in working storage and move it to RETURN-CODE before STOP RUN.
+
+## `COBTUPDT-type-code-not-validated`
+
+The two-byte type code is bound as read, although MNTTRDB2 documents a numeric value, so letters and a blank second byte are added.
+
+- Lives in [`Cobtupdt.typeCode`](../src/main/java/com/carddemo/batch/programs/Cobtupdt.java).
+- Comes from the program logic.
+- Pinned by `batch-tran-type-code-not-validated`.
+- Fix: reject a record whose columns 2-3 are not two digits.
+
 ## `COCRDLIC-bad-filter-keeps-page`
 
 A non-numeric filter skips the browse, so the previous page stays on screen and every selection field stays protected.
@@ -588,6 +624,213 @@ IS NUMERIC fails when trailing blanks pad a short entry out to the field, so an 
 - Comes from the program logic.
 - Pinned by `transaction-add-short-account-not-numeric`, `transaction-add-type-one-digit`.
 - Fix: accept digits shorter than the field and pad them with leading zeros.
+
+## `COTRTLIC-case-only-change`
+
+A description that differs only in case is reported as 'No change detected', yet the update is still pending and F10 writes the typed text.
+
+- Lives in [`TranTypeListScreen.Task.editArrayDesc`](../src/main/java/com/carddemo/trantype/TranTypeListScreen.java).
+- Comes from the program logic.
+- Pinned by `tran-type-list-select-update`, `tran-type-list-update-case-only`, `tran-type-list-update-unchanged-save`.
+- Fix: compare the descriptions exactly, or drop the pending update when no change is detected.
+
+## `COTRTLIC-deleted-row-stays`
+
+The screen after a delete is built before the list is re-read, so the deleted row stays on it until the next ENTER.
+
+- Lives in [`TranTypeListScreen.Task.deletedRowStays`](../src/main/java/com/carddemo/trantype/TranTypeListScreen.java).
+- Comes from the program logic.
+- Pinned by `tran-type-list-delete-confirm`.
+- Fix: re-read the page after the delete and before SEND MAP.
+
+## `COTRTLIC-description-padded`
+
+The VARCHAR length is set to the length of the 50-byte field instead of the trimmed text, so every saved description is padded with blanks to 50.
+
+- Lives in [`TranTypeListScreen.Task.updateRecord`](../src/main/java/com/carddemo/trantype/TranTypeListScreen.java).
+- Comes from the program logic.
+- Pinned by `tran-type-list-update-save`, `tran-type-list-update-case-only`, `tran-type-list-update-unchanged-save`.
+- Fix: set DCL-TR-DESCRIPTION-LEN to the length of the trimmed description.
+
+## `COTRTLIC-dsntiac-message-length`
+
+INITIALIZE WS-MISC-STORAGE zeroes WS-DSNTIAC-MESG-LEN before each call, so DSNTIAC always returns 12 and every Db2 error shows 'DSNTIAC CD12' instead of the Db2 message.
+
+- Lives in [`TranTypeListScreen.db2Message`](../src/main/java/com/carddemo/trantype/TranTypeListScreen.java).
+- Comes from the program logic.
+- Pinned by `tran-type-list-delete-child-records`.
+- Fix: set WS-DSNTIAC-MESG-LEN to 720 before the CALL.
+
+## `COTRTLIC-no-sign-on`
+
+CTLI typed on a clear screen starts with EIBCALEN = 0, and the program builds its own COMMAREA marked admin instead of sending the user to sign on, so anyone at a terminal can list, update and delete transaction types and reach the admin menu with F3.
+
+- Lives in [`TranTypeListScreen.xctl`](../src/main/java/com/carddemo/trantype/TranTypeListScreen.java).
+- Comes from the program logic.
+- Pinned by `tran-type-list-direct-transid`, `tran-type-list-direct-transid-exit`.
+- Fix: XCTL to COSGN00C when EIBCALEN = 0.
+
+## `COTRTLIC-page-up-short-page`
+
+8100-READ-BACKWARDS treats +100 as an error, so F7 onto a page with fewer than seven earlier rows shows 'Error on fetch Cursor C-TR-TYPE-BACKWARD' over a partly filled page.
+
+- Lives in [`TranTypeListScreen.Task.readBackwards`](../src/main/java/com/carddemo/trantype/TranTypeListScreen.java).
+- Comes from the program logic.
+- No golden pins it yet. It is read from the source.
+- Fix: treat +100 as the end of the page and read forward from the first row.
+
+## `COTRTLIC-page-up-to-first-page`
+
+The message is chosen after the page is read, so F7 that pages back to page 1 reports 'No previous pages to display' above the page it just showed.
+
+- Lives in [`TranTypeListScreen.Task.noPreviousPages`](../src/main/java/com/carddemo/trantype/TranTypeListScreen.java).
+- Comes from the program logic.
+- Pinned by `tran-type-list-page-up`.
+- Fix: test for the first page before paging back.
+
+## `COTRTLIC-rejected-filter-keeps-rows`
+
+A rejected filter skips the read but has already cleared the paging variables, so the previous rows stay on screen, protected, above page number 0.
+
+- Lives in [`TranTypeListScreen.Task.rejectedInput`](../src/main/java/com/carddemo/trantype/TranTypeListScreen.java).
+- Comes from the program logic.
+- Pinned by `tran-type-list-type-filter-non-numeric`, `tran-type-list-type-filter-no-match`, `tran-type-list-desc-filter-lowercase`, `tran-type-list-combined-filters-no-match`.
+- Fix: clear the rows when a filter is rejected, or keep the paging variables until the filter is accepted.
+
+## `COTRTLIC-screen-number-wraps`
+
+The page number is a PIC 9(1): F8 past page 9 shows page 0, and F7 from page 0 shows page 1.
+
+- Lives in [`TranTypeListScreen.screenNumAfter`](../src/main/java/com/carddemo/trantype/TranTypeListScreen.java).
+- Comes from the program logic.
+- No golden pins it yet. It is read from the source.
+- Fix: widen WS-CA-SCREEN-NUM and PAGENO's source field.
+
+## `COTRTLIC-selection-survives-filter-change`
+
+1210-EDIT-ARRAY means to drop the selections when a filter changed, but it runs before the filter edits set those flags, so a D or U typed with a new filter is acted on against the rows of the old page.
+
+- Lives in [`TranTypeListScreen.Task.editArray`](../src/main/java/com/carddemo/trantype/TranTypeListScreen.java).
+- Comes from the program logic.
+- No golden pins it yet. It is read from the source.
+- Fix: edit the filters before the selections.
+
+## `COTRTLIC-switch-to-delete-without-confirm`
+
+F10 confirms whatever is selected now while either request flag is set and the row and filters are unchanged, so a row shown for update, changed to D, is deleted by F10 without the delete confirmation.
+
+- Lives in [`TranTypeListScreen.Task.confirmed`](../src/main/java/com/carddemo/trantype/TranTypeListScreen.java).
+- Comes from the program logic.
+- Pinned by `tran-type-list-update-switched-to-delete`.
+- Fix: keep F10 only when the pending request matches the action now selected on the row.
+
+## `COTRTUPC-cancelled-add-ignores-search`
+
+After F12 cancels an add, the screen prompts for a type code with the cursor on it, but the next ENTER starts over at the empty first display and ignores the typed code.
+
+- Lives in [`TransactionTypeMaintenanceScreen.Task.backedOutWithNothingFetched`](../src/main/java/com/carddemo/trantype/TransactionTypeMaintenanceScreen.java).
+- Comes from the program logic.
+- Pinned by `tran-type-maint-add-cancel-then-search-ignored`.
+- Fix: after a cancelled add go straight to TTUP-DETAILS-NOT-FETCHED, so the next ENTER searches.
+
+## `COTRTUPC-case-only-change-is-no-change`
+
+A description that differs from the stored one only in letter case counts as 'No change detected', so it cannot be saved.
+
+- Lives in [`TransactionTypeMaintenanceScreen.Task.sameAsFetched`](../src/main/java/com/carddemo/trantype/TransactionTypeMaintenanceScreen.java).
+- Comes from the program logic.
+- Pinned by `tran-type-maint-edit-case-only`.
+- Fix: compare the descriptions as typed.
+
+## `COTRTUPC-delete-confirm-legend-dark-unprotected`
+
+On the delete confirmation the ENTER=Process F3=Exit legend gets DFHBMDAR, which hides it but also unprotects it, so the user can type into the legend.
+
+- Lives in [`TransactionTypeMaintenanceScreen.Task.legendAttribute`](../src/main/java/com/carddemo/trantype/TransactionTypeMaintenanceScreen.java).
+- Comes from the program logic.
+- Pinned by `tran-type-maint-found-f4-confirm`, `tran-type-maint-delete-confirm-enter-rejected`.
+- Fix: use a protected dark attribute for the legend.
+
+## `COTRTUPC-description-padded-to-50`
+
+DCL-TR-DESCRIPTION-LEN is set to the length of the 50-byte field rather than of the trimmed text, so every saved VARCHAR description is padded with blanks to 50.
+
+- Lives in [`TransactionTypeMaintenanceScreen.Task.descriptionHostVariable`](../src/main/java/com/carddemo/trantype/TransactionTypeMaintenanceScreen.java).
+- Comes from the program logic.
+- Pinned by `tran-type-maint-edit-save`, `tran-type-maint-cancelled-then-save`, `tran-type-maint-add-save`, `tran-type-maint-notfound-non-numeric-insert`.
+- Fix: set the length to that of the trimmed description.
+
+## `COTRTUPC-f12-invalid-after-failed-edit`
+
+After an edit fails validation the F12=Cancel legend is gone and F12 answers 'Invalid key pressed', so the only ways out are fixing the edit or F3.
+
+- Lives in [`TransactionTypeMaintenanceScreen.Task.cancelAccepted`](../src/main/java/com/carddemo/trantype/TransactionTypeMaintenanceScreen.java).
+- Comes from the program logic.
+- Pinned by `tran-type-maint-edit-error-f12-rejected`.
+- Fix: accept F12 on TTUP-CHANGES-NOT-OK too and restore the fetched values.
+
+## `COTRTUPC-failed-save-reported-committed`
+
+An UPDATE that fails with a negative SQLCODE other than -911 sets TABLE-UPDATE-FAILED, but the STRING of the SQL error overwrites that message, so the state becomes TTUP-CHANGES-OKAYED-AND-DONE and the info line says 'Changes committed to database'.
+
+- Lives in [`TransactionTypeMaintenanceScreen.Task.updateFailed`](../src/main/java/com/carddemo/trantype/TransactionTypeMaintenanceScreen.java).
+- Comes from the program logic.
+- No golden pins it yet. It is read from the source.
+- Fix: decide the state from the SQLCODE rather than from the message text.
+
+## `COTRTUPC-fetched-type-shows-search-prompt`
+
+A fetched type opens its description for edit but the info line says 'Enter transaction type to be maintained': TTUP-SHOW-DETAILS shares the WHEN of the search prompt.
+
+- Lives in [`TransactionTypeMaintenanceScreen.Task.infoForShownDetails`](../src/main/java/com/carddemo/trantype/TransactionTypeMaintenanceScreen.java).
+- Comes from the program logic.
+- Pinned by `tran-type-maint-search-found`, `tran-type-maint-search-single-digit`, `tran-type-maint-search-negative`, `tran-type-maint-edit-no-change`, `tran-type-maint-edit-case-only`, `tran-type-maint-found-f5-invalid`.
+- Fix: show FOUND-TRANTYPE-DATA or PROMPT-FOR-CHANGES for TTUP-SHOW-DETAILS.
+
+## `COTRTUPC-fk-delete-left-in-progress`
+
+A delete rejected with -532 because categories still refer to the type never sets TTUP-DELETE-FAILED, so the state stays TTUP-START-DELETE and the next ENTER falls to 2000-DECIDE-ACTION's WHEN OTHER and abends 9999.
+
+- Lives in [`TransactionTypeMaintenanceScreen.Task.childRowsBlockDelete`](../src/main/java/com/carddemo/trantype/TransactionTypeMaintenanceScreen.java).
+- Comes from the program logic.
+- Pinned by `tran-type-maint-delete-with-children`.
+- Fix: set TTUP-DELETE-FAILED on -532 as on every other failure.
+
+## `COTRTUPC-insert-error-shows-update-sqlcode`
+
+A failed INSERT reports the SQLCODE of the UPDATE before it, always 100, next to the INSERT's own message, and like a failed UPDATE it is then reported as committed.
+
+- Lives in [`TransactionTypeMaintenanceScreen.Task.insertRecord`](../src/main/java/com/carddemo/trantype/TransactionTypeMaintenanceScreen.java).
+- Comes from the program logic.
+- No golden pins it yet. It is read from the source.
+- Fix: move the INSERT's SQLCODE to WS-DISP-SQLCODE and decide the state from it.
+
+## `COTRTUPC-negative-type-code`
+
+'-1' passes the numeric edit and COMPUTE into the unsigned PIC 9(2) drops the sign, so it fetches type 01.
+
+- Lives in [`TransactionTypeMaintenanceScreen.Task.editedTypeCode`](../src/main/java/com/carddemo/trantype/TransactionTypeMaintenanceScreen.java).
+- Comes from the program logic.
+- Pinned by `tran-type-maint-search-negative`.
+- Fix: reject a sign or a decimal point in the type code.
+
+## `COTRTUPC-retyped-code-skips-edit`
+
+A type code typed over the not-found screen is searched without 1210-EDIT-TRANTYPE, so a non-numeric code such as 'AB' is accepted and can be added with F5.
+
+- Lives in [`TransactionTypeMaintenanceScreen.Task.searchRetypedCode`](../src/main/java/com/carddemo/trantype/TransactionTypeMaintenanceScreen.java).
+- Comes from the program logic.
+- Pinned by `tran-type-maint-notfound-non-numeric-insert`.
+- Fix: run 1210-EDIT-TRANTYPE on every newly typed code.
+
+## `COTRTUPC-sqlerrm-length-bytes-in-message`
+
+The SQL error messages STRING the whole SQLERRM group, so its binary SQLERRML shows on the screen as two bytes before the message tokens.
+
+- Lives in [`TransactionTypeMaintenanceScreen.sqlerrm`](../src/main/java/com/carddemo/trantype/TransactionTypeMaintenanceScreen.java).
+- Comes from the program logic.
+- No golden pins it yet. It is read from the source.
+- Fix: STRING SQLERRMC(1:SQLERRML), or DSNTIAR's formatted text.
 
 ## `COUSR00C-endbr-after-notfnd`
 

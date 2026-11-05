@@ -19,7 +19,7 @@ This directory is the maintained source for verifying CardDemo's user-facing beh
 
 ## Java slice coverage
 
-Every feature with cases is ported. `python3 characterization/run.py --target java` prints `java: 325 PASS`: 297 online cases across the 17 online features and 28 batch cases across `batch-posting`, `batch-interest`, `batch-statements`, `batch-reports` and `batch-extracts`. No feature reports `SKIP`. Main menu options 1-10 and admin options 1-4 reach ported screens. Main option 11 and admin options 5-6 reach a placeholder screen in Java (`PendingProgramScreen`, a text reply naming the unported program), as does any program with no `Screen` bean.
+Every feature with cases is ported. `python3 characterization/run.py --target java` prints `java: 424 PASS`: 384 online cases across the 19 online features and 40 batch cases across `batch-posting`, `batch-interest`, `batch-statements`, `batch-reports`, `batch-extracts` and `batch-tran-type-maint`. No feature reports `SKIP`. Main menu options 1-10 and admin options 1-4 reach ported screens; admin options 5-6 reach the Db2 extension's screens when it is installed and answer "not installed" otherwise. Main option 11 reaches a placeholder screen in Java (`PendingProgramScreen`, a text reply naming the unported program), as does any program with no `Screen` bean.
 
 On the Java slice a batch case is a one-step deck that the adapter submits to TD queue `JOBS`. The warm server's internal reader runs the deck, and the adapter reads the completion, spool and table diffs back (`SKILL.md`, "Adding a Java slice"). The report submit (`report-submit`, CORPT00C) queues a deck that the reader runs as the TRANREPT procedure. The adapter waits for that run to end, but the golden compares only the queued cards. The CLOSEFIL and OPENFIL jobs, WAITSTEP and the scheduler chains have no goldens. Spring tests cover them (`java/README.md`, "Batch").
 
@@ -36,7 +36,7 @@ On the Java slice a batch case is a one-step deck that the adapter submits to TD
 - Every file is `RECOVERY(NONE)` in the CSD: no rollback on SYNCPOINT ROLLBACK or abend.
 - The online TRANSACT seed is `dailytran.txt` (the mainframe INIT seed is one placeholder record).
 - CBSTM03A's TIOT walk (z/OS control blocks) is commented out at build time; its DD-name SYSOUT lines are not characterized.
-- Optional Db2, IMS and MQ modules (`app/app-*`) are out of scope.
+- Optional IMS and MQ modules (`app/app-*`) are out of scope. The Db2 transaction-type extension is in scope; its SQL runs on Postgres under a Db2 emulation (`db2-transaction-types.md`, "Gotchas").
 
 ## Feature entry contract
 
@@ -49,4 +49,5 @@ Each feature file starts with an H1 and one paragraph describing the user-visibl
 - [User administration](./user-admin.md): `user-list`, `user-add`, `user-update`, `user-delete` (COUSR00C-03C).
 - [Account and card](./account-card.md): `account-view`, `account-update`, `card-list`, `card-detail`, `card-update`.
 - [Transactions and bill pay](./transactions.md): `transaction-list`, `transaction-view`, `transaction-add`, `bill-pay`, `report-submit`.
+- [Db2 transaction types](./db2-transaction-types.md): `tran-type-list` (COTRTLIC), `tran-type-maint` (COTRTUPC), `batch-tran-type-maint` (COBTUPDT).
 - [Batch jobs](./batch.md): `batch-posting`, `batch-interest`, `batch-statements`, `batch-reports`, `batch-extracts`.

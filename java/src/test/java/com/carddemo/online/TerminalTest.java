@@ -44,6 +44,27 @@ class TerminalTest {
     }
 
     @Test
+    void lowValuesInsideSentTextShowAsBlanksAndAllLowValuesKeepTheField() {
+        Terminal terminal = signon();
+        terminal.typeAndSend(COSGN0A.MAP, Key.ENTER, Map.of("USERID", "USER0001"));
+
+        terminal.sendMap(SymbolicMap.lowValues(COSGN0A.MAP).set(COSGN0A.ERRMSG, "-532:\0Fupdate").set(COSGN0A.USERID, "\0\0"),
+                SendMode.CURSOR);
+
+        assertEquals("-532: Fupdate", terminal.shownValues().get("ERRMSG"));
+        assertEquals("USER0001", terminal.shownValues().get("USERID"));
+    }
+
+    @Test
+    void darkUnprotectsAFieldWithoutItsTag() {
+        Terminal terminal = new Terminal();
+        terminal.sendMap(SymbolicMap.lowValues(CACTUPA.MAP).attribute(CACTUPA.FKEY05, FieldAttribute.BMDAR), SendMode.ERASE_CURSOR);
+
+        assertFalse(terminal.protectedFields().contains("FKEY05"));
+        assertTrue(terminal.typeAndSend(CACTUPA.MAP, Key.ENTER, Map.of()).map(m -> m.isLowValues(CACTUPA.FKEY05)).orElse(true));
+    }
+
+    @Test
     void anotherMapResetsTheScreenWithoutErase() {
         Terminal terminal = signon();
         terminal.typeAndSend(COSGN0A.MAP, Key.ENTER, Map.of("USERID", "USER0001"));

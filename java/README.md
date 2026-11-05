@@ -18,13 +18,15 @@ The command writes `src/main/resources/db/migration/V1__vsam_ksds_tables.sql` an
 
 `V4__batch.sql` and `V5__tcatbalf_filler.sql` are written by hand for the batch layer. They are described under [Batch](#batch).
 
+`V6__db2_transaction_types.sql` and `V7__installed_extensions.sql` are written by hand for the optional Db2 transaction-type extension (`app/app-transaction-type-db2`). They are described under [Db2 transaction types](#db2-transaction-types).
+
 ## Regenerate the screen maps
 
 ```
 mvn -q exec:java -Dexec.mainClass=com.carddemo.bms.ScreenMapGenerator -Dexec.args=/workspace/app
 ```
 
-The command writes one field enum per BMS map into `src/main/java/com/carddemo/online/maps`. `ScreenMapsDriftTest` fails when a checked-in enum differs from the BMS source.
+The command writes one field enum per BMS map of `app/bms` and `app/app-transaction-type-db2/bms` into `src/main/java/com/carddemo/online/maps`. `ScreenMapsDriftTest` fails when a checked-in enum differs from the BMS source.
 
 ## Load the sample data
 
@@ -81,13 +83,13 @@ From the repository root:
 python3 characterization/run.py --target java
 ```
 
-The command prints `java: 325 PASS`: 297 online cases and 28 batch cases. The features the java target covers are listed in `characterization/targets.json`.
+The command prints `java: 424 PASS`: 384 online cases and 40 batch cases. The features the java target covers are listed in `characterization/targets.json`.
 
-`characterization-adapter` rebuilds the jar when a source is newer than it. It keeps one server on `127.0.0.1:18080` under profile `characterization`, against database `carddemo_characterization` and a clock fixed at 2026-11-05 10:00. Before every case it seeds the ten KSDS tables from the harness seeds named in `characterization/fixtures/datasets.json`, empties the job queue, the spool and the dataset catalog, and opens every CICS file. It does all of that in one transaction with foreign-key triggers off, because a case may delete a record others refer to. A step's new `job_submissions` rows are its `queues` observation. A batch case is submitted as a one-step deck to queue `JOBS`, and the server's internal reader runs it. `CARDDEMO_CHARACTERIZATION_PORT` and `CARDDEMO_CHARACTERIZATION_DB` give a second checkout its own server and database. The server stops after ten idle minutes, or with `characterization/cleanup.sh stop`.
+`characterization-adapter` rebuilds the jar when a source is newer than it. It keeps one server on `127.0.0.1:18080` under profile `characterization`, against database `carddemo_characterization` and a clock fixed at 2026-11-05 10:00. Before every case it seeds the ten KSDS tables and the two Db2 tables from the harness seeds named in `characterization/fixtures/datasets.json`, empties the job queue, the spool and the dataset catalog, opens every CICS file, and installs the extensions the case's `install` lists (none by default). A Db2 row is seeded, snapshotted and diffed as the harness's image: the key, a two-digit length, then the 50-byte description. It does all of that in one transaction with foreign-key triggers off, because a case may delete a record others refer to. A step's new `job_submissions` rows are its `queues` observation. A batch case is submitted as a one-step deck to queue `JOBS`, and the server's internal reader runs it. `CARDDEMO_CHARACTERIZATION_PORT` and `CARDDEMO_CHARACTERIZATION_DB` give a second checkout its own server and database. The server stops after ten idle minutes, or with `characterization/cleanup.sh stop`.
 
 ## Batch
 
-The nine COBOL batch programs run as Spring Batch jobs against the same tables as the web app. Each JCL step is one tasklet step that runs outside a transaction, so what a step wrote before it abended stays written, as with VSAM. The 28 batch goldens pin their behavior.
+The ten COBOL batch programs run as Spring Batch jobs against the same tables as the web app. Each JCL step is one tasklet step that runs outside a transaction, so what a step wrote before it abended stays written, as with VSAM. The Db2 program COBTUPDT is the exception: its step is one Db2 unit of work, committed when it ends and rolled back when it abends. The 40 batch goldens pin their behavior.
 
 ### Packages
 
@@ -96,14 +98,15 @@ Under `src/main/java/com/carddemo`:
 | Package | What it holds |
 | --- | --- |
 | `batch.step` | The program interface: `BatchProgram` (`name()`, `int run(Step)`), `Step` (PARM, clock, DISPLAY and the DDs), `KeyedDataset`, `SequentialInput`, `SequentialOutput`, `FileStatus`, `Read`, `Abend`. No SQL or Spring Batch types. |
-| `batch.programs` | CBACT01C, CBACT02C, CBACT03C, CBACT04C, CBCUS01C, CBSTM03A (with its CBSTM03B collaborator), CBTRN02C, CBTRN03C, and the system programs IEFBR14, SDSF and COBSWAIT. |
+| `batch.programs` | CBACT01C, CBACT02C, CBACT03C, CBACT04C, CBCUS01C, CBSTM03A (with its CBSTM03B collaborator), CBTRN02C, CBTRN03C, COBTUPDT, and the system programs IEFBR14, SDSF, COBSWAIT and IKJEFT01. |
 | `batch.utilities` | SORT and IDCAMS for the control statements the library jobs code. Any other statement ends RC 12. |
 | `batch.jcl` | Typed JCL, and `JclDeck`, the parser for submitted decks. |
-| `batch.library` | `LibraryJob`, one entry per `app/jcl` member that runs here, and `Proc`, one per `app/proc` member (REPROC, TRANREPT). |
+| `batch.library` | `LibraryJob`, one entry per `app/jcl` or extension `jcl` member that runs here, and `Proc`, one per `app/proc` member (REPROC, TRANREPT). |
 | `batch.runtime` | `BatchRuntime.run(JobDef, RunIdentity)`, DD allocation and DISP, generations, the dataset store and the spool. |
 | `batch.drivers` | `InternalReader`, which runs the decks on TD queue `JOBS`. |
 | `batch.chains` | `Chains`, `ChainRunner` and `ChainCalendars`. |
-| `cics` | `CicsRegion` and `CicsFile`, the gate CLOSEFIL and OPENFIL drive. |
+| `cics` | `CicsRegion` and `CicsFile`, the gate CLOSEFIL and OPENFIL drive, and `Extension`, the optional CSD groups the region installs. |
+| `db2` | `Db2`, embedded SQL that answers an SQLCODE, and `Dsntiac`, the SQLCA message formatter. |
 | `jobs` | `JobSubmissions`, which programs append to, and `JobQueue`, the reader's claims. |
 | `operator` | The `operator` profile command line. |
 
@@ -157,7 +160,7 @@ The CLOSEFIL and OPENFIL jobs run SDSF on the JCL's ISFIN cards, such as `/F CIC
 - `CONTROLM_DAILY_BACKUP`: TRANBKP.
 - `CONTROLM_MONTHLY_INTEREST`: INTCALC, COMBTRAN.
 
-`CA7_030_REFERENCE`, `CA7_031_CATBAL` and `CONTROLM_WEEKLY_DISCLOSURE` hold an `Unported` member (a reference-data reload or PRTCATBL) and cannot start. The IMS, Db2 and REXX jobs (CBPAUP0J, MNTTRDB2, TRANEXTR, TXT2PDF1) are `Optional` members. They are recorded as bypassed, and the chain goes on.
+`CA7_030_REFERENCE`, `CA7_031_CATBAL` and `CONTROLM_WEEKLY_DISCLOSURE` hold an `Unported` member (a reference-data reload or PRTCATBL) and cannot start. The IMS, Db2 and REXX jobs not ported (CBPAUP0J, TRANEXTR, TXT2PDF1) are `Optional` members. They are recorded as bypassed, and the chain goes on.
 
 `ChainRunner` runs a chain as one Spring Batch job named after the chain, identified by its order date, with one step per member. Each member runs as its own JCL job, so COND and generations stay inside that member. A member that ends above RC 4, abends or ends in a JCL error stops the chain. A chain stopped between CLOSEFIL and OPENFIL leaves those files closed until it is restarted or an operator opens them. `start` runs a chain once per order date. `restart` reruns a failed chain from the member that failed and skips the members that ended OK. `abandon` records a run whose JVM died as FAILED, so `restart` accepts it.
 
@@ -198,3 +201,56 @@ The exit code is 0 when the command did its work. It is 4 when a chain did not c
 3. Put each pinned legacy defect in its own method annotated `@LegacyDefect`, then regenerate `docs/legacy-defects.md` with `mvn verify`.
 
 `BatchGoldensIT` picks up every case in `characterization/cases/batch` with no change. When the program's cases pass, add its feature to the java target in `characterization/targets.json`.
+
+## Db2 transaction types
+
+The optional extension `app/app-transaction-type-db2` keeps transaction types in Db2 tables. Its batch program COBTUPDT, its list screen COTRTLIC (CTLI) and its maintenance screen COTRTUPC (CTTU) are ported.
+
+### Schema
+
+`V6__db2_transaction_types.sql` creates schema `carddemo`, with the extension's DDL as Postgres tables, seeded from `DB2LTTYP` and `DB2LTCAT`:
+
+- `carddemo.transaction_type`: `tr_type char(2)` key and `tr_description varchar(50)`.
+- `carddemo.transaction_type_category`: `trc_type_code`, `trc_type_category` and `trc_cat_data`, keyed on the code and the category. Its foreign key to `transaction_type` is `ON DELETE RESTRICT`, so deleting a type that has categories answers SQLCODE -532.
+
+These are separate from the VSAM-loaded `transaction_types` and `transaction_categories`, because the legacy system keeps two stores with different contents (the Db2 load cards are upper case and spell type 06 `REVERAL`; VSAM has `Reversal`) and VSAM sees Db2 only through the weekly TRANEXTR extract and reloads, which are not ported. Merging them would change what the base screens show after a Db2 edit.
+
+The text columns collate `"C"`, so they sort and compare byte by byte, as the harness's tables do. V6 also creates `sysibm.sysdummy1`, which the extension's priming query selects from. `spring.flyway.schemas` lists `carddemo` and `sysibm`, so a Flyway clean drops them too.
+
+`V7__installed_extensions.sql` adds `cics_region.installed`, the extensions installed in the region. Production starts with `transaction-type-db2` installed.
+
+### Embedded SQL
+
+`com.carddemo.db2.Db2` runs a program's SQL the way the precompiler's calls do. Each statement answers an `Sqlca` instead of throwing:
+
+| Call | Answer |
+| --- | --- |
+| `unitOfWork(Supplier<T>)` | Runs the work in one transaction. It commits when the work returns and rolls back when it throws, such as an `Abend`. |
+| `syncpoint()` | Commits inside the unit of work and closes every open cursor. |
+| `execute(sql, hostVariables...)` | An INSERT, UPDATE or DELETE. |
+| `selectInto(sql, rowMapper, hostVariables...)` | A `Fetched<T>`: the SQLCA and the first row. |
+| `declare(name, select, rowMapper)` | A `Cursor<T>` with `open(hostVariables...)`, `fetch()` and `close()`. |
+
+Every statement runs under its own savepoint in the caller's transaction. A failed statement rolls back to it and leaves the earlier statements of the unit of work in place, as in Db2. A statement outside a transaction throws `IllegalStateException`. Host variables bind untyped, so a `char` column compares blank-padded, and LOW-VALUES are sent as X'01' because Postgres text cannot hold X'00'.
+
+`sqlcode` is 0, +100 when no row is found or an UPDATE or DELETE changes none, or the Db2 code for the Postgres SQLSTATE: 23505 is -803, 23503 is -532 for a DELETE and -530 otherwise, 22001 is -404, 23502 is -407 and 21000 is -811. A SELECT INTO that finds more than one row is -811 too, with the first row. Opening an open cursor is -502, and fetching or closing a closed one is -501. An SQLSTATE with no mapping is -9999 and is logged. `sqlerrmc` is the first line of the Postgres message, cut to 70 bytes. `Sqlca.sqlcodeEdited()` is the code as PIC `----9` shows it. `Dsntiac.format` writes the DSNT404I or DSNT408I lines the harness's DSNTIAC writes, with its return codes 8 for an LRECL outside 72 to 240 and 12 for a message area under 240 bytes.
+
+### Install switch
+
+`com.carddemo.cics.Extension` lists each optional CSD group and the programs it holds. `TRANSACTION_TYPE_DB2` is `transaction-type-db2` and holds COTRTLIC and COTRTUPC. `CicsRegion.installed()` reads the installed set and `CicsRegion.install(Set<Extension>)` replaces it, as CEDA INSTALL and DISCARD would. While an extension is not installed, its programs are not installed for `ProgramCatalog`: a transaction id of theirs is unknown, and an XCTL to one lands on the not-ported screen. A screen ported later becomes reachable only while its extension is installed.
+
+### MNTTRDB2
+
+`LibraryJob.MNTTRDB2` mirrors the extension's JCL: IKJEFT01 reads SYSTSIN `DSN SYSTEM(DAZ1)` then `RUN PROGRAM(COBTUPDT) PLAN(CARDDEMO)` and runs COBTUPDT on its own step, against the `INPFILE` data set. DBRMLIB and STEPLIB are left out, because RUN binds nothing and programs are beans. Any other TSO command ends the step RC 12, and a program with no bean abends `S806`. `CONTROLM_WEEKLY_DISCLOSURE` runs MNTTRDB2 as a job.
+
+COBTUPDT reads 53-byte records: the action (A, U, D, or * for a comment), the two-character type code and the description. An error DISPLAYs the message and ends the step RC 4. Its four `@LegacyDefect` methods pin the defects its goldens show.
+
+### COTRTLIC
+
+`trantype.TranTypeListScreen` is COTRTLIC, admin menu option 5 or transid CTLI: pages of seven types read through forward and backward cursors, type and description filters (the description is a SQL `LIKE`, with `ESCAPE ''` because Db2's LIKE has no escape character and Postgres defaults to backslash), `U` to edit a description in place and `D` to delete, both saved with F10, and F2 to COTRTUPC. A CTLI with no COMMAREA opens the list without sign-on, as the COBOL does; leaving it signs in the blank admin identity the COBOL builds. Its eleven `@LegacyDefect` methods are listed in `docs/legacy-defects.md`.
+
+### COTRTUPC
+
+`trantype.TransactionTypeMaintenanceScreen` is COTRTUPC, admin menu option 6: search a type by code, then change its description (ENTER, then F5), delete it (F4, then F4), or add a code that is not found (F5, ENTER, F5). Its `Task` follows 0000-MAIN paragraph by paragraph, and its `State` keeps TTUP-CHANGE-ACTION and the old and new details as PIC X bytes, with X'00' for LOW-VALUES, because the program compares them with SPACES and LOW-VALUES separately. All of its SQL stays in the class.
+
+Its ABEND-ROUTINE sends ABEND-DATA and then abends 9999, so `Screen.sendTextAndAbend` puts that text on the terminal in place of the CICS abend message. `FieldAttribute.BMDAR` is the dark attribute it gives the ENTER/F3 legend during a delete confirmation. LOW-VALUES inside a sent value show as blanks, as the SQLERRML bytes in its SQL error messages do. `TransactionTypeMaintenanceIT` forces the SQL failures no golden reaches (a -911 lock, a failed UPDATE, INSERT or DELETE) with a trigger that raises the matching SQLSTATE. Its twelve `@LegacyDefect` methods are listed in `docs/legacy-defects.md`.

@@ -9,9 +9,13 @@ import java.util.Set;
 
 import org.springframework.stereotype.Component;
 
+import com.carddemo.cics.CicsRegion;
+import com.carddemo.cics.Extension;
+
 /**
- * Every ported program, derived from the Screen beans. Installed means ported: a later slice installs
- * a program by adding its Screen bean.
+ * Every ported program, derived from the Screen beans. Installed means ported, and for a program of an optional
+ * {@link Extension}, that extension installed in the region: a later slice ports a program by adding its Screen
+ * bean. A program of an extension the region lacks has no transaction and lands on the pending screen.
  */
 @Component
 public final class ProgramCatalog {
@@ -20,9 +24,11 @@ public final class ProgramCatalog {
     private final Map<TransId, Screen<?, ?, ?, ?>> byTransid = new LinkedHashMap<>();
     private final Map<String, Screen<?, ?, ?, ?>> byRoute = new LinkedHashMap<>();
     private final PendingProgramScreen pending;
+    private final CicsRegion region;
 
-    ProgramCatalog(List<Screen<?, ?, ?, ?>> screens, PendingProgramScreen pending) {
+    ProgramCatalog(List<Screen<?, ?, ?, ?>> screens, PendingProgramScreen pending, CicsRegion region) {
         this.pending = pending;
+        this.region = region;
         for (Screen<?, ?, ?, ?> screen : screens) {
             ScreenRef<?> ref = screen.ref();
             unique(byProgram.put(ref.program(), screen), "program " + ref.program());
@@ -46,7 +52,7 @@ public final class ProgramCatalog {
     /** COMEN01C's INQUIRE PROGRAM and COADM01C's HANDLE CONDITION PGMIDERR both ask this. */
     boolean installed(ProgramName program) {
         Screen<?, ?, ?, ?> screen = byProgram.get(program);
-        return screen != null && screen != pending;
+        return screen != null && screen != pending && inRegion(program);
     }
 
     /** {@code /api/screens/<route>/**} for every screen with exactly this access. */
@@ -62,15 +68,19 @@ public final class ProgramCatalog {
     }
 
     Optional<Screen<?, ?, ?, ?>> byTransid(TransId transid) {
-        return Optional.ofNullable(byTransid.get(transid));
+        return Optional.<Screen<?, ?, ?, ?>>ofNullable(byTransid.get(transid)).filter(screen -> inRegion(screen.ref().program()));
     }
 
     /** The screen an XCTL lands on. An unported program lands on the pending screen, which is told its name. */
     Resolved resolve(ProgramName program, Optional<Handoff> handoff) {
         Screen<?, ?, ?, ?> screen = byProgram.get(program);
-        return screen != null
+        return screen != null && inRegion(program)
                 ? new Resolved(screen, handoff)
                 : new Resolved(pending, Optional.of(new PendingProgramScreen.Requested(program)));
+    }
+
+    private boolean inRegion(ProgramName program) {
+        return Extension.owning(program.value()).map(extension -> region.installed().contains(extension)).orElse(true);
     }
 
     record Resolved(Screen<?, ?, ?, ?> screen, Optional<Handoff> handoff) {}
