@@ -65,4 +65,4 @@ Routes: every installed program is `GET`/`POST /screens/<PROGRAM>` (HTML) and `G
 - Bill payment and transaction add number new records under a Postgres advisory lock (highest numeric id + 1); the bill payment locks the account row with `RecordLock` in the same transaction.
 - COCRDLIC's selection takes uppercase `S` or `U` only, as in legacy.
 - A regular user's card list needs an account filter; COCRDSLC and COCRDUPC do not restrict regular users yet.
-- Specs cover the base CardDemo programs only. The optional Db2, IMS, and MQ modules under `app/app-*` are not captured.
+- Specs cover the base CardDemo programs and the MQ inquiries in [mq-inquiries.md](./mq-inquiries.md). The optional Db2 and IMS modules under `app/app-*` are not captured here.

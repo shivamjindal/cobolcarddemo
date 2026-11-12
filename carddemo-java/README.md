@@ -1,6 +1,6 @@
 # carddemo-java
 
-Spring Boot 3 / Java 21 port of CardDemo. It holds the data layer (Postgres tables for the VSAM KSDS clusters, derived from the copybooks in `../app/cpy`, and a loader for the sample data in `../app/data`) and the online screens migrated so far, which are sign-on, both menus and user admin (COSGN00C, COMEN01C, COADM01C, COUSR00C-03C).
+Spring Boot 3 / Java 21 port of CardDemo. It holds the data layer (Postgres tables for the VSAM KSDS clusters, derived from the copybooks in `../app/cpy`, and a loader for the sample data in `../app/data`) and the online screens migrated so far, which are sign-on, both menus and user admin (COSGN00C, COMEN01C, COADM01C, COUSR00C-03C). It also answers the MQ inquiries COACCT01 and CODATE01.
 
 ## Commands
 
@@ -56,7 +56,22 @@ The template is `templates/<PROGRAM>.html` and uses the `layout :: screen(title,
 
 ## Spec replay
 
-`OnlineSpecReplayTest` replays `../characterization/online/specs/<PROGRAM>.yaml` for every installed program through `/api/screens`, and `SignonReplayTest` replays COSGN00C through the full OIDC flow on a running server. Deliberate differences are entries in `src/test/resources/spec-overrides/<PROGRAM>.yaml`: a one-sentence `reason` plus `given`, `when` or `then` keys that replace the spec's, an optional `then.status`, or `skip: true`. The test task prints a `[spec-replay]` tally per program. When a later slice installs a program a menu points at, delete the override that expects "not installed".
+`OnlineSpecReplayTest` replays `../characterization/online/specs/<PROGRAM>.yaml` for every installed program through `/api/screens`, and `SignonReplayTest` replays COSGN00C through the full OIDC flow on a running server. `MessageSpecReplayTest` replays each `entry: trigger` case through the embedded broker. Deliberate differences are entries in `src/test/resources/spec-overrides/<PROGRAM>.yaml`: a one-sentence `reason` plus `given`, `when` or `then` keys that replace the spec's, an optional `then.status`, or `skip: true`. The test task prints a `[spec-replay]` tally per program. When a later slice installs a program a menu points at, delete the override that expects "not installed".
+
+## MQ inquiries
+
+COACCT01 and CODATE01 are `MessageProgram` beans in `com.carddemo.inquiries`. `MessagePrograms` starts one listener per bean. The broker is the embedded Artemis broker from `spring.artemis`. `spring.artemis.mode: native` with `spring.artemis.broker-url` points the same beans at another broker.
+
+Put a text message on the request queue. The reply uses the request correlation id. The request's reply-to queue is ignored, as it is in the COBOL.
+
+| Program | Property | Default request queue | Reply queue |
+| --- | --- | --- | --- |
+| COACCT01 | `carddemo.mq.account-request` | `CARD.DEMO.REQUEST.ACCT` | `CARD.DEMO.REPLY.ACCT` |
+| CODATE01 | `carddemo.mq.date-request` | `CARD.DEMO.REQUEST.DATE` | `CARD.DEMO.REPLY.DATE` |
+
+An account request is `INQA` plus an 11-digit account id. Bytes after the first 15 are ignored. A non-zero id that is on file is answered with the labeled account fields at their COBOL picture widths. Amounts are zoned `PIC S9(10)V99`, twelve digits and an implied decimal point. A negative amount overpunches the last digit. A missing account, an id of zero, or any other function is answered on the reply queue with `INVALID REQUEST PARAMETERS`. A failed read is put on `CARD.DEMO.ERROR`. The text is `MQ-ERR-DISPLAY` with return message `ERROR WHILE READING ACCTF`, condition `17`, and reason `00000`.
+
+A date request may contain any text. The reply is `SYSTEM DATE : ` then `MM-DD-YYYY`, then `SYSTEM TIME : ` then `HH:MM:SS`, taken from the injected `java.time.Clock`.
 
 ## Layout
 
@@ -65,6 +80,7 @@ The template is `templates/<PROGRAM>.html` and uses the `layout :: screen(title,
 - `vsam/Table` and `vsam/Column` turn a dataset into DDL and decode records into row values.
 - `vsam/SeedLoader` truncates the tables and reloads them in one transaction.
 - `online/` is the screen engine (`Screens`), both adapters, `Conversation` and the two menus.
+- `inquiries/` holds the MQ account and date inquiries, COACCT01 and CODATE01.
 - `signon/` holds both security chains and COSGN00C; `users/` holds the users table and COUSR00C-03C.
 
 ## Mapping rules
