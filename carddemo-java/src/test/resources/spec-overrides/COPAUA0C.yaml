@@ -1,0 +1,71 @@
+# Deliberate differences from characterization/online/specs/COPAUA0C.yaml, applied by MessageSpecReplayTest.
+# Each entry replaces whole keys of the case's given, when or then.
+COPAUA0C-003:
+  reason: A decline adds the request amount to PA-DECLINED-AUTH-AMT, where the legacy program added the detail field it had not filled yet.
+  then:
+    file_effects:
+      - file: PAUTSUM0
+        op: REWRITE
+        record:
+          PA-ACCT-ID: "1"
+          PA-CREDIT-LIMIT: "2000.00"
+          PA-CASH-LIMIT: "500.00"
+          PA-CREDIT-BALANCE: "900.00"
+          PA-APPROVED-AUTH-CNT: "2"
+          PA-DECLINED-AUTH-CNT: "2"
+          PA-APPROVED-AUTH-AMT: "900.00"
+          PA-DECLINED-AUTH-AMT: "150.01"
+      - file: PAUTDTL1
+        op: WRITE
+        record:
+          PA-ACCT-ID: "1"
+          PA-TRANSACTION-ID: TXN000000000103
+          PA-AUTH-RESP-CODE: "05"
+          PA-AUTH-RESP-REASON: "4100"
+          PA-TRANSACTION-AMT: "100.01"
+          PA-APPROVED-AMT: "0.00"
+          PA-MATCH-STATUS: D
+COPAUA0C-004:
+  reason: A decline that starts a summary records the request amount as PA-DECLINED-AUTH-AMT, where the legacy program added the detail field it had not filled yet.
+  then:
+    file_effects:
+      - file: PAUTSUM0
+        op: WRITE
+        record:
+          PA-ACCT-ID: "1"
+          PA-CUST-ID: "1"
+          PA-CREDIT-LIMIT: "1000.00"
+          PA-CASH-LIMIT: "200.00"
+          PA-CREDIT-BALANCE: "0.00"
+          PA-CASH-BALANCE: "0.00"
+          PA-APPROVED-AUTH-CNT: "0"
+          PA-DECLINED-AUTH-CNT: "1"
+          PA-APPROVED-AUTH-AMT: "0.00"
+          PA-DECLINED-AUTH-AMT: "50.01"
+      - file: PAUTDTL1
+        op: WRITE
+        record:
+          PA-ACCT-ID: "1"
+          PA-TRANSACTION-ID: TXN000000000104
+          PA-AUTH-RESP-CODE: "05"
+          PA-AUTH-RESP-REASON: "4100"
+          PA-TRANSACTION-AMT: "50.01"
+          PA-APPROVED-AMT: "0.00"
+          PA-MATCH-STATUS: D
+COPAUA0C-010:
+  reason: The request amount is read whole, where the legacy X(13) field cut the last digit of the 14-character +9(10).99 form.
+  then:
+    file_effects:
+      - file: PAUTSUM0
+        op: WRITE
+        record:
+          PA-ACCT-ID: "1"
+          PA-CREDIT-BALANCE: "125.55"
+          PA-APPROVED-AUTH-AMT: "125.55"
+      - file: PAUTDTL1
+        op: WRITE
+        record:
+          PA-ACCT-ID: "1"
+          PA-TRANSACTION-ID: TXN000000000110
+          PA-TRANSACTION-AMT: "125.55"
+          PA-APPROVED-AMT: "125.55"
