@@ -28,6 +28,9 @@ interface CommareaMapping {
         if (program.equals("COTRN00C") || program.equals("COTRN01C")) {
             return new TransactionCommarea();
         }
+        if (program.equals("COTRTLIC") || program.equals("COTRTUPC")) {
+            return new TranTypeCommarea();
+        }
         return new CommareaMapping() {
             @Override
             public void load(String p, Map<String, Object> commarea, Conversation conversation) {

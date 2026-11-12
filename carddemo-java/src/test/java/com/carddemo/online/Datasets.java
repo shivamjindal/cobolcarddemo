@@ -43,8 +43,17 @@ class Datasets {
     record Relation(String table, Map<String, String> columns, List<String> key) {
     }
 
-    /** IMS segment and Db2 table names, as specs use them, to their tables. */
-    static final Map<String, Relation> RELATIONS = Map.of();
+    /**
+     * Db2 tables the optional modules register. TRANSACTION_TYPE is the tran_types table.
+     * Insert order is alphabetical, so TRANSACTION_TYPE is loaded before TRANSACTION_TYPE_CATEGORY.
+     */
+    static final Map<String, Relation> RELATIONS = Map.of(
+            "TRANSACTION_TYPE", new Relation("tran_types",
+                    Map.of("TR_TYPE", "tran_type", "TR_DESCRIPTION", "tran_type_desc"), List.of("TR_TYPE")),
+            "TRANSACTION_TYPE_CATEGORY", new Relation("tran_categories",
+                    Map.of("TRC_TYPE_CODE", "tran_type_cd", "TRC_TYPE_CATEGORY", "tran_cat_cd",
+                            "TRC_CAT_DATA", "tran_cat_type_desc"),
+                    List.of("TRC_TYPE_CODE", "TRC_TYPE_CATEGORY")));
 
     /** CSD file name to table; CXACAIX is the account-id alternate index over CCXREF. */
     static final Map<String, VsamDataset> FILES = Map.of("USRSEC", VsamDataset.USERS, "ACCTDAT", VsamDataset.ACCOUNTS,
@@ -77,7 +86,9 @@ class Datasets {
         jdbc.execute("TRUNCATE " + Stream.concat(TABLES.stream().map(d -> d.table),
                 RELATIONS.values().stream().map(Relation::table)).distinct().collect(Collectors.joining(", ")));
         Set<List<Object>> inserted = new HashSet<>();
-        files.forEach((file, records) -> {
+        files.entrySet().stream().sorted(Map.Entry.comparingByKey()).forEach(entry -> {
+            String file = entry.getKey();
+            List<Map<String, Object>> records = entry.getValue();
             Relation relation = RELATIONS.get(file);
             if (relation != null) {
                 records.forEach(record -> insert(file, relation, record));
