@@ -16,6 +16,7 @@ import java.util.HashMap;
 import java.util.HashSet;
 import java.util.LinkedHashMap;
 import java.util.List;
+import java.util.Locale;
 import java.util.Map;
 import java.util.Set;
 import java.util.TreeMap;
@@ -41,10 +42,40 @@ class Datasets {
      * to columns by name and travel as Postgres text in both directions; a blank non-text field is NULL.
      */
     record Relation(String table, Map<String, String> columns, List<String> key) {
+
+        /** Columns named after the fields, lower case with underscores. */
+        static Relation of(String table, List<String> key, String... fields) {
+            Map<String, String> columns = new LinkedHashMap<>();
+            for (String field : fields) {
+                columns.put(field, field.toLowerCase(Locale.ROOT).replace('-', '_'));
+            }
+            return new Relation(table, columns, key);
+        }
     }
 
-    /** IMS segment and Db2 table names, as specs use them, to their tables. */
-    static final Map<String, Relation> RELATIONS = Map.of();
+    /**
+     * IMS segment and Db2 table names, as specs use them, to their tables. A PAUTDTL1 key comes from the clock, so
+     * a detail is identified by its account and PA-TRANSACTION-ID.
+     */
+    static final Map<String, Relation> RELATIONS = Map.of(
+            "PAUTSUM0", Relation.of("pending_auth_summaries", List.of("PA-ACCT-ID"),
+                    "PA-ACCT-ID", "PA-CUST-ID", "PA-AUTH-STATUS", "PA-ACCOUNT-STATUS", "PA-CREDIT-LIMIT",
+                    "PA-CASH-LIMIT", "PA-CREDIT-BALANCE", "PA-CASH-BALANCE", "PA-APPROVED-AUTH-CNT",
+                    "PA-DECLINED-AUTH-CNT", "PA-APPROVED-AUTH-AMT", "PA-DECLINED-AUTH-AMT"),
+            "PAUTDTL1", Relation.of("pending_auth_details", List.of("PA-ACCT-ID", "PA-TRANSACTION-ID"),
+                    "PA-ACCT-ID", "PA-AUTH-DATE-9C", "PA-AUTH-TIME-9C", "PA-AUTH-ORIG-DATE", "PA-AUTH-ORIG-TIME",
+                    "PA-CARD-NUM", "PA-AUTH-TYPE", "PA-CARD-EXPIRY-DATE", "PA-MESSAGE-TYPE", "PA-MESSAGE-SOURCE",
+                    "PA-AUTH-ID-CODE", "PA-AUTH-RESP-CODE", "PA-AUTH-RESP-REASON", "PA-PROCESSING-CODE",
+                    "PA-TRANSACTION-AMT", "PA-APPROVED-AMT", "PA-MERCHANT-CATAGORY-CODE", "PA-ACQR-COUNTRY-CODE",
+                    "PA-POS-ENTRY-MODE", "PA-MERCHANT-ID", "PA-MERCHANT-NAME", "PA-MERCHANT-CITY",
+                    "PA-MERCHANT-STATE", "PA-MERCHANT-ZIP", "PA-TRANSACTION-ID", "PA-MATCH-STATUS", "PA-AUTH-FRAUD",
+                    "PA-FRAUD-RPT-DATE"),
+            "AUTHFRDS", Relation.of("authfrds", List.of("CARD_NUM", "AUTH_TS"),
+                    "CARD_NUM", "AUTH_TS", "AUTH_TYPE", "CARD_EXPIRY_DATE", "MESSAGE_TYPE", "MESSAGE_SOURCE",
+                    "AUTH_ID_CODE", "AUTH_RESP_CODE", "AUTH_RESP_REASON", "PROCESSING_CODE", "TRANSACTION_AMT",
+                    "APPROVED_AMT", "MERCHANT_CATAGORY_CODE", "ACQR_COUNTRY_CODE", "POS_ENTRY_MODE", "MERCHANT_ID",
+                    "MERCHANT_NAME", "MERCHANT_CITY", "MERCHANT_STATE", "MERCHANT_ZIP", "TRANSACTION_ID",
+                    "MATCH_STATUS", "AUTH_FRAUD", "FRAUD_RPT_DATE", "ACCT_ID", "CUST_ID"));
 
     /** CSD file name to table; CXACAIX is the account-id alternate index over CCXREF. */
     static final Map<String, VsamDataset> FILES = Map.of("USRSEC", VsamDataset.USERS, "ACCTDAT", VsamDataset.ACCOUNTS,
