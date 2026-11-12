@@ -97,9 +97,8 @@ notes:
     The three not-found messages are longer than WS-RETURN-MSG (75 bytes), so the tail of the RESP2 value is
     cut off.
   - >-
-    Fault injection. Cases whose summary says 'READ returns a RESP other than NORMAL/NOTFND' need the runner
-    to force an I/O error on that dataset. The schema has no field for that, so the fault is named only in
-    the summary.
+    Fault injection. Cases whose summary says 'READ returns a RESP other than NORMAL/NOTFND' force an I/O
+    error on that dataset with given.file_conditions (see SCHEMA.md).
   - >-
     Display formatting. Amounts use BMS PICOUT '+ZZZ,ZZZ,ZZZ.99' (COACTVW.bms lines 120-195; ACURBALO etc.
     are PIC +ZZZ,ZZZ,ZZZ.99 in COACTVW.CPY). SSN shows as NNN-NN-NNNN (lines 496-504). ACSZIPCO is X(5) and
@@ -107,6 +106,7 @@ notes:
   - >-
     PF3 always sets CDEMO-USER-TYPE to 'U' (line 343), even when an admin arrived here. The caller's user
     type is lost.
+  - The Java slice replays this spec with deliberate differences listed, each with its reason, in carddemo-java/src/test/resources/spec-overrides/COACTVWC.yaml.
 cases:
   - id: COACTVWC-001
     summary: first-time entry (EIBCALEN = 0) shows an empty search screen with the prompt
@@ -295,6 +295,8 @@ cases:
     given:
       entry: reenter
       commarea: *reenter
+      file_conditions:
+        - {file: CXACAIX, op: READ, resp: IOERR}
     when:
       aid: ENTER
       fields: {ACCTSIDI: "00000000001"}
@@ -361,6 +363,8 @@ cases:
       commarea: *reenter
       files:
         CXACAIX: [*xref]
+      file_conditions:
+        - {file: ACCTDAT, op: READ, resp: IOERR}
     when:
       aid: ENTER
       fields: {ACCTSIDI: "00000000001"}
@@ -420,6 +424,8 @@ cases:
       files:
         CXACAIX: [*xref]
         ACCTDAT: [*acct]
+      file_conditions:
+        - {file: CUSTDAT, op: READ, resp: IOERR}
     when:
       aid: ENTER
       fields: {ACCTSIDI: "00000000001"}

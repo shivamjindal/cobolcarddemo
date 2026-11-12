@@ -1,0 +1,43 @@
+<html xmlns:th="http://www.thymeleaf.org" th:replace="~{layout :: screen('View Account', ~{::main}, ~{::nav})}">
+<main>
+    <div class="fields">
+        <th:block th:replace="~{fields :: field('ACCTSID', 'Account Number:', 11)}"></th:block>
+        <th:block th:replace="~{fields :: text('ACSTTUS', 'Active Y/N:')}"></th:block>
+        <th:block th:replace="~{fields :: text('ADTOPEN', 'Opened:')}"></th:block>
+        <th:block th:replace="~{fields :: text('AEXPDT', 'Expiry:')}"></th:block>
+        <th:block th:replace="~{fields :: text('AREISDT', 'Reissue:')}"></th:block>
+        <th:block th:replace="~{fields :: text('ACRDLIM', 'Credit Limit:')}"></th:block>
+        <th:block th:replace="~{fields :: text('ACSHLIM', 'Cash credit Limit:')}"></th:block>
+        <th:block th:replace="~{fields :: text('ACURBAL', 'Current Balance:')}"></th:block>
+        <th:block th:replace="~{fields :: text('ACRCYCR', 'Current Cycle Credit:')}"></th:block>
+        <th:block th:replace="~{fields :: text('ACRCYDB', 'Current Cycle Debit:')}"></th:block>
+        <th:block th:replace="~{fields :: text('AADDGRP', 'Account Group:')}"></th:block>
+    </div>
+    <p class="banner">Customer Details</p>
+    <div class="fields">
+        <th:block th:replace="~{fields :: text('ACSTNUM', 'Customer id:')}"></th:block>
+        <th:block th:replace="~{fields :: text('ACSTSSN', 'SSN:')}"></th:block>
+        <th:block th:replace="~{fields :: text('ACSTDOB', 'Date of birth:')}"></th:block>
+        <th:block th:replace="~{fields :: text('ACSTFCO', 'FICO Score:')}"></th:block>
+        <th:block th:replace="~{fields :: text('ACSFNAM', 'First Name:')}"></th:block>
+        <th:block th:replace="~{fields :: text('ACSMNAM', 'Middle Name:')}"></th:block>
+        <th:block th:replace="~{fields :: text('ACSLNAM', 'Last Name:')}"></th:block>
+        <th:block th:replace="~{fields :: text('ACSADL1', 'Address:')}"></th:block>
+        <th:block th:replace="~{fields :: text('ACSADL2', '')}"></th:block>
+        <th:block th:replace="~{fields :: text('ACSCITY', 'City:')}"></th:block>
+        <th:block th:replace="~{fields :: text('ACSSTTE', 'State:')}"></th:block>
+        <th:block th:replace="~{fields :: text('ACSZIPC', 'Zip:')}"></th:block>
+        <th:block th:replace="~{fields :: text('ACSCTRY', 'Country:')}"></th:block>
+        <th:block th:replace="~{fields :: text('ACSPHN1', 'Phone 1:')}"></th:block>
+        <th:block th:replace="~{fields :: text('ACSPHN2', 'Phone 2:')}"></th:block>
+        <th:block th:replace="~{fields :: text('ACSGOVT', 'Government Issued Id Ref:')}"></th:block>
+        <th:block th:replace="~{fields :: text('ACSEFTC', 'EFT Account Id:')}"></th:block>
+        <th:block th:replace="~{fields :: text('ACSPFLG', 'Primary Card Holder Y/N:')}"></th:block>
+    </div>
+    <p class="intro" data-testid="INFOMSG" th:text="${screen.fields.get('INFOMSG')}"></p>
+</main>
+<nav class="keys">
+    <button name="aid" value="ENTER">ENTER=Fetch</button>
+    <button name="aid" value="PF3">F3=Exit</button>
+</nav>
+</html>

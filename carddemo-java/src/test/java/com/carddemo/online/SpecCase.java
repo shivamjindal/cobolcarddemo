@@ -121,8 +121,9 @@ record SpecCase(String program, String id, String summary, Map<String, Object> g
             String cursor = (String) then.get("cursor");
             soft.assertThat(observed.cursor()).as("cursor").isEqualTo(cursor == null ? null : strip(cursor, "L"));
         }
-        map(then.get("fields")).forEach((name, value) -> soft.assertThat(
-                observed.fields().getOrDefault(strip(name, "O"), "")).as(name).isEqualTo(text(value)));
+        map(then.get("fields")).forEach((name, value) -> soft.assertThat(name.equals("ERRMSGO")
+                ? text(observed.message()) : observed.fields().getOrDefault(strip(name, "O"), ""))
+                .as(name).isEqualTo(text(value)));
         if (then.containsKey("commarea") && !"XCTL COSGN00C".equals(observed.transfer())) {
             soft.assertThat(observed.conversation()).as("conversation").isNotNull();
             if (observed.conversation() != null) {
@@ -195,7 +196,7 @@ record SpecCase(String program, String id, String summary, Map<String, Object> g
     }
 
     private static String strip(String name, String suffix) {
-        return name.endsWith(suffix) ? name.substring(0, name.length() - suffix.length()) : name;
+        return name != null && name.endsWith(suffix) ? name.substring(0, name.length() - suffix.length()) : name;
     }
 
     @SuppressWarnings("unchecked")
@@ -216,20 +217,24 @@ record SpecCase(String program, String id, String summary, Map<String, Object> g
     @SuppressWarnings("unchecked")
     private static Map<String, Map<String, Object>> overrides(String program) {
         try (InputStream in = SpecCase.class.getResourceAsStream("/spec-overrides/" + program + ".yaml")) {
-            return in == null ? Map.of() : new Yaml().load(in);
+            return in == null ? Map.of() : parser().load(in);
         } catch (IOException e) {
             throw new UncheckedIOException(e);
         }
     }
 
-    /** Specs share fixtures through YAML aliases, more than SnakeYAML's default limit of 50. */
     private static Map<String, Object> yaml(Path file) {
-        LoaderOptions options = new LoaderOptions();
-        options.setMaxAliasesForCollections(Integer.MAX_VALUE);
         try (InputStream in = Files.newInputStream(file)) {
-            return new Yaml(options).load(in);
+            return parser().load(in);
         } catch (IOException e) {
             throw new UncheckedIOException(e);
         }
+    }
+
+    /** The larger specs share one screen or record anchor across hundreds of cases, past SnakeYAML's default of 50. */
+    private static Yaml parser() {
+        LoaderOptions options = new LoaderOptions();
+        options.setMaxAliasesForCollections(1_000);
+        return new Yaml(options);
     }
 }

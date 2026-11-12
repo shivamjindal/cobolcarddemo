@@ -1,0 +1,134 @@
+# Deliberate differences from characterization/online/specs/COACTUPC.yaml, applied by OnlineSpecReplayTest.
+# Each entry replaces whole keys of the case's given, when or then.
+COACTUPC-001:
+  reason: Entering without a signed-on conversation goes to sign-on instead of showing the search screen.
+  then:
+    message: null
+    cursor: null
+    fields: {}
+    transfer: {via: XCTL, to: COSGN00C}
+COACTUPC-003:
+  reason: PF3 keeps the signed-on user's type, where the legacy program forced it to U.
+  then:
+    commarea:
+      CDEMO-TO-PROGRAM: COMEN01C
+      CDEMO-TO-TRANID: CM00
+      CDEMO-FROM-PROGRAM: COACTUPC
+      CDEMO-FROM-TRANID: CAUP
+      CDEMO-USER-TYPE: A
+      CDEMO-PGM-CONTEXT: 0
+      CDEMO-LAST-MAPSET: COACTUP
+      CDEMO-LAST-MAP: CACTUPA
+COACTUPC-004:
+  reason: Entering without a signed-on conversation goes to sign-on, whatever key is pressed.
+  then:
+    transfer: {via: XCTL, to: COSGN00C}
+COACTUPC-005:
+  reason: The web screens offer only PF1 to PF12, so there is no PF15 to fold onto PF3.
+  skip: true
+COACTUPC-013:
+  reason: A missing account stops the lookup with the account error and stays in search mode, so no customer is read or held.
+  then:
+    message: "Account:{WS-CARD-RID-ACCT-ID-X} not found in{} Acct Master file.Resp:{ERROR-RESP} Reas:{ERROR-RESP2}"
+    cursor: ACCTSIDL
+    fields:
+      ACCTSIDO: "00000000001"
+      ACSTNUMO: ""
+      ACSFNAMO: ""
+      ACSLNAMO: ""
+      INFOMSGO: Enter or update id of account to update
+    commarea: {ACUP-CHANGE-ACTION: "", ACUP-OLD-CUST-ID: ""}
+COACTUPC-014:
+  reason: An account read error stops the lookup and stays in search mode, so no customer is read or held.
+  then:
+    commarea: {ACUP-CHANGE-ACTION: ""}
+COACTUPC-062:
+  reason: Messages carry no trailing blank, which the legacy literal had and the screen never showed.
+  then:
+    message: "Date of Birth:cannot be in the future"
+COACTUPC-116:
+  reason: In CONFIRM the screen shows the values validated into the conversation, so the pending credit limit is given as ACUP-NEW-CREDIT-LIMIT-N.
+  given:
+    commarea: &confirm
+      CDEMO-FROM-PROGRAM: COMEN01C
+      CDEMO-FROM-TRANID: CM00
+      CDEMO-USER-TYPE: U
+      CDEMO-PGM-CONTEXT: 1
+      CDEMO-ACCT-ID: "00000000001"
+      CDEMO-CUST-ID: "000000001"
+      CDEMO-CARD-NUM: "0500024453765740"
+      ACUP-CHANGE-ACTION: N
+      ACUP-OLD-ACCT-ID: "00000000001"
+      ACUP-OLD-ACTIVE-STATUS: Y
+      ACUP-OLD-CURR-BAL-N: "1940.00"
+      ACUP-OLD-CREDIT-LIMIT-N: "2020.00"
+      ACUP-OLD-CASH-CREDIT-LIMIT-N: "1020.00"
+      ACUP-OLD-OPEN-DATE: "20141120"
+      ACUP-OLD-EXPIRAION-DATE: "20250520"
+      ACUP-OLD-REISSUE-DATE: "20250520"
+      ACUP-OLD-CURR-CYC-CREDIT-N: "0.00"
+      ACUP-OLD-CURR-CYC-DEBIT-N: "0.00"
+      ACUP-OLD-GROUP-ID: A000000000
+      ACUP-OLD-CUST-ID: "000000001"
+      ACUP-OLD-CUST-FIRST-NAME: Immanuel
+      ACUP-OLD-CUST-MIDDLE-NAME: Madeline
+      ACUP-OLD-CUST-LAST-NAME: Kessler
+      ACUP-OLD-CUST-ADDR-LINE-1: 618 Deshaun Route
+      ACUP-OLD-CUST-ADDR-LINE-2: Apt. 802
+      ACUP-OLD-CUST-ADDR-LINE-3: Altenwerthshire
+      ACUP-OLD-CUST-ADDR-STATE-CD: NY
+      ACUP-OLD-CUST-ADDR-COUNTRY-CD: USA
+      ACUP-OLD-CUST-ADDR-ZIP: "10001"
+      ACUP-OLD-CUST-PHONE-NUM-1: "(212)555-0100"
+      ACUP-OLD-CUST-PHONE-NUM-2: "(212)555-0101"
+      ACUP-OLD-CUST-SSN: "020973888"
+      ACUP-OLD-CUST-GOVT-ISSUED-ID: "00000000000049368437"
+      ACUP-OLD-CUST-DOB-YYYY-MM-DD: "19610608"
+      ACUP-OLD-CUST-EFT-ACCOUNT-ID: "0053581756"
+      ACUP-OLD-CUST-PRI-HOLDER-IND: Y
+      ACUP-OLD-CUST-FICO-SCORE: "750"
+      ACUP-NEW-CREDIT-LIMIT-N: "2500.00"
+COACTUPC-117:
+  reason: >-
+    F5 saves the values validated into the conversation (given as ACUP-NEW-CREDIT-LIMIT-N), writes the group id to
+    ACCT-GROUP-ID with ACCT-ADDR-ZIP kept, and the customer row it rewrites with its own values shows no change.
+  given:
+    commarea: *confirm
+  then:
+    file_effects:
+      - file: ACCTDAT
+        op: REWRITE
+        record:
+          ACCT-ID: "00000000001"
+          ACCT-ACTIVE-STATUS: Y
+          ACCT-CURR-BAL: "1940.00"
+          ACCT-CREDIT-LIMIT: "2500.00"
+          ACCT-CASH-CREDIT-LIMIT: "1020.00"
+          ACCT-OPEN-DATE: "2014-11-20"
+          ACCT-EXPIRAION-DATE: "2025-05-20"
+          ACCT-REISSUE-DATE: "2025-05-20"
+          ACCT-CURR-CYC-CREDIT: "0.00"
+          ACCT-CURR-CYC-DEBIT: "0.00"
+          ACCT-ADDR-ZIP: "10001"
+          ACCT-GROUP-ID: A000000000
+COACTUPC-118:
+  reason: A changed record is re-read and shown, so the screen and the next F5 work from what is stored now.
+  then:
+    fields: {ACURBALO: "+      1,999.99", ACRDLIMO: "+      2,020.00", INFOMSGO: Update account details presented above.}
+    commarea: {ACUP-CHANGE-ACTION: S, ACUP-OLD-CURR-BAL-N: "1999.99"}
+COACTUPC-119:
+  reason: A changed record is re-read and shown, so the screen and the next F5 work from what is stored now.
+  then:
+    fields: {ACSLNAMO: Smith, INFOMSGO: Update account details presented above.}
+COACTUPC-120:
+  reason: The lock failure screen shows the values validated into the conversation, so the pending credit limit is given as ACUP-NEW-CREDIT-LIMIT-N.
+  given:
+    commarea: *confirm
+COACTUPC-121:
+  reason: A customer that cannot be locked is reported as a lock failure, where the legacy program said the changes were committed.
+  then:
+    fields: {INFOMSGO: Changes unsuccessful. Please try again}
+    commarea: {ACUP-CHANGE-ACTION: L}
+COACTUPC-130:
+  reason: The update phase is an enum held in the conversation, so an unknown ACUP-CHANGE-ACTION cannot occur.
+  skip: true

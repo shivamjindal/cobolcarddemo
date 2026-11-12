@@ -1,0 +1,59 @@
+<html xmlns:th="http://www.thymeleaf.org" th:replace="~{layout :: screen('Update Account', ~{::main}, ~{::nav})}">
+<main>
+    <div class="fields">
+        <th:block th:replace="~{fields :: field('ACCTSID', 'Account Number:', 11)}"></th:block>
+        <th:block th:replace="~{fields :: field('ACSTTUS', 'Active Y/N:', 1)}"></th:block>
+        <th:block th:replace="~{fields :: field('OPNYEAR', 'Opened (year):', 4)}"></th:block>
+        <th:block th:replace="~{fields :: field('OPNMON', 'Opened (month):', 2)}"></th:block>
+        <th:block th:replace="~{fields :: field('OPNDAY', 'Opened (day):', 2)}"></th:block>
+        <th:block th:replace="~{fields :: field('ACRDLIM', 'Credit Limit:', 15)}"></th:block>
+        <th:block th:replace="~{fields :: field('EXPYEAR', 'Expiry (year):', 4)}"></th:block>
+        <th:block th:replace="~{fields :: field('EXPMON', 'Expiry (month):', 2)}"></th:block>
+        <th:block th:replace="~{fields :: field('EXPDAY', 'Expiry (day):', 2)}"></th:block>
+        <th:block th:replace="~{fields :: field('ACSHLIM', 'Cash credit Limit:', 15)}"></th:block>
+        <th:block th:replace="~{fields :: field('RISYEAR', 'Reissue (year):', 4)}"></th:block>
+        <th:block th:replace="~{fields :: field('RISMON', 'Reissue (month):', 2)}"></th:block>
+        <th:block th:replace="~{fields :: field('RISDAY', 'Reissue (day):', 2)}"></th:block>
+        <th:block th:replace="~{fields :: field('ACURBAL', 'Current Balance:', 15)}"></th:block>
+        <th:block th:replace="~{fields :: field('ACRCYCR', 'Current Cycle Credit:', 15)}"></th:block>
+        <th:block th:replace="~{fields :: field('AADDGRP', 'Account Group:', 10)}"></th:block>
+        <th:block th:replace="~{fields :: field('ACRCYDB', 'Current Cycle Debit:', 15)}"></th:block>
+    </div>
+    <p class="banner">Customer Details</p>
+    <div class="fields">
+        <th:block th:replace="~{fields :: field('ACSTNUM', 'Customer id:', 9)}"></th:block>
+        <th:block th:replace="~{fields :: field('ACTSSN1', 'SSN (first 3):', 3)}"></th:block>
+        <th:block th:replace="~{fields :: field('ACTSSN2', 'SSN (middle 2):', 2)}"></th:block>
+        <th:block th:replace="~{fields :: field('ACTSSN3', 'SSN (last 4):', 4)}"></th:block>
+        <th:block th:replace="~{fields :: field('DOBYEAR', 'Date of birth (year):', 4)}"></th:block>
+        <th:block th:replace="~{fields :: field('DOBMON', 'Date of birth (month):', 2)}"></th:block>
+        <th:block th:replace="~{fields :: field('DOBDAY', 'Date of birth (day):', 2)}"></th:block>
+        <th:block th:replace="~{fields :: field('ACSTFCO', 'FICO Score:', 3)}"></th:block>
+        <th:block th:replace="~{fields :: field('ACSFNAM', 'First Name:', 25)}"></th:block>
+        <th:block th:replace="~{fields :: field('ACSMNAM', 'Middle Name:', 25)}"></th:block>
+        <th:block th:replace="~{fields :: field('ACSLNAM', 'Last Name:', 25)}"></th:block>
+        <th:block th:replace="~{fields :: field('ACSADL1', 'Address:', 50)}"></th:block>
+        <th:block th:replace="~{fields :: field('ACSSTTE', 'State:', 2)}"></th:block>
+        <th:block th:replace="~{fields :: field('ACSADL2', 'Address line 2:', 50)}"></th:block>
+        <th:block th:replace="~{fields :: field('ACSZIPC', 'Zip:', 5)}"></th:block>
+        <th:block th:replace="~{fields :: field('ACSCITY', 'City:', 50)}"></th:block>
+        <th:block th:replace="~{fields :: field('ACSCTRY', 'Country:', 3)}"></th:block>
+        <th:block th:replace="~{fields :: field('ACSPH1A', 'Phone 1 (area code):', 3)}"></th:block>
+        <th:block th:replace="~{fields :: field('ACSPH1B', 'Phone 1 (prefix):', 3)}"></th:block>
+        <th:block th:replace="~{fields :: field('ACSPH1C', 'Phone 1 (line number):', 4)}"></th:block>
+        <th:block th:replace="~{fields :: field('ACSGOVT', 'Government Issued Id Ref:', 20)}"></th:block>
+        <th:block th:replace="~{fields :: field('ACSPH2A', 'Phone 2 (area code):', 3)}"></th:block>
+        <th:block th:replace="~{fields :: field('ACSPH2B', 'Phone 2 (prefix):', 3)}"></th:block>
+        <th:block th:replace="~{fields :: field('ACSPH2C', 'Phone 2 (line number):', 4)}"></th:block>
+        <th:block th:replace="~{fields :: field('ACSEFTC', 'EFT Account Id:', 10)}"></th:block>
+        <th:block th:replace="~{fields :: field('ACSPFLG', 'Primary Card Holder Y/N:', 1)}"></th:block>
+    </div>
+    <p class="intro" data-testid="INFOMSG" th:text="${screen.fields.get('INFOMSG')}"></p>
+</main>
+<nav class="keys">
+    <button name="aid" value="ENTER">ENTER=Process</button>
+    <button name="aid" value="PF3">F3=Exit</button>
+    <button name="aid" value="PF5">F5=Save</button>
+    <button name="aid" value="PF12">F12=Cancel</button>
+</nav>
+</html>
