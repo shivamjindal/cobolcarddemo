@@ -17,6 +17,8 @@ import java.util.List;
 import java.util.Map;
 import java.util.Set;
 import java.util.function.Supplier;
+import java.util.stream.Collectors;
+import java.util.stream.IntStream;
 
 /**
  * COCRDLIC: seven cards a page in card number order, account and card filters, and S/U row selection.
@@ -66,7 +68,7 @@ class CardList implements ScreenProgram {
             Map<String, String> typed = Map.of("ACCTSID", CardKeys.blank(account) ? "" : account,
                     "CARDSID", CardKeys.blank(card) ? "" : card);
             return screen(page, typed, marks, Message.error(accountBad ? CardKeys.ACCOUNT_RULE : CardKeys.CARD_RULE),
-                    false, accountBad ? "ACCTSID" : "CARDSID");
+                    false, accountBad ? "ACCTSID" : "CARDSID").protecting(selections(page));
         }
         CardFilter filter = new CardFilter(CardKeys.blank(account) ? null : Long.valueOf(account),
                 CardKeys.blank(card) ? null : card);
@@ -108,6 +110,11 @@ class CardList implements ScreenProgram {
             default -> list(conversation, Aid.ENTER, page, filter,
                     () -> forward(filter, page.firstCard(), page.pageNumber()));
         };
+    }
+
+    /** FLG-PROTECT-SELECT-ROWS-YES: a bad filter protects every selection field until it is fixed. */
+    private static Set<String> selections(CardListPage page) {
+        return IntStream.rangeClosed(1, page.rows().size()).mapToObj(row -> "CRDSEL" + row).collect(Collectors.toSet());
     }
 
     /** The non-blank selection codes typed on rows that hold a card. */

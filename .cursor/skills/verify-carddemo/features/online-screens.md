@@ -45,7 +45,7 @@ Routes: every installed program is `GET`/`POST /screens/<PROGRAM>` (HTML) and `G
 | others | none yet | not replayed |
 
 - **Replay.** `cd carddemo-java && ./gradlew test`, then read the `[spec-replay]` lines. Overrides and their reasons are in `carddemo-java/src/test/resources/spec-overrides/<PROGRAM>.yaml`.
-- **HTTP.** `python3 scripts/drive_spring.py --out DIR` covers sign-on, the menus, user add, update, delete, and sign-off, then account view and update (group id lands in `acct_group_id`, zip kept) and the card list, update and return-to-list as a regular user (CVV kept).
+- **HTTP.** `python3 scripts/drive_spring.py --out DIR` covers sign-on, the menus, user add, update, delete, and sign-off, then account view and update (group id lands in `acct_group_id`, zip kept, submitted keys and country ignored) and the card list, update and return-to-list as a regular user (CVV kept).
 - **Browser.** `python3 scripts/browser_drive.py --out DIR` covers the same screens with the keyboard and saves screenshots, through account view, the regular-user card list and card update.
 - **Proof.** Cite the case id and say "replayed against Java" with its status (passed as written, or the override's reason). The legacy side stays derived.
 
@@ -57,6 +57,7 @@ Routes: every installed program is `GET`/`POST /screens/<PROGRAM>` (HTML) and `G
 - In Java, `CDEMO-PGM-CONTEXT` is implicit: arriving through a transfer is a GET (context 0), and pressing a key is a POST (context 1). The replay ignores that field. `CDEMO-FROM-PROGRAM` is `Conversation.from()`.
 - `SEC-USR-PWD` holds a bcrypt hash in Postgres. The replay hashes `given.files` passwords and compares `file_effects` passwords by matching, never by equality.
 - No seeded customer passes every COACTUPC field edit (FICO range, North American area codes, SSN, state and zip). To drive a save, type valid customer values; `drive_spring.py` shows a set.
+- Field protection follows each program's SETUP-SCREEN-ATTRS paragraph, phase by phase. `Outcome.Show.readOnly` names the protected fields; they render read-only, the JSON screen lists them in `readOnly`, and the engine resubmits the value shown in place of whatever the client sends (DFHBMPRF comes back as sent).
 - COCRDLIC's selection takes uppercase `S` or `U` only, as in legacy.
 - A regular user's card list needs an account filter; COCRDSLC and COCRDUPC do not restrict regular users yet.
 - Specs cover the base CardDemo programs only. The optional Db2, IMS, and MQ modules under `app/app-*` are not captured.

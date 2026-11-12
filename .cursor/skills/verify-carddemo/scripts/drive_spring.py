@@ -120,18 +120,24 @@ def drive_accounts(base, transcript):
     s = user.send("COACTUPC", "ENTER", ACCTSID=account)
     check(s["fields"].get("INFOMSG") == "Update account details presented above.",
           "account update fetches the account for editing", s["fields"])
+    check({"ACCTSID", "ACSTNUM", "ACSCTRY"} <= set(s.get("readOnly", [])),
+          "account update protects the account id, customer id and country", s.get("readOnly"))
     fields = {k: v for k, v in s["fields"].items() if k not in ("INFOMSG", "ERRMSG")}
     # No seeded customer passes every legacy edit (FICO, area codes, SSN, state and zip), so type valid ones.
     valid_customer = {"ACTSSN1": "123", "ACTSSN2": "45", "ACTSSN3": "6789", "ACSTFCO": "700", "ACSSTTE": "NY",
                       "ACSZIPC": "10001", "ACSCTRY": "USA", "ACSPH1A": "212", "ACSPH1B": "555", "ACSPH1C": "0100",
                       "ACSPH2A": "212", "ACSPH2B": "555", "ACSPH2C": "0101"}
-    edited = {**fields, **valid_customer, "AADDGRP": "DRIVEGRP"}
+    tampered = {"ACCTSID": "00000000001", "ACSTNUM": "000000001", "ACSCTRY": "CAN"}
+    edited = {**fields, **valid_customer, **tampered, "AADDGRP": "DRIVEGRP"}
     s = user.send("COACTUPC", "ENTER", **edited)
     check(s["fields"].get("INFOMSG") == "Changes validated.Press F5 to save", "a valid change asks for F5", s["fields"])
     s = user.send("COACTUPC", "PF5", **edited)
     check(s["fields"].get("INFOMSG") == "Changes committed to database", "F5 saves the account", s["fields"])
     check(sql(base, f"SELECT acct_group_id || '|' || acct_addr_zip FROM accounts WHERE acct_id = {int(account)}")
           == f"DRIVEGRP|{zip_before}", "the group id goes to acct_group_id and the zip is kept", zip_before)
+    check(sql(base, "SELECT acct_group_id FROM accounts WHERE acct_id = 1") != "DRIVEGRP"
+          and sql(base, "SELECT count(*) FROM customers WHERE cust_addr_country_cd = 'CAN'") == "0",
+          "the submitted account id and country are ignored", tampered)
 
 
 def drive_cards(base, transcript):

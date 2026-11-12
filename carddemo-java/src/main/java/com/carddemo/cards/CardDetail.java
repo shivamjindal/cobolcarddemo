@@ -10,6 +10,8 @@ import org.springframework.dao.DataAccessException;
 import org.springframework.stereotype.Component;
 
 import java.util.Map;
+import java.util.Optional;
+import java.util.Set;
 
 /** COCRDSLC: one card by account and card number, opened from the list or searched for. */
 @Component
@@ -28,9 +30,9 @@ class CardDetail implements ScreenProgram {
 
     @Override
     public Outcome arrive(Conversation conversation) {
-        return conversation.take(CardSelection.class)
-                .<Outcome>map(selected -> show(selected.accountId(), selected.cardNumber()))
-                .orElseGet(() -> new Outcome.Show(Map.of("INFOMSG", CardKeys.SEARCH_PROMPT), null, "ACCTSID"));
+        return protect(conversation, conversation.take(CardSelection.class)
+                .map(selected -> show(selected.accountId(), selected.cardNumber()))
+                .orElseGet(() -> new Outcome.Show(Map.of("INFOMSG", CardKeys.SEARCH_PROMPT), null, "ACCTSID")));
     }
 
     @Override
@@ -38,10 +40,16 @@ class CardDetail implements ScreenProgram {
         if (aid == Aid.PF3) {
             return new Outcome.Transfer(conversation.from().orElse(Program.COMEN01C));
         }
-        return switch (CardKeys.search(fields)) {
+        return protect(conversation, switch (CardKeys.search(fields)) {
             case CardKeys.Search.Valid keys -> show(keys.accountId(), keys.cardNumber());
             case CardKeys.Search.Invalid invalid -> invalid.screen();
-        };
+        });
+    }
+
+    /** 1300-SETUP-SCREEN-ATTRS: a card opened from the list keeps its keys; a searched one can be changed. */
+    private static Outcome.Show protect(Conversation conversation, Outcome.Show show) {
+        return conversation.from().equals(Optional.of(Program.COCRDLIC))
+                ? show.protecting(Set.of("ACCTSID", "CARDSID")) : show;
     }
 
     private Outcome.Show show(long accountId, String cardNumber) {

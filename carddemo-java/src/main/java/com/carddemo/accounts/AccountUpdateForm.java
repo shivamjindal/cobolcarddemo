@@ -7,7 +7,9 @@ import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Locale;
 import java.util.Map;
+import java.util.Set;
 import java.util.function.BiFunction;
+import java.util.stream.Collectors;
 
 /**
  * The COACTUP input fields in screen order: how each shows an account and customer, and how 1205 decides
@@ -77,7 +79,22 @@ final class AccountUpdateForm {
             new Field("ACSEFTC", Compare.EXACT, (a, c) -> c.eftAccountId()),
             new Field("ACSPFLG", Compare.IGNORING_CASE, (a, c) -> c.primaryCardHolder()));
 
+    private static final Set<String> ALL = FIELDS.stream().map(Field::name).collect(Collectors.toUnmodifiableSet());
+
     private AccountUpdateForm() {
+    }
+
+    /**
+     * 3300-SETUP-SCREEN-ATTRS: only the account id before a record is fetched or after a failed save, every field
+     * but the two keys and the country while editing, and nothing in confirmation or after a save.
+     */
+    static Set<String> readOnly(AccountUpdatePhase phase) {
+        return switch (phase) {
+            case NOT_FETCHED, LOCK_FAILED, SAVE_FAILED ->
+                    ALL.stream().filter(name -> !name.equals(ACCOUNT_ID)).collect(Collectors.toUnmodifiableSet());
+            case SHOWN, INVALID -> Set.of(ACCOUNT_ID, "ACSTNUM", "ACSCTRY");
+            case CONFIRM, SAVED -> ALL;
+        };
     }
 
     /** 1100-RECEIVE-MAP: a field holding only '*', the blank marker, reads as blank. */
