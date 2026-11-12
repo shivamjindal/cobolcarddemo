@@ -1,5 +1,6 @@
 package com.carddemo.vsam;
 
+import com.carddemo.users.Credentials;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.jdbc.core.JdbcTemplate;
@@ -40,10 +41,21 @@ public class SeedLoader {
 
     private int insert(Table table, List<String> records) {
         // TRANSACT is seeded from a single LOW-VALUES record (DALYTRAN.PS.INIT); it is not a transaction.
-        List<Object[]> rows = records.stream().filter(r -> !table.isPlaceholder(r)).map(table::decode).toList();
+        List<Object[]> rows = records.stream().filter(r -> !table.isPlaceholder(r)).map(table::decode)
+                .map(row -> table.dataset() == VsamDataset.USERS ? secure(table, row) : row)
+                .toList();
         jdbc.batchUpdate(table.insertSql(), rows);
         log.info("Loaded {} rows into {} ({} placeholder records skipped)",
                 rows.size(), table.name(), records.size() - rows.size());
         return rows.size();
+    }
+
+    /** USRSEC holds clear-text passwords; V2 stores bcrypt hashes and upper-case IDs. */
+    private static Object[] secure(Table table, Object[] row) {
+        int id = table.columnIndex("sec_usr_id");
+        int password = table.columnIndex("sec_usr_pwd");
+        row[id] = Credentials.normalize((String) row[id]);
+        row[password] = Credentials.hash((String) row[password]);
+        return row;
     }
 }

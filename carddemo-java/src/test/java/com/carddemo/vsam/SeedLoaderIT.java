@@ -1,5 +1,6 @@
 package com.carddemo.vsam;
 
+import com.carddemo.users.Credentials;
 import org.junit.jupiter.api.BeforeAll;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.TestInstance;
@@ -94,10 +95,12 @@ class SeedLoaderIT {
 
     @Test
     void usersAndReferenceDataRoundTrip() {
-        assertThat(jdbc.queryForMap("SELECT * FROM users WHERE sec_usr_id = 'ADMIN001'")).contains(
+        Map<String, Object> admin = jdbc.queryForMap("SELECT * FROM users WHERE sec_usr_id = 'ADMIN001'");
+        assertThat(admin).contains(
                 entry("sec_usr_fname", "MARGARET"),
                 entry("sec_usr_lname", "GOLD"),
                 entry("sec_usr_type", "A"));
+        assertThat(Credentials.matches("password", (String) admin.get("sec_usr_pwd"))).isTrue();
         assertThat(jdbc.queryForObject(
                 "SELECT dis_int_rate FROM disclosure_groups WHERE dis_acct_group_id = 'A000000000'"
                         + " AND dis_tran_type_cd = '01' AND dis_tran_cat_cd = 1", BigDecimal.class))
@@ -119,6 +122,16 @@ class SeedLoaderIT {
                 .isInstanceOf(DataIntegrityViolationException.class);
         assertThatThrownBy(() -> jdbc.update(
                 "INSERT INTO card_xref VALUES ('X', 1, 100000000000)"))
+                .isInstanceOf(DataIntegrityViolationException.class);
+    }
+
+    @Test
+    void usersRejectClearTextPasswordsAndLowerCaseIds() {
+        assertThatThrownBy(() -> jdbc.update(
+                "INSERT INTO users VALUES ('USER0099', 'A', 'B', 'PASSWORD', 'U')"))
+                .isInstanceOf(DataIntegrityViolationException.class);
+        assertThatThrownBy(() -> jdbc.update(
+                "INSERT INTO users VALUES ('user0099', 'A', 'B', ?, 'U')", Credentials.hash("x")))
                 .isInstanceOf(DataIntegrityViolationException.class);
     }
 }
