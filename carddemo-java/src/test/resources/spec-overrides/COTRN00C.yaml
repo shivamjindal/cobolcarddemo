@@ -1,0 +1,38 @@
+# Deliberate differences from characterization/online/specs/COTRN00C.yaml, applied by OnlineSpecReplayTest.
+# Each entry replaces whole keys of the case's given, when or then.
+COTRN00C-005:
+  reason: Arrival lists from the first key, so the PF5 discard read no longer skips that record.
+  then:
+    fields:
+      PAGENUMO: "00000001"
+      TRNID01O: "0000000000000001"
+      TDATE01O: 06/01/22
+      TDESC01O: PURCHASE 01
+      TAMT001O: "+00000001.00"
+      TRNID10O: "0000000000000010"
+      TDATE10O: 06/10/22
+      TDESC10O: PURCHASE 10
+      TAMT010O: "+00000010.00"
+    commarea:
+      CDEMO-CT00-TRNID-FIRST: "0000000000000001"
+      CDEMO-CT00-TRNID-LAST: "0000000000000010"
+      CDEMO-CT00-PAGE-NUM: 1
+      CDEMO-CT00-NEXT-PAGE-FLG: "Y"
+COTRN00C-011:
+  reason: A selection is the chosen transaction id, so the flag is recorded as S whichever case was typed.
+  then:
+    commarea:
+      CDEMO-CT00-TRN-SEL-FLG: S
+      CDEMO-CT00-TRN-SELECTED: "0000000000000001"
+COTRN00C-015:
+  reason: TRNID-LAST is the page's real last row, where the legacy program kept the previous page's value.
+  then:
+    commarea:
+      CDEMO-CT00-TRNID-FIRST: "0000000000000021"
+      CDEMO-CT00-TRNID-LAST: "0000000000000022"
+      CDEMO-CT00-PAGE-NUM: 3
+      CDEMO-CT00-NEXT-PAGE-FLG: "N"
+COTRN00C-020:
+  reason: The web adapter names each attention key, so this case is sent as PF1, which the list rejects.
+  when:
+    aid: PF1
