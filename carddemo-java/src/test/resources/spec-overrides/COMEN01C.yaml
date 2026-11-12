@@ -1,7 +1,7 @@
 # Deliberate differences from characterization/online/specs/COMEN01C.yaml, applied by OnlineSpecReplayTest.
 # Each entry replaces whole keys of the case's given, when or then. Drop an entry once its target program is installed.
 COMEN01C-002:
-  reason: The menu lists only installed options. Transaction view and options 8 through 11 are not installed yet.
+  reason: The menu lists only installed options, and options 8 through 11 are not installed yet.
   then:
     fields:
       TRNNAMEO: CM00
@@ -12,6 +12,7 @@ COMEN01C-002:
       OPTN004O: "04. Credit Card View"
       OPTN005O: "05. Credit Card Update"
       OPTN006O: "06. Transaction List"
+      OPTN007O: "07. Transaction View"
 COMEN01C-007:
   reason: COTRN02C is not installed yet, so option 8 shows the not-installed message instead of transferring.
   then:
