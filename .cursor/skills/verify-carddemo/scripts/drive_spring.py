@@ -2,8 +2,8 @@
 """Drive a running CardDemo Spring instance through the migrated slices over real HTTP and record every exchange.
 
 Signs on through the OIDC flow (sign-on page, authorization server, code exchange), then walks user admin,
-account and card update, the transaction list, view and add, and a bill payment confirmed by two sessions at
-once, through /api/screens. Exits non-zero on the first failed check.
+account and card update, the transaction list, view and add, a bill payment confirmed by two sessions at
+once, and a custom transaction report request that runs TRANREPT, through /api/screens. Exits non-zero on the first failed check.
 
 Usage: drive_spring.py [--base http://localhost:8080] [--out DIR]
 """
@@ -13,6 +13,7 @@ import json
 import re
 import subprocess
 import sys
+import time
 import urllib.error
 import urllib.parse
 import urllib.request
@@ -237,6 +238,36 @@ def drive_bill_payment(base, transcript):
           "the account balance is zero after the payment")
 
 
+def drive_report_request(base, transcript):
+    user = Client(base, transcript, "report-request")
+    user.sign_on("USER0001", "PASSWORD")
+    s = user.send("COMEN01C", "ENTER", OPTION="9")
+    check(s["program"] == "CORPT00C" and s["cursor"] == "MONTHLY", "option 9 opens transaction reports", s)
+    form = {"CUSTOM": "X", "SDTMM": "1", "SDTDD": "5", "SDTYYYY": "2022",
+            "EDTMM": "12", "EDTDD": "31", "EDTYYYY": "2022"}
+    s = user.send("CORPT00C", "ENTER", **{**form, "SDTMM": "02", "SDTDD": "30"})
+    check(message(s) == "Start Date - Not a valid date..." and s["cursor"] == "SDTMM",
+          "a custom start date that is not a calendar day is refused", s)
+    s = user.send("CORPT00C", "ENTER", **form)
+    check(message(s) == "Please confirm to print the Custom report..." and s["fields"].get("SDTMM") == "01",
+          "a valid range asks for confirmation and shows the month zero-padded", s)
+    before = int(sql(base, "SELECT count(*) FROM batch_job_instance WHERE job_name = 'TRANREPT'"))
+    s = user.send("CORPT00C", "ENTER", **form, CONFIRM="Y")
+    check(message(s) == "Custom report submitted for printing ...", "Y submits the custom report", message(s))
+    query = ("SELECT e.status || '|' || string_agg(p.parameter_value, ',' ORDER BY p.parameter_name)"
+             " FROM batch_job_execution e JOIN batch_job_instance i USING (job_instance_id)"
+             " JOIN batch_job_execution_params p USING (job_execution_id)"
+             " WHERE i.job_name = 'TRANREPT' AND p.parameter_name IN ('start', 'end')"
+             " GROUP BY e.job_execution_id ORDER BY e.job_execution_id DESC LIMIT 1")
+    for _ in range(50):
+        if int(sql(base, "SELECT count(*) FROM batch_job_instance WHERE job_name = 'TRANREPT'")) > before \
+                and sql(base, query).startswith("COMPLETED"):
+            break
+        time.sleep(0.2)
+    check(sql(base, query) == "COMPLETED|2022-12-31,2022-01-05",
+          "the submission ran TRANREPT for 2022-01-05 to 2022-12-31", sql(base, query))
+
+
 def drive(base, transcript):
     admin = Client(base, transcript, "admin")
     status, _, url = admin.sign_on("admin001", "password")
@@ -313,6 +344,7 @@ def main():
         drive_cards(args.base, transcript)
         drive_transactions(args.base, transcript)
         drive_bill_payment(args.base, transcript)
+        drive_report_request(args.base, transcript)
     finally:
         if args.out:
             args.out.mkdir(parents=True, exist_ok=True)

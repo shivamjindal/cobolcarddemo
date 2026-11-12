@@ -1,5 +1,6 @@
 package com.carddemo.online;
 
+import com.carddemo.batch.ReportSubmission;
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import org.junit.jupiter.api.AfterAll;
@@ -13,6 +14,7 @@ import org.springframework.http.MediaType;
 import org.springframework.mock.web.MockHttpServletResponse;
 import org.springframework.mock.web.MockHttpSession;
 import org.springframework.test.web.servlet.MockMvc;
+import org.springframework.test.context.bean.override.mockito.MockitoBean;
 import org.springframework.test.web.servlet.request.MockHttpServletRequestBuilder;
 
 import java.util.Arrays;
@@ -32,7 +34,7 @@ import static org.springframework.test.web.servlet.request.MockMvcRequestBuilder
 /**
  * Replays the spec of every installed program except COSGN00C (see SignonReplayTest) through the
  * REST adapter. given.commarea becomes the session's Conversation; xctl-from is a GET and reenter a
- * POST with the AID.
+ * POST with the AID. ReportSubmission is a mock, so no TRANREPT run reads the datasets while the next case resets them.
  */
 @SpringBootTest
 @AutoConfigureMockMvc
@@ -52,6 +54,9 @@ class OnlineSpecReplayTest {
 
     @Autowired
     ObjectMapper json;
+
+    @MockitoBean
+    ReportSubmission reports;
 
     @TestFactory
     Stream<DynamicContainer> replay() {
