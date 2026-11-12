@@ -4,6 +4,7 @@
     python3 characterization/batch/harness.py            # build, run all jobs, diff against golden/
     python3 characterization/batch/harness.py --update   # rewrite golden/ from this run
     python3 characterization/batch/harness.py --job POSTTRAN --keep
+    python3 characterization/batch/harness.py --out /tmp/evidence   # also keep this run's artifacts
 
 Each job mirrors one JCL member under app/jcl. COBOL programs run unmodified except
 CBSTM03A (see PATCHES). IDCAMS REPRO and DFSORT steps are emulated in Python.
@@ -438,6 +439,7 @@ def main():
     ap.add_argument("--update", action="store_true", help="rewrite golden files from this run")
     ap.add_argument("--job", action="append", choices=[*JOBS, "POSTTRAN-EDGES"], help="only compare these jobs (all jobs still run, in order)")
     ap.add_argument("--keep", action="store_true", help="keep the scratch directory and print its path")
+    ap.add_argument("--out", type=Path, help="also write this run's artifacts here, in the golden/ layout")
     args = ap.parse_args()
     if shutil.which("cobc") is None:
         sys.exit("cobc not found: install GnuCOBOL 3.x (apt-get install gnucobol3)")
@@ -456,6 +458,9 @@ def main():
     if args.update and GOLDEN.exists() and not args.job:
         shutil.rmtree(GOLDEN)
     failures = compare(artifacts, args.update)
+    for name, text in artifacts.items() if args.out else ():
+        (args.out / f"{name}.txt").parent.mkdir(parents=True, exist_ok=True)
+        (args.out / f"{name}.txt").write_text(text, encoding="latin-1")
     if args.keep:
         print(f"scratch: {work}")
     else:
