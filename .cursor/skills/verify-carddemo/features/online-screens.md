@@ -31,11 +31,27 @@ Preconditions:
 
 ## Driving it with the Spring app
 
-TODO(each online slice): list the routes that replace each program and the replay test that loads the spec YAML. Then list which case ids pass, which are deliberately changed (with the reason recorded in the spec's `notes`), and the command that runs the replay.
+Preconditions: `scripts/doctor.sh` exits 0. The live drives also need `scripts/spring.sh up`.
+
+Routes: every installed program is `GET`/`POST /screens/<PROGRAM>` (HTML) and `GET`/`POST /api/screens/<PROGRAM>` (JSON `{aid, fields}`). Sign-on is `/signon`, the OIDC provider's login page. A program that isn't installed is 404, and a menu option pointing at one says "not installed".
+
+| Sub-feature | Programs installed | Replay (`./gradlew test`) |
+| --- | --- | --- |
+| `signon` | COSGN00C | 12 passed, 3 overridden |
+| `menus` | COMEN01C, COADM01C | 17 passed, 11 overridden (8 of them wait for slices 2, 3 and 5) |
+| `user-admin` | COUSR00C-03C | 58 passed, 12 overridden |
+| others | none yet | not replayed |
+
+- **Replay.** `cd carddemo-java && ./gradlew test`, then read the `[spec-replay]` lines. Overrides and their reasons are in `carddemo-java/src/test/resources/spec-overrides/<PROGRAM>.yaml`.
+- **HTTP.** `python3 scripts/drive_spring.py --out DIR` covers sign-on, the menus, user add, update, delete, and sign-off.
+- **Browser.** `python3 scripts/browser_drive.py --out DIR` covers the same screens with the keyboard and saves screenshots.
+- **Proof.** Cite the case id and say "replayed against Java" with its status (passed as written, or the override's reason). The legacy side stays derived.
 
 ## Gotchas
 
 - The validator proves messages, fields, files, and line ranges exist. It cannot prove the outcome logic was read correctly. Treat each case as a reviewed claim.
 - CICS pseudo-conversational state lives in the COMMAREA. Cases set it through `given.commarea`, and a Java slice must map it to session or request state, not drop it.
 - Messages keep the mainframe's exact text, including trailing ` ...` and odd capitalization. Assert the exact string unless the slice records a deliberate change.
+- In Java, `CDEMO-PGM-CONTEXT` is implicit: arriving through a transfer is a GET (context 0), and pressing a key is a POST (context 1). The replay ignores that field. `CDEMO-FROM-PROGRAM` is `Conversation.from()`.
+- `SEC-USR-PWD` holds a bcrypt hash in Postgres. The replay hashes `given.files` passwords and compares `file_effects` passwords by matching, never by equality.
 - Specs cover the base CardDemo programs only. The optional Db2, IMS, and MQ modules under `app/app-*` are not captured.

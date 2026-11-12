@@ -11,13 +11,13 @@ CardDemo has two legacy surfaces and one future one.
 | --- | --- | --- |
 | Batch jobs (`app/jcl`, `app/cbl/CB*`) | The real COBOL, compiled by GnuCOBOL, against `app/data/ASCII` fixtures | **Executed.** Golden files in `characterization/batch/golden/` |
 | CICS screens (`app/cbl/CO*`, `app/bms`) | Nothing. CICS is not available | **Derived from source.** YAML specs in `characterization/online/specs/`, checked for grounding only |
-| Java/Spring app | Not built yet | See [Spring app](#spring-app-filled-in-by-slices) |
+| Java/Spring app (`carddemo-java/`) | Slice 1 screens (sign-on, menus, user admin) on Postgres, OIDC sign-on | **Executed.** Spec replay in `./gradlew test`, plus live HTTP and browser drives. See [Spring app](#spring-app-filled-in-by-slices) |
 
 Never describe a derived spec as observed behavior. When you report results, say which kind of evidence backs each claim.
 
 ## Launch
 
-No server exists yet. "Launch" means compiling the batch programs, and the harness does that itself.
+For the legacy suite, "launch" means compiling the batch programs, and the harness does that itself. The Spring app has its own launch under [Spring app](#spring-app-filled-in-by-slices).
 
 1. Install the toolchain once per machine: `sudo apt-get install -y gnucobol3` (GnuCOBOL 3.1.2 with the Berkeley DB indexed handler). Python 3 and PyYAML are already on the image.
 2. Run `.cursor/skills/verify-carddemo/scripts/doctor.sh`. Proceed only on exit 0.
@@ -62,27 +62,45 @@ The harness deletes its own scratch directory unless you pass `--keep`. Remove k
 
 ## Spring app (filled in by slices)
 
-The Java/Spring app does not exist yet. The slice that first makes it runnable fills in each subsection below, replacing the TODO with real commands verified on this VM, and updates `doctor.sh` and the feature map. Until then, do not claim any Java parity.
+Slice 1 made the app runnable. Later slices add their programs to the replay and their routes to the drives below. Claim Java parity only for programs that `[spec-replay]` lists.
 
 ### Launch
 
-TODO(first runnable slice): the exact build and run commands (for example the Maven or Gradle wrapper and the Spring profile), the Postgres setup (container or local, migrations, seed load from `app/data/ASCII`), the port, and the log line or health endpoint that means ready. It must also cover teardown, and say whether two instances can run side by side.
+1. Once per machine, the doctor's JDK 21 and docker checks must pass. If `repo.maven.apache.org` is blocked, put this in `~/.gradle/init.d/mirror.gradle.kts` (machine-local, never committed):
+
+   ```kotlin
+   val mirror = "https://repo1.maven.org/maven2/"
+   fun RepositoryHandler.useMirror() = all {
+       if (this is MavenArtifactRepository && (url.toString().contains("repo.maven.apache.org") || url.host == "plugins.gradle.org")) setUrl(mirror)
+   }
+   settingsEvaluated { pluginManagement.repositories.useMirror() }
+   allprojects { repositories.useMirror(); buildscript.repositories.useMirror() }
+   ```
+
+2. `scripts/spring.sh up [port]` (default 8080). It starts a dedicated `postgres:16-alpine` container `carddemo-pg-<port>` on a random loopback port, builds the boot jar, and runs it with `--carddemo.seed.dir=app/data/EBCDIC`. Flyway applies V1 and V2 and the seed loads 10 users with bcrypt passwords on every start, so each launch begins from the fixtures. Ready means `/actuator/health` says `UP`, which the script waits for (about 10 s). The log is `/tmp/carddemo-spring/<port>/app.log`.
+3. `scripts/spring.sh status [port]` prints pid, health, build info, and schema version. `scripts/spring.sh down [port]` stops the app and removes its container, keeping the log.
+
+Two instances can run side by side on different ports, because each has its own database and in-memory sessions. Browse each at `http://localhost:<port>`. The OIDC issuer and redirect URI are built from that URL, so another host name loses the sign-on cookies.
 
 ### Doctor
 
-TODO: extend `scripts/doctor.sh` to check the JVM version, that the port is owned by an instance this run started, the database schema version, and the build revision.
+`scripts/doctor.sh` also checks JDK 21, docker, and Maven reachability. When `spring.sh` has an instance on `$CARDDEMO_PORT` (default 8080), it checks that the instance's pid owns the port, health is UP, the schema is at the newest `V*__*.sql`, and `/actuator/info` reports the current `git describe` (restart after rebuilding).
 
 ### Drive
 
-TODO per slice. The parity contract the slices should implement:
-
-- **Online specs.** Load `characterization/online/specs/<PROGRAM>.yaml` in a parameterized test. For each case, set up `given.files` rows, call the endpoint that replaces the screen with `when.fields` and `when.aid`, and assert `then.message`, `then.fields`, the `then.transfer` navigation, and `then.file_effects` against the database. Record any case the slice deliberately changes (a fixed legacy bug, for example) in the spec's `notes`, with the reason.
-- **Batch goldens.** Run the replacement job on the same fixtures and the same fixed clock (`2022-07-06 10:00:00.00`, INTCALC parm `2022071800`). Render outputs in the golden text format: one record per line, non-printables as `\xNN`, trailing spaces dropped. Then `diff -r` against `characterization/batch/golden/`.
-- **UI.** When screens exist, add the browser recipe here, using stable handles (labels or `data-testid` named after BMS fields such as `USERID` and `PASSWD`).
+- **Spec replay (executed).** `cd carddemo-java && ./gradlew test`. `OnlineSpecReplayTest` replays every case of each installed program's spec through `/api/screens` against Testcontainers Postgres. `SignonReplayTest` replays COSGN00C over real HTTP through the OIDC flow. The output has one `[spec-replay] <PROGRAM>: N passed, M overridden, K skipped` line per program, with the case ids. A deliberate difference lives in `carddemo-java/src/test/resources/spec-overrides/<PROGRAM>.yaml` with a one-sentence `reason`, and the spec's `notes` point there.
+- **HTTP drive (executed).** `python3 scripts/drive_spring.py --base http://localhost:8080 --out DIR` signs on through the OIDC flow with a cookie jar, then walks the admin menu, user add, sign-on as the new user, update, delete, and sign-off through `/api/screens`. It also checks the bcrypt column in the instance's database. It prints one PASS line per check and exits non-zero on the first FAIL. For curl, follow the dance in `carddemo-java/README.md`.
+- **Browser drive (executed).** `python3 scripts/browser_drive.py --base http://localhost:8080 --out DIR` drives Chrome with ENTER and the F-keys, finding elements by `data-testid` named after BMS fields (`USERID`, `PASSWD`, `OPTION`, `USRID01`, `ERRMSG`). It saves one screenshot per screen. It needs `pip install --user --break-system-packages playwright` and Chrome at `$CHROME` (default `/usr/local/bin/google-chrome`). No Playwright browser download is needed.
 
 ### Evidence
 
-TODO: where the Spring run's screenshots, HTTP transcripts, and DB snapshots go, with the same `summary.txt` convention.
+`verify.sh [DIR]` adds these files to the batch and online evidence:
+
+- `spring-test.log` holds the full Gradle test run, and `spec-replay.txt` holds the per-program tallies.
+- `spring-status.txt`, `drive/` (`http-transcript.json` and `drive.txt`), and `browser/` (`NN-<screen>.png` and `browser.txt`) appear only when `spring.sh` has an instance up.
+- `summary.txt` gains `spring` and `drive` lines.
+
+The HTTP transcript never records a request body that carries a password. An online Java claim cites the spec case id and says whether it passed as written or under a named override.
 
 ## Feature map
 
