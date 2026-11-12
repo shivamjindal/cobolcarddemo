@@ -2,6 +2,7 @@ package com.carddemo.online;
 
 import com.carddemo.users.Credentials;
 import org.assertj.core.api.SoftAssertions;
+import org.yaml.snakeyaml.LoaderOptions;
 import org.yaml.snakeyaml.Yaml;
 
 import java.io.IOException;
@@ -117,7 +118,8 @@ record SpecCase(String program, String id, String summary, Map<String, Object> g
             }
         }
         if (then.containsKey("cursor")) {
-            soft.assertThat(observed.cursor()).as("cursor").isEqualTo(strip((String) then.get("cursor"), "L"));
+            String cursor = (String) then.get("cursor");
+            soft.assertThat(observed.cursor()).as("cursor").isEqualTo(cursor == null ? null : strip(cursor, "L"));
         }
         map(then.get("fields")).forEach((name, value) -> soft.assertThat(
                 observed.fields().getOrDefault(strip(name, "O"), "")).as(name).isEqualTo(text(value)));
@@ -182,8 +184,9 @@ record SpecCase(String program, String id, String summary, Map<String, Object> g
         return Pattern.compile(regex.append(Pattern.quote(message.substring(literal))).toString());
     }
 
+    /** LOW-VALUES in a spec is a field or COMMAREA item never set, which the Java side holds as blank. */
     static String text(Object value) {
-        return value == null ? "" : String.valueOf(value);
+        return value == null || "LOW-VALUES".equals(value) ? "" : String.valueOf(value);
     }
 
     @Override
@@ -219,9 +222,12 @@ record SpecCase(String program, String id, String summary, Map<String, Object> g
         }
     }
 
+    /** Specs share fixtures through YAML aliases, more than SnakeYAML's default limit of 50. */
     private static Map<String, Object> yaml(Path file) {
+        LoaderOptions options = new LoaderOptions();
+        options.setMaxAliasesForCollections(Integer.MAX_VALUE);
         try (InputStream in = Files.newInputStream(file)) {
-            return new Yaml().load(in);
+            return new Yaml(options).load(in);
         } catch (IOException e) {
             throw new UncheckedIOException(e);
         }
