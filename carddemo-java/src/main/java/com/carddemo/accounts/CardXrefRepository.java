@@ -18,6 +18,12 @@ public class CardXrefRepository {
         this.jdbc = jdbc;
     }
 
+    /** READ CCXREF by the card number. */
+    public Optional<CardXref> find(String cardNumber) {
+        return jdbc.query("SELECT xref_card_num, xref_cust_id, xref_acct_id FROM card_xref WHERE xref_card_num = ?",
+                ROW, cardNumber).stream().findFirst();
+    }
+
     /** READ CXACAIX: the AIX is non-unique, and a keyed read returns its first duplicate, in card order. */
     public Optional<CardXref> findByAccount(long accountId) {
         return jdbc.query("SELECT xref_card_num, xref_cust_id, xref_acct_id FROM card_xref WHERE xref_acct_id = ?"

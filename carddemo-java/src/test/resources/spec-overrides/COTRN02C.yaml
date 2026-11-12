@@ -1,0 +1,89 @@
+# Deliberate differences from characterization/online/specs/COTRN02C.yaml, applied by OnlineSpecReplayTest.
+# Each entry replaces whole keys of the case's given, when or then.
+COTRN02C-001:
+  reason: Entering without a signed-on conversation goes to sign-on.
+  then:
+    message: null
+    cursor: null
+    fields: {}
+    transfer: {via: XCTL, to: COSGN00C}
+COTRN02C-003:
+  reason: No program hands over CDEMO-CT02-TRN-SELECTED, so arrival with one selected cannot occur.
+  skip: true
+COTRN02C-007:
+  reason: The adapter accepts PF1 through PF12 only, so the WHEN OTHER branch is driven with PF6.
+  when:
+    aid: PF6
+COTRN02C-012:
+  reason: A multi-card account reads its first card, as the account screens read CXACAIX, instead of failing with DUPKEY.
+  then:
+    message: Confirm to add this transaction...
+    cursor: CONFIRML
+    fields:
+      ACTIDINO: "00000000001"
+      CARDNINO: "4111111111111111"
+COTRN02C-036:
+  reason: A date before 1582-10-15 is not a real timestamp, so it is refused instead of stored.
+  then:
+    message: Orig Date - Not a valid date...
+    cursor: TORIGDTL
+COTRN02C-041:
+  reason: Orig and proc dates are stored as midnight timestamps, not the 10-character screen date.
+  then:
+    file_effects:
+    - file: TRANSACT
+      op: WRITE
+      record:
+        TRAN-ID: "0000000000000023"
+        TRAN-TYPE-CD: "01"
+        TRAN-CAT-CD: "0001"
+        TRAN-SOURCE: POS TERM
+        TRAN-DESC: COFFEE SHOP
+        TRAN-AMT: "12.50"
+        TRAN-MERCHANT-ID: "000012345"
+        TRAN-MERCHANT-NAME: JOES COFFEE
+        TRAN-MERCHANT-CITY: SEATTLE
+        TRAN-MERCHANT-ZIP: "98101"
+        TRAN-CARD-NUM: "4111111111111111"
+        TRAN-ORIG-TS: "2026-11-01 00:00:00.000000"
+        TRAN-PROC-TS: "2026-11-02 00:00:00.000000"
+COTRN02C-042:
+  reason: Orig and proc dates are stored as midnight timestamps, not the 10-character screen date.
+  then:
+    file_effects:
+    - file: TRANSACT
+      op: WRITE
+      record:
+        TRAN-ID: "0000000000000023"
+        TRAN-TYPE-CD: "01"
+        TRAN-CAT-CD: "0001"
+        TRAN-SOURCE: POS TERM
+        TRAN-DESC: COFFEE SHOP
+        TRAN-AMT: "-99.99"
+        TRAN-MERCHANT-ID: "000012345"
+        TRAN-MERCHANT-NAME: JOES COFFEE
+        TRAN-MERCHANT-CITY: SEATTLE
+        TRAN-MERCHANT-ZIP: "98101"
+        TRAN-CARD-NUM: "4111111111111111"
+        TRAN-ORIG-TS: "2026-11-01 00:00:00.000000"
+        TRAN-PROC-TS: "2026-11-02 00:00:00.000000"
+COTRN02C-045:
+  reason: Orig and proc dates are stored as midnight timestamps, not the 10-character screen date.
+  then:
+    file_effects:
+    - file: TRANSACT
+      op: WRITE
+      record:
+        TRAN-ID: "0000000000000023"
+        TRAN-TYPE-CD: "03"
+        TRAN-CAT-CD: "0002"
+        TRAN-SOURCE: OPERATOR
+        TRAN-DESC: GROCERY STORE
+        TRAN-AMT: "-22.00"
+        TRAN-MERCHANT-ID: "000054321"
+        TRAN-MERCHANT-NAME: FRESH MART
+        TRAN-MERCHANT-CITY: PORTLAND
+        TRAN-MERCHANT-ZIP: "97201"
+        TRAN-CARD-NUM: "4111111111111111"
+        TRAN-ORIG-TS: "2022-06-22 00:00:00.000000"
+        TRAN-PROC-TS: "2022-06-23 00:00:00.000000"
