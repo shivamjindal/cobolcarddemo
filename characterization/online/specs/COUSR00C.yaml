@@ -1,0 +1,551 @@
+program: COUSR00C
+transaction: CU00
+screen:
+  mapset: COUSR00
+  map: COUSR0A
+evidence: derived
+sources:
+  - app/cbl/COUSR00C.cbl
+  - app/cpy/CSUSR01Y.cpy
+  - app/cpy/COCOM01Y.cpy
+  - app/cpy/CSMSG01Y.cpy
+  - app/bms/COUSR00.bms
+  - app/jcl/DUSRSECJ.jcl
+files:
+  - name: USRSEC
+    ops: [STARTBR, READNEXT, READPREV, ENDBR]
+    key: SEC-USR-ID
+navigation:
+  - to: COSGN00C
+    via: XCTL
+    when: EIBCALEN = 0 (lines 110-112). RETURN-TO-PREV-SCREEN passes the COMMAREA (lines 506-517).
+  - to: COADM01C
+    via: XCTL
+    when: PF3 (lines 125-127)
+  - to: COUSR02C
+    via: XCTL
+    when: ENTER with selection 'U' or 'u' on a listed row (lines 190-199)
+  - to: COUSR03C
+    via: XCTL
+    when: ENTER with selection 'D' or 'd' on a listed row (lines 200-209)
+  - to: CU00
+    via: RETURN-TRANSID
+    when: every path that displays the list (lines 141-144)
+notes:
+  - Field and record values are right-trimmed. A blank row is written as "". PAGENUMO receives CDEMO-CU00-PAGE-NUM, a PIC 9(08) moved into PAGENUMI X(08) (lines 326, 376), so page 1 is displayed as 00000001.
+  - "The COMMAREA is extended in this program. CDEMO-CU00-INFO is appended after CARDDEMO-COMMAREA (lines 66-75) and holds CDEMO-CU00-USRID-FIRST, -USRID-LAST, -PAGE-NUM, -NEXT-PAGE-FLG, -USR-SEL-FLG and -USR-SELECTED. COUSR02C and COUSR03C declare the same layout under CDEMO-CU02-* and CDEMO-CU03-* names, which is how the selected user ID reaches them."
+  - "Rows are populated through the ...I input fields (lines 384-441). BMS symbolic maps overlay the ...I and ...O fields of the same name, so the spec asserts the ...O names."
+  - STARTBR has no GTEQ/EQUAL option (GTEQ is commented out at line 591). CICS defaults STARTBR to GTEQ, so the user-ID filter positions at the first key greater than or equal to the typed text. The filter is not upper-cased, and keys compare byte-wise.
+  - "Multiple SENDs per task. The ENDFILE/NOTFND branches of the file routines send the screen immediately (lines 600-605, 634-640, 668-674). The paging routine then sends again at its end (lines 328, 377). The terminal ends up showing the last SEND, which still carries WS-MESSAGE. Specs assert the final screen."
+  - "With exactly 10 users, the first page shows 'You have reached the bottom of the page...'. After filling 10 rows the program issues one more READNEXT to decide NEXT-PAGE-FLG (lines 308-317), and its ENDFILE branch sets the message (lines 634-640). The same look-ahead means a page of fewer than 10 rows always carries that message."
+  - "ENTER always restarts at page 1 from the typed filter, or from the start of file when the filter is blank (lines 218-228). The current page is discarded even when the user just pressed ENTER to submit an invalid selection."
+  - An invalid selection message is set at line 212, but WS-ERR-FLG is not set. The list is then rebuilt, and an ENDFILE during the rebuild overwrites the message with 'You have reached the bottom of the page...' (case COUSR00C-014).
+  - Only the first non-blank selection field is honoured (EVALUATE at lines 151-184). Other selections are ignored.
+  - "Forward paging repositions with STARTBR on CDEMO-CU00-USRID-LAST and discards one READNEXT unless EIBAID is ENTER, PF7 or PF3 (lines 287-290). Backward paging repositions on CDEMO-CU00-USRID-FIRST and discards one READPREV unless EIBAID is ENTER or PF8 (lines 342-344). If the anchor record was deleted in the meantime, GTEQ lands on its neighbour and that real record is skipped."
+  - CDEMO-CU00-USRID-LAST is only set when row 10 is populated (lines 433-438), and -USRID-FIRST only when row 1 is populated (lines 387-392). A short last page leaves USRID-LAST at the previous page's value. A short backward fill, which fills rows 10 downward, leaves rows 1..n blank and USRID-FIRST stale.
+  - "Backward paging does not change the page number when it runs out of records inside the 10-row loop (lines 362-372 only run when not at EOF). After a successful 10-row fill, one more READPREV decides the number: found means PAGE-NUM - 1, ENDFILE means 1."
+  - "Latent abend. When STARTBR returns NOTFND (filter beyond the last key, or an empty file) the program sends 'You are at the top of the page...' (lines 600-605) without setting WS-ERR-FLG. PROCESS-PAGE-FORWARD then proceeds to ENDBR (line 324) on a browse that never started. ENDBR has no RESP, so CICS raises INVREQ and the task abends (AEIP) before the RETURN TRANSID. Case COUSR00C-015 asserts only the message."
+  - First entry runs PROCESS-ENTER-KEY (line 118) over a map that was just set to LOW-VALUES (line 117). The selection fields are therefore blank, nothing is re-selected, and the list starts from the top. This is why returning from COUSR02C or COUSR03C (PF3) lands on page 1.
+  - "The DISPLAY of RESP/REAS on unexpected errors (lines 607, 642, 676) goes to the CICS job log, not the screen. Those branches show 'Unable to lookup User...'. The schema cannot inject a file error, so no case asserts it."
+  - SEND for the PF7/PF8 boundary messages omits ERASE (lines 537-543), so the existing screen content stays and only the message and cursor update.
+  - Neither this program nor COADM01C checks CDEMO-USER-TYPE. Any caller with a COMMAREA can list users.
+cases:
+  - id: COUSR00C-001
+    summary: direct start with no COMMAREA (EIBCALEN = 0) transfers to sign-on
+    given:
+      entry: first-time
+    when:
+      aid: ENTER
+      fields: {}
+    then:
+      message: null
+      transfer: {via: XCTL, to: COSGN00C}
+      commarea:
+        CDEMO-TO-PROGRAM: COSGN00C
+        CDEMO-FROM-TRANID: CU00
+        CDEMO-FROM-PROGRAM: COUSR00C
+        CDEMO-PGM-CONTEXT: 0
+      file_effects: []
+    source:
+      file: app/cbl/COUSR00C.cbl
+      lines: [110, 112]
+
+  - id: COUSR00C-002
+    summary: arriving from the admin menu with 12 users lists the first 10 and enables next page
+    given:
+      entry: xctl-from
+      commarea:
+        CDEMO-FROM-PROGRAM: COADM01C
+        CDEMO-FROM-TRANID: CA00
+        CDEMO-USER-TYPE: A
+        CDEMO-PGM-CONTEXT: 0
+      files:
+        USRSEC: &users12
+          - {SEC-USR-ID: ADMIN001, SEC-USR-FNAME: MARGARET, SEC-USR-LNAME: GOLD, SEC-USR-PWD: PASSWORD, SEC-USR-TYPE: A}
+          - {SEC-USR-ID: ADMIN002, SEC-USR-FNAME: RUSSELL, SEC-USR-LNAME: RUSSELL, SEC-USR-PWD: PASSWORD, SEC-USR-TYPE: A}
+          - {SEC-USR-ID: ADMIN003, SEC-USR-FNAME: RAYMOND, SEC-USR-LNAME: WHITMORE, SEC-USR-PWD: PASSWORD, SEC-USR-TYPE: A}
+          - {SEC-USR-ID: ADMIN004, SEC-USR-FNAME: EMMANUEL, SEC-USR-LNAME: CASGRAIN, SEC-USR-PWD: PASSWORD, SEC-USR-TYPE: A}
+          - {SEC-USR-ID: ADMIN005, SEC-USR-FNAME: GRANVILLE, SEC-USR-LNAME: LACHAPELLE, SEC-USR-PWD: PASSWORD, SEC-USR-TYPE: A}
+          - {SEC-USR-ID: USER0001, SEC-USR-FNAME: LAWRENCE, SEC-USR-LNAME: THOMAS, SEC-USR-PWD: PASSWORD, SEC-USR-TYPE: U}
+          - {SEC-USR-ID: USER0002, SEC-USR-FNAME: AJITH, SEC-USR-LNAME: KUMAR, SEC-USR-PWD: PASSWORD, SEC-USR-TYPE: U}
+          - {SEC-USR-ID: USER0003, SEC-USR-FNAME: LAURITZ, SEC-USR-LNAME: ALME, SEC-USR-PWD: PASSWORD, SEC-USR-TYPE: U}
+          - {SEC-USR-ID: USER0004, SEC-USR-FNAME: AVERARDO, SEC-USR-LNAME: MAZZI, SEC-USR-PWD: PASSWORD, SEC-USR-TYPE: U}
+          - {SEC-USR-ID: USER0005, SEC-USR-FNAME: LEE, SEC-USR-LNAME: TING, SEC-USR-PWD: PASSWORD, SEC-USR-TYPE: U}
+          - {SEC-USR-ID: USER0006, SEC-USR-FNAME: JANE, SEC-USR-LNAME: DOE, SEC-USR-PWD: PASSWORD, SEC-USR-TYPE: U}
+          - {SEC-USR-ID: USER0007, SEC-USR-FNAME: JOHN, SEC-USR-LNAME: ROE, SEC-USR-PWD: PASSWORD, SEC-USR-TYPE: U}
+    when:
+      aid: ENTER
+      fields: {}
+    then:
+      message: null
+      cursor: USRIDINL
+      fields:
+        TRNNAMEO: CU00
+        PGMNAMEO: COUSR00C
+        PAGENUMO: "00000001"
+        USRIDINO: ""
+        USRID01O: ADMIN001
+        FNAME01O: MARGARET
+        LNAME01O: GOLD
+        UTYPE01O: A
+        USRID02O: ADMIN002
+        USRID03O: ADMIN003
+        USRID04O: ADMIN004
+        USRID05O: ADMIN005
+        USRID06O: USER0001
+        USRID07O: USER0002
+        USRID08O: USER0003
+        USRID09O: USER0004
+        USRID10O: USER0005
+        FNAME10O: LEE
+        LNAME10O: TING
+        UTYPE10O: U
+      transfer: {via: RETURN-TRANSID, to: CU00}
+      commarea:
+        CDEMO-PGM-CONTEXT: 1
+        CDEMO-CU00-USRID-FIRST: ADMIN001
+        CDEMO-CU00-USRID-LAST: USER0005
+        CDEMO-CU00-PAGE-NUM: 1
+        CDEMO-CU00-NEXT-PAGE-FLG: "Y"
+      file_effects: []
+    source:
+      file: app/cbl/COUSR00C.cbl
+      lines: [115, 119]
+
+  - id: COUSR00C-003
+    summary: with exactly the 10 seed users, page 1 already shows the bottom-of-page message and disables next page
+    given:
+      entry: xctl-from
+      commarea: {CDEMO-FROM-PROGRAM: COADM01C, CDEMO-USER-TYPE: A, CDEMO-PGM-CONTEXT: 0}
+      files:
+        USRSEC: &users10
+          - {SEC-USR-ID: ADMIN001, SEC-USR-FNAME: MARGARET, SEC-USR-LNAME: GOLD, SEC-USR-PWD: PASSWORD, SEC-USR-TYPE: A}
+          - {SEC-USR-ID: ADMIN002, SEC-USR-FNAME: RUSSELL, SEC-USR-LNAME: RUSSELL, SEC-USR-PWD: PASSWORD, SEC-USR-TYPE: A}
+          - {SEC-USR-ID: ADMIN003, SEC-USR-FNAME: RAYMOND, SEC-USR-LNAME: WHITMORE, SEC-USR-PWD: PASSWORD, SEC-USR-TYPE: A}
+          - {SEC-USR-ID: ADMIN004, SEC-USR-FNAME: EMMANUEL, SEC-USR-LNAME: CASGRAIN, SEC-USR-PWD: PASSWORD, SEC-USR-TYPE: A}
+          - {SEC-USR-ID: ADMIN005, SEC-USR-FNAME: GRANVILLE, SEC-USR-LNAME: LACHAPELLE, SEC-USR-PWD: PASSWORD, SEC-USR-TYPE: A}
+          - {SEC-USR-ID: USER0001, SEC-USR-FNAME: LAWRENCE, SEC-USR-LNAME: THOMAS, SEC-USR-PWD: PASSWORD, SEC-USR-TYPE: U}
+          - {SEC-USR-ID: USER0002, SEC-USR-FNAME: AJITH, SEC-USR-LNAME: KUMAR, SEC-USR-PWD: PASSWORD, SEC-USR-TYPE: U}
+          - {SEC-USR-ID: USER0003, SEC-USR-FNAME: LAURITZ, SEC-USR-LNAME: ALME, SEC-USR-PWD: PASSWORD, SEC-USR-TYPE: U}
+          - {SEC-USR-ID: USER0004, SEC-USR-FNAME: AVERARDO, SEC-USR-LNAME: MAZZI, SEC-USR-PWD: PASSWORD, SEC-USR-TYPE: U}
+          - {SEC-USR-ID: USER0005, SEC-USR-FNAME: LEE, SEC-USR-LNAME: TING, SEC-USR-PWD: PASSWORD, SEC-USR-TYPE: U}
+    when:
+      aid: ENTER
+      fields: {}
+    then:
+      message: "You have reached the bottom of the page..."
+      cursor: USRIDINL
+      fields:
+        PAGENUMO: "00000001"
+        USRID01O: ADMIN001
+        USRID10O: USER0005
+      transfer: {via: RETURN-TRANSID, to: CU00}
+      commarea:
+        CDEMO-CU00-USRID-FIRST: ADMIN001
+        CDEMO-CU00-USRID-LAST: USER0005
+        CDEMO-CU00-PAGE-NUM: 1
+        CDEMO-CU00-NEXT-PAGE-FLG: "N"
+      file_effects: []
+    source:
+      file: app/cbl/COUSR00C.cbl
+      lines: [308, 317]
+
+  - id: COUSR00C-004
+    summary: arriving back via PF3 from update/delete lists from the top without skipping the first record
+    given:
+      entry: xctl-from
+      commarea:
+        CDEMO-FROM-PROGRAM: COUSR02C
+        CDEMO-FROM-TRANID: CU02
+        CDEMO-PGM-CONTEXT: 0
+        CDEMO-CU00-USR-SEL-FLG: U
+        CDEMO-CU00-USR-SELECTED: USER0003
+        CDEMO-CU00-PAGE-NUM: 1
+      files:
+        USRSEC: *users12
+    when:
+      aid: PF3
+      fields: {}
+    then:
+      message: null
+      cursor: USRIDINL
+      fields:
+        PAGENUMO: "00000001"
+        USRID01O: ADMIN001
+        USRID10O: USER0005
+      transfer: {via: RETURN-TRANSID, to: CU00}
+      commarea:
+        CDEMO-PGM-CONTEXT: 1
+        CDEMO-CU00-USR-SEL-FLG: ""
+        CDEMO-CU00-USR-SELECTED: ""
+        CDEMO-CU00-NEXT-PAGE-FLG: "Y"
+      file_effects: []
+    source:
+      file: app/cbl/COUSR00C.cbl
+      lines: [287, 290]
+
+  - id: COUSR00C-005
+    summary: PF8 with a next page shows the remaining users, blanks the unused rows and keeps the old USRID-LAST
+    given:
+      entry: reenter
+      commarea:
+        CDEMO-PGM-CONTEXT: 1
+        CDEMO-CU00-USRID-FIRST: ADMIN001
+        CDEMO-CU00-USRID-LAST: USER0005
+        CDEMO-CU00-PAGE-NUM: 1
+        CDEMO-CU00-NEXT-PAGE-FLG: "Y"
+      files:
+        USRSEC: *users12
+    when:
+      aid: PF8
+      fields: {}
+    then:
+      message: "You have reached the bottom of the page..."
+      cursor: USRIDINL
+      fields:
+        PAGENUMO: "00000002"
+        USRID01O: USER0006
+        FNAME01O: JANE
+        LNAME01O: DOE
+        UTYPE01O: U
+        USRID02O: USER0007
+        USRID03O: ""
+        USRID10O: ""
+      transfer: {via: RETURN-TRANSID, to: CU00}
+      commarea:
+        CDEMO-CU00-USRID-FIRST: USER0006
+        CDEMO-CU00-USRID-LAST: USER0005
+        CDEMO-CU00-PAGE-NUM: 2
+        CDEMO-CU00-NEXT-PAGE-FLG: "N"
+      file_effects: []
+    source:
+      file: app/cbl/COUSR00C.cbl
+      lines: [260, 271]
+
+  - id: COUSR00C-006
+    summary: PF8 when no next page is flagged keeps the screen and shows the already-at-bottom message
+    given:
+      entry: reenter
+      commarea:
+        CDEMO-PGM-CONTEXT: 1
+        CDEMO-CU00-USRID-FIRST: USER0006
+        CDEMO-CU00-USRID-LAST: USER0005
+        CDEMO-CU00-PAGE-NUM: 2
+        CDEMO-CU00-NEXT-PAGE-FLG: "N"
+      files:
+        USRSEC: *users12
+    when:
+      aid: PF8
+      fields: {}
+    then:
+      message: "You are already at the bottom of the page..."
+      cursor: USRIDINL
+      transfer: {via: RETURN-TRANSID, to: CU00}
+      commarea:
+        CDEMO-CU00-PAGE-NUM: 2
+      file_effects: []
+    source:
+      file: app/cbl/COUSR00C.cbl
+      lines: [270, 276]
+
+  - id: COUSR00C-007
+    summary: PF7 on page 1 keeps the screen and shows the already-at-top message
+    given:
+      entry: reenter
+      commarea:
+        CDEMO-PGM-CONTEXT: 1
+        CDEMO-CU00-USRID-FIRST: ADMIN001
+        CDEMO-CU00-USRID-LAST: USER0005
+        CDEMO-CU00-PAGE-NUM: 1
+        CDEMO-CU00-NEXT-PAGE-FLG: "Y"
+      files:
+        USRSEC: *users12
+    when:
+      aid: PF7
+      fields: {}
+    then:
+      message: "You are already at the top of the page..."
+      cursor: USRIDINL
+      transfer: {via: RETURN-TRANSID, to: CU00}
+      commarea:
+        CDEMO-CU00-PAGE-NUM: 1
+        CDEMO-CU00-NEXT-PAGE-FLG: "Y"
+      file_effects: []
+    source:
+      file: app/cbl/COUSR00C.cbl
+      lines: [247, 255]
+
+  - id: COUSR00C-008
+    summary: PF7 from page 2 refills rows 10 down to 1 with the previous users and resets to page 1
+    given:
+      entry: reenter
+      commarea:
+        CDEMO-PGM-CONTEXT: 1
+        CDEMO-CU00-USRID-FIRST: USER0006
+        CDEMO-CU00-USRID-LAST: USER0005
+        CDEMO-CU00-PAGE-NUM: 2
+        CDEMO-CU00-NEXT-PAGE-FLG: "N"
+      files:
+        USRSEC: *users12
+    when:
+      aid: PF7
+      fields: {}
+    then:
+      message: "You have reached the top of the page..."
+      cursor: USRIDINL
+      fields:
+        PAGENUMO: "00000001"
+        USRID01O: ADMIN001
+        USRID05O: ADMIN005
+        USRID06O: USER0001
+        USRID10O: USER0005
+      transfer: {via: RETURN-TRANSID, to: CU00}
+      commarea:
+        CDEMO-CU00-USRID-FIRST: ADMIN001
+        CDEMO-CU00-USRID-LAST: USER0005
+        CDEMO-CU00-PAGE-NUM: 1
+        CDEMO-CU00-NEXT-PAGE-FLG: "Y"
+      file_effects: []
+    source:
+      file: app/cbl/COUSR00C.cbl
+      lines: [336, 378]
+
+  - id: COUSR00C-009
+    summary: ENTER with a user-ID filter lists from the first key >= the filter and clears the filter field
+    given:
+      entry: reenter
+      commarea: {CDEMO-PGM-CONTEXT: 1, CDEMO-CU00-PAGE-NUM: 1}
+      files:
+        USRSEC: *users12
+    when:
+      aid: ENTER
+      fields:
+        USRIDINI: USER0003
+    then:
+      message: "You have reached the bottom of the page..."
+      cursor: USRIDINL
+      fields:
+        USRIDINO: ""
+        PAGENUMO: "00000001"
+        USRID01O: USER0003
+        USRID02O: USER0004
+        USRID03O: USER0005
+        USRID04O: USER0006
+        USRID05O: USER0007
+        USRID06O: ""
+      transfer: {via: RETURN-TRANSID, to: CU00}
+      commarea:
+        CDEMO-CU00-USRID-FIRST: USER0003
+        CDEMO-CU00-PAGE-NUM: 1
+        CDEMO-CU00-NEXT-PAGE-FLG: "N"
+      file_effects: []
+    source:
+      file: app/cbl/COUSR00C.cbl
+      lines: [218, 232]
+
+  - id: COUSR00C-010
+    summary: selection 'U' on a row transfers to user update with the selected ID in the COMMAREA
+    given:
+      entry: reenter
+      commarea: {CDEMO-PGM-CONTEXT: 1, CDEMO-CU00-PAGE-NUM: 1}
+      files:
+        USRSEC: *users12
+    when:
+      aid: ENTER
+      fields:
+        SEL0002I: U
+        USRID02I: ADMIN002
+    then:
+      message: null
+      transfer: {via: XCTL, to: COUSR02C}
+      commarea:
+        CDEMO-TO-PROGRAM: COUSR02C
+        CDEMO-FROM-TRANID: CU00
+        CDEMO-FROM-PROGRAM: COUSR00C
+        CDEMO-PGM-CONTEXT: 0
+        CDEMO-CU00-USR-SEL-FLG: U
+        CDEMO-CU00-USR-SELECTED: ADMIN002
+      file_effects: []
+    source:
+      file: app/cbl/COUSR00C.cbl
+      lines: [186, 199]
+
+  - id: COUSR00C-011
+    summary: lower-case selection 'd' transfers to user delete
+    given:
+      entry: reenter
+      commarea: {CDEMO-PGM-CONTEXT: 1, CDEMO-CU00-PAGE-NUM: 1}
+      files:
+        USRSEC: *users12
+    when:
+      aid: ENTER
+      fields:
+        SEL0007I: d
+        USRID07I: USER0002
+    then:
+      message: null
+      transfer: {via: XCTL, to: COUSR03C}
+      commarea:
+        CDEMO-TO-PROGRAM: COUSR03C
+        CDEMO-FROM-TRANID: CU00
+        CDEMO-FROM-PROGRAM: COUSR00C
+        CDEMO-PGM-CONTEXT: 0
+        CDEMO-CU00-USR-SEL-FLG: d
+        CDEMO-CU00-USR-SELECTED: USER0002
+      file_effects: []
+    source:
+      file: app/cbl/COUSR00C.cbl
+      lines: [200, 209]
+
+  - id: COUSR00C-012
+    summary: with several rows marked, only the first marked row is acted on
+    given:
+      entry: reenter
+      commarea: {CDEMO-PGM-CONTEXT: 1, CDEMO-CU00-PAGE-NUM: 1}
+      files:
+        USRSEC: *users12
+    when:
+      aid: ENTER
+      fields:
+        SEL0003I: D
+        USRID03I: ADMIN003
+        SEL0005I: U
+        USRID05I: ADMIN005
+    then:
+      message: null
+      transfer: {via: XCTL, to: COUSR03C}
+      commarea:
+        CDEMO-CU00-USR-SEL-FLG: D
+        CDEMO-CU00-USR-SELECTED: ADMIN003
+      file_effects: []
+    source:
+      file: app/cbl/COUSR00C.cbl
+      lines: [151, 184]
+
+  - id: COUSR00C-013
+    summary: a selection code other than U/D shows the invalid-selection message and rebuilds page 1
+    given:
+      entry: reenter
+      commarea: {CDEMO-PGM-CONTEXT: 1, CDEMO-CU00-PAGE-NUM: 1}
+      files:
+        USRSEC: *users12
+    when:
+      aid: ENTER
+      fields:
+        SEL0001I: X
+        USRID01I: ADMIN001
+    then:
+      message: "Invalid selection. Valid values are U and D"
+      cursor: USRIDINL
+      fields:
+        PAGENUMO: "00000001"
+        USRID01O: ADMIN001
+        USRID10O: USER0005
+      transfer: {via: RETURN-TRANSID, to: CU00}
+      commarea:
+        CDEMO-CU00-USR-SEL-FLG: X
+        CDEMO-CU00-USR-SELECTED: ADMIN001
+        CDEMO-CU00-NEXT-PAGE-FLG: "Y"
+      file_effects: []
+    source:
+      file: app/cbl/COUSR00C.cbl
+      lines: [210, 215]
+
+  - id: COUSR00C-014
+    summary: with 10 or fewer users from the start key, the invalid-selection message is overwritten by the bottom-of-page message
+    given:
+      entry: reenter
+      commarea: {CDEMO-PGM-CONTEXT: 1, CDEMO-CU00-PAGE-NUM: 1}
+      files:
+        USRSEC: *users10
+    when:
+      aid: ENTER
+      fields:
+        SEL0001I: X
+        USRID01I: ADMIN001
+    then:
+      message: "You have reached the bottom of the page..."
+      cursor: USRIDINL
+      transfer: {via: RETURN-TRANSID, to: CU00}
+      file_effects: []
+    source:
+      file: app/cbl/COUSR00C.cbl
+      lines: [630, 640]
+
+  - id: COUSR00C-015
+    summary: a filter beyond the last key (STARTBR NOTFND) sends the top-of-page message; the following ENDBR then abends the task (see notes), so no RETURN TRANSID is asserted
+    given:
+      entry: reenter
+      commarea: {CDEMO-PGM-CONTEXT: 1, CDEMO-CU00-PAGE-NUM: 1}
+      files:
+        USRSEC: *users12
+    when:
+      aid: ENTER
+      fields:
+        USRIDINI: ZZZZZZZZ
+    then:
+      message: "You are at the top of the page..."
+      cursor: USRIDINL
+      transfer: null
+      file_effects: []
+    source:
+      file: app/cbl/COUSR00C.cbl
+      lines: [596, 605]
+
+  - id: COUSR00C-016
+    summary: PF3 returns to the admin menu with the COMMAREA
+    given:
+      entry: reenter
+      commarea: {CDEMO-PGM-CONTEXT: 1}
+    when:
+      aid: PF3
+      fields: {}
+    then:
+      message: null
+      transfer: {via: XCTL, to: COADM01C}
+      commarea:
+        CDEMO-TO-PROGRAM: COADM01C
+        CDEMO-FROM-TRANID: CU00
+        CDEMO-FROM-PROGRAM: COUSR00C
+        CDEMO-PGM-CONTEXT: 0
+      file_effects: []
+    source:
+      file: app/cbl/COUSR00C.cbl
+      lines: [125, 127]
+
+  - id: COUSR00C-017
+    summary: any other key redisplays the received screen with the invalid-key message
+    given:
+      entry: reenter
+      commarea: {CDEMO-PGM-CONTEXT: 1}
+    when:
+      aid: PF5
+      fields: {}
+    then:
+      message: "Invalid key pressed. Please see below..."
+      cursor: USRIDINL
+      transfer: {via: RETURN-TRANSID, to: CU00}
+      file_effects: []
+    source:
+      file: app/cbl/COUSR00C.cbl
+      lines: [132, 136]

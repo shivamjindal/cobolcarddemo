@@ -1,0 +1,524 @@
+# COTRN01C characterization spec. Derived from reading source, not executed.
+# See ../SCHEMA.md. Conventions for values are in `notes`.
+program: COTRN01C
+transaction: CT01
+screen:
+  mapset: COTRN01
+  map: COTRN1A
+evidence: derived
+sources: [app/cbl/COTRN01C.cbl, app/bms/COTRN01.bms, app/cpy-bms/COTRN01.CPY, app/cpy/COCOM01Y.cpy, app/cpy/CVTRA05Y.cpy,
+  app/cpy/CSDAT01Y.cpy, app/cpy/CSMSG01Y.cpy, app/csd/CARDDEMO.CSD]
+files:
+- name: TRANSACT
+  ops: [READ-UPDATE]
+  key: TRAN-ID
+navigation:
+- to: COSGN00C
+  via: XCTL
+  when: started without a COMMAREA (EIBCALEN = 0), lines 94-96
+- to: COTRN00C
+  via: XCTL
+  when: PF3 when CDEMO-FROM-PROGRAM is COTRN00C (lines 115-122), or PF5 always (lines 125-127)
+- to: COMEN01C
+  via: XCTL
+  when: PF3 when CDEMO-FROM-PROGRAM is COMEN01C or blank, lines 115-122
+- to: CT01
+  via: RETURN-TRANSID
+  when: every screen send, lines 135-138
+notes: ['Value conventions: field and record values are shown without trailing pad spaces; "" means the field is
+    all spaces or LOW-VALUES. Numeric record fields are written as decimal strings (e.g. TRAN-AMT "12.50"). Input
+    values are the full field content as BMS delivers it: default JUSTIFY=(LEFT,BLANK) pads short input with trailing
+    spaces, which is why several IS NUMERIC checks reject short entries.', 'A {NAME} placeholder inside a message
+    or a record value is a runtime value. {} marks the seam between two adjacent STRING literals and renders as
+    the empty string, because the schema''s fragment check cannot match two literals that the COBOL concatenates
+    with no variable between them. A runner should treat {NAME} and {} as wildcards. This is the same convention
+    COACTVWC.yaml uses.', 'CICS RESP branches other than NORMAL/NOTFND/ENDFILE/DUPKEY (I/O errors, DISABLED files)
+    cannot be set up through `given.files`, so they are listed here instead of as cases.', 'PF3 transfers to whatever
+    program CDEMO-FROM-PROGRAM names (lines 116-121). The navigation list shows the two callers that exist in this
+    repo: COTRN00C (selection) and COMEN01C (menu option).', 'CDEMO-CT01-INFO (lines 53-61) has the same layout
+    as COTRN00C''s CDEMO-CT00-INFO, so CDEMO-CT01-TRN-SELECTED receives COTRN00C''s CDEMO-CT00-TRN-SELECTED.', 'The
+    READ uses UPDATE (line 274) but the program never REWRITEs or UNLOCKs. The record lock is held until the task''s
+    RETURN, so a view briefly blocks concurrent updaters. A Java slice should do a plain read.', 'On arrival with
+    a selected id, PROCESS-ENTER-KEY sends the screen (line 191 or 287) and line 109 sends it again with the same
+    content. The terminal shows the second send.', 'TRAN-ORIG-TS and TRAN-PROC-TS are X(26) moved into X(10) fields,
+    so only YYYY-MM-DD is shown (lines 184-185). TRAN-DESC X(100) is cut to 60 characters and TRAN-MERCHANT-NAME/CITY
+    X(50) to 30/25.', 'WS-USR-MODIFIED, CDEMO-CT01-TRNID-FIRST/LAST/PAGE-NUM are declared and never used.', 'The
+    OTHER branch sets no cursor field (lines 128-131). The cursor position after that SEND CURSOR depends on BMS
+    defaults, so the case does not assert one.', 'I/O error branch: a READ RESP other than NORMAL or NOTFND shows
+    ''Unable to lookup Transaction...'' with the cursor on TRNIDINL (lines 288-295).']
+cases:
+- id: COTRN01C-001
+  summary: no COMMAREA (EIBCALEN = 0) sends the user to sign-on
+  given:
+    entry: first-time
+  when:
+    aid: ENTER
+  then:
+    message: null
+    transfer:
+      via: XCTL
+      to: COSGN00C
+    file_effects: []
+  source:
+    file: app/cbl/COTRN01C.cbl
+    lines: [94, 96]
+- id: COTRN01C-002
+  summary: arrival from the list with a selected id reads TRANSACT and shows every field
+  given:
+    entry: xctl-from
+    commarea:
+      CDEMO-PGM-CONTEXT: 0
+      CDEMO-FROM-PROGRAM: COTRN00C
+      CDEMO-FROM-TRANID: CT00
+      CDEMO-CT01-TRN-SELECTED: '0000000000000003'
+    files:
+      TRANSACT:
+      - TRAN-ID: '0000000000000003'
+        TRAN-TYPE-CD: '01'
+        TRAN-CAT-CD: '0001'
+        TRAN-SOURCE: POS TERM
+        TRAN-DESC: PURCHASE 03
+        TRAN-AMT: '12.34'
+        TRAN-MERCHANT-ID: '000012345'
+        TRAN-MERCHANT-NAME: JOES COFFEE
+        TRAN-MERCHANT-CITY: SEATTLE
+        TRAN-MERCHANT-ZIP: '98101'
+        TRAN-CARD-NUM: '4111111111111111'
+        TRAN-ORIG-TS: '2022-06-03 10:00:00.000000'
+        TRAN-PROC-TS: '2022-06-04 09:30:00.000000'
+  when:
+    aid: ENTER
+  then:
+    message: null
+    cursor: TRNIDINL
+    fields:
+      TRNIDINO: '0000000000000003'
+      TRNIDO: '0000000000000003'
+      CARDNUMO: '4111111111111111'
+      TTYPCDO: '01'
+      TCATCDO: '0001'
+      TRNSRCO: POS TERM
+      TRNAMTO: '+00000012.34'
+      TDESCO: PURCHASE 03
+      TORIGDTO: '2022-06-03'
+      TPROCDTO: '2022-06-04'
+      MIDO: '000012345'
+      MNAMEO: JOES COFFEE
+      MCITYO: SEATTLE
+      MZIPO: '98101'
+    transfer:
+      via: RETURN-TRANSID
+      to: CT01
+    commarea:
+      CDEMO-PGM-CONTEXT: 1
+    file_effects: []
+  source:
+    file: app/cbl/COTRN01C.cbl
+    lines: [103, 108]
+- id: COTRN01C-003
+  summary: arrival with no selected id (e.g. from the menu) shows an empty view screen
+  given:
+    entry: xctl-from
+    commarea:
+      CDEMO-PGM-CONTEXT: 0
+      CDEMO-FROM-PROGRAM: COMEN01C
+      CDEMO-FROM-TRANID: CM00
+      CDEMO-CT01-TRN-SELECTED: ''
+    files:
+      TRANSACT:
+      - TRAN-ID: '0000000000000003'
+        TRAN-TYPE-CD: '01'
+        TRAN-CAT-CD: '0001'
+        TRAN-SOURCE: POS TERM
+        TRAN-DESC: PURCHASE 03
+        TRAN-AMT: '12.34'
+        TRAN-MERCHANT-ID: '000012345'
+        TRAN-MERCHANT-NAME: JOES COFFEE
+        TRAN-MERCHANT-CITY: SEATTLE
+        TRAN-MERCHANT-ZIP: '98101'
+        TRAN-CARD-NUM: '4111111111111111'
+        TRAN-ORIG-TS: '2022-06-03 10:00:00.000000'
+        TRAN-PROC-TS: '2022-06-04 09:30:00.000000'
+  when:
+    aid: ENTER
+  then:
+    message: null
+    cursor: TRNIDINL
+    fields:
+      TRNIDINO: ''
+      TRNIDO: ''
+      CARDNUMO: ''
+      TTYPCDO: ''
+      TCATCDO: ''
+      TRNSRCO: ''
+      TRNAMTO: ''
+      TDESCO: ''
+      TORIGDTO: ''
+      TPROCDTO: ''
+      MIDO: ''
+      MNAMEO: ''
+      MCITYO: ''
+      MZIPO: ''
+    transfer:
+      via: RETURN-TRANSID
+      to: CT01
+    commarea:
+      CDEMO-PGM-CONTEXT: 1
+    file_effects: []
+  source:
+    file: app/cbl/COTRN01C.cbl
+    lines: [99, 109]
+- id: COTRN01C-004
+  summary: arrival with a selected id that is not on file reports it
+  given:
+    entry: xctl-from
+    commarea:
+      CDEMO-PGM-CONTEXT: 0
+      CDEMO-FROM-PROGRAM: COTRN00C
+      CDEMO-FROM-TRANID: CT00
+      CDEMO-CT01-TRN-SELECTED: 0000000000000009
+    files:
+      TRANSACT:
+      - TRAN-ID: '0000000000000003'
+        TRAN-TYPE-CD: '01'
+        TRAN-CAT-CD: '0001'
+        TRAN-SOURCE: POS TERM
+        TRAN-DESC: PURCHASE 03
+        TRAN-AMT: '12.34'
+        TRAN-MERCHANT-ID: '000012345'
+        TRAN-MERCHANT-NAME: JOES COFFEE
+        TRAN-MERCHANT-CITY: SEATTLE
+        TRAN-MERCHANT-ZIP: '98101'
+        TRAN-CARD-NUM: '4111111111111111'
+        TRAN-ORIG-TS: '2022-06-03 10:00:00.000000'
+        TRAN-PROC-TS: '2022-06-04 09:30:00.000000'
+  when:
+    aid: ENTER
+  then:
+    message: Transaction ID NOT found...
+    cursor: TRNIDINL
+    fields:
+      TRNIDO: ''
+      CARDNUMO: ''
+      TTYPCDO: ''
+      TCATCDO: ''
+      TRNSRCO: ''
+      TRNAMTO: ''
+      TDESCO: ''
+      TORIGDTO: ''
+      TPROCDTO: ''
+      MIDO: ''
+      MNAMEO: ''
+      MCITYO: ''
+      MZIPO: ''
+    transfer:
+      via: RETURN-TRANSID
+      to: CT01
+    file_effects: []
+  source:
+    file: app/cbl/COTRN01C.cbl
+    lines: [282, 287]
+- id: COTRN01C-005
+  summary: ENTER with a blank transaction id is rejected
+  given:
+    entry: reenter
+    commarea:
+      CDEMO-PGM-CONTEXT: 1
+      CDEMO-FROM-PROGRAM: COTRN00C
+    files:
+      TRANSACT:
+      - TRAN-ID: '0000000000000003'
+        TRAN-TYPE-CD: '01'
+        TRAN-CAT-CD: '0001'
+        TRAN-SOURCE: POS TERM
+        TRAN-DESC: PURCHASE 03
+        TRAN-AMT: '12.34'
+        TRAN-MERCHANT-ID: '000012345'
+        TRAN-MERCHANT-NAME: JOES COFFEE
+        TRAN-MERCHANT-CITY: SEATTLE
+        TRAN-MERCHANT-ZIP: '98101'
+        TRAN-CARD-NUM: '4111111111111111'
+        TRAN-ORIG-TS: '2022-06-03 10:00:00.000000'
+        TRAN-PROC-TS: '2022-06-04 09:30:00.000000'
+  when:
+    aid: ENTER
+    fields:
+      TRNIDINI: ''
+  then:
+    message: Tran ID can NOT be empty...
+    cursor: TRNIDINL
+    transfer:
+      via: RETURN-TRANSID
+      to: CT01
+    file_effects: []
+  source:
+    file: app/cbl/COTRN01C.cbl
+    lines: [147, 152]
+- id: COTRN01C-006
+  summary: ENTER with an id on file shows the transaction; TRAN-ORIG-TS and TRAN-PROC-TS are cut to their first
+    10 characters
+  given:
+    entry: reenter
+    commarea:
+      CDEMO-PGM-CONTEXT: 1
+      CDEMO-FROM-PROGRAM: COTRN00C
+    files:
+      TRANSACT:
+      - TRAN-ID: '0000000000000003'
+        TRAN-TYPE-CD: '01'
+        TRAN-CAT-CD: '0001'
+        TRAN-SOURCE: POS TERM
+        TRAN-DESC: PURCHASE 03
+        TRAN-AMT: '12.34'
+        TRAN-MERCHANT-ID: '000012345'
+        TRAN-MERCHANT-NAME: JOES COFFEE
+        TRAN-MERCHANT-CITY: SEATTLE
+        TRAN-MERCHANT-ZIP: '98101'
+        TRAN-CARD-NUM: '4111111111111111'
+        TRAN-ORIG-TS: '2022-06-03 10:00:00.000000'
+        TRAN-PROC-TS: '2022-06-04 09:30:00.000000'
+  when:
+    aid: ENTER
+    fields:
+      TRNIDINI: '0000000000000003'
+  then:
+    message: null
+    cursor: TRNIDINL
+    fields:
+      TRNIDO: '0000000000000003'
+      CARDNUMO: '4111111111111111'
+      TTYPCDO: '01'
+      TCATCDO: '0001'
+      TRNSRCO: POS TERM
+      TRNAMTO: '+00000012.34'
+      TDESCO: PURCHASE 03
+      TORIGDTO: '2022-06-03'
+      TPROCDTO: '2022-06-04'
+      MIDO: '000012345'
+      MNAMEO: JOES COFFEE
+      MCITYO: SEATTLE
+      MZIPO: '98101'
+    transfer:
+      via: RETURN-TRANSID
+      to: CT01
+    file_effects: []
+  source:
+    file: app/cbl/COTRN01C.cbl
+    lines: [172, 191]
+- id: COTRN01C-007
+  summary: ENTER with an id not on file reports it and leaves the detail fields blank
+  given:
+    entry: reenter
+    commarea:
+      CDEMO-PGM-CONTEXT: 1
+      CDEMO-FROM-PROGRAM: COTRN00C
+    files:
+      TRANSACT:
+      - TRAN-ID: '0000000000000003'
+        TRAN-TYPE-CD: '01'
+        TRAN-CAT-CD: '0001'
+        TRAN-SOURCE: POS TERM
+        TRAN-DESC: PURCHASE 03
+        TRAN-AMT: '12.34'
+        TRAN-MERCHANT-ID: '000012345'
+        TRAN-MERCHANT-NAME: JOES COFFEE
+        TRAN-MERCHANT-CITY: SEATTLE
+        TRAN-MERCHANT-ZIP: '98101'
+        TRAN-CARD-NUM: '4111111111111111'
+        TRAN-ORIG-TS: '2022-06-03 10:00:00.000000'
+        TRAN-PROC-TS: '2022-06-04 09:30:00.000000'
+  when:
+    aid: ENTER
+    fields:
+      TRNIDINI: 0000000000000009
+      TRNIDI: '0000000000000003'
+      CARDNUMI: '4111111111111111'
+      TTYPCDI: '01'
+      TCATCDI: '0001'
+      TRNSRCI: POS TERM
+      TRNAMTI: '+00000012.34'
+      TDESCI: PURCHASE 03
+      TORIGDTI: '2022-06-03'
+      TPROCDTI: '2022-06-04'
+      MIDI: '000012345'
+      MNAMEI: JOES COFFEE
+      MCITYI: SEATTLE
+      MZIPI: '98101'
+  then:
+    message: Transaction ID NOT found...
+    cursor: TRNIDINL
+    fields:
+      TRNIDO: ''
+      CARDNUMO: ''
+      TTYPCDO: ''
+      TCATCDO: ''
+      TRNSRCO: ''
+      TRNAMTO: ''
+      TDESCO: ''
+      TORIGDTO: ''
+      TPROCDTO: ''
+      MIDO: ''
+      MNAMEO: ''
+      MCITYO: ''
+      MZIPO: ''
+    transfer:
+      via: RETURN-TRANSID
+      to: CT01
+    file_effects: []
+  source:
+    file: app/cbl/COTRN01C.cbl
+    lines: [158, 174]
+- id: COTRN01C-008
+  summary: PF3 returns to the calling program recorded in CDEMO-FROM-PROGRAM (the list)
+  given:
+    entry: reenter
+    commarea:
+      CDEMO-PGM-CONTEXT: 1
+      CDEMO-FROM-PROGRAM: COTRN00C
+  when:
+    aid: PF3
+  then:
+    message: null
+    transfer:
+      via: XCTL
+      to: COTRN00C
+    commarea:
+      CDEMO-FROM-PROGRAM: COTRN01C
+      CDEMO-FROM-TRANID: CT01
+      CDEMO-TO-PROGRAM: COTRN00C
+      CDEMO-PGM-CONTEXT: 0
+    file_effects: []
+  source:
+    file: app/cbl/COTRN01C.cbl
+    lines: [115, 122]
+- id: COTRN01C-009
+  summary: PF3 after arriving from the menu returns to the menu
+  given:
+    entry: reenter
+    commarea:
+      CDEMO-PGM-CONTEXT: 1
+      CDEMO-FROM-PROGRAM: COMEN01C
+  when:
+    aid: PF3
+  then:
+    message: null
+    transfer:
+      via: XCTL
+      to: COMEN01C
+    commarea:
+      CDEMO-FROM-PROGRAM: COTRN01C
+      CDEMO-FROM-TRANID: CT01
+      CDEMO-TO-PROGRAM: COMEN01C
+      CDEMO-PGM-CONTEXT: 0
+    file_effects: []
+  source:
+    file: app/cbl/COTRN01C.cbl
+    lines: [115, 122]
+- id: COTRN01C-010
+  summary: PF3 with a blank CDEMO-FROM-PROGRAM falls back to the menu
+  given:
+    entry: reenter
+    commarea:
+      CDEMO-PGM-CONTEXT: 1
+      CDEMO-FROM-PROGRAM: ''
+  when:
+    aid: PF3
+  then:
+    message: null
+    transfer:
+      via: XCTL
+      to: COMEN01C
+    file_effects: []
+  source:
+    file: app/cbl/COTRN01C.cbl
+    lines: [116, 117]
+- id: COTRN01C-011
+  summary: PF4 clears the search and detail fields
+  given:
+    entry: reenter
+    commarea:
+      CDEMO-PGM-CONTEXT: 1
+      CDEMO-FROM-PROGRAM: COTRN00C
+  when:
+    aid: PF4
+    fields:
+      TRNIDINI: '0000000000000003'
+      TRNIDI: '0000000000000003'
+      CARDNUMI: '4111111111111111'
+      TTYPCDI: '01'
+      TCATCDI: '0001'
+      TRNSRCI: POS TERM
+      TRNAMTI: '+00000012.34'
+      TDESCI: PURCHASE 03
+      TORIGDTI: '2022-06-03'
+      TPROCDTI: '2022-06-04'
+      MIDI: '000012345'
+      MNAMEI: JOES COFFEE
+      MCITYI: SEATTLE
+      MZIPI: '98101'
+  then:
+    message: null
+    cursor: TRNIDINL
+    fields:
+      TRNIDINO: ''
+      TRNIDO: ''
+      CARDNUMO: ''
+      TTYPCDO: ''
+      TCATCDO: ''
+      TRNSRCO: ''
+      TRNAMTO: ''
+      TDESCO: ''
+      TORIGDTO: ''
+      TPROCDTO: ''
+      MIDO: ''
+      MNAMEO: ''
+      MCITYO: ''
+      MZIPO: ''
+    transfer:
+      via: RETURN-TRANSID
+      to: CT01
+    file_effects: []
+  source:
+    file: app/cbl/COTRN01C.cbl
+    lines: [301, 326]
+- id: COTRN01C-012
+  summary: PF5 goes to the transaction list
+  given:
+    entry: reenter
+    commarea:
+      CDEMO-PGM-CONTEXT: 1
+      CDEMO-FROM-PROGRAM: COMEN01C
+  when:
+    aid: PF5
+  then:
+    message: null
+    transfer:
+      via: XCTL
+      to: COTRN00C
+    commarea:
+      CDEMO-FROM-PROGRAM: COTRN01C
+      CDEMO-FROM-TRANID: CT01
+      CDEMO-TO-PROGRAM: COTRN00C
+      CDEMO-PGM-CONTEXT: 0
+    file_effects: []
+  source:
+    file: app/cbl/COTRN01C.cbl
+    lines: [125, 127]
+- id: COTRN01C-013
+  summary: any other attention key shows the invalid-key message
+  given:
+    entry: reenter
+    commarea:
+      CDEMO-PGM-CONTEXT: 1
+      CDEMO-FROM-PROGRAM: COTRN00C
+  when:
+    aid: OTHER
+  then:
+    message: Invalid key pressed. Please see below...
+    transfer:
+      via: RETURN-TRANSID
+      to: CT01
+    file_effects: []
+  source:
+    file: app/cbl/COTRN01C.cbl
+    lines: [128, 131]

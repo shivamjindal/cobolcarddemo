@@ -1,0 +1,333 @@
+program: COUSR01C
+transaction: CU01
+screen:
+  mapset: COUSR01
+  map: COUSR1A
+evidence: derived
+sources:
+  - app/cbl/COUSR01C.cbl
+  - app/cpy/CSUSR01Y.cpy
+  - app/cpy/COCOM01Y.cpy
+  - app/cpy/CSMSG01Y.cpy
+  - app/bms/COUSR01.bms
+files:
+  - name: USRSEC
+    ops: [WRITE]
+    key: SEC-USR-ID
+navigation:
+  - to: COSGN00C
+    via: XCTL
+    when: EIBCALEN = 0 (lines 78-80), COMMAREA passed by RETURN-TO-PREV-SCREEN (lines 165-178)
+  - to: COADM01C
+    via: XCTL
+    when: PF3 (lines 93-95)
+  - to: CU01
+    via: RETURN-TRANSID
+    when: every path that displays the add screen (lines 107-110)
+notes:
+  - Field and record values are right-trimmed. COBOL pads SEC-USR-ID/SEC-USR-PWD to 8, SEC-USR-FNAME/SEC-USR-LNAME to 20 and SEC-USR-TYPE to 1.
+  - Validation order is First Name, Last Name, User ID, Password, User Type (lines 117-151), the order the fields appear on the map. The first failing field wins. Blank means SPACES or LOW-VALUES.
+  - "No content validation. User type accepts any non-blank character ('X', lower-case 'a'), not only 'A' or 'U'. User ID and password are stored exactly as typed, with no upper-casing (lines 153-158). COSGN00C upper-cases both typed values before the READ and compare, so a user added here with any lower-case letter in the ID or password can never sign on."
+  - "SEC-USR-FILLER (CSUSR01Y.cpy line 23) is never set before the WRITE (lines 240-248). The record carries whatever SEC-USER-DATA held in fresh working storage, typically LOW-VALUES. The file_effects records omit it."
+  - The success message is built with SEC-USR-ID DELIMITED BY SPACE (lines 255-258), so an ID containing an embedded space shows only up to that space.
+  - "Cursor quirk. On the non-error path, WHEN OTHER sets FNAMEL to -1 (line 149). The DUPKEY/DUPREC branch then also sets USERIDL to -1 (line 264). With SEND ... CURSOR, symbolic cursor positioning puts the cursor on the first field in map order with length -1. FNAME precedes USERID in app/bms/COUSR01.bms (lines 84, 111), so the cursor actually lands on First Name although the code targets User ID. Case COUSR01C-011 asserts FNAMEL, the derived effective position."
+  - A VSAM KSDS WRITE with an existing key returns DUPREC. DUPKEY applies only to alternate indexes, and both are handled the same (lines 260-266).
+  - "The 'Unable to Add User...' branch (lines 267-273) fires for any other WRITE response. The schema cannot inject a file error, so case COUSR01C-015 states it in the summary only."
+  - After a successful add, INITIALIZE-ALL-FIELDS blanks the five input fields and the message and sets the cursor to First Name (lines 286-295). The green success message is then set (lines 253-258).
+  - There is no user-type check. Any caller with a COMMAREA can add users, including admins (type 'A').
+  - The invalid-key path sets the cursor to First Name (line 100) and redisplays whatever was received, without clearing input.
+cases:
+  - id: COUSR01C-001
+    summary: direct start with no COMMAREA (EIBCALEN = 0) transfers to sign-on
+    given:
+      entry: first-time
+    when:
+      aid: ENTER
+      fields: {}
+    then:
+      message: null
+      transfer: {via: XCTL, to: COSGN00C}
+      commarea:
+        CDEMO-TO-PROGRAM: COSGN00C
+        CDEMO-FROM-TRANID: CU01
+        CDEMO-FROM-PROGRAM: COUSR01C
+        CDEMO-PGM-CONTEXT: 0
+      file_effects: []
+    source:
+      file: app/cbl/COUSR01C.cbl
+      lines: [78, 80]
+
+  - id: COUSR01C-002
+    summary: arriving from the admin menu shows an empty add screen with the cursor on First Name
+    given:
+      entry: xctl-from
+      commarea: {CDEMO-FROM-PROGRAM: COADM01C, CDEMO-FROM-TRANID: CA00, CDEMO-USER-TYPE: A, CDEMO-PGM-CONTEXT: 0}
+    when:
+      aid: ENTER
+      fields: {}
+    then:
+      message: null
+      cursor: FNAMEL
+      fields:
+        TRNNAMEO: CU01
+        PGMNAMEO: COUSR01C
+      transfer: {via: RETURN-TRANSID, to: CU01}
+      commarea: {CDEMO-PGM-CONTEXT: 1}
+      file_effects: []
+    source:
+      file: app/cbl/COUSR01C.cbl
+      lines: [83, 86]
+
+  - id: COUSR01C-003
+    summary: blank First Name is rejected
+    given:
+      entry: reenter
+      commarea: {CDEMO-PGM-CONTEXT: 1}
+    when:
+      aid: ENTER
+      fields: {FNAMEI: "", LNAMEI: SMITH, USERIDI: USER0010, PASSWDI: PASSWORD, USRTYPEI: U}
+    then:
+      message: "First Name can NOT be empty..."
+      cursor: FNAMEL
+      transfer: {via: RETURN-TRANSID, to: CU01}
+      file_effects: []
+    source:
+      file: app/cbl/COUSR01C.cbl
+      lines: [118, 123]
+
+  - id: COUSR01C-004
+    summary: blank Last Name is rejected
+    given:
+      entry: reenter
+      commarea: {CDEMO-PGM-CONTEXT: 1}
+    when:
+      aid: ENTER
+      fields: {FNAMEI: ANNA, LNAMEI: "", USERIDI: USER0010, PASSWDI: PASSWORD, USRTYPEI: U}
+    then:
+      message: "Last Name can NOT be empty..."
+      cursor: LNAMEL
+      transfer: {via: RETURN-TRANSID, to: CU01}
+      file_effects: []
+    source:
+      file: app/cbl/COUSR01C.cbl
+      lines: [124, 129]
+
+  - id: COUSR01C-005
+    summary: blank User ID is rejected
+    given:
+      entry: reenter
+      commarea: {CDEMO-PGM-CONTEXT: 1}
+    when:
+      aid: ENTER
+      fields: {FNAMEI: ANNA, LNAMEI: SMITH, USERIDI: "", PASSWDI: PASSWORD, USRTYPEI: U}
+    then:
+      message: "User ID can NOT be empty..."
+      cursor: USERIDL
+      transfer: {via: RETURN-TRANSID, to: CU01}
+      file_effects: []
+    source:
+      file: app/cbl/COUSR01C.cbl
+      lines: [130, 135]
+
+  - id: COUSR01C-006
+    summary: blank Password is rejected
+    given:
+      entry: reenter
+      commarea: {CDEMO-PGM-CONTEXT: 1}
+    when:
+      aid: ENTER
+      fields: {FNAMEI: ANNA, LNAMEI: SMITH, USERIDI: USER0010, PASSWDI: "", USRTYPEI: U}
+    then:
+      message: "Password can NOT be empty..."
+      cursor: PASSWDL
+      transfer: {via: RETURN-TRANSID, to: CU01}
+      file_effects: []
+    source:
+      file: app/cbl/COUSR01C.cbl
+      lines: [136, 141]
+
+  - id: COUSR01C-007
+    summary: blank User Type is rejected
+    given:
+      entry: reenter
+      commarea: {CDEMO-PGM-CONTEXT: 1}
+    when:
+      aid: ENTER
+      fields: {FNAMEI: ANNA, LNAMEI: SMITH, USERIDI: USER0010, PASSWDI: PASSWORD, USRTYPEI: ""}
+    then:
+      message: "User Type can NOT be empty..."
+      cursor: USRTYPEL
+      transfer: {via: RETURN-TRANSID, to: CU01}
+      file_effects: []
+    source:
+      file: app/cbl/COUSR01C.cbl
+      lines: [142, 147]
+
+  - id: COUSR01C-008
+    summary: an entirely blank screen reports the First Name message first
+    given:
+      entry: reenter
+      commarea: {CDEMO-PGM-CONTEXT: 1}
+    when:
+      aid: ENTER
+      fields: {FNAMEI: "", LNAMEI: "", USERIDI: "", PASSWDI: "", USRTYPEI: ""}
+    then:
+      message: "First Name can NOT be empty..."
+      cursor: FNAMEL
+      transfer: {via: RETURN-TRANSID, to: CU01}
+      file_effects: []
+    source:
+      file: app/cbl/COUSR01C.cbl
+      lines: [117, 151]
+
+  - id: COUSR01C-009
+    summary: valid input writes the user record, clears the form and confirms in green
+    given:
+      entry: reenter
+      commarea: {CDEMO-PGM-CONTEXT: 1}
+      files:
+        USRSEC:
+          - {SEC-USR-ID: ADMIN001, SEC-USR-FNAME: MARGARET, SEC-USR-LNAME: GOLD, SEC-USR-PWD: PASSWORD, SEC-USR-TYPE: A}
+    when:
+      aid: ENTER
+      fields: {FNAMEI: ANNA, LNAMEI: SMITH, USERIDI: USER0010, PASSWDI: PASSWORD, USRTYPEI: U}
+    then:
+      message: "User {SEC-USR-ID} has been added ..."
+      cursor: FNAMEL
+      fields:
+        FNAMEO: ""
+        LNAMEO: ""
+        USERIDO: ""
+        PASSWDO: ""
+        USRTYPEO: ""
+      transfer: {via: RETURN-TRANSID, to: CU01}
+      file_effects:
+        - file: USRSEC
+          op: WRITE
+          record: {SEC-USR-ID: USER0010, SEC-USR-FNAME: ANNA, SEC-USR-LNAME: SMITH, SEC-USR-PWD: PASSWORD, SEC-USR-TYPE: U}
+    source:
+      file: app/cbl/COUSR01C.cbl
+      lines: [250, 259]
+
+  - id: COUSR01C-010
+    summary: lower-case ID, password and an arbitrary type are stored verbatim (no upper-casing, no type check)
+    given:
+      entry: reenter
+      commarea: {CDEMO-PGM-CONTEXT: 1}
+      files:
+        USRSEC: []
+    when:
+      aid: ENTER
+      fields: {FNAMEI: anna, LNAMEI: smith, USERIDI: user0011, PASSWDI: secret, USRTYPEI: x}
+    then:
+      message: "User {SEC-USR-ID} has been added ..."
+      cursor: FNAMEL
+      transfer: {via: RETURN-TRANSID, to: CU01}
+      file_effects:
+        - file: USRSEC
+          op: WRITE
+          record: {SEC-USR-ID: user0011, SEC-USR-FNAME: anna, SEC-USR-LNAME: smith, SEC-USR-PWD: secret, SEC-USR-TYPE: x}
+    source:
+      file: app/cbl/COUSR01C.cbl
+      lines: [153, 159]
+
+  - id: COUSR01C-011
+    summary: an existing user ID (DUPREC/DUPKEY) is rejected; code targets User ID but the effective cursor is First Name (see notes)
+    given:
+      entry: reenter
+      commarea: {CDEMO-PGM-CONTEXT: 1}
+      files:
+        USRSEC:
+          - {SEC-USR-ID: ADMIN001, SEC-USR-FNAME: MARGARET, SEC-USR-LNAME: GOLD, SEC-USR-PWD: PASSWORD, SEC-USR-TYPE: A}
+    when:
+      aid: ENTER
+      fields: {FNAMEI: ANNA, LNAMEI: SMITH, USERIDI: ADMIN001, PASSWDI: PASSWORD, USRTYPEI: U}
+    then:
+      message: "User ID already exist..."
+      cursor: FNAMEL
+      fields:
+        USERIDO: ADMIN001
+        FNAMEO: ANNA
+      transfer: {via: RETURN-TRANSID, to: CU01}
+      file_effects: []
+    source:
+      file: app/cbl/COUSR01C.cbl
+      lines: [260, 266]
+
+  - id: COUSR01C-012
+    summary: PF4 clears every input field and the message
+    given:
+      entry: reenter
+      commarea: {CDEMO-PGM-CONTEXT: 1}
+    when:
+      aid: PF4
+      fields: {FNAMEI: ANNA, LNAMEI: SMITH, USERIDI: USER0010, PASSWDI: PASSWORD, USRTYPEI: U}
+    then:
+      message: null
+      cursor: FNAMEL
+      fields:
+        FNAMEO: ""
+        LNAMEO: ""
+        USERIDO: ""
+        PASSWDO: ""
+        USRTYPEO: ""
+      transfer: {via: RETURN-TRANSID, to: CU01}
+      file_effects: []
+    source:
+      file: app/cbl/COUSR01C.cbl
+      lines: [278, 295]
+
+  - id: COUSR01C-013
+    summary: PF3 returns to the admin menu without writing, even with a filled form
+    given:
+      entry: reenter
+      commarea: {CDEMO-PGM-CONTEXT: 1}
+    when:
+      aid: PF3
+      fields: {FNAMEI: ANNA, LNAMEI: SMITH, USERIDI: USER0010, PASSWDI: PASSWORD, USRTYPEI: U}
+    then:
+      message: null
+      transfer: {via: XCTL, to: COADM01C}
+      commarea:
+        CDEMO-TO-PROGRAM: COADM01C
+        CDEMO-FROM-TRANID: CU01
+        CDEMO-FROM-PROGRAM: COUSR01C
+        CDEMO-PGM-CONTEXT: 0
+      file_effects: []
+    source:
+      file: app/cbl/COUSR01C.cbl
+      lines: [93, 95]
+
+  - id: COUSR01C-014
+    summary: any other key shows the invalid-key message with the cursor on First Name
+    given:
+      entry: reenter
+      commarea: {CDEMO-PGM-CONTEXT: 1}
+    when:
+      aid: PF5
+      fields: {}
+    then:
+      message: "Invalid key pressed. Please see below..."
+      cursor: FNAMEL
+      transfer: {via: RETURN-TRANSID, to: CU01}
+      file_effects: []
+    source:
+      file: app/cbl/COUSR01C.cbl
+      lines: [98, 102]
+
+  - id: COUSR01C-015
+    summary: "I/O error: WRITE returns a response other than NORMAL/DUPKEY/DUPREC (e.g. file closed or full)"
+    given:
+      entry: reenter
+      commarea: {CDEMO-PGM-CONTEXT: 1}
+    when:
+      aid: ENTER
+      fields: {FNAMEI: ANNA, LNAMEI: SMITH, USERIDI: USER0010, PASSWDI: PASSWORD, USRTYPEI: U}
+    then:
+      message: "Unable to Add User..."
+      cursor: FNAMEL
+      transfer: {via: RETURN-TRANSID, to: CU01}
+      file_effects: []
+    source:
+      file: app/cbl/COUSR01C.cbl
+      lines: [267, 273]

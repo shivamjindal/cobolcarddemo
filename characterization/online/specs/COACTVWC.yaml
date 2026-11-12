@@ -1,0 +1,601 @@
+program: COACTVWC
+transaction: CAVW
+screen:
+  mapset: COACTVW
+  map: CACTVWA
+evidence: derived
+sources:
+  - app/cbl/COACTVWC.cbl
+  - app/bms/COACTVW.bms
+  - app/cpy-bms/COACTVW.CPY
+  - app/cpy/COCOM01Y.cpy
+  - app/cpy/CVCRD01Y.cpy
+  - app/cpy/CSSTRPFY.cpy
+  - app/cpy/CVACT01Y.cpy
+  - app/cpy/CVACT03Y.cpy
+  - app/cpy/CVCUS01Y.cpy
+  - app/csd/CARDDEMO.CSD
+files:
+  - name: CXACAIX
+    ops: [READ]
+    key: XREF-ACCT-ID
+  - name: ACCTDAT
+    ops: [READ]
+    key: ACCT-ID
+  - name: CUSTDAT
+    ops: [READ]
+    key: CUST-ID
+navigation:
+  - to: COMEN01C
+    via: XCTL
+    when: >-
+      PF3 (or PF15). The target is CDEMO-FROM-PROGRAM when it is set (lines 337-338), else COMEN01C (lines
+      334-336). Any calling program can therefore be the target. COMEN01C is the only one the menu wires
+      up (COMEN02Y option for COACTVWC).
+  - to: CAVW
+    via: RETURN-TRANSID
+    when: every path that sends the map ends at COMMON-RETURN (lines 394-407)
+  - to: COACTVWC
+    via: SEND-TEXT
+    when: CDEMO-PGM-CONTEXT is neither 0 nor 1; plain text 'UNEXPECTED DATA SCENARIO' then RETURN without TRANSID (lines 375-382, 876-886)
+notes:
+  - >-
+    Derived from source, never executed. Line numbers refer to app/cbl/COACTVWC.cbl unless a case cites another file.
+  - >-
+    Message conventions. then.message is grounded in the source text. {NAME} is a runtime value, and {} marks
+    a join between two adjacent STRING literals with nothing in between, e.g. ' not found in' ' Cross ref file.'
+    (lines 750-751). A runner should treat {NAME} and {} as wildcards. WS-RETURN-MSG is PIC X(75) and is copied
+    into ERRMSGO (X(78)), so compare right-trimmed. message null means WS-RETURN-MSG was spaces.
+  - >-
+    Input conventions. A when.fields value of "" means the field came back blank (spaces or low-values; both
+    are treated alike at lines 628-633). given.entry first-time means EIBCALEN = 0. xctl-from means
+    CDEMO-PGM-CONTEXT = 0 (CDEMO-PGM-ENTER). reenter means CDEMO-PGM-CONTEXT = 1.
+  - >-
+    Info line. INFOMSGO always shows 'Enter or update id of account to display'. 9000-READ-ACCT clears
+    WS-INFO-MSG (line 689) and 1200 then sets the prompt again whenever WS-INFO-MSG is empty (lines 528-530).
+    The 88 WS-INFORM-OUTPUT 'Displaying details of given Account' (line 115) is never set, so even a
+    successful lookup does not show it.
+  - >-
+    AID handling (lines 306-314). Only ENTER and PF3 are valid. Any other key, including PF5, PF12 and CLEAR,
+    is treated as ENTER. CSSTRPFY folds PF13-PF24 onto PF1-PF12, so PF15 acts as PF3. CLEAR and PA keys send
+    no data, so RECEIVE MAP gets MAPFAIL. The RESP is captured but never checked (lines 611-617), and ACCTSIDI
+    then holds whatever was in the map storage. That outcome is not specified here.
+  - >-
+    Quirk at lines 282-283. The test 'CDEMO-FROM-PROGRAM = LIT-MENUPGM AND NOT CDEMO-PGM-REENTER' runs before
+    the incoming COMMAREA is copied to CARDDEMO-COMMAREA (line 288). It therefore tests working-storage that
+    has no VALUE clause, not the caller's data. In practice the ELSE branch copies the COMMAREA, and the result
+    matches what the comment intends because the menu sends CDEMO-PGM-CONTEXT = 0.
+  - >-
+    Quirk at lines 289-292. WS-THIS-PROGCOMMAREA is copied from the bytes after CARDDEMO-COMMAREA, but callers
+    such as COMEN01C pass only CARDDEMO-COMMAREA. The copy reads past EIBCALEN. Those fields (CA-FROM-PROGRAM,
+    CA-FROM-TRANID) are never used afterwards.
+  - >-
+    Quirk. A CDEMO-ACCT-ID passed in by the caller is ignored on arrival. ACCTSIDO is blank on the first screen
+    (lines 465-466, the edit flag is blank after INITIALIZE).
+  - >-
+    Account id edit (lines 649-681). The id must be exactly 11 numeric characters and not all zeros. BMS input
+    is left-justified and space-padded, so a short number such as 12345 fails the NUMERIC test. The message is
+    'Account Filter must  be a non-zero 11 digit number' with two spaces after 'must' (line 672). The 88s
+    SEARCHED-ACCT-ZEROES and SEARCHED-ACCT-NOT-NUMERIC (lines 124-127) are never used.
+  - >-
+    Blank account id (lines 652-661, 640-642). 2210 sets 'Account number not provided', and 2200 then
+    overwrites it with 'No input received'. The user sees 'No input received', ACCTSIDO shows '*', and the
+    field is red (lines 561-565).
+  - >-
+    The ACCTSIDC color is not in the schema. It is red (DFHRED) when the filter is not OK or blank on reenter
+    (lines 557-565) and default color otherwise. The cursor is on ACCTSIDL in every outcome (lines 546-552,
+    both EVALUATE branches do the same thing).
+  - >-
+    Latent bug at lines 703-705 and 713-715. DID-NOT-FIND-ACCT-IN-ACCTDAT and DID-NOT-FIND-CUST-IN-CUSTDAT are
+    never set, because the SETs at 791 and 842 are commented out. After an ACCTDAT NOTFND the program still
+    reads CUSTDAT with the xref customer id. If the customer exists, FOUND-CUST-IN-MASTER makes 1200 display
+    the customer fields and also the ACCT-* fields from an ACCOUNT-RECORD that was not loaded on this task
+    (lines 471-490). The ACCTDAT error message stays on screen.
+  - >-
+    RESP rendering is inferred, not observed. ERROR-RESP and ERROR-RESP2 are PIC X(10) receiving S9(9) COMP
+    values. Standard MOVE rules give 9 digits plus a trailing space, e.g. '000000013 ' for NOTFND (RESP 13).
+    The three not-found messages are longer than WS-RETURN-MSG (75 bytes), so the tail of the RESP2 value is
+    cut off.
+  - >-
+    Fault injection. Cases whose summary says 'READ returns a RESP other than NORMAL/NOTFND' need the runner
+    to force an I/O error on that dataset. The schema has no field for that, so the fault is named only in
+    the summary.
+  - >-
+    Display formatting. Amounts use BMS PICOUT '+ZZZ,ZZZ,ZZZ.99' (COACTVW.bms lines 120-195; ACURBALO etc.
+    are PIC +ZZZ,ZZZ,ZZZ.99 in COACTVW.CPY). SSN shows as NNN-NN-NNNN (lines 496-504). ACSZIPCO is X(5) and
+    ACSPHN1O/ACSPHN2O are X(13), so longer stored values are truncated on the right.
+  - >-
+    PF3 always sets CDEMO-USER-TYPE to 'U' (line 343), even when an admin arrived here. The caller's user
+    type is lost.
+cases:
+  - id: COACTVWC-001
+    summary: first-time entry (EIBCALEN = 0) shows an empty search screen with the prompt
+    given:
+      entry: first-time
+      commarea: {}
+    when:
+      aid: ENTER
+      fields: {}
+    then:
+      message: null
+      cursor: ACCTSIDL
+      fields:
+        INFOMSGO: Enter or update id of account to display
+        TRNNAMEO: CAVW
+        PGMNAMEO: COACTVWC
+      transfer: {via: RETURN-TRANSID, to: CAVW}
+      commarea: {CDEMO-PGM-CONTEXT: 1}
+      file_effects: []
+    source:
+      file: app/cbl/COACTVWC.cbl
+      lines: [353, 360]
+
+  - id: COACTVWC-002
+    summary: arrival via XCTL from the main menu shows an empty search screen, account id not prefilled
+    given:
+      entry: xctl-from
+      commarea: &from_menu {CDEMO-FROM-PROGRAM: COMEN01C, CDEMO-FROM-TRANID: CM00, CDEMO-USER-TYPE: U, CDEMO-PGM-CONTEXT: 0}
+    when:
+      aid: ENTER
+      fields: {}
+    then:
+      message: null
+      cursor: ACCTSIDL
+      fields:
+        ACCTSIDO: ""
+        INFOMSGO: Enter or update id of account to display
+      transfer: {via: RETURN-TRANSID, to: CAVW}
+      commarea: {CDEMO-PGM-CONTEXT: 1, CDEMO-FROM-PROGRAM: COMEN01C}
+      file_effects: []
+    source:
+      file: app/cbl/COACTVWC.cbl
+      lines: [460, 469]
+
+  - id: COACTVWC-003
+    summary: arrival via XCTL ignores a CDEMO-ACCT-ID passed by the caller
+    given:
+      entry: xctl-from
+      commarea: {CDEMO-FROM-PROGRAM: COCRDLIC, CDEMO-FROM-TRANID: CCLI, CDEMO-PGM-CONTEXT: 0, CDEMO-ACCT-ID: "00000000001"}
+    when:
+      aid: ENTER
+      fields: {}
+    then:
+      message: null
+      cursor: ACCTSIDL
+      fields:
+        ACCTSIDO: ""
+        ACSTTUSO: ""
+        INFOMSGO: Enter or update id of account to display
+      transfer: {via: RETURN-TRANSID, to: CAVW}
+      file_effects: []
+    source:
+      file: app/cbl/COACTVWC.cbl
+      lines: [460, 469]
+
+  - id: COACTVWC-004
+    summary: blank account id on ENTER shows 'No input received' and marks the field with '*'
+    given:
+      entry: reenter
+      commarea: &reenter {CDEMO-FROM-PROGRAM: COMEN01C, CDEMO-FROM-TRANID: CM00, CDEMO-USER-TYPE: U, CDEMO-PGM-CONTEXT: 1}
+    when:
+      aid: ENTER
+      fields: {ACCTSIDI: ""}
+    then:
+      message: No input received
+      cursor: ACCTSIDL
+      fields:
+        ACCTSIDO: "*"
+        INFOMSGO: Enter or update id of account to display
+      transfer: {via: RETURN-TRANSID, to: CAVW}
+      commarea: {CDEMO-ACCT-ID: "00000000000", CDEMO-PGM-CONTEXT: 1}
+      file_effects: []
+    source:
+      file: app/cbl/COACTVWC.cbl
+      lines: [622, 661]
+
+  - id: COACTVWC-005
+    summary: an asterisk typed in the account id is treated as blank
+    given:
+      entry: reenter
+      commarea: *reenter
+    when:
+      aid: ENTER
+      fields: {ACCTSIDI: "*"}
+    then:
+      message: No input received
+      cursor: ACCTSIDL
+      fields: {ACCTSIDO: "*"}
+      transfer: {via: RETURN-TRANSID, to: CAVW}
+      file_effects: []
+    source:
+      file: app/cbl/COACTVWC.cbl
+      lines: [627, 633]
+
+  - id: COACTVWC-006
+    summary: non-numeric account id is rejected (message has two spaces after 'must')
+    given:
+      entry: reenter
+      commarea: *reenter
+    when:
+      aid: ENTER
+      fields: {ACCTSIDI: "ABCDEFGHIJK"}
+    then:
+      message: "Account Filter must  be a non-zero 11 digit number"
+      cursor: ACCTSIDL
+      fields: {ACCTSIDO: "ABCDEFGHIJK"}
+      transfer: {via: RETURN-TRANSID, to: CAVW}
+      commarea: {CDEMO-ACCT-ID: "00000000000"}
+      file_effects: []
+    source:
+      file: app/cbl/COACTVWC.cbl
+      lines: [666, 676]
+
+  - id: COACTVWC-007
+    summary: all-zero account id is rejected with the same message
+    given:
+      entry: reenter
+      commarea: *reenter
+    when:
+      aid: ENTER
+      fields: {ACCTSIDI: "00000000000"}
+    then:
+      message: "Account Filter must  be a non-zero 11 digit number"
+      cursor: ACCTSIDL
+      fields: {ACCTSIDO: "00000000000"}
+      transfer: {via: RETURN-TRANSID, to: CAVW}
+      file_effects: []
+    source:
+      file: app/cbl/COACTVWC.cbl
+      lines: [666, 676]
+
+  - id: COACTVWC-008
+    summary: short account id (fewer than 11 digits, space padded by BMS) fails the NUMERIC test
+    given:
+      entry: reenter
+      commarea: *reenter
+    when:
+      aid: ENTER
+      fields: {ACCTSIDI: "12345"}
+    then:
+      message: "Account Filter must  be a non-zero 11 digit number"
+      cursor: ACCTSIDL
+      transfer: {via: RETURN-TRANSID, to: CAVW}
+      file_effects: []
+    source:
+      file: app/cbl/COACTVWC.cbl
+      lines: [666, 676]
+
+  - id: COACTVWC-009
+    summary: account not in the card xref alternate index (CXACAIX NOTFND)
+    given:
+      entry: reenter
+      commarea: *reenter
+      files:
+        CXACAIX: []
+        ACCTDAT: []
+        CUSTDAT: []
+    when:
+      aid: ENTER
+      fields: {ACCTSIDI: "00000000099"}
+    then:
+      message: "Account:{WS-CARD-RID-ACCT-ID-X} not found in{} Cross ref file.  Resp:{ERROR-RESP} Reas:{ERROR-RESP2}"
+      cursor: ACCTSIDL
+      fields:
+        ACCTSIDO: "00000000099"
+        INFOMSGO: Enter or update id of account to display
+      transfer: {via: RETURN-TRANSID, to: CAVW}
+      commarea: {CDEMO-ACCT-ID: "00000000099"}
+      file_effects: []
+    source:
+      file: app/cbl/COACTVWC.cbl
+      lines: [741, 758]
+
+  - id: COACTVWC-010
+    summary: CXACAIX READ returns a RESP other than NORMAL/NOTFND (injected fault) and shows the generic file error
+    given:
+      entry: reenter
+      commarea: *reenter
+    when:
+      aid: ENTER
+      fields: {ACCTSIDI: "00000000001"}
+    then:
+      message: "File Error: {ERROR-OPNAME} on {ERROR-FILE} returned RESP {ERROR-RESP},RESP2 {ERROR-RESP2}"
+      cursor: ACCTSIDL
+      transfer: {via: RETURN-TRANSID, to: CAVW}
+      file_effects: []
+    source:
+      file: app/cbl/COACTVWC.cbl
+      lines: [759, 768]
+
+  - id: COACTVWC-011
+    summary: xref found but account missing from ACCTDAT; customer still read and its fields displayed (latent bug)
+    given:
+      entry: reenter
+      commarea: *reenter
+      files:
+        CXACAIX:
+          - &xref {XREF-CARD-NUM: "0500024453765740", XREF-CUST-ID: "000000001", XREF-ACCT-ID: "00000000001"}
+        ACCTDAT: []
+        CUSTDAT:
+          - &cust
+            CUST-ID: "000000001"
+            CUST-FIRST-NAME: Immanuel
+            CUST-MIDDLE-NAME: Madeline
+            CUST-LAST-NAME: Kessler
+            CUST-ADDR-LINE-1: 618 Deshaun Route
+            CUST-ADDR-LINE-2: Apt. 802
+            CUST-ADDR-LINE-3: Altenwerthshire
+            CUST-ADDR-STATE-CD: NY
+            CUST-ADDR-COUNTRY-CD: USA
+            CUST-ADDR-ZIP: "10001"
+            CUST-PHONE-NUM-1: "(212)555-0100"
+            CUST-PHONE-NUM-2: "(212)555-0101"
+            CUST-SSN: "020973888"
+            CUST-GOVT-ISSUED-ID: "00000000000049368437"
+            CUST-DOB-YYYY-MM-DD: "1961-06-08"
+            CUST-EFT-ACCOUNT-ID: "0053581756"
+            CUST-PRI-CARD-HOLDER-IND: Y
+            CUST-FICO-CREDIT-SCORE: "750"
+    when:
+      aid: ENTER
+      fields: {ACCTSIDI: "00000000001"}
+    then:
+      message: "Account:{WS-CARD-RID-ACCT-ID-X} not found in{} Acct Master file.Resp:{ERROR-RESP} Reas:{ERROR-RESP2}"
+      cursor: ACCTSIDL
+      fields:
+        ACCTSIDO: "00000000001"
+        ACSTNUMO: "000000001"
+        ACSFNAMO: Immanuel
+        ACSLNAMO: Kessler
+      transfer: {via: RETURN-TRANSID, to: CAVW}
+      commarea: {CDEMO-ACCT-ID: "00000000001", CDEMO-CUST-ID: "000000001", CDEMO-CARD-NUM: "0500024453765740"}
+      file_effects: []
+    source:
+      file: app/cbl/COACTVWC.cbl
+      lines: [700, 715]
+
+  - id: COACTVWC-012
+    summary: ACCTDAT READ returns a RESP other than NORMAL/NOTFND (injected fault)
+    given:
+      entry: reenter
+      commarea: *reenter
+      files:
+        CXACAIX: [*xref]
+    when:
+      aid: ENTER
+      fields: {ACCTSIDI: "00000000001"}
+    then:
+      message: "File Error: {ERROR-OPNAME} on {ERROR-FILE} returned RESP {ERROR-RESP},RESP2 {ERROR-RESP2}"
+      cursor: ACCTSIDL
+      transfer: {via: RETURN-TRANSID, to: CAVW}
+      file_effects: []
+    source:
+      file: app/cbl/COACTVWC.cbl
+      lines: [809, 818]
+
+  - id: COACTVWC-013
+    summary: account found but customer missing from CUSTDAT; account fields shown with the customer error
+    given:
+      entry: reenter
+      commarea: *reenter
+      files:
+        CXACAIX: [*xref]
+        ACCTDAT:
+          - &acct
+            ACCT-ID: "00000000001"
+            ACCT-ACTIVE-STATUS: Y
+            ACCT-CURR-BAL: "1940.00"
+            ACCT-CREDIT-LIMIT: "2020.00"
+            ACCT-CASH-CREDIT-LIMIT: "1020.00"
+            ACCT-OPEN-DATE: "2014-11-20"
+            ACCT-EXPIRAION-DATE: "2025-05-20"
+            ACCT-REISSUE-DATE: "2025-05-20"
+            ACCT-CURR-CYC-CREDIT: "0.00"
+            ACCT-CURR-CYC-DEBIT: "0.00"
+            ACCT-ADDR-ZIP: "10001"
+            ACCT-GROUP-ID: A000000000
+        CUSTDAT: []
+    when:
+      aid: ENTER
+      fields: {ACCTSIDI: "00000000001"}
+    then:
+      message: "CustId:{WS-CARD-RID-CUST-ID-X} not found{} in customer master.Resp: {ERROR-RESP} REAS:{ERROR-RESP2}"
+      cursor: ACCTSIDL
+      fields:
+        ACCTSIDO: "00000000001"
+        ACSTTUSO: Y
+        ACURBALO: "+      1,940.00"
+        ACSTNUMO: ""
+      transfer: {via: RETURN-TRANSID, to: CAVW}
+      file_effects: []
+    source:
+      file: app/cbl/COACTVWC.cbl
+      lines: [839, 857]
+
+  - id: COACTVWC-014
+    summary: CUSTDAT READ returns a RESP other than NORMAL/NOTFND (injected fault)
+    given:
+      entry: reenter
+      commarea: *reenter
+      files:
+        CXACAIX: [*xref]
+        ACCTDAT: [*acct]
+    when:
+      aid: ENTER
+      fields: {ACCTSIDI: "00000000001"}
+    then:
+      message: "File Error: {ERROR-OPNAME} on {ERROR-FILE} returned RESP {ERROR-RESP},RESP2 {ERROR-RESP2}"
+      cursor: ACCTSIDL
+      transfer: {via: RETURN-TRANSID, to: CAVW}
+      file_effects: []
+    source:
+      file: app/cbl/COACTVWC.cbl
+      lines: [858, 867]
+
+  - id: COACTVWC-015
+    summary: valid account id displays account and customer details; info line still shows the prompt
+    given:
+      entry: reenter
+      commarea: *reenter
+      files: &db
+        CXACAIX: [*xref]
+        ACCTDAT: [*acct]
+        CUSTDAT: [*cust]
+    when:
+      aid: ENTER
+      fields: {ACCTSIDI: "00000000001"}
+    then:
+      message: null
+      cursor: ACCTSIDL
+      fields:
+        ACCTSIDO: "00000000001"
+        ACSTTUSO: Y
+        ACURBALO: "+      1,940.00"
+        ACRDLIMO: "+      2,020.00"
+        ACSHLIMO: "+      1,020.00"
+        ACRCYCRO: "+           .00"
+        ACRCYDBO: "+           .00"
+        ADTOPENO: "2014-11-20"
+        AEXPDTO: "2025-05-20"
+        AREISDTO: "2025-05-20"
+        AADDGRPO: A000000000
+        ACSTNUMO: "000000001"
+        ACSTSSNO: "020-97-3888"
+        ACSTFCOO: "750"
+        ACSTDOBO: "1961-06-08"
+        ACSFNAMO: Immanuel
+        ACSMNAMO: Madeline
+        ACSLNAMO: Kessler
+        ACSADL1O: 618 Deshaun Route
+        ACSADL2O: Apt. 802
+        ACSCITYO: Altenwerthshire
+        ACSSTTEO: NY
+        ACSZIPCO: "10001"
+        ACSCTRYO: USA
+        ACSPHN1O: "(212)555-0100"
+        ACSPHN2O: "(212)555-0101"
+        ACSGOVTO: "00000000000049368437"
+        ACSEFTCO: "0053581756"
+        ACSPFLGO: Y
+        INFOMSGO: Enter or update id of account to display
+      transfer: {via: RETURN-TRANSID, to: CAVW}
+      commarea:
+        CDEMO-ACCT-ID: "00000000001"
+        CDEMO-CUST-ID: "000000001"
+        CDEMO-CARD-NUM: "0500024453765740"
+        CDEMO-PGM-CONTEXT: 1
+      file_effects: []
+    source:
+      file: app/cbl/COACTVWC.cbl
+      lines: [460, 535]
+
+  - id: COACTVWC-016
+    summary: an unhandled key (PF7) is treated as ENTER and processes the account id
+    given:
+      entry: reenter
+      commarea: *reenter
+      files: *db
+    when:
+      aid: PF7
+      fields: {ACCTSIDI: "00000000001"}
+    then:
+      message: null
+      cursor: ACCTSIDL
+      fields: {ACCTSIDO: "00000000001", ACSTNUMO: "000000001", ACSLNAMO: Kessler}
+      transfer: {via: RETURN-TRANSID, to: CAVW}
+      file_effects: []
+    source:
+      file: app/cbl/COACTVWC.cbl
+      lines: [306, 314]
+
+  - id: COACTVWC-017
+    summary: PF5 is not handled here and behaves as ENTER (blank id gives 'No input received')
+    given:
+      entry: reenter
+      commarea: *reenter
+    when:
+      aid: PF5
+      fields: {ACCTSIDI: ""}
+    then:
+      message: No input received
+      cursor: ACCTSIDL
+      fields: {ACCTSIDO: "*"}
+      transfer: {via: RETURN-TRANSID, to: CAVW}
+      file_effects: []
+    source:
+      file: app/cbl/COACTVWC.cbl
+      lines: [306, 314]
+
+  - id: COACTVWC-018
+    summary: PF3 returns to the calling program named in the COMMAREA and forces user type 'U'
+    given:
+      entry: reenter
+      commarea: {CDEMO-FROM-PROGRAM: COMEN01C, CDEMO-FROM-TRANID: CM00, CDEMO-USER-TYPE: A, CDEMO-PGM-CONTEXT: 1}
+    when:
+      aid: PF3
+      fields: {}
+    then:
+      message: null
+      transfer: {via: XCTL, to: COMEN01C}
+      commarea:
+        CDEMO-TO-PROGRAM: COMEN01C
+        CDEMO-TO-TRANID: CM00
+        CDEMO-FROM-PROGRAM: COACTVWC
+        CDEMO-FROM-TRANID: CAVW
+        CDEMO-USER-TYPE: U
+        CDEMO-PGM-CONTEXT: 0
+        CDEMO-LAST-MAPSET: COACTVW
+        CDEMO-LAST-MAP: CACTVWA
+      file_effects: []
+    source:
+      file: app/cbl/COACTVWC.cbl
+      lines: [324, 352]
+
+  - id: COACTVWC-019
+    summary: PF3 on first-time entry (no COMMAREA) goes to the main menu COMEN01C / CM00
+    given:
+      entry: first-time
+      commarea: {}
+    when:
+      aid: PF3
+      fields: {}
+    then:
+      message: null
+      transfer: {via: XCTL, to: COMEN01C}
+      commarea: {CDEMO-TO-PROGRAM: COMEN01C, CDEMO-TO-TRANID: CM00, CDEMO-FROM-PROGRAM: COACTVWC, CDEMO-FROM-TRANID: CAVW}
+      file_effects: []
+    source:
+      file: app/cbl/COACTVWC.cbl
+      lines: [328, 339]
+
+  - id: COACTVWC-020
+    summary: PF15 is folded onto PF3 by CSSTRPFY and exits the same way
+    given:
+      entry: reenter
+      commarea: *reenter
+    when:
+      aid: PF15
+      fields: {}
+    then:
+      message: null
+      transfer: {via: XCTL, to: COMEN01C}
+      file_effects: []
+    source:
+      file: app/cpy/CSSTRPFY.cpy
+      lines: [58, 59]
+
+  - id: COACTVWC-021
+    summary: CDEMO-PGM-CONTEXT outside 0/1 sends plain text 'UNEXPECTED DATA SCENARIO' and ends the conversation
+    given:
+      entry: reenter
+      commarea: {CDEMO-FROM-PROGRAM: COMEN01C, CDEMO-PGM-CONTEXT: 2}
+    when:
+      aid: ENTER
+      fields: {}
+    then:
+      message: UNEXPECTED DATA SCENARIO
+      transfer: {via: SEND-TEXT, to: COACTVWC}
+      file_effects: []
+    source:
+      file: app/cbl/COACTVWC.cbl
+      lines: [375, 382]

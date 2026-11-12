@@ -1,0 +1,2186 @@
+program: COACTUPC
+transaction: CAUP
+screen:
+  mapset: COACTUP
+  map: CACTUPA
+evidence: derived
+sources:
+  - app/cbl/COACTUPC.cbl
+  - app/bms/COACTUP.bms
+  - app/cpy-bms/COACTUP.CPY
+  - app/cpy/COCOM01Y.cpy
+  - app/cpy/CVCRD01Y.cpy
+  - app/cpy/CSSTRPFY.cpy
+  - app/cpy/CVACT01Y.cpy
+  - app/cpy/CVACT03Y.cpy
+  - app/cpy/CVCUS01Y.cpy
+  - app/cpy/CSUTLDPY.cpy
+  - app/cpy/CSUTLDWY.cpy
+  - app/cpy/CSLKPCDY.cpy
+  - app/cpy/CSSETATY.cpy
+  - app/cpy/CSMSG02Y.cpy
+  - app/csd/CARDDEMO.CSD
+files:
+  - name: CXACAIX
+    ops: [READ]
+    key: XREF-ACCT-ID
+  - name: ACCTDAT
+    ops: [READ, READ-UPDATE, REWRITE]
+    key: ACCT-ID
+  - name: CUSTDAT
+    ops: [READ, READ-UPDATE, REWRITE]
+    key: CUST-ID
+navigation:
+  - to: COMEN01C
+    via: XCTL
+    when: >-
+      PF3 (or PF15) in any state, after EXEC CICS SYNCPOINT (lines 927-959). The target is CDEMO-FROM-PROGRAM
+      when it is set, else COMEN01C. COMEN01C is the only caller the menu wires up (COMEN02Y option for
+      COACTUPC).
+  - to: CAUP
+    via: RETURN-TRANSID
+    when: every path that sends the map ends at COMMON-RETURN (lines 1007-1019)
+  - to: COACTUPC
+    via: SEND-TEXT
+    when: >-
+      2000-DECIDE-ACTION WHEN OTHER (lines 2633-2640). ABEND-ROUTINE sends ABEND-DATA with EXEC CICS SEND (not
+      SEND TEXT) and then issues EXEC CICS ABEND ABCODE('9999') (lines 4203-4225). SEND-TEXT is the closest
+      'via' the schema offers.
+notes:
+  - >-
+    Derived from source, never executed. Line numbers refer to app/cbl/COACTUPC.cbl unless a case cites
+    another file. Date edits live in app/cpy/CSUTLDPY.cpy (COPY at line 4232).
+  - >-
+    STATE MACHINE. The state is ACUP-CHANGE-ACTION in the program part of the COMMAREA (lines 654-668), set
+    per case in given.commarea. A value of "" means LOW-VALUES or SPACES. The states are:
+    "" = ACUP-DETAILS-NOT-FETCHED (search mode; only ACCTSIDI is read, lines 1060-1062).
+    S = ACUP-SHOW-DETAILS (record shown; fields unprotected except ACCTSID, ACSTNUM and ACSCTRY).
+    E = ACUP-CHANGES-NOT-OK (changes failed validation).
+    N = ACUP-CHANGES-OK-NOT-CONFIRMED (validated; fields protected; F5 saves).
+    C = ACUP-CHANGES-OKAYED-AND-DONE (saved).
+    L = ACUP-CHANGES-OKAYED-LOCK-ERROR (READ UPDATE of ACCTDAT failed).
+    F = ACUP-CHANGES-OKAYED-BUT-FAILED (REWRITE failed).
+  - >-
+    TRANSITIONS. "" + ENTER with a valid account that is found goes to S (2568-2580). In S or E, ENTER first
+    compares the screen with the values fetched (1205). With no difference it stays in the same state and shows
+    'No change detected with respect to values fetched.'. With a difference it validates every field
+    (1470-1669) and goes to E (first error) or N (all valid, 1671-1675). In N, ENTER stays in N (edits are
+    skipped, 1463-1467). In N, PF5 runs 9600-WRITE-PROCESSING and goes to C on success, L on account lock
+    failure, F on rewrite failure, or back to S when the record changed (2602-2615). Any key except PF3 in C,
+    L or F resets to a blank search screen in state "" (979-989). PF12 in any state except "" re-reads the
+    record and goes to S, discarding unsaved changes (2572-2580).
+  - >-
+    AID validity (lines 905-916). Always valid are ENTER and PF3. PF5 is valid only in state N, and PF12 in
+    any state except "". Every other key, and PF5 or PF12 outside those states, is treated as ENTER.
+    CSSTRPFY folds PF13-PF24 onto PF1-PF12. CLEAR and PA keys send no data, so RECEIVE MAP gets MAPFAIL. RESP
+    is captured but never checked (lines 1040-1045). That outcome is not specified here.
+  - >-
+    Message conventions. then.message is grounded in source text. {NAME} is a runtime value, and {} marks a
+    join between adjacent STRING literals with nothing in between (e.g. lines 1807-1808). The validator only
+    accepts literal source fragments, so most field-edit messages appear as the template
+    '{WS-EDIT-VARIABLE-NAME} ...'. then.fields.ERRMSGO carries the fully resolved text the user sees, e.g.
+    'Credit Limit must be supplied.'. Compare it right-trimmed (WS-RETURN-MSG X(75) goes into ERRMSGO X(78)).
+    message null means WS-RETURN-MSG was spaces.
+  - >-
+    Only the first error message is kept. Every edit is guarded by IF WS-RETURN-MSG-OFF, so the message comes
+    from the first failing field in edit order (1472-1662). The order is Account Status, Open Date, Credit
+    Limit, Expiry Date, Cash Credit Limit, Reissue Date, Current Balance, Current Cycle Credit, Current Cycle
+    Debit, SSN parts 1-3, Date of Birth, FICO, First/Middle/Last Name, Address Line 1, State, Zip, City,
+    Country, Phone 1, Phone 2, EFT Account Id, Primary Card Holder, then the state/zip cross check
+    (1665-1669). The cursor is chosen separately by the first flagged field in screen order (3009-3167).
+    The two orders agree except for the state/zip cross check, which runs last but puts the cursor on State
+    (see case COACTUPC-112).
+  - >-
+    Error marking (CSSETATY, COPY at lines 3208-3435). On reenter, a field whose flag is NOT-OK or BLANK is
+    shown red. A BLANK one also shows '*' in its output field. Colors and attribute bytes (protection, the F5
+    and F12 key labels brightened at 3573-3581) are not expressible in the schema and are only noted here.
+  - >-
+    Input conventions. A when.fields value of "" means blank. 1100-RECEIVE-MAP turns '*' or spaces into
+    LOW-VALUES (lines 1051-1424). Amount fields accept anything FUNCTION TEST-NUMVAL-C accepts (sign, '$',
+    commas, decimals). Screens are 3270 and space-padded, so short numeric input in the SSN, zip, FICO, EFT
+    and phone parts fails the 'all numeric' / 'A n digit number' checks. Unless a case says otherwise, every
+    input field equals what the fetch displayed (anchor 'screen' in case COACTUPC-019).
+  - >-
+    Case-insensitive change detection (1205, lines 1684-1773). Status, group id and most customer text fields
+    are compared after UPPER-CASE/TRIM. A change in letter case alone (e.g. state 'NY' to 'ny', status 'Y' to
+    'y') therefore counts as 'no change', and the lowercase value is never saved. The validations themselves
+    are case-sensitive: 'y' fails Y/N and 'ny' fails the state table.
+  - >-
+    No business range checks beyond what is listed. A credit limit may be negative or smaller than the cash
+    limit or balance. Expiry and reissue dates are not required to be in the future or after the open date.
+    Group id (AADDGRP), Address Line 2 and Government id (ACSGOVT) are never validated. Customer id is
+    protected (DFHBMPRF line 3531). Country is protected (line 3547) but still validated as 1-3 alphabetic
+    characters. The account id is protected once details are shown (3310 protects it and 3320 does not
+    unprotect it), so a different account can only be searched after PF3 or after a save attempt ends in
+    C, L or F.
+  - >-
+    Dates (CSUTLDPY). Only centuries 19 and 20 are accepted. Year, month and day are each checked, and all
+    three are always evaluated. Then come the 31-day-month check, the February 30 check and the leap-year
+    check. For the leap year, years ending 00 must divide by 400, others by 4 (CSUTLDPY lines 243-272). This
+    is correct for 1900-2099. A day or month error found by the cross checks flags both month and day (and
+    year for the leap-year error), so the cursor lands on the earliest of those in screen order. If all
+    parts pass, the date is also checked by CALL 'CSUTLDTC' (CEEDAYS, CSUTLDPY lines 283-321). A failure there
+    sets an error message, but the fall-through at CSUTLDPY line 327 then resets the date flags to valid, so
+    no field is marked. Date of Birth must also be strictly before today (CSUTLDPY lines 341-369), so a
+    birth date of today is rejected.
+  - >-
+    Masked latent bug in the phone 'all blank' test (lines 2234-2239). The third clause tests NUMA = SPACES
+    where NUMC was intended. A blank screen field always arrives as LOW-VALUES (line 1359), never SPACES, so
+    the clause reduces to NUMC = LOW-VALUES and the test behaves as intended (see COACTUPC-104). A Java port
+    that feeds spaces into this logic would expose the bug.
+  - >-
+    Phone, SSN parts and blanks as written (9600, lines 4027-4041). Phones are saved as '(AAA)BBB-CCCC' padded
+    to 15. An all-blank phone (accepted, optional) is saved as '(' + 3 x LOW-VALUES + ')' + 3 x LOW-VALUES +
+    '-' + 4 x LOW-VALUES. A blank optional field (middle name, address line 2, government id) is saved as
+    LOW-VALUES, not spaces. Text is saved exactly as typed, with no upper-casing.
+  - >-
+    LATENT BUG, account record layout (lines 418-433 vs CVACT01Y). ACCT-UPDATE-RECORD has no ACCT-ADDR-ZIP
+    field, and its FILLER is X(188) where CVACT01Y has X(178). The REWRITE therefore puts the new group id in
+    the bytes CVACT01Y calls ACCT-ADDR-ZIP (offsets 103-112). The bytes CVACT01Y calls ACCT-GROUP-ID
+    (113-122) receive FILLER, which INITIALIZE does not touch, so their content depends on how working
+    storage was initialized. The REWRITE case asserts ACCT-ADDR-ZIP = new group id and asserts nothing about
+    ACCT-GROUP-ID. The next fetch reads that FILLER back as the group id.
+  - >-
+    LATENT BUG, customer lock failure is reported as success (lines 2606-2615). When READ UPDATE of CUSTDAT
+    fails, 9600 sets 'Could not lock customer record for update', but the EVALUATE has no branch for it and
+    falls to WHEN OTHER, giving state C. The info line says 'Changes committed to database' although nothing
+    was written. The ACCTDAT record stays locked until the task ends.
+  - >-
+    LATENT BUG, account missing but customer present (9000, lines 3624-3643). DID-NOT-FIND-ACCT-IN-ACCTDAT is
+    never set (the 9300 NOTFND branch sets only the error text). After an ACCTDAT NOTFND or any other ACCTDAT
+    READ error, 9400 still reads the customer. If the customer exists, 9500 stores ACCT-* values from an
+    ACCOUNT-RECORD that was not loaded on this task, and 2577-2579 moves to state S with the ACCTDAT error
+    message on screen.
+  - >-
+    Concurrent update (9700, lines 4109-4191). The DB record is compared with the ACUP-OLD-* values in the
+    COMMAREA. Account fields are compared exactly, except group id which is compared lower-cased. Most
+    customer text fields are compared upper-cased, so a case-only change by someone else goes unnoticed. On a
+    mismatch, state returns to S but ACUP-OLD-* is NOT refreshed, so the screen shows the stale values
+    fetched earlier. Every later F5 will hit the same mismatch until the user presses PF12 to re-read. 9700
+    leaves by GO TO 9600-WRITE-PROCESSING-EXIT from inside a nested PERFORM (lines 4144, 4190).
+  - >-
+    READ UPDATE in CICS waits for a held lock rather than failing. The 'Could not lock' outcomes therefore come
+    from NOTFND or other errors, which is how the cases below provoke them (record absent). Cases whose
+    summary names an injected fault need the runner to force that I/O error. The schema has no field for
+    this.
+  - >-
+    F5 does not re-run the edits (state N skips them, line 1464). It saves whatever the protected FSET fields
+    send back. The cursor ends on ACCTSIDL in every state other than an edit error or 'no change'.
+  - >-
+    Dead or unreachable code. Line 2590 (S becomes N inside 2000) cannot be reached because 1205 always sets
+    NO-CHANGES-DETECTED when it finds no change. 2625-2632 (state C in 2000) and the C check at 1465 cannot be
+    reached because 0000-MAIN catches C at line 979 first. In 3009, the WHEN FOUND-ACCOUNT-DATA cursor rule
+    never fires, because 3250 overwrites WS-INFO-MSG first. Unused 88s include WS-PROMPT-FOR-LASTNAME,
+    WS-NAME-MUST-BE-ALPHA, CRED-LIMIT-IS-BLANK, THIS-MONTH-NOT-VALID and XREF-READ-ERROR. The 1230/1240
+    alphanumeric edits are never called.
+  - >-
+    COMMAREA arrival quirks (lines 880-893). The menu test reads CARDDEMO-COMMAREA before it has been copied
+    in, and WS-THIS-PROGCOMMAREA is copied from bytes beyond EIBCALEN when a caller passes only
+    CARDDEMO-COMMAREA. A fresh arrival from COMEN01C still works because the second WHEN at line 966
+    re-initializes the program area. An arrival from any other program with CDEMO-PGM-CONTEXT = 0 depends on
+    whatever bytes follow its COMMAREA.
+  - >-
+    RESP rendering is inferred. ERROR-RESP and ERROR-RESP2 are X(10) receiving S9(9) COMP values, which gives
+    9 digits plus a space. The not-found messages are longer than 75 bytes and lose the tail of RESP2.
+cases:
+  # ---------------------------------------------------------------- entry and exit
+  - id: COACTUPC-001
+    summary: first-time entry (EIBCALEN = 0) shows a blank search screen prompting for the account id
+    given:
+      entry: first-time
+      commarea: {}
+    when:
+      aid: ENTER
+      fields: {}
+    then:
+      message: null
+      cursor: ACCTSIDL
+      fields:
+        ACCTSIDO: ""
+        INFOMSGO: Enter or update id of account to update
+        TRNNAMEO: CAUP
+        PGMNAMEO: COACTUPC
+      transfer: {via: RETURN-TRANSID, to: CAUP}
+      commarea: {CDEMO-PGM-CONTEXT: 1, ACUP-CHANGE-ACTION: ""}
+      file_effects: []
+    source:
+      file: app/cbl/COACTUPC.cbl
+      lines: [964, 973]
+
+  - id: COACTUPC-002
+    summary: arrival via XCTL from the main menu shows the blank search screen
+    given:
+      entry: xctl-from
+      commarea: {CDEMO-FROM-PROGRAM: COMEN01C, CDEMO-FROM-TRANID: CM00, CDEMO-USER-TYPE: U, CDEMO-PGM-CONTEXT: 0}
+    when:
+      aid: ENTER
+      fields: {}
+    then:
+      message: null
+      cursor: ACCTSIDL
+      fields: {ACCTSIDO: "", INFOMSGO: Enter or update id of account to update}
+      transfer: {via: RETURN-TRANSID, to: CAUP}
+      commarea: {CDEMO-PGM-CONTEXT: 1, ACUP-CHANGE-ACTION: ""}
+      file_effects: []
+    source:
+      file: app/cbl/COACTUPC.cbl
+      lines: [964, 973]
+
+  - id: COACTUPC-003
+    summary: PF3 syncpoints and returns to the calling program, forcing user type U
+    given:
+      entry: reenter
+      commarea: {CDEMO-FROM-PROGRAM: COMEN01C, CDEMO-FROM-TRANID: CM00, CDEMO-USER-TYPE: A, CDEMO-PGM-CONTEXT: 1, ACUP-CHANGE-ACTION: S}
+    when:
+      aid: PF3
+      fields: {}
+    then:
+      message: null
+      transfer: {via: XCTL, to: COMEN01C}
+      commarea:
+        CDEMO-TO-PROGRAM: COMEN01C
+        CDEMO-TO-TRANID: CM00
+        CDEMO-FROM-PROGRAM: COACTUPC
+        CDEMO-FROM-TRANID: CAUP
+        CDEMO-USER-TYPE: U
+        CDEMO-PGM-CONTEXT: 0
+        CDEMO-LAST-MAPSET: COACTUP
+        CDEMO-LAST-MAP: CACTUPA
+      file_effects: []
+    source:
+      file: app/cbl/COACTUPC.cbl
+      lines: [927, 959]
+
+  - id: COACTUPC-004
+    summary: PF3 on first-time entry (no COMMAREA) goes to COMEN01C / CM00
+    given:
+      entry: first-time
+      commarea: {}
+    when:
+      aid: PF3
+      fields: {}
+    then:
+      message: null
+      transfer: {via: XCTL, to: COMEN01C}
+      commarea: {CDEMO-TO-PROGRAM: COMEN01C, CDEMO-TO-TRANID: CM00, CDEMO-FROM-PROGRAM: COACTUPC, CDEMO-FROM-TRANID: CAUP}
+      file_effects: []
+    source:
+      file: app/cbl/COACTUPC.cbl
+      lines: [930, 942]
+
+  - id: COACTUPC-005
+    summary: PF15 is folded onto PF3 and exits the same way
+    given:
+      entry: reenter
+      commarea: {CDEMO-FROM-PROGRAM: COMEN01C, CDEMO-FROM-TRANID: CM00, CDEMO-PGM-CONTEXT: 1, ACUP-CHANGE-ACTION: ""}
+    when:
+      aid: PF15
+      fields: {}
+    then:
+      message: null
+      transfer: {via: XCTL, to: COMEN01C}
+      file_effects: []
+    source:
+      file: app/cpy/CSSTRPFY.cpy
+      lines: [58, 59]
+
+  # ---------------------------------------------------------------- account search (state "")
+  - id: COACTUPC-006
+    summary: blank account id in search mode shows 'No input received' and marks the field with an asterisk
+    given:
+      entry: reenter
+      commarea: &search {CDEMO-FROM-PROGRAM: COMEN01C, CDEMO-FROM-TRANID: CM00, CDEMO-USER-TYPE: U, CDEMO-PGM-CONTEXT: 1, ACUP-CHANGE-ACTION: ""}
+    when:
+      aid: ENTER
+      fields: {ACCTSIDI: ""}
+    then:
+      message: No input received
+      cursor: ACCTSIDL
+      fields: {ACCTSIDO: "*", INFOMSGO: Enter or update id of account to update}
+      transfer: {via: RETURN-TRANSID, to: CAUP}
+      commarea: {ACUP-CHANGE-ACTION: "", CDEMO-ACCT-ID: "00000000000"}
+      file_effects: []
+    source:
+      file: app/cbl/COACTUPC.cbl
+      lines: [1433, 1446]
+
+  - id: COACTUPC-007
+    summary: an asterisk typed as the account id is treated as blank
+    given: {entry: reenter, commarea: *search}
+    when: {aid: ENTER, fields: {ACCTSIDI: "*"}}
+    then:
+      message: No input received
+      cursor: ACCTSIDL
+      fields: {ACCTSIDO: "*"}
+      transfer: {via: RETURN-TRANSID, to: CAUP}
+      file_effects: []
+    source: {file: app/cbl/COACTUPC.cbl, lines: [1051, 1058]}
+
+  - id: COACTUPC-008
+    summary: non-numeric account id is rejected
+    given: {entry: reenter, commarea: *search}
+    when: {aid: ENTER, fields: {ACCTSIDI: "ABCDEFGHIJK"}}
+    then:
+      message: "Account Number if supplied must be a 11 digit{} Non-Zero Number"
+      cursor: ACCTSIDL
+      fields: {ACCTSIDO: "ABCDEFGHIJK", ERRMSGO: "Account Number if supplied must be a 11 digit Non-Zero Number"}
+      transfer: {via: RETURN-TRANSID, to: CAUP}
+      commarea: {ACUP-CHANGE-ACTION: "", CDEMO-ACCT-ID: "00000000000"}
+      file_effects: []
+    source: {file: app/cbl/COACTUPC.cbl, lines: [1801, 1813]}
+
+  - id: COACTUPC-009
+    summary: all-zero account id is rejected
+    given: {entry: reenter, commarea: *search}
+    when: {aid: ENTER, fields: {ACCTSIDI: "00000000000"}}
+    then:
+      message: "Account Number if supplied must be a 11 digit{} Non-Zero Number"
+      cursor: ACCTSIDL
+      fields: {ACCTSIDO: "00000000000", ERRMSGO: "Account Number if supplied must be a 11 digit Non-Zero Number"}
+      transfer: {via: RETURN-TRANSID, to: CAUP}
+      file_effects: []
+    source: {file: app/cbl/COACTUPC.cbl, lines: [1801, 1813]}
+
+  - id: COACTUPC-010
+    summary: short account id (space padded) fails the NUMERIC test
+    given: {entry: reenter, commarea: *search}
+    when: {aid: ENTER, fields: {ACCTSIDI: "12345"}}
+    then:
+      message: "Account Number if supplied must be a 11 digit{} Non-Zero Number"
+      cursor: ACCTSIDL
+      fields: {ERRMSGO: "Account Number if supplied must be a 11 digit Non-Zero Number"}
+      transfer: {via: RETURN-TRANSID, to: CAUP}
+      file_effects: []
+    source: {file: app/cbl/COACTUPC.cbl, lines: [1801, 1813]}
+
+  - id: COACTUPC-011
+    summary: account not in the card xref alternate index keeps search mode
+    given:
+      entry: reenter
+      commarea: *search
+      files: {CXACAIX: [], ACCTDAT: [], CUSTDAT: []}
+    when: {aid: ENTER, fields: {ACCTSIDI: "00000000099"}}
+    then:
+      message: "Account:{WS-CARD-RID-ACCT-ID-X} not found in{} Cross ref file.  Resp:{ERROR-RESP} Reas:{ERROR-RESP2}"
+      cursor: ACCTSIDL
+      fields: {ACCTSIDO: "00000000099", ACSTTUSO: "", INFOMSGO: Enter or update id of account to update}
+      transfer: {via: RETURN-TRANSID, to: CAUP}
+      commarea: {ACUP-CHANGE-ACTION: ""}
+      file_effects: []
+    source: {file: app/cbl/COACTUPC.cbl, lines: [3668, 3685]}
+
+  - id: COACTUPC-012
+    summary: CXACAIX READ returns a RESP other than NORMAL/NOTFND (injected fault)
+    given: {entry: reenter, commarea: *search}
+    when: {aid: ENTER, fields: {ACCTSIDI: "00000000001"}}
+    then:
+      message: "File Error: {ERROR-OPNAME} on {ERROR-FILE} returned RESP {ERROR-RESP},RESP2 {ERROR-RESP2}"
+      cursor: ACCTSIDL
+      transfer: {via: RETURN-TRANSID, to: CAUP}
+      commarea: {ACUP-CHANGE-ACTION: ""}
+      file_effects: []
+    source: {file: app/cbl/COACTUPC.cbl, lines: [3686, 3693]}
+
+  - id: COACTUPC-013
+    summary: account missing from ACCTDAT but customer present moves to state S with the ACCTDAT error (latent bug)
+    given:
+      entry: reenter
+      commarea: *search
+      files:
+        CXACAIX:
+          - &xref {XREF-CARD-NUM: "0500024453765740", XREF-CUST-ID: "000000001", XREF-ACCT-ID: "00000000001"}
+        ACCTDAT: []
+        CUSTDAT:
+          - &cust
+            CUST-ID: "000000001"
+            CUST-FIRST-NAME: Immanuel
+            CUST-MIDDLE-NAME: Madeline
+            CUST-LAST-NAME: Kessler
+            CUST-ADDR-LINE-1: 618 Deshaun Route
+            CUST-ADDR-LINE-2: Apt. 802
+            CUST-ADDR-LINE-3: Altenwerthshire
+            CUST-ADDR-STATE-CD: NY
+            CUST-ADDR-COUNTRY-CD: USA
+            CUST-ADDR-ZIP: "10001"
+            CUST-PHONE-NUM-1: "(212)555-0100"
+            CUST-PHONE-NUM-2: "(212)555-0101"
+            CUST-SSN: "020973888"
+            CUST-GOVT-ISSUED-ID: "00000000000049368437"
+            CUST-DOB-YYYY-MM-DD: "1961-06-08"
+            CUST-EFT-ACCOUNT-ID: "0053581756"
+            CUST-PRI-CARD-HOLDER-IND: Y
+            CUST-FICO-CREDIT-SCORE: "750"
+    when: {aid: ENTER, fields: {ACCTSIDI: "00000000001"}}
+    then:
+      message: "Account:{WS-CARD-RID-ACCT-ID-X} not found in{} Acct Master file.Resp:{ERROR-RESP} Reas:{ERROR-RESP2}"
+      cursor: ACCTSIDL
+      fields:
+        ACCTSIDO: "00000000001"
+        ACSTNUMO: "000000001"
+        ACSFNAMO: Immanuel
+        ACSLNAMO: Kessler
+        INFOMSGO: Update account details presented above.
+      transfer: {via: RETURN-TRANSID, to: CAUP}
+      commarea: {ACUP-CHANGE-ACTION: S, CDEMO-CUST-ID: "000000001", ACUP-OLD-CUST-ID: "000000001"}
+      file_effects: []
+    source: {file: app/cbl/COACTUPC.cbl, lines: [3620, 3643]}
+
+  - id: COACTUPC-014
+    summary: ACCTDAT READ returns a RESP other than NORMAL/NOTFND (injected fault); customer still read, state S
+    given:
+      entry: reenter
+      commarea: *search
+      files: {CXACAIX: [*xref], CUSTDAT: [*cust]}
+    when: {aid: ENTER, fields: {ACCTSIDI: "00000000001"}}
+    then:
+      message: "File Error: {ERROR-OPNAME} on {ERROR-FILE} returned RESP {ERROR-RESP},RESP2 {ERROR-RESP2}"
+      cursor: ACCTSIDL
+      transfer: {via: RETURN-TRANSID, to: CAUP}
+      commarea: {ACUP-CHANGE-ACTION: S}
+      file_effects: []
+    source: {file: app/cbl/COACTUPC.cbl, lines: [3736, 3743]}
+
+  - id: COACTUPC-015
+    summary: customer missing from CUSTDAT keeps search mode with blank detail fields
+    given:
+      entry: reenter
+      commarea: *search
+      files:
+        CXACAIX: [*xref]
+        ACCTDAT:
+          - &acct
+            ACCT-ID: "00000000001"
+            ACCT-ACTIVE-STATUS: Y
+            ACCT-CURR-BAL: "1940.00"
+            ACCT-CREDIT-LIMIT: "2020.00"
+            ACCT-CASH-CREDIT-LIMIT: "1020.00"
+            ACCT-OPEN-DATE: "2014-11-20"
+            ACCT-EXPIRAION-DATE: "2025-05-20"
+            ACCT-REISSUE-DATE: "2025-05-20"
+            ACCT-CURR-CYC-CREDIT: "0.00"
+            ACCT-CURR-CYC-DEBIT: "0.00"
+            ACCT-ADDR-ZIP: "10001"
+            ACCT-GROUP-ID: A000000000
+        CUSTDAT: []
+    when: {aid: ENTER, fields: {ACCTSIDI: "00000000001"}}
+    then:
+      message: "CustId:{WS-CARD-RID-CUST-ID-X} not found{} in customer master.Resp: {ERROR-RESP} REAS:{ERROR-RESP2}"
+      cursor: ACCTSIDL
+      fields: {ACCTSIDO: "00000000001", ACSTTUSO: "", ACSTNUMO: "", INFOMSGO: Enter or update id of account to update}
+      transfer: {via: RETURN-TRANSID, to: CAUP}
+      commarea: {ACUP-CHANGE-ACTION: ""}
+      file_effects: []
+    source: {file: app/cbl/COACTUPC.cbl, lines: [3766, 3784]}
+
+  - id: COACTUPC-016
+    summary: CUSTDAT READ returns a RESP other than NORMAL/NOTFND (injected fault)
+    given:
+      entry: reenter
+      commarea: *search
+      files: {CXACAIX: [*xref], ACCTDAT: [*acct]}
+    when: {aid: ENTER, fields: {ACCTSIDI: "00000000001"}}
+    then:
+      message: "File Error: {ERROR-OPNAME} on {ERROR-FILE} returned RESP {ERROR-RESP},RESP2 {ERROR-RESP2}"
+      cursor: ACCTSIDL
+      transfer: {via: RETURN-TRANSID, to: CAUP}
+      commarea: {ACUP-CHANGE-ACTION: ""}
+      file_effects: []
+    source: {file: app/cbl/COACTUPC.cbl, lines: [3785, 3792]}
+
+  - id: COACTUPC-017
+    summary: valid account id fetches account and customer and shows them for editing (state S)
+    given:
+      entry: reenter
+      commarea: *search
+      files: &db {CXACAIX: [*xref], ACCTDAT: [*acct], CUSTDAT: [*cust]}
+    when: {aid: ENTER, fields: {ACCTSIDI: "00000000001"}}
+    then:
+      message: null
+      cursor: ACCTSIDL
+      fields:
+        ACCTSIDO: "00000000001"
+        ACSTTUSO: Y
+        ACRDLIMO: "+      2,020.00"
+        ACSHLIMO: "+      1,020.00"
+        ACURBALO: "+      1,940.00"
+        ACRCYCRO: "+           .00"
+        ACRCYDBO: "+           .00"
+        OPNYEARO: "2014"
+        OPNMONO: "11"
+        OPNDAYO: "20"
+        EXPYEARO: "2025"
+        EXPMONO: "05"
+        EXPDAYO: "20"
+        RISYEARO: "2025"
+        RISMONO: "05"
+        RISDAYO: "20"
+        AADDGRPO: A000000000
+        ACSTNUMO: "000000001"
+        ACTSSN1O: "020"
+        ACTSSN2O: "97"
+        ACTSSN3O: "3888"
+        DOBYEARO: "1961"
+        DOBMONO: "06"
+        DOBDAYO: "08"
+        ACSTFCOO: "750"
+        ACSFNAMO: Immanuel
+        ACSMNAMO: Madeline
+        ACSLNAMO: Kessler
+        ACSADL1O: 618 Deshaun Route
+        ACSADL2O: Apt. 802
+        ACSCITYO: Altenwerthshire
+        ACSSTTEO: NY
+        ACSZIPCO: "10001"
+        ACSCTRYO: USA
+        ACSPH1AO: "212"
+        ACSPH1BO: "555"
+        ACSPH1CO: "0100"
+        ACSPH2AO: "212"
+        ACSPH2BO: "555"
+        ACSPH2CO: "0101"
+        ACSGOVTO: "00000000000049368437"
+        ACSEFTCO: "0053581756"
+        ACSPFLGO: Y
+        INFOMSGO: Update account details presented above.
+      transfer: {via: RETURN-TRANSID, to: CAUP}
+      commarea:
+        ACUP-CHANGE-ACTION: S
+        CDEMO-ACCT-ID: "00000000001"
+        CDEMO-CUST-ID: "000000001"
+        CDEMO-CUST-FNAME: Immanuel
+        CDEMO-CUST-MNAME: Madeline
+        CDEMO-CUST-LNAME: Kessler
+        CDEMO-ACCT-STATUS: Y
+        CDEMO-CARD-NUM: "0500024453765740"
+        ACUP-OLD-ACCT-ID: "00000000001"
+        ACUP-OLD-CURR-BAL-N: "1940.00"
+        ACUP-OLD-OPEN-DATE: "20141120"
+        ACUP-OLD-CUST-DOB-YYYY-MM-DD: "19610608"
+        ACUP-OLD-CUST-PHONE-NUM-1: "(212)555-0100"
+      file_effects: []
+    source: {file: app/cbl/COACTUPC.cbl, lines: [2568, 2580]}
+
+  - id: COACTUPC-018
+    summary: PF12 and PF5 are invalid in search mode and behave as ENTER (PF12 shown)
+    given: {entry: reenter, commarea: *search, files: *db}
+    when: {aid: PF12, fields: {ACCTSIDI: "00000000001"}}
+    then:
+      message: null
+      cursor: ACCTSIDL
+      fields: {ACCTSIDO: "00000000001", ACSLNAMO: Kessler, INFOMSGO: Update account details presented above.}
+      transfer: {via: RETURN-TRANSID, to: CAUP}
+      commarea: {ACUP-CHANGE-ACTION: S}
+      file_effects: []
+    source: {file: app/cbl/COACTUPC.cbl, lines: [905, 916]}
+
+  # ---------------------------------------------------------------- state S, change detection
+  - id: COACTUPC-019
+    summary: ENTER with the fetched values unchanged shows 'No change detected' and stays in S
+    given:
+      entry: reenter
+      commarea: &fetched
+        CDEMO-FROM-PROGRAM: COMEN01C
+        CDEMO-FROM-TRANID: CM00
+        CDEMO-USER-TYPE: U
+        CDEMO-PGM-CONTEXT: 1
+        CDEMO-ACCT-ID: "00000000001"
+        CDEMO-CUST-ID: "000000001"
+        CDEMO-CARD-NUM: "0500024453765740"
+        ACUP-CHANGE-ACTION: S
+        ACUP-OLD-ACCT-ID: "00000000001"
+        ACUP-OLD-ACTIVE-STATUS: Y
+        ACUP-OLD-CURR-BAL-N: "1940.00"
+        ACUP-OLD-CREDIT-LIMIT-N: "2020.00"
+        ACUP-OLD-CASH-CREDIT-LIMIT-N: "1020.00"
+        ACUP-OLD-OPEN-DATE: "20141120"
+        ACUP-OLD-EXPIRAION-DATE: "20250520"
+        ACUP-OLD-REISSUE-DATE: "20250520"
+        ACUP-OLD-CURR-CYC-CREDIT-N: "0.00"
+        ACUP-OLD-CURR-CYC-DEBIT-N: "0.00"
+        ACUP-OLD-GROUP-ID: A000000000
+        ACUP-OLD-CUST-ID: "000000001"
+        ACUP-OLD-CUST-FIRST-NAME: Immanuel
+        ACUP-OLD-CUST-MIDDLE-NAME: Madeline
+        ACUP-OLD-CUST-LAST-NAME: Kessler
+        ACUP-OLD-CUST-ADDR-LINE-1: 618 Deshaun Route
+        ACUP-OLD-CUST-ADDR-LINE-2: Apt. 802
+        ACUP-OLD-CUST-ADDR-LINE-3: Altenwerthshire
+        ACUP-OLD-CUST-ADDR-STATE-CD: NY
+        ACUP-OLD-CUST-ADDR-COUNTRY-CD: USA
+        ACUP-OLD-CUST-ADDR-ZIP: "10001"
+        ACUP-OLD-CUST-PHONE-NUM-1: "(212)555-0100"
+        ACUP-OLD-CUST-PHONE-NUM-2: "(212)555-0101"
+        ACUP-OLD-CUST-SSN: "020973888"
+        ACUP-OLD-CUST-GOVT-ISSUED-ID: "00000000000049368437"
+        ACUP-OLD-CUST-DOB-YYYY-MM-DD: "19610608"
+        ACUP-OLD-CUST-EFT-ACCOUNT-ID: "0053581756"
+        ACUP-OLD-CUST-PRI-HOLDER-IND: Y
+        ACUP-OLD-CUST-FICO-SCORE: "750"
+    when:
+      aid: ENTER
+      fields: &screen
+        ACCTSIDI: "00000000001"
+        ACSTTUSI: Y
+        ACRDLIMI: "+      2,020.00"
+        ACSHLIMI: "+      1,020.00"
+        ACURBALI: "+      1,940.00"
+        ACRCYCRI: "+           .00"
+        ACRCYDBI: "+           .00"
+        OPNYEARI: "2014"
+        OPNMONI: "11"
+        OPNDAYI: "20"
+        EXPYEARI: "2025"
+        EXPMONI: "05"
+        EXPDAYI: "20"
+        RISYEARI: "2025"
+        RISMONI: "05"
+        RISDAYI: "20"
+        AADDGRPI: A000000000
+        ACSTNUMI: "000000001"
+        ACTSSN1I: "020"
+        ACTSSN2I: "97"
+        ACTSSN3I: "3888"
+        DOBYEARI: "1961"
+        DOBMONI: "06"
+        DOBDAYI: "08"
+        ACSTFCOI: "750"
+        ACSFNAMI: Immanuel
+        ACSMNAMI: Madeline
+        ACSLNAMI: Kessler
+        ACSADL1I: 618 Deshaun Route
+        ACSADL2I: Apt. 802
+        ACSCITYI: Altenwerthshire
+        ACSSTTEI: NY
+        ACSZIPCI: "10001"
+        ACSCTRYI: USA
+        ACSPH1AI: "212"
+        ACSPH1BI: "555"
+        ACSPH1CI: "0100"
+        ACSPH2AI: "212"
+        ACSPH2BI: "555"
+        ACSPH2CI: "0101"
+        ACSGOVTI: "00000000000049368437"
+        ACSEFTCI: "0053581756"
+        ACSPFLGI: Y
+    then:
+      message: No change detected with respect to values fetched.
+      cursor: ACSTTUSL
+      fields: {ACRDLIMO: "+      2,020.00", INFOMSGO: Update account details presented above.}
+      transfer: {via: RETURN-TRANSID, to: CAUP}
+      commarea: {ACUP-CHANGE-ACTION: S}
+      file_effects: []
+    source: {file: app/cbl/COACTUPC.cbl, lines: [1708, 1773]}
+
+  - id: COACTUPC-020
+    summary: changing only the letter case of the state (NY to ny) counts as no change
+    given: {entry: reenter, commarea: *fetched}
+    when: {aid: ENTER, fields: {<<: *screen, ACSSTTEI: ny}}
+    then:
+      message: No change detected with respect to values fetched.
+      cursor: ACSTTUSL
+      transfer: {via: RETURN-TRANSID, to: CAUP}
+      commarea: {ACUP-CHANGE-ACTION: S}
+      file_effects: []
+    source: {file: app/cbl/COACTUPC.cbl, lines: [1736, 1739]}
+
+  - id: COACTUPC-021
+    summary: changing account status Y to lowercase y counts as no change
+    given: {entry: reenter, commarea: *fetched}
+    when: {aid: ENTER, fields: {<<: *screen, ACSTTUSI: y}}
+    then:
+      message: No change detected with respect to values fetched.
+      cursor: ACSTTUSL
+      transfer: {via: RETURN-TRANSID, to: CAUP}
+      commarea: {ACUP-CHANGE-ACTION: S}
+      file_effects: []
+    source: {file: app/cbl/COACTUPC.cbl, lines: [1684, 1688]}
+
+  - id: COACTUPC-022
+    summary: a valid change (credit limit 2500.00) is validated and asks for F5 confirmation (state N)
+    given: {entry: reenter, commarea: *fetched}
+    when: {aid: ENTER, fields: {<<: *screen, ACRDLIMI: "2500.00"}}
+    then:
+      message: null
+      cursor: ACCTSIDL
+      fields:
+        ACRDLIMO: "+      2,500.00"
+        ACSHLIMO: "+      1,020.00"
+        ACSLNAMO: Kessler
+        INFOMSGO: Changes validated.Press F5 to save
+      transfer: {via: RETURN-TRANSID, to: CAUP}
+      commarea: {ACUP-CHANGE-ACTION: N, ACUP-NEW-CREDIT-LIMIT-N: "2500.00", ACUP-OLD-CREDIT-LIMIT-N: "2020.00"}
+      file_effects: []
+    source: {file: app/cbl/COACTUPC.cbl, lines: [1671, 1675]}
+
+  - id: COACTUPC-023
+    summary: PF5 outside state N is treated as ENTER, so a valid change only reaches the confirm step
+    given: {entry: reenter, commarea: *fetched, files: *db}
+    when: {aid: PF5, fields: {<<: *screen, ACRDLIMI: "2500.00"}}
+    then:
+      message: null
+      cursor: ACCTSIDL
+      fields: {ACRDLIMO: "+      2,500.00", INFOMSGO: Changes validated.Press F5 to save}
+      transfer: {via: RETURN-TRANSID, to: CAUP}
+      commarea: {ACUP-CHANGE-ACTION: N}
+      file_effects: []
+    source: {file: app/cbl/COACTUPC.cbl, lines: [905, 916]}
+
+  # ---------------------------------------------------------------- field edits: account status
+  - id: COACTUPC-024
+    summary: blank account status is required
+    given: {entry: reenter, commarea: *fetched}
+    when: {aid: ENTER, fields: {<<: *screen, ACSTTUSI: ""}}
+    then:
+      message: "{WS-EDIT-VARIABLE-NAME} must be supplied."
+      cursor: ACSTTUSL
+      fields: {ERRMSGO: Account Status must be supplied., ACSTTUSO: "*", INFOMSGO: Update account details presented above.}
+      transfer: {via: RETURN-TRANSID, to: CAUP}
+      commarea: {ACUP-CHANGE-ACTION: E}
+      file_effects: []
+    source: {file: app/cbl/COACTUPC.cbl, lines: [1861, 1875]}
+
+  - id: COACTUPC-025
+    summary: account status other than Y or N is rejected
+    given: {entry: reenter, commarea: *fetched}
+    when: {aid: ENTER, fields: {<<: *screen, ACSTTUSI: X}}
+    then:
+      message: "{WS-EDIT-VARIABLE-NAME} must be Y or N."
+      cursor: ACSTTUSL
+      fields: {ERRMSGO: Account Status must be Y or N., ACSTTUSO: X}
+      transfer: {via: RETURN-TRANSID, to: CAUP}
+      commarea: {ACUP-CHANGE-ACTION: E}
+      file_effects: []
+    source: {file: app/cbl/COACTUPC.cbl, lines: [1878, 1892]}
+
+  - id: COACTUPC-026
+    summary: lowercase y is a change from N but fails the case-sensitive Y/N edit
+    given: {entry: reenter, commarea: {<<: *fetched, ACUP-OLD-ACTIVE-STATUS: N}}
+    when: {aid: ENTER, fields: {<<: *screen, ACSTTUSI: y}}
+    then:
+      message: "{WS-EDIT-VARIABLE-NAME} must be Y or N."
+      cursor: ACSTTUSL
+      fields: {ERRMSGO: Account Status must be Y or N.}
+      transfer: {via: RETURN-TRANSID, to: CAUP}
+      commarea: {ACUP-CHANGE-ACTION: E}
+      file_effects: []
+    source: {file: app/cbl/COACTUPC.cbl, lines: [1878, 1892]}
+
+  # ---------------------------------------------------------------- field edits: open date (CSUTLDPY)
+  - id: COACTUPC-027
+    summary: blank open year is required
+    given: {entry: reenter, commarea: *fetched}
+    when: {aid: ENTER, fields: {<<: *screen, OPNYEARI: ""}}
+    then:
+      message: "{WS-EDIT-VARIABLE-NAME} : Year must be supplied."
+      cursor: OPNYEARL
+      fields: {ERRMSGO: "Open Date : Year must be supplied.", OPNYEARO: "*"}
+      transfer: {via: RETURN-TRANSID, to: CAUP}
+      commarea: {ACUP-CHANGE-ACTION: E}
+      file_effects: []
+    source: {file: app/cpy/CSUTLDPY.cpy, lines: [30, 42]}
+
+  - id: COACTUPC-028
+    summary: non-numeric open year is rejected
+    given: {entry: reenter, commarea: *fetched}
+    when: {aid: ENTER, fields: {<<: *screen, OPNYEARI: ABCD}}
+    then:
+      message: "{WS-EDIT-VARIABLE-NAME} must be 4 digit number."
+      cursor: OPNYEARL
+      fields: {ERRMSGO: Open Date must be 4 digit number., OPNYEARO: ABCD}
+      transfer: {via: RETURN-TRANSID, to: CAUP}
+      commarea: {ACUP-CHANGE-ACTION: E}
+      file_effects: []
+    source: {file: app/cpy/CSUTLDPY.cpy, lines: [48, 58]}
+
+  - id: COACTUPC-029
+    summary: open year outside centuries 19 and 20 is rejected
+    given: {entry: reenter, commarea: *fetched}
+    when: {aid: ENTER, fields: {<<: *screen, OPNYEARI: "1850"}}
+    then:
+      message: "{WS-EDIT-VARIABLE-NAME} : Century is not valid."
+      cursor: OPNYEARL
+      fields: {ERRMSGO: "Open Date : Century is not valid."}
+      transfer: {via: RETURN-TRANSID, to: CAUP}
+      commarea: {ACUP-CHANGE-ACTION: E}
+      file_effects: []
+    source: {file: app/cpy/CSUTLDPY.cpy, lines: [70, 83]}
+
+  - id: COACTUPC-030
+    summary: blank open month is required
+    given: {entry: reenter, commarea: *fetched}
+    when: {aid: ENTER, fields: {<<: *screen, OPNMONI: ""}}
+    then:
+      message: "{WS-EDIT-VARIABLE-NAME} : Month must be supplied."
+      cursor: OPNMONL
+      fields: {ERRMSGO: "Open Date : Month must be supplied.", OPNMONO: "*"}
+      transfer: {via: RETURN-TRANSID, to: CAUP}
+      commarea: {ACUP-CHANGE-ACTION: E}
+      file_effects: []
+    source: {file: app/cpy/CSUTLDPY.cpy, lines: [94, 105]}
+
+  - id: COACTUPC-031
+    summary: open month 13 is rejected
+    given: {entry: reenter, commarea: *fetched}
+    when: {aid: ENTER, fields: {<<: *screen, OPNMONI: "13"}}
+    then:
+      message: "{WS-EDIT-VARIABLE-NAME}: Month must be a number between 1 and 12."
+      cursor: OPNMONL
+      fields: {ERRMSGO: "Open Date: Month must be a number between 1 and 12."}
+      transfer: {via: RETURN-TRANSID, to: CAUP}
+      commarea: {ACUP-CHANGE-ACTION: E}
+      file_effects: []
+    source: {file: app/cpy/CSUTLDPY.cpy, lines: [111, 124]}
+
+  - id: COACTUPC-032
+    summary: blank open day is required
+    given: {entry: reenter, commarea: *fetched}
+    when: {aid: ENTER, fields: {<<: *screen, OPNDAYI: ""}}
+    then:
+      message: "{WS-EDIT-VARIABLE-NAME} : Day must be supplied."
+      cursor: OPNDAYL
+      fields: {ERRMSGO: "Open Date : Day must be supplied.", OPNDAYO: "*"}
+      transfer: {via: RETURN-TRANSID, to: CAUP}
+      commarea: {ACUP-CHANGE-ACTION: E}
+      file_effects: []
+    source: {file: app/cpy/CSUTLDPY.cpy, lines: [154, 165]}
+
+  - id: COACTUPC-033
+    summary: open day 32 is rejected
+    given: {entry: reenter, commarea: *fetched}
+    when: {aid: ENTER, fields: {<<: *screen, OPNDAYI: "32"}}
+    then:
+      message: "{WS-EDIT-VARIABLE-NAME}:day must be a number between 1 and 31."
+      cursor: OPNDAYL
+      fields: {ERRMSGO: "Open Date:day must be a number between 1 and 31."}
+      transfer: {via: RETURN-TRANSID, to: CAUP}
+      commarea: {ACUP-CHANGE-ACTION: E}
+      file_effects: []
+    source: {file: app/cpy/CSUTLDPY.cpy, lines: [186, 200]}
+
+  - id: COACTUPC-034
+    summary: non-numeric open day fails TEST-NUMVAL with the same message
+    given: {entry: reenter, commarea: *fetched}
+    when: {aid: ENTER, fields: {<<: *screen, OPNDAYI: AB}}
+    then:
+      message: "{WS-EDIT-VARIABLE-NAME}:day must be a number between 1 and 31."
+      cursor: OPNDAYL
+      fields: {ERRMSGO: "Open Date:day must be a number between 1 and 31."}
+      transfer: {via: RETURN-TRANSID, to: CAUP}
+      commarea: {ACUP-CHANGE-ACTION: E}
+      file_effects: []
+    source: {file: app/cpy/CSUTLDPY.cpy, lines: [170, 184]}
+
+  - id: COACTUPC-035
+    summary: 31st of a 30-day month is rejected and the cursor goes to the month
+    given: {entry: reenter, commarea: *fetched}
+    when: {aid: ENTER, fields: {<<: *screen, OPNMONI: "04", OPNDAYI: "31"}}
+    then:
+      message: "{WS-EDIT-VARIABLE-NAME}:Cannot have 31 days in this month."
+      cursor: OPNMONL
+      fields: {ERRMSGO: "Open Date:Cannot have 31 days in this month."}
+      transfer: {via: RETURN-TRANSID, to: CAUP}
+      commarea: {ACUP-CHANGE-ACTION: E}
+      file_effects: []
+    source: {file: app/cpy/CSUTLDPY.cpy, lines: [213, 226]}
+
+  - id: COACTUPC-036
+    summary: February 30 is rejected and the cursor goes to the month
+    given: {entry: reenter, commarea: *fetched}
+    when: {aid: ENTER, fields: {<<: *screen, OPNMONI: "02", OPNDAYI: "30"}}
+    then:
+      message: "{WS-EDIT-VARIABLE-NAME}:Cannot have 30 days in this month."
+      cursor: OPNMONL
+      fields: {ERRMSGO: "Open Date:Cannot have 30 days in this month."}
+      transfer: {via: RETURN-TRANSID, to: CAUP}
+      commarea: {ACUP-CHANGE-ACTION: E}
+      file_effects: []
+    source: {file: app/cpy/CSUTLDPY.cpy, lines: [228, 241]}
+
+  - id: COACTUPC-037
+    summary: February 29 in a non-leap year (2023) is rejected and the cursor goes to the year
+    given: {entry: reenter, commarea: *fetched}
+    when: {aid: ENTER, fields: {<<: *screen, OPNYEARI: "2023", OPNMONI: "02", OPNDAYI: "29"}}
+    then:
+      message: "{WS-EDIT-VARIABLE-NAME}:Not a leap year.Cannot have 29 days in this month."
+      cursor: OPNYEARL
+      fields: {ERRMSGO: "Open Date:Not a leap year.Cannot have 29 days in this month."}
+      transfer: {via: RETURN-TRANSID, to: CAUP}
+      commarea: {ACUP-CHANGE-ACTION: E}
+      file_effects: []
+    source: {file: app/cpy/CSUTLDPY.cpy, lines: [243, 272]}
+
+  - id: COACTUPC-038
+    summary: February 29 1900 is rejected (century year must divide by 400)
+    given: {entry: reenter, commarea: *fetched}
+    when: {aid: ENTER, fields: {<<: *screen, OPNYEARI: "1900", OPNMONI: "02", OPNDAYI: "29"}}
+    then:
+      message: "{WS-EDIT-VARIABLE-NAME}:Not a leap year.Cannot have 29 days in this month."
+      cursor: OPNYEARL
+      fields: {ERRMSGO: "Open Date:Not a leap year.Cannot have 29 days in this month."}
+      transfer: {via: RETURN-TRANSID, to: CAUP}
+      commarea: {ACUP-CHANGE-ACTION: E}
+      file_effects: []
+    source: {file: app/cpy/CSUTLDPY.cpy, lines: [243, 272]}
+
+  - id: COACTUPC-039
+    summary: February 29 2000 is accepted as a leap day
+    given: {entry: reenter, commarea: *fetched}
+    when: {aid: ENTER, fields: {<<: *screen, OPNYEARI: "2000", OPNMONI: "02", OPNDAYI: "29"}}
+    then:
+      message: null
+      cursor: ACCTSIDL
+      fields: {OPNYEARO: "2000", OPNMONO: "02", OPNDAYO: "29", INFOMSGO: Changes validated.Press F5 to save}
+      transfer: {via: RETURN-TRANSID, to: CAUP}
+      commarea: {ACUP-CHANGE-ACTION: N}
+      file_effects: []
+    source: {file: app/cpy/CSUTLDPY.cpy, lines: [243, 257]}
+
+  - id: COACTUPC-040
+    summary: February 29 2024 is accepted as a leap day
+    given: {entry: reenter, commarea: *fetched}
+    when: {aid: ENTER, fields: {<<: *screen, OPNYEARI: "2024", OPNMONI: "02", OPNDAYI: "29"}}
+    then:
+      message: null
+      cursor: ACCTSIDL
+      fields: {INFOMSGO: Changes validated.Press F5 to save}
+      transfer: {via: RETURN-TRANSID, to: CAUP}
+      commarea: {ACUP-CHANGE-ACTION: N}
+      file_effects: []
+    source: {file: app/cpy/CSUTLDPY.cpy, lines: [243, 257]}
+
+  # ---------------------------------------------------------------- field edits: signed amounts
+  - id: COACTUPC-041
+    summary: blank credit limit is required
+    given: {entry: reenter, commarea: *fetched}
+    when: {aid: ENTER, fields: {<<: *screen, ACRDLIMI: ""}}
+    then:
+      message: "{WS-EDIT-VARIABLE-NAME} must be supplied."
+      cursor: ACRDLIML
+      fields: {ERRMSGO: Credit Limit must be supplied., ACRDLIMO: "*"}
+      transfer: {via: RETURN-TRANSID, to: CAUP}
+      commarea: {ACUP-CHANGE-ACTION: E}
+      file_effects: []
+    source: {file: app/cbl/COACTUPC.cbl, lines: [2184, 2196]}
+
+  - id: COACTUPC-042
+    summary: credit limit that TEST-NUMVAL-C rejects is not valid; raw text is echoed
+    given: {entry: reenter, commarea: *fetched}
+    when: {aid: ENTER, fields: {<<: *screen, ACRDLIMI: ABC}}
+    then:
+      message: "{WS-EDIT-VARIABLE-NAME} is not valid"
+      cursor: ACRDLIML
+      fields: {ERRMSGO: Credit Limit is not valid, ACRDLIMO: ABC}
+      transfer: {via: RETURN-TRANSID, to: CAUP}
+      commarea: {ACUP-CHANGE-ACTION: E}
+      file_effects: []
+    source: {file: app/cbl/COACTUPC.cbl, lines: [2201, 2213]}
+
+  - id: COACTUPC-043
+    summary: negative credit limit is accepted (no range check)
+    given: {entry: reenter, commarea: *fetched}
+    when: {aid: ENTER, fields: {<<: *screen, ACRDLIMI: "-500.00"}}
+    then:
+      message: null
+      cursor: ACCTSIDL
+      fields: {ACRDLIMO: "-        500.00", INFOMSGO: Changes validated.Press F5 to save}
+      transfer: {via: RETURN-TRANSID, to: CAUP}
+      commarea: {ACUP-CHANGE-ACTION: N, ACUP-NEW-CREDIT-LIMIT-N: "-500.00"}
+      file_effects: []
+    source: {file: app/cbl/COACTUPC.cbl, lines: [2201, 2218]}
+
+  - id: COACTUPC-044
+    summary: blank expiry year is required
+    given: {entry: reenter, commarea: *fetched}
+    when: {aid: ENTER, fields: {<<: *screen, EXPYEARI: ""}}
+    then:
+      message: "{WS-EDIT-VARIABLE-NAME} : Year must be supplied."
+      cursor: EXPYEARL
+      fields: {ERRMSGO: "Expiry Date : Year must be supplied.", EXPYEARO: "*"}
+      transfer: {via: RETURN-TRANSID, to: CAUP}
+      commarea: {ACUP-CHANGE-ACTION: E}
+      file_effects: []
+    source: {file: app/cpy/CSUTLDPY.cpy, lines: [30, 42]}
+
+  - id: COACTUPC-045
+    summary: expiry June 31 is rejected and the cursor goes to the expiry month
+    given: {entry: reenter, commarea: *fetched}
+    when: {aid: ENTER, fields: {<<: *screen, EXPMONI: "06", EXPDAYI: "31"}}
+    then:
+      message: "{WS-EDIT-VARIABLE-NAME}:Cannot have 31 days in this month."
+      cursor: EXPMONL
+      fields: {ERRMSGO: "Expiry Date:Cannot have 31 days in this month."}
+      transfer: {via: RETURN-TRANSID, to: CAUP}
+      commarea: {ACUP-CHANGE-ACTION: E}
+      file_effects: []
+    source: {file: app/cpy/CSUTLDPY.cpy, lines: [213, 226]}
+
+  - id: COACTUPC-046
+    summary: blank cash credit limit is required
+    given: {entry: reenter, commarea: *fetched}
+    when: {aid: ENTER, fields: {<<: *screen, ACSHLIMI: ""}}
+    then:
+      message: "{WS-EDIT-VARIABLE-NAME} must be supplied."
+      cursor: ACSHLIML
+      fields: {ERRMSGO: Cash Credit Limit must be supplied., ACSHLIMO: "*"}
+      transfer: {via: RETURN-TRANSID, to: CAUP}
+      commarea: {ACUP-CHANGE-ACTION: E}
+      file_effects: []
+    source: {file: app/cbl/COACTUPC.cbl, lines: [2184, 2196]}
+
+  - id: COACTUPC-047
+    summary: malformed cash credit limit is not valid
+    given: {entry: reenter, commarea: *fetched}
+    when: {aid: ENTER, fields: {<<: *screen, ACSHLIMI: 12x}}
+    then:
+      message: "{WS-EDIT-VARIABLE-NAME} is not valid"
+      cursor: ACSHLIML
+      fields: {ERRMSGO: Cash Credit Limit is not valid, ACSHLIMO: 12x}
+      transfer: {via: RETURN-TRANSID, to: CAUP}
+      commarea: {ACUP-CHANGE-ACTION: E}
+      file_effects: []
+    source: {file: app/cbl/COACTUPC.cbl, lines: [2201, 2213]}
+
+  - id: COACTUPC-048
+    summary: reissue month 00 is rejected
+    given: {entry: reenter, commarea: *fetched}
+    when: {aid: ENTER, fields: {<<: *screen, RISMONI: "00"}}
+    then:
+      message: "{WS-EDIT-VARIABLE-NAME}: Month must be a number between 1 and 12."
+      cursor: RISMONL
+      fields: {ERRMSGO: "Reissue Date: Month must be a number between 1 and 12."}
+      transfer: {via: RETURN-TRANSID, to: CAUP}
+      commarea: {ACUP-CHANGE-ACTION: E}
+      file_effects: []
+    source: {file: app/cpy/CSUTLDPY.cpy, lines: [111, 124]}
+
+  - id: COACTUPC-049
+    summary: blank current balance is required
+    given: {entry: reenter, commarea: *fetched}
+    when: {aid: ENTER, fields: {<<: *screen, ACURBALI: ""}}
+    then:
+      message: "{WS-EDIT-VARIABLE-NAME} must be supplied."
+      cursor: ACURBALL
+      fields: {ERRMSGO: Current Balance must be supplied., ACURBALO: "*"}
+      transfer: {via: RETURN-TRANSID, to: CAUP}
+      commarea: {ACUP-CHANGE-ACTION: E}
+      file_effects: []
+    source: {file: app/cbl/COACTUPC.cbl, lines: [2184, 2196]}
+
+  - id: COACTUPC-050
+    summary: non-numeric current balance is not valid
+    given: {entry: reenter, commarea: *fetched}
+    when: {aid: ENTER, fields: {<<: *screen, ACURBALI: abc}}
+    then:
+      message: "{WS-EDIT-VARIABLE-NAME} is not valid"
+      cursor: ACURBALL
+      fields: {ERRMSGO: Current Balance is not valid}
+      transfer: {via: RETURN-TRANSID, to: CAUP}
+      commarea: {ACUP-CHANGE-ACTION: E}
+      file_effects: []
+    source: {file: app/cbl/COACTUPC.cbl, lines: [2201, 2213]}
+
+  - id: COACTUPC-051
+    summary: malformed current cycle credit is not valid (label says 'Limit')
+    given: {entry: reenter, commarea: *fetched}
+    when: {aid: ENTER, fields: {<<: *screen, ACRCYCRI: "1.2.3"}}
+    then:
+      message: "{WS-EDIT-VARIABLE-NAME} is not valid"
+      cursor: ACRCYCRL
+      fields: {ERRMSGO: Current Cycle Credit Limit is not valid}
+      transfer: {via: RETURN-TRANSID, to: CAUP}
+      commarea: {ACUP-CHANGE-ACTION: E}
+      file_effects: []
+    source: {file: app/cbl/COACTUPC.cbl, lines: [2201, 2213]}
+
+  - id: COACTUPC-052
+    summary: blank current cycle debit is required
+    given: {entry: reenter, commarea: *fetched}
+    when: {aid: ENTER, fields: {<<: *screen, ACRCYDBI: ""}}
+    then:
+      message: "{WS-EDIT-VARIABLE-NAME} must be supplied."
+      cursor: ACRCYDBL
+      fields: {ERRMSGO: Current Cycle Debit Limit must be supplied., ACRCYDBO: "*"}
+      transfer: {via: RETURN-TRANSID, to: CAUP}
+      commarea: {ACUP-CHANGE-ACTION: E}
+      file_effects: []
+    source: {file: app/cbl/COACTUPC.cbl, lines: [2184, 2196]}
+
+  # ---------------------------------------------------------------- field edits: SSN
+  - id: COACTUPC-053
+    summary: blank SSN part 1 is required
+    given: {entry: reenter, commarea: *fetched}
+    when: {aid: ENTER, fields: {<<: *screen, ACTSSN1I: ""}}
+    then:
+      message: "{WS-EDIT-VARIABLE-NAME} must be supplied."
+      cursor: ACTSSN1L
+      fields: {ERRMSGO: "SSN: First 3 chars must be supplied.", ACTSSN1O: "*"}
+      transfer: {via: RETURN-TRANSID, to: CAUP}
+      commarea: {ACUP-CHANGE-ACTION: E}
+      file_effects: []
+    source: {file: app/cbl/COACTUPC.cbl, lines: [2114, 2133]}
+
+  - id: COACTUPC-054
+    summary: non-numeric SSN part 1 is rejected
+    given: {entry: reenter, commarea: *fetched}
+    when: {aid: ENTER, fields: {<<: *screen, ACTSSN1I: 12A}}
+    then:
+      message: "{WS-EDIT-VARIABLE-NAME} must be all numeric."
+      cursor: ACTSSN1L
+      fields: {ERRMSGO: "SSN: First 3 chars must be all numeric."}
+      transfer: {via: RETURN-TRANSID, to: CAUP}
+      commarea: {ACUP-CHANGE-ACTION: E}
+      file_effects: []
+    source: {file: app/cbl/COACTUPC.cbl, lines: [2137, 2152]}
+
+  - id: COACTUPC-055
+    summary: SSN part 1 of 000 is caught by the generic zero check before the 000/666/9xx rule
+    given: {entry: reenter, commarea: *fetched}
+    when: {aid: ENTER, fields: {<<: *screen, ACTSSN1I: "000"}}
+    then:
+      message: "{WS-EDIT-VARIABLE-NAME} must not be zero."
+      cursor: ACTSSN1L
+      fields: {ERRMSGO: "SSN: First 3 chars must not be zero."}
+      transfer: {via: RETURN-TRANSID, to: CAUP}
+      commarea: {ACUP-CHANGE-ACTION: E}
+      file_effects: []
+    source: {file: app/cbl/COACTUPC.cbl, lines: [2156, 2168]}
+
+  - id: COACTUPC-056
+    summary: SSN part 1 of 666 is rejected
+    given: {entry: reenter, commarea: *fetched}
+    when: {aid: ENTER, fields: {<<: *screen, ACTSSN1I: "666"}}
+    then:
+      message: "{WS-EDIT-VARIABLE-NAME}: should not be 000, 666, or between 900 and 999"
+      cursor: ACTSSN1L
+      fields: {ERRMSGO: "SSN: First 3 chars: should not be 000, 666, or between 900 and 999"}
+      transfer: {via: RETURN-TRANSID, to: CAUP}
+      commarea: {ACUP-CHANGE-ACTION: E}
+      file_effects: []
+    source: {file: app/cbl/COACTUPC.cbl, lines: [2448, 2464]}
+
+  - id: COACTUPC-057
+    summary: SSN part 1 in 900-999 is rejected
+    given: {entry: reenter, commarea: *fetched}
+    when: {aid: ENTER, fields: {<<: *screen, ACTSSN1I: "900"}}
+    then:
+      message: "{WS-EDIT-VARIABLE-NAME}: should not be 000, 666, or between 900 and 999"
+      cursor: ACTSSN1L
+      fields: {ERRMSGO: "SSN: First 3 chars: should not be 000, 666, or between 900 and 999"}
+      transfer: {via: RETURN-TRANSID, to: CAUP}
+      commarea: {ACUP-CHANGE-ACTION: E}
+      file_effects: []
+    source: {file: app/cbl/COACTUPC.cbl, lines: [2448, 2464]}
+
+  - id: COACTUPC-058
+    summary: non-numeric SSN part 2 is rejected
+    given: {entry: reenter, commarea: *fetched}
+    when: {aid: ENTER, fields: {<<: *screen, ACTSSN2I: AB}}
+    then:
+      message: "{WS-EDIT-VARIABLE-NAME} must be all numeric."
+      cursor: ACTSSN2L
+      fields: {ERRMSGO: "SSN 4th & 5th chars must be all numeric."}
+      transfer: {via: RETURN-TRANSID, to: CAUP}
+      commarea: {ACUP-CHANGE-ACTION: E}
+      file_effects: []
+    source: {file: app/cbl/COACTUPC.cbl, lines: [2137, 2152]}
+
+  - id: COACTUPC-059
+    summary: SSN part 2 of 00 is rejected
+    given: {entry: reenter, commarea: *fetched}
+    when: {aid: ENTER, fields: {<<: *screen, ACTSSN2I: "00"}}
+    then:
+      message: "{WS-EDIT-VARIABLE-NAME} must not be zero."
+      cursor: ACTSSN2L
+      fields: {ERRMSGO: "SSN 4th & 5th chars must not be zero."}
+      transfer: {via: RETURN-TRANSID, to: CAUP}
+      commarea: {ACUP-CHANGE-ACTION: E}
+      file_effects: []
+    source: {file: app/cbl/COACTUPC.cbl, lines: [2156, 2168]}
+
+  - id: COACTUPC-060
+    summary: blank SSN part 3 is required
+    given: {entry: reenter, commarea: *fetched}
+    when: {aid: ENTER, fields: {<<: *screen, ACTSSN3I: ""}}
+    then:
+      message: "{WS-EDIT-VARIABLE-NAME} must be supplied."
+      cursor: ACTSSN3L
+      fields: {ERRMSGO: SSN Last 4 chars must be supplied., ACTSSN3O: "*"}
+      transfer: {via: RETURN-TRANSID, to: CAUP}
+      commarea: {ACUP-CHANGE-ACTION: E}
+      file_effects: []
+    source: {file: app/cbl/COACTUPC.cbl, lines: [2114, 2133]}
+
+  - id: COACTUPC-061
+    summary: SSN part 3 of 0000 is rejected
+    given: {entry: reenter, commarea: *fetched}
+    when: {aid: ENTER, fields: {<<: *screen, ACTSSN3I: "0000"}}
+    then:
+      message: "{WS-EDIT-VARIABLE-NAME} must not be zero."
+      cursor: ACTSSN3L
+      fields: {ERRMSGO: SSN Last 4 chars must not be zero.}
+      transfer: {via: RETURN-TRANSID, to: CAUP}
+      commarea: {ACUP-CHANGE-ACTION: E}
+      file_effects: []
+    source: {file: app/cbl/COACTUPC.cbl, lines: [2156, 2168]}
+
+  # ---------------------------------------------------------------- field edits: date of birth
+  - id: COACTUPC-062
+    summary: date of birth in the future is rejected and the cursor goes to the year
+    given: {entry: reenter, commarea: *fetched}
+    when: {aid: ENTER, fields: {<<: *screen, DOBYEARI: "2099", DOBMONI: "01", DOBDAYI: "01"}}
+    then:
+      message: "{WS-EDIT-VARIABLE-NAME}:cannot be in the future "
+      cursor: DOBYEARL
+      fields: {ERRMSGO: "Date of Birth:cannot be in the future"}
+      transfer: {via: RETURN-TRANSID, to: CAUP}
+      commarea: {ACUP-CHANGE-ACTION: E}
+      file_effects: []
+    source: {file: app/cpy/CSUTLDPY.cpy, lines: [341, 369]}
+
+  - id: COACTUPC-063
+    summary: date of birth February 29 1961 is rejected as a non-leap year
+    given: {entry: reenter, commarea: *fetched}
+    when: {aid: ENTER, fields: {<<: *screen, DOBMONI: "02", DOBDAYI: "29"}}
+    then:
+      message: "{WS-EDIT-VARIABLE-NAME}:Not a leap year.Cannot have 29 days in this month."
+      cursor: DOBYEARL
+      fields: {ERRMSGO: "Date of Birth:Not a leap year.Cannot have 29 days in this month."}
+      transfer: {via: RETURN-TRANSID, to: CAUP}
+      commarea: {ACUP-CHANGE-ACTION: E}
+      file_effects: []
+    source: {file: app/cpy/CSUTLDPY.cpy, lines: [243, 272]}
+
+  - id: COACTUPC-064
+    summary: blank date of birth month is required
+    given: {entry: reenter, commarea: *fetched}
+    when: {aid: ENTER, fields: {<<: *screen, DOBMONI: ""}}
+    then:
+      message: "{WS-EDIT-VARIABLE-NAME} : Month must be supplied."
+      cursor: DOBMONL
+      fields: {ERRMSGO: "Date of Birth : Month must be supplied.", DOBMONO: "*"}
+      transfer: {via: RETURN-TRANSID, to: CAUP}
+      commarea: {ACUP-CHANGE-ACTION: E}
+      file_effects: []
+    source: {file: app/cpy/CSUTLDPY.cpy, lines: [94, 105]}
+
+  # ---------------------------------------------------------------- field edits: FICO
+  - id: COACTUPC-065
+    summary: blank FICO score is required
+    given: {entry: reenter, commarea: *fetched}
+    when: {aid: ENTER, fields: {<<: *screen, ACSTFCOI: ""}}
+    then:
+      message: "{WS-EDIT-VARIABLE-NAME} must be supplied."
+      cursor: ACSTFCOL
+      fields: {ERRMSGO: FICO Score must be supplied., ACSTFCOO: "*"}
+      transfer: {via: RETURN-TRANSID, to: CAUP}
+      commarea: {ACUP-CHANGE-ACTION: E}
+      file_effects: []
+    source: {file: app/cbl/COACTUPC.cbl, lines: [2114, 2133]}
+
+  - id: COACTUPC-066
+    summary: non-numeric FICO score is rejected
+    given: {entry: reenter, commarea: *fetched}
+    when: {aid: ENTER, fields: {<<: *screen, ACSTFCOI: 7A0}}
+    then:
+      message: "{WS-EDIT-VARIABLE-NAME} must be all numeric."
+      cursor: ACSTFCOL
+      fields: {ERRMSGO: FICO Score must be all numeric.}
+      transfer: {via: RETURN-TRANSID, to: CAUP}
+      commarea: {ACUP-CHANGE-ACTION: E}
+      file_effects: []
+    source: {file: app/cbl/COACTUPC.cbl, lines: [2137, 2152]}
+
+  - id: COACTUPC-067
+    summary: FICO score of 000 is rejected as zero
+    given: {entry: reenter, commarea: *fetched}
+    when: {aid: ENTER, fields: {<<: *screen, ACSTFCOI: "000"}}
+    then:
+      message: "{WS-EDIT-VARIABLE-NAME} must not be zero."
+      cursor: ACSTFCOL
+      fields: {ERRMSGO: FICO Score must not be zero.}
+      transfer: {via: RETURN-TRANSID, to: CAUP}
+      commarea: {ACUP-CHANGE-ACTION: E}
+      file_effects: []
+    source: {file: app/cbl/COACTUPC.cbl, lines: [2156, 2168]}
+
+  - id: COACTUPC-068
+    summary: FICO score 299 is below range
+    given: {entry: reenter, commarea: *fetched}
+    when: {aid: ENTER, fields: {<<: *screen, ACSTFCOI: "299"}}
+    then:
+      message: "{WS-EDIT-VARIABLE-NAME}: should be between 300 and 850"
+      cursor: ACSTFCOL
+      fields: {ERRMSGO: "FICO Score: should be between 300 and 850"}
+      transfer: {via: RETURN-TRANSID, to: CAUP}
+      commarea: {ACUP-CHANGE-ACTION: E}
+      file_effects: []
+    source: {file: app/cbl/COACTUPC.cbl, lines: [2514, 2529]}
+
+  - id: COACTUPC-069
+    summary: FICO score 851 is above range
+    given: {entry: reenter, commarea: *fetched}
+    when: {aid: ENTER, fields: {<<: *screen, ACSTFCOI: "851"}}
+    then:
+      message: "{WS-EDIT-VARIABLE-NAME}: should be between 300 and 850"
+      cursor: ACSTFCOL
+      fields: {ERRMSGO: "FICO Score: should be between 300 and 850"}
+      transfer: {via: RETURN-TRANSID, to: CAUP}
+      commarea: {ACUP-CHANGE-ACTION: E}
+      file_effects: []
+    source: {file: app/cbl/COACTUPC.cbl, lines: [2514, 2529]}
+
+  - id: COACTUPC-070
+    summary: FICO score 300 (lower bound) is accepted
+    given: {entry: reenter, commarea: *fetched}
+    when: {aid: ENTER, fields: {<<: *screen, ACSTFCOI: "300"}}
+    then:
+      message: null
+      cursor: ACCTSIDL
+      fields: {ACSTFCOO: "300", INFOMSGO: Changes validated.Press F5 to save}
+      transfer: {via: RETURN-TRANSID, to: CAUP}
+      commarea: {ACUP-CHANGE-ACTION: N}
+      file_effects: []
+    source: {file: app/cbl/COACTUPC.cbl, lines: [846, 849]}
+
+  - id: COACTUPC-071
+    summary: FICO score 850 (upper bound) is accepted
+    given: {entry: reenter, commarea: *fetched}
+    when: {aid: ENTER, fields: {<<: *screen, ACSTFCOI: "850"}}
+    then:
+      message: null
+      cursor: ACCTSIDL
+      fields: {ACSTFCOO: "850", INFOMSGO: Changes validated.Press F5 to save}
+      transfer: {via: RETURN-TRANSID, to: CAUP}
+      commarea: {ACUP-CHANGE-ACTION: N}
+      file_effects: []
+    source: {file: app/cbl/COACTUPC.cbl, lines: [846, 849]}
+
+  # ---------------------------------------------------------------- field edits: names and address
+  - id: COACTUPC-072
+    summary: blank first name is required
+    given: {entry: reenter, commarea: *fetched}
+    when: {aid: ENTER, fields: {<<: *screen, ACSFNAMI: ""}}
+    then:
+      message: "{WS-EDIT-VARIABLE-NAME} must be supplied."
+      cursor: ACSFNAML
+      fields: {ERRMSGO: First Name must be supplied., ACSFNAMO: "*"}
+      transfer: {via: RETURN-TRANSID, to: CAUP}
+      commarea: {ACUP-CHANGE-ACTION: E}
+      file_effects: []
+    source: {file: app/cbl/COACTUPC.cbl, lines: [1903, 1922]}
+
+  - id: COACTUPC-073
+    summary: first name with a digit is rejected
+    given: {entry: reenter, commarea: *fetched}
+    when: {aid: ENTER, fields: {<<: *screen, ACSFNAMI: J0hn}}
+    then:
+      message: "{WS-EDIT-VARIABLE-NAME} can have alphabets only."
+      cursor: ACSFNAML
+      fields: {ERRMSGO: First Name can have alphabets only., ACSFNAMO: J0hn}
+      transfer: {via: RETURN-TRANSID, to: CAUP}
+      commarea: {ACUP-CHANGE-ACTION: E}
+      file_effects: []
+    source: {file: app/cbl/COACTUPC.cbl, lines: [1925, 1947]}
+
+  - id: COACTUPC-074
+    summary: first name with an embedded space is accepted (letters and spaces allowed)
+    given: {entry: reenter, commarea: *fetched}
+    when: {aid: ENTER, fields: {<<: *screen, ACSFNAMI: Mary Ann}}
+    then:
+      message: null
+      cursor: ACCTSIDL
+      fields: {ACSFNAMO: Mary Ann, INFOMSGO: Changes validated.Press F5 to save}
+      transfer: {via: RETURN-TRANSID, to: CAUP}
+      commarea: {ACUP-CHANGE-ACTION: N}
+      file_effects: []
+    source: {file: app/cbl/COACTUPC.cbl, lines: [1925, 1949]}
+
+  - id: COACTUPC-075
+    summary: middle name with digits is rejected
+    given: {entry: reenter, commarea: *fetched}
+    when: {aid: ENTER, fields: {<<: *screen, ACSMNAMI: "123"}}
+    then:
+      message: "{WS-EDIT-VARIABLE-NAME} can have alphabets only."
+      cursor: ACSMNAML
+      fields: {ERRMSGO: Middle Name can have alphabets only.}
+      transfer: {via: RETURN-TRANSID, to: CAUP}
+      commarea: {ACUP-CHANGE-ACTION: E}
+      file_effects: []
+    source: {file: app/cbl/COACTUPC.cbl, lines: [2031, 2053]}
+
+  - id: COACTUPC-076
+    summary: blank middle name is accepted (optional)
+    given: {entry: reenter, commarea: *fetched}
+    when: {aid: ENTER, fields: {<<: *screen, ACSMNAMI: ""}}
+    then:
+      message: null
+      cursor: ACCTSIDL
+      fields: {ACSMNAMO: "", INFOMSGO: Changes validated.Press F5 to save}
+      transfer: {via: RETURN-TRANSID, to: CAUP}
+      commarea: {ACUP-CHANGE-ACTION: N}
+      file_effects: []
+    source: {file: app/cbl/COACTUPC.cbl, lines: [2017, 2025]}
+
+  - id: COACTUPC-077
+    summary: blank last name is required
+    given: {entry: reenter, commarea: *fetched}
+    when: {aid: ENTER, fields: {<<: *screen, ACSLNAMI: ""}}
+    then:
+      message: "{WS-EDIT-VARIABLE-NAME} must be supplied."
+      cursor: ACSLNAML
+      fields: {ERRMSGO: Last Name must be supplied., ACSLNAMO: "*"}
+      transfer: {via: RETURN-TRANSID, to: CAUP}
+      commarea: {ACUP-CHANGE-ACTION: E}
+      file_effects: []
+    source: {file: app/cbl/COACTUPC.cbl, lines: [1903, 1922]}
+
+  - id: COACTUPC-078
+    summary: last name with an apostrophe is rejected
+    given: {entry: reenter, commarea: *fetched}
+    when: {aid: ENTER, fields: {<<: *screen, ACSLNAMI: "O'Brien"}}
+    then:
+      message: "{WS-EDIT-VARIABLE-NAME} can have alphabets only."
+      cursor: ACSLNAML
+      fields: {ERRMSGO: Last Name can have alphabets only.}
+      transfer: {via: RETURN-TRANSID, to: CAUP}
+      commarea: {ACUP-CHANGE-ACTION: E}
+      file_effects: []
+    source: {file: app/cbl/COACTUPC.cbl, lines: [1925, 1947]}
+
+  - id: COACTUPC-079
+    summary: blank address line 1 is required
+    given: {entry: reenter, commarea: *fetched}
+    when: {aid: ENTER, fields: {<<: *screen, ACSADL1I: ""}}
+    then:
+      message: "{WS-EDIT-VARIABLE-NAME} must be supplied."
+      cursor: ACSADL1L
+      fields: {ERRMSGO: Address Line 1 must be supplied., ACSADL1O: "*"}
+      transfer: {via: RETURN-TRANSID, to: CAUP}
+      commarea: {ACUP-CHANGE-ACTION: E}
+      file_effects: []
+    source: {file: app/cbl/COACTUPC.cbl, lines: [1829, 1848]}
+
+  - id: COACTUPC-080
+    summary: blank address line 2 is accepted (never validated)
+    given: {entry: reenter, commarea: *fetched}
+    when: {aid: ENTER, fields: {<<: *screen, ACSADL2I: ""}}
+    then:
+      message: null
+      cursor: ACCTSIDL
+      fields: {ACSADL2O: "", INFOMSGO: Changes validated.Press F5 to save}
+      transfer: {via: RETURN-TRANSID, to: CAUP}
+      commarea: {ACUP-CHANGE-ACTION: N}
+      file_effects: []
+    source: {file: app/cbl/COACTUPC.cbl, lines: [1584, 1592]}
+
+  # ---------------------------------------------------------------- field edits: state, zip, city, country
+  - id: COACTUPC-081
+    summary: blank state is required
+    given: {entry: reenter, commarea: *fetched}
+    when: {aid: ENTER, fields: {<<: *screen, ACSSTTEI: ""}}
+    then:
+      message: "{WS-EDIT-VARIABLE-NAME} must be supplied."
+      cursor: ACSSTTEL
+      fields: {ERRMSGO: State must be supplied., ACSSTTEO: "*"}
+      transfer: {via: RETURN-TRANSID, to: CAUP}
+      commarea: {ACUP-CHANGE-ACTION: E}
+      file_effects: []
+    source: {file: app/cbl/COACTUPC.cbl, lines: [1903, 1922]}
+
+  - id: COACTUPC-082
+    summary: state containing a digit is rejected by the alphabetic edit
+    given: {entry: reenter, commarea: *fetched}
+    when: {aid: ENTER, fields: {<<: *screen, ACSSTTEI: N1}}
+    then:
+      message: "{WS-EDIT-VARIABLE-NAME} can have alphabets only."
+      cursor: ACSSTTEL
+      fields: {ERRMSGO: State can have alphabets only.}
+      transfer: {via: RETURN-TRANSID, to: CAUP}
+      commarea: {ACUP-CHANGE-ACTION: E}
+      file_effects: []
+    source: {file: app/cbl/COACTUPC.cbl, lines: [1925, 1947]}
+
+  - id: COACTUPC-083
+    summary: state not in the US state table is rejected
+    given: {entry: reenter, commarea: *fetched}
+    when: {aid: ENTER, fields: {<<: *screen, ACSSTTEI: XX}}
+    then:
+      message: "{WS-EDIT-VARIABLE-NAME}: is not a valid state code"
+      cursor: ACSSTTEL
+      fields: {ERRMSGO: "State: is not a valid state code"}
+      transfer: {via: RETURN-TRANSID, to: CAUP}
+      commarea: {ACUP-CHANGE-ACTION: E}
+      file_effects: []
+    source: {file: app/cbl/COACTUPC.cbl, lines: [2493, 2509]}
+
+  - id: COACTUPC-084
+    summary: lowercase state is rejected by the state table once another field has changed
+    given: {entry: reenter, commarea: *fetched}
+    when: {aid: ENTER, fields: {<<: *screen, ACSSTTEI: ny, ACSTFCOI: "760"}}
+    then:
+      message: "{WS-EDIT-VARIABLE-NAME}: is not a valid state code"
+      cursor: ACSSTTEL
+      fields: {ERRMSGO: "State: is not a valid state code"}
+      transfer: {via: RETURN-TRANSID, to: CAUP}
+      commarea: {ACUP-CHANGE-ACTION: E}
+      file_effects: []
+    source: {file: app/cpy/CSLKPCDY.cpy, lines: [1012, 1071]}
+
+  - id: COACTUPC-085
+    summary: blank zip is required
+    given: {entry: reenter, commarea: *fetched}
+    when: {aid: ENTER, fields: {<<: *screen, ACSZIPCI: ""}}
+    then:
+      message: "{WS-EDIT-VARIABLE-NAME} must be supplied."
+      cursor: ACSZIPCL
+      fields: {ERRMSGO: Zip must be supplied., ACSZIPCO: "*"}
+      transfer: {via: RETURN-TRANSID, to: CAUP}
+      commarea: {ACUP-CHANGE-ACTION: E}
+      file_effects: []
+    source: {file: app/cbl/COACTUPC.cbl, lines: [2114, 2133]}
+
+  - id: COACTUPC-086
+    summary: non-numeric zip is rejected
+    given: {entry: reenter, commarea: *fetched}
+    when: {aid: ENTER, fields: {<<: *screen, ACSZIPCI: 1000A}}
+    then:
+      message: "{WS-EDIT-VARIABLE-NAME} must be all numeric."
+      cursor: ACSZIPCL
+      fields: {ERRMSGO: Zip must be all numeric.}
+      transfer: {via: RETURN-TRANSID, to: CAUP}
+      commarea: {ACUP-CHANGE-ACTION: E}
+      file_effects: []
+    source: {file: app/cbl/COACTUPC.cbl, lines: [2137, 2152]}
+
+  - id: COACTUPC-087
+    summary: zip 00000 is rejected as zero
+    given: {entry: reenter, commarea: *fetched}
+    when: {aid: ENTER, fields: {<<: *screen, ACSZIPCI: "00000"}}
+    then:
+      message: "{WS-EDIT-VARIABLE-NAME} must not be zero."
+      cursor: ACSZIPCL
+      fields: {ERRMSGO: Zip must not be zero.}
+      transfer: {via: RETURN-TRANSID, to: CAUP}
+      commarea: {ACUP-CHANGE-ACTION: E}
+      file_effects: []
+    source: {file: app/cbl/COACTUPC.cbl, lines: [2156, 2168]}
+
+  - id: COACTUPC-088
+    summary: zip whose first two digits do not match the state (NY + 90210) fails the cross check; cursor on State
+    given: {entry: reenter, commarea: *fetched}
+    when: {aid: ENTER, fields: {<<: *screen, ACSZIPCI: "90210"}}
+    then:
+      message: Invalid zip code for state
+      cursor: ACSSTTEL
+      fields: {ACSZIPCO: "90210"}
+      transfer: {via: RETURN-TRANSID, to: CAUP}
+      commarea: {ACUP-CHANGE-ACTION: E}
+      file_effects: []
+    source: {file: app/cbl/COACTUPC.cbl, lines: [2536, 2556]}
+
+  - id: COACTUPC-089
+    summary: matching state and zip prefix (CA + 90210) is accepted
+    given: {entry: reenter, commarea: *fetched}
+    when: {aid: ENTER, fields: {<<: *screen, ACSSTTEI: CA, ACSZIPCI: "90210"}}
+    then:
+      message: null
+      cursor: ACCTSIDL
+      fields: {ACSSTTEO: CA, ACSZIPCO: "90210", INFOMSGO: Changes validated.Press F5 to save}
+      transfer: {via: RETURN-TRANSID, to: CAUP}
+      commarea: {ACUP-CHANGE-ACTION: N}
+      file_effects: []
+    source: {file: app/cpy/CSLKPCDY.cpy, lines: [1072, 1093]}
+
+  - id: COACTUPC-090
+    summary: blank city is required
+    given: {entry: reenter, commarea: *fetched}
+    when: {aid: ENTER, fields: {<<: *screen, ACSCITYI: ""}}
+    then:
+      message: "{WS-EDIT-VARIABLE-NAME} must be supplied."
+      cursor: ACSCITYL
+      fields: {ERRMSGO: City must be supplied., ACSCITYO: "*"}
+      transfer: {via: RETURN-TRANSID, to: CAUP}
+      commarea: {ACUP-CHANGE-ACTION: E}
+      file_effects: []
+    source: {file: app/cbl/COACTUPC.cbl, lines: [1903, 1922]}
+
+  - id: COACTUPC-091
+    summary: city with punctuation (St. Louis) is rejected by the alphabetic edit
+    given: {entry: reenter, commarea: *fetched}
+    when: {aid: ENTER, fields: {<<: *screen, ACSCITYI: St. Louis}}
+    then:
+      message: "{WS-EDIT-VARIABLE-NAME} can have alphabets only."
+      cursor: ACSCITYL
+      fields: {ERRMSGO: City can have alphabets only.}
+      transfer: {via: RETURN-TRANSID, to: CAUP}
+      commarea: {ACUP-CHANGE-ACTION: E}
+      file_effects: []
+    source: {file: app/cbl/COACTUPC.cbl, lines: [1925, 1947]}
+
+  - id: COACTUPC-092
+    summary: non-alphabetic country is rejected (field is protected on the 3270 screen)
+    given: {entry: reenter, commarea: *fetched}
+    when: {aid: ENTER, fields: {<<: *screen, ACSCTRYI: "840"}}
+    then:
+      message: "{WS-EDIT-VARIABLE-NAME} can have alphabets only."
+      cursor: ACSCTRYL
+      fields: {ERRMSGO: Country can have alphabets only.}
+      transfer: {via: RETURN-TRANSID, to: CAUP}
+      commarea: {ACUP-CHANGE-ACTION: E}
+      file_effects: []
+    source: {file: app/cbl/COACTUPC.cbl, lines: [1925, 1947]}
+
+  # ---------------------------------------------------------------- field edits: phone numbers
+  - id: COACTUPC-093
+    summary: phone 1 with blank area code but other parts present requires the area code
+    given: {entry: reenter, commarea: *fetched}
+    when: {aid: ENTER, fields: {<<: *screen, ACSPH1AI: ""}}
+    then:
+      message: "{WS-EDIT-VARIABLE-NAME}: Area code must be supplied."
+      cursor: ACSPH1AL
+      fields: {ERRMSGO: "Phone Number 1: Area code must be supplied.", ACSPH1AO: "*"}
+      transfer: {via: RETURN-TRANSID, to: CAUP}
+      commarea: {ACUP-CHANGE-ACTION: E}
+      file_effects: []
+    source: {file: app/cbl/COACTUPC.cbl, lines: [2247, 2259]}
+
+  - id: COACTUPC-094
+    summary: non-numeric phone 1 area code is rejected
+    given: {entry: reenter, commarea: *fetched}
+    when: {aid: ENTER, fields: {<<: *screen, ACSPH1AI: 2A2}}
+    then:
+      message: "{WS-EDIT-VARIABLE-NAME}: Area code must be A 3 digit number."
+      cursor: ACSPH1AL
+      fields: {ERRMSGO: "Phone Number 1: Area code must be A 3 digit number."}
+      transfer: {via: RETURN-TRANSID, to: CAUP}
+      commarea: {ACUP-CHANGE-ACTION: E}
+      file_effects: []
+    source: {file: app/cbl/COACTUPC.cbl, lines: [2264, 2278]}
+
+  - id: COACTUPC-095
+    summary: phone 1 area code 000 is rejected
+    given: {entry: reenter, commarea: *fetched}
+    when: {aid: ENTER, fields: {<<: *screen, ACSPH1AI: "000"}}
+    then:
+      message: "{WS-EDIT-VARIABLE-NAME}: Area code cannot be zero"
+      cursor: ACSPH1AL
+      fields: {ERRMSGO: "Phone Number 1: Area code cannot be zero"}
+      transfer: {via: RETURN-TRANSID, to: CAUP}
+      commarea: {ACUP-CHANGE-ACTION: E}
+      file_effects: []
+    source: {file: app/cbl/COACTUPC.cbl, lines: [2280, 2291]}
+
+  - id: COACTUPC-096
+    summary: phone 1 area code not in the general-purpose list (555) is rejected
+    given: {entry: reenter, commarea: *fetched}
+    when: {aid: ENTER, fields: {<<: *screen, ACSPH1AI: "555"}}
+    then:
+      message: "{WS-EDIT-VARIABLE-NAME}: Not valid North America general purpose area code"
+      cursor: ACSPH1AL
+      fields: {ERRMSGO: "Phone Number 1: Not valid North America general purpose area code"}
+      transfer: {via: RETURN-TRANSID, to: CAUP}
+      commarea: {ACUP-CHANGE-ACTION: E}
+      file_effects: []
+    source: {file: app/cbl/COACTUPC.cbl, lines: [2296, 2312]}
+
+  - id: COACTUPC-097
+    summary: blank phone 1 prefix is required
+    given: {entry: reenter, commarea: *fetched}
+    when: {aid: ENTER, fields: {<<: *screen, ACSPH1BI: ""}}
+    then:
+      message: "{WS-EDIT-VARIABLE-NAME}: Prefix code must be supplied."
+      cursor: ACSPH1BL
+      fields: {ERRMSGO: "Phone Number 1: Prefix code must be supplied.", ACSPH1BO: "*"}
+      transfer: {via: RETURN-TRANSID, to: CAUP}
+      commarea: {ACUP-CHANGE-ACTION: E}
+      file_effects: []
+    source: {file: app/cbl/COACTUPC.cbl, lines: [2318, 2330]}
+
+  - id: COACTUPC-098
+    summary: non-numeric phone 1 prefix is rejected
+    given: {entry: reenter, commarea: *fetched}
+    when: {aid: ENTER, fields: {<<: *screen, ACSPH1BI: ABC}}
+    then:
+      message: "{WS-EDIT-VARIABLE-NAME}: Prefix code must be A 3 digit number."
+      cursor: ACSPH1BL
+      fields: {ERRMSGO: "Phone Number 1: Prefix code must be A 3 digit number."}
+      transfer: {via: RETURN-TRANSID, to: CAUP}
+      commarea: {ACUP-CHANGE-ACTION: E}
+      file_effects: []
+    source: {file: app/cbl/COACTUPC.cbl, lines: [2335, 2349]}
+
+  - id: COACTUPC-099
+    summary: phone 1 prefix 000 is rejected
+    given: {entry: reenter, commarea: *fetched}
+    when: {aid: ENTER, fields: {<<: *screen, ACSPH1BI: "000"}}
+    then:
+      message: "{WS-EDIT-VARIABLE-NAME}: Prefix code cannot be zero"
+      cursor: ACSPH1BL
+      fields: {ERRMSGO: "Phone Number 1: Prefix code cannot be zero"}
+      transfer: {via: RETURN-TRANSID, to: CAUP}
+      commarea: {ACUP-CHANGE-ACTION: E}
+      file_effects: []
+    source: {file: app/cbl/COACTUPC.cbl, lines: [2351, 2362]}
+
+  - id: COACTUPC-100
+    summary: blank phone 1 line number is required
+    given: {entry: reenter, commarea: *fetched}
+    when: {aid: ENTER, fields: {<<: *screen, ACSPH1CI: ""}}
+    then:
+      message: "{WS-EDIT-VARIABLE-NAME}: Line number code must be supplied."
+      cursor: ACSPH1CL
+      fields: {ERRMSGO: "Phone Number 1: Line number code must be supplied.", ACSPH1CO: "*"}
+      transfer: {via: RETURN-TRANSID, to: CAUP}
+      commarea: {ACUP-CHANGE-ACTION: E}
+      file_effects: []
+    source: {file: app/cbl/COACTUPC.cbl, lines: [2371, 2383]}
+
+  - id: COACTUPC-101
+    summary: non-numeric phone 1 line number is rejected
+    given: {entry: reenter, commarea: *fetched}
+    when: {aid: ENTER, fields: {<<: *screen, ACSPH1CI: 01A0}}
+    then:
+      message: "{WS-EDIT-VARIABLE-NAME}: Line number code must be A 4 digit number."
+      cursor: ACSPH1CL
+      fields: {ERRMSGO: "Phone Number 1: Line number code must be A 4 digit number."}
+      transfer: {via: RETURN-TRANSID, to: CAUP}
+      commarea: {ACUP-CHANGE-ACTION: E}
+      file_effects: []
+    source: {file: app/cbl/COACTUPC.cbl, lines: [2388, 2402]}
+
+  - id: COACTUPC-102
+    summary: phone 1 line number 0000 is rejected
+    given: {entry: reenter, commarea: *fetched}
+    when: {aid: ENTER, fields: {<<: *screen, ACSPH1CI: "0000"}}
+    then:
+      message: "{WS-EDIT-VARIABLE-NAME}: Line number code cannot be zero"
+      cursor: ACSPH1CL
+      fields: {ERRMSGO: "Phone Number 1: Line number code cannot be zero"}
+      transfer: {via: RETURN-TRANSID, to: CAUP}
+      commarea: {ACUP-CHANGE-ACTION: E}
+      file_effects: []
+    source: {file: app/cbl/COACTUPC.cbl, lines: [2404, 2415]}
+
+  - id: COACTUPC-103
+    summary: phone 1 entirely blank is accepted (phone is optional)
+    given: {entry: reenter, commarea: *fetched}
+    when: {aid: ENTER, fields: {<<: *screen, ACSPH1AI: "", ACSPH1BI: "", ACSPH1CI: ""}}
+    then:
+      message: null
+      cursor: ACCTSIDL
+      fields: {ACSPH1AO: "", ACSPH1BO: "", ACSPH1CO: "", INFOMSGO: Changes validated.Press F5 to save}
+      transfer: {via: RETURN-TRANSID, to: CAUP}
+      commarea: {ACUP-CHANGE-ACTION: N}
+      file_effects: []
+    source: {file: app/cbl/COACTUPC.cbl, lines: [2232, 2244]}
+
+  - id: COACTUPC-104
+    summary: phone 1 with only the line number present still requires the area code (masked NUMA/NUMC bug)
+    given: {entry: reenter, commarea: *fetched}
+    when: {aid: ENTER, fields: {<<: *screen, ACSPH1AI: "", ACSPH1BI: "", ACSPH1CI: "1234"}}
+    then:
+      message: "{WS-EDIT-VARIABLE-NAME}: Area code must be supplied."
+      cursor: ACSPH1AL
+      fields: {ERRMSGO: "Phone Number 1: Area code must be supplied.", ACSPH1AO: "*", ACSPH1BO: "*"}
+      transfer: {via: RETURN-TRANSID, to: CAUP}
+      commarea: {ACUP-CHANGE-ACTION: E}
+      file_effects: []
+    source: {file: app/cbl/COACTUPC.cbl, lines: [2234, 2259]}
+
+  - id: COACTUPC-105
+    summary: phone 2 area code 000 is rejected with the phone 2 label
+    given: {entry: reenter, commarea: *fetched}
+    when: {aid: ENTER, fields: {<<: *screen, ACSPH2AI: "000"}}
+    then:
+      message: "{WS-EDIT-VARIABLE-NAME}: Area code cannot be zero"
+      cursor: ACSPH2AL
+      fields: {ERRMSGO: "Phone Number 2: Area code cannot be zero"}
+      transfer: {via: RETURN-TRANSID, to: CAUP}
+      commarea: {ACUP-CHANGE-ACTION: E}
+      file_effects: []
+    source: {file: app/cbl/COACTUPC.cbl, lines: [2280, 2291]}
+
+  # ---------------------------------------------------------------- field edits: EFT and primary holder
+  - id: COACTUPC-106
+    summary: blank EFT account id is required
+    given: {entry: reenter, commarea: *fetched}
+    when: {aid: ENTER, fields: {<<: *screen, ACSEFTCI: ""}}
+    then:
+      message: "{WS-EDIT-VARIABLE-NAME} must be supplied."
+      cursor: ACSEFTCL
+      fields: {ERRMSGO: EFT Account Id must be supplied., ACSEFTCO: "*"}
+      transfer: {via: RETURN-TRANSID, to: CAUP}
+      commarea: {ACUP-CHANGE-ACTION: E}
+      file_effects: []
+    source: {file: app/cbl/COACTUPC.cbl, lines: [2114, 2133]}
+
+  - id: COACTUPC-107
+    summary: non-numeric EFT account id is rejected
+    given: {entry: reenter, commarea: *fetched}
+    when: {aid: ENTER, fields: {<<: *screen, ACSEFTCI: ABC1234567}}
+    then:
+      message: "{WS-EDIT-VARIABLE-NAME} must be all numeric."
+      cursor: ACSEFTCL
+      fields: {ERRMSGO: EFT Account Id must be all numeric.}
+      transfer: {via: RETURN-TRANSID, to: CAUP}
+      commarea: {ACUP-CHANGE-ACTION: E}
+      file_effects: []
+    source: {file: app/cbl/COACTUPC.cbl, lines: [2137, 2152]}
+
+  - id: COACTUPC-108
+    summary: all-zero EFT account id is rejected
+    given: {entry: reenter, commarea: *fetched}
+    when: {aid: ENTER, fields: {<<: *screen, ACSEFTCI: "0000000000"}}
+    then:
+      message: "{WS-EDIT-VARIABLE-NAME} must not be zero."
+      cursor: ACSEFTCL
+      fields: {ERRMSGO: EFT Account Id must not be zero.}
+      transfer: {via: RETURN-TRANSID, to: CAUP}
+      commarea: {ACUP-CHANGE-ACTION: E}
+      file_effects: []
+    source: {file: app/cbl/COACTUPC.cbl, lines: [2156, 2168]}
+
+  - id: COACTUPC-109
+    summary: blank primary card holder flag is required
+    given: {entry: reenter, commarea: *fetched}
+    when: {aid: ENTER, fields: {<<: *screen, ACSPFLGI: ""}}
+    then:
+      message: "{WS-EDIT-VARIABLE-NAME} must be supplied."
+      cursor: ACSPFLGL
+      fields: {ERRMSGO: Primary Card Holder must be supplied., ACSPFLGO: "*"}
+      transfer: {via: RETURN-TRANSID, to: CAUP}
+      commarea: {ACUP-CHANGE-ACTION: E}
+      file_effects: []
+    source: {file: app/cbl/COACTUPC.cbl, lines: [1861, 1875]}
+
+  - id: COACTUPC-110
+    summary: primary card holder flag other than Y or N is rejected
+    given: {entry: reenter, commarea: *fetched}
+    when: {aid: ENTER, fields: {<<: *screen, ACSPFLGI: X}}
+    then:
+      message: "{WS-EDIT-VARIABLE-NAME} must be Y or N."
+      cursor: ACSPFLGL
+      fields: {ERRMSGO: Primary Card Holder must be Y or N.}
+      transfer: {via: RETURN-TRANSID, to: CAUP}
+      commarea: {ACUP-CHANGE-ACTION: E}
+      file_effects: []
+    source: {file: app/cbl/COACTUPC.cbl, lines: [1878, 1892]}
+
+  # ---------------------------------------------------------------- multiple errors and unvalidated fields
+  - id: COACTUPC-111
+    summary: with several bad fields the first in edit order supplies the message and the cursor
+    given: {entry: reenter, commarea: *fetched}
+    when: {aid: ENTER, fields: {<<: *screen, ACSTTUSI: X, ACSTFCOI: "100"}}
+    then:
+      message: "{WS-EDIT-VARIABLE-NAME} must be Y or N."
+      cursor: ACSTTUSL
+      fields: {ERRMSGO: Account Status must be Y or N.}
+      transfer: {via: RETURN-TRANSID, to: CAUP}
+      commarea: {ACUP-CHANGE-ACTION: E}
+      file_effects: []
+    source: {file: app/cbl/COACTUPC.cbl, lines: [3009, 3019]}
+
+  - id: COACTUPC-112
+    summary: state/zip mismatch plus bad EFT gives the EFT message but puts the cursor on State
+    given: {entry: reenter, commarea: *fetched}
+    when: {aid: ENTER, fields: {<<: *screen, ACSZIPCI: "90210", ACSEFTCI: ABC1234567}}
+    then:
+      message: "{WS-EDIT-VARIABLE-NAME} must be all numeric."
+      cursor: ACSSTTEL
+      fields: {ERRMSGO: EFT Account Id must be all numeric.}
+      transfer: {via: RETURN-TRANSID, to: CAUP}
+      commarea: {ACUP-CHANGE-ACTION: E}
+      file_effects: []
+    source: {file: app/cbl/COACTUPC.cbl, lines: [1665, 1669]}
+
+  - id: COACTUPC-113
+    summary: group id and government id are not validated (any text or blank accepted)
+    given: {entry: reenter, commarea: *fetched}
+    when: {aid: ENTER, fields: {<<: *screen, AADDGRPI: "grp#1", ACSGOVTI: ""}}
+    then:
+      message: null
+      cursor: ACCTSIDL
+      fields: {AADDGRPO: "grp#1", ACSGOVTO: "", INFOMSGO: Changes validated.Press F5 to save}
+      transfer: {via: RETURN-TRANSID, to: CAUP}
+      commarea: {ACUP-CHANGE-ACTION: N}
+      file_effects: []
+    source: {file: app/cbl/COACTUPC.cbl, lines: [1470, 1675]}
+
+  # ---------------------------------------------------------------- state E
+  - id: COACTUPC-114
+    summary: in state E, correcting the field and pressing ENTER validates and asks for confirmation
+    given: {entry: reenter, commarea: {<<: *fetched, ACUP-CHANGE-ACTION: E}}
+    when: {aid: ENTER, fields: {<<: *screen, ACSTFCOI: "760"}}
+    then:
+      message: null
+      cursor: ACCTSIDL
+      fields: {ACSTFCOO: "760", INFOMSGO: Changes validated.Press F5 to save}
+      transfer: {via: RETURN-TRANSID, to: CAUP}
+      commarea: {ACUP-CHANGE-ACTION: N}
+      file_effects: []
+    source: {file: app/cbl/COACTUPC.cbl, lines: [996, 1003]}
+
+  - id: COACTUPC-115
+    summary: in state E, reverting to the fetched values shows 'No change detected' and stays in E
+    given: {entry: reenter, commarea: {<<: *fetched, ACUP-CHANGE-ACTION: E}}
+    when: {aid: ENTER, fields: *screen}
+    then:
+      message: No change detected with respect to values fetched.
+      cursor: ACSTTUSL
+      fields: {INFOMSGO: Update account details presented above.}
+      transfer: {via: RETURN-TRANSID, to: CAUP}
+      commarea: {ACUP-CHANGE-ACTION: E}
+      file_effects: []
+    source: {file: app/cbl/COACTUPC.cbl, lines: [2596, 2597]}
+
+  # ---------------------------------------------------------------- state N (confirm) and save
+  - id: COACTUPC-116
+    summary: in state N, ENTER does not save and keeps asking for F5
+    given: {entry: reenter, commarea: {<<: *fetched, ACUP-CHANGE-ACTION: N}, files: *db}
+    when: {aid: ENTER, fields: &confirmed {<<: *screen, ACRDLIMI: "+      2,500.00"}}
+    then:
+      message: null
+      cursor: ACCTSIDL
+      fields: {ACRDLIMO: "+      2,500.00", INFOMSGO: Changes validated.Press F5 to save}
+      transfer: {via: RETURN-TRANSID, to: CAUP}
+      commarea: {ACUP-CHANGE-ACTION: N}
+      file_effects: []
+    source: {file: app/cbl/COACTUPC.cbl, lines: [2620, 2621]}
+
+  - id: COACTUPC-117
+    summary: F5 in state N rewrites account and customer and reports success (state C)
+    given: {entry: reenter, commarea: {<<: *fetched, ACUP-CHANGE-ACTION: N}, files: *db}
+    when: {aid: PF5, fields: *confirmed}
+    then:
+      message: null
+      cursor: ACCTSIDL
+      fields: {ACRDLIMO: "+      2,500.00", INFOMSGO: Changes committed to database}
+      transfer: {via: RETURN-TRANSID, to: CAUP}
+      commarea: {ACUP-CHANGE-ACTION: C}
+      file_effects:
+        - file: ACCTDAT
+          op: REWRITE
+          record:
+            ACCT-ID: "00000000001"
+            ACCT-ACTIVE-STATUS: Y
+            ACCT-CURR-BAL: "1940.00"
+            ACCT-CREDIT-LIMIT: "2500.00"
+            ACCT-CASH-CREDIT-LIMIT: "1020.00"
+            ACCT-OPEN-DATE: "2014-11-20"
+            ACCT-EXPIRAION-DATE: "2025-05-20"
+            ACCT-REISSUE-DATE: "2025-05-20"
+            ACCT-CURR-CYC-CREDIT: "0.00"
+            ACCT-CURR-CYC-DEBIT: "0.00"
+            ACCT-ADDR-ZIP: A000000000
+        - file: CUSTDAT
+          op: REWRITE
+          record:
+            CUST-ID: "000000001"
+            CUST-FIRST-NAME: Immanuel
+            CUST-MIDDLE-NAME: Madeline
+            CUST-LAST-NAME: Kessler
+            CUST-ADDR-LINE-1: 618 Deshaun Route
+            CUST-ADDR-LINE-2: Apt. 802
+            CUST-ADDR-LINE-3: Altenwerthshire
+            CUST-ADDR-STATE-CD: NY
+            CUST-ADDR-COUNTRY-CD: USA
+            CUST-ADDR-ZIP: "10001"
+            CUST-PHONE-NUM-1: "(212)555-0100"
+            CUST-PHONE-NUM-2: "(212)555-0101"
+            CUST-SSN: "020973888"
+            CUST-GOVT-ISSUED-ID: "00000000000049368437"
+            CUST-DOB-YYYY-MM-DD: "1961-06-08"
+            CUST-EFT-ACCOUNT-ID: "0053581756"
+            CUST-PRI-CARD-HOLDER-IND: Y
+            CUST-FICO-CREDIT-SCORE: "750"
+    source: {file: app/cbl/COACTUPC.cbl, lines: [3956, 4104]}
+
+  - id: COACTUPC-118
+    summary: F5 when someone else changed the account record shows 'Record changed' and stale fetched values (state S)
+    given:
+      entry: reenter
+      commarea: {<<: *fetched, ACUP-CHANGE-ACTION: N}
+      files:
+        CXACAIX: [*xref]
+        ACCTDAT: [{<<: *acct, ACCT-CURR-BAL: "1999.99"}]
+        CUSTDAT: [*cust]
+    when: {aid: PF5, fields: *confirmed}
+    then:
+      message: Record changed by some one else. Please review
+      cursor: ACCTSIDL
+      fields: {ACURBALO: "+      1,940.00", ACRDLIMO: "+      2,020.00", INFOMSGO: Update account details presented above.}
+      transfer: {via: RETURN-TRANSID, to: CAUP}
+      commarea: {ACUP-CHANGE-ACTION: S, ACUP-OLD-CURR-BAL-N: "1940.00"}
+      file_effects: []
+    source: {file: app/cbl/COACTUPC.cbl, lines: [4115, 4145]}
+
+  - id: COACTUPC-119
+    summary: F5 when someone else changed the customer record shows 'Record changed' (state S)
+    given:
+      entry: reenter
+      commarea: {<<: *fetched, ACUP-CHANGE-ACTION: N}
+      files:
+        CXACAIX: [*xref]
+        ACCTDAT: [*acct]
+        CUSTDAT: [{<<: *cust, CUST-LAST-NAME: Smith}]
+    when: {aid: PF5, fields: *confirmed}
+    then:
+      message: Record changed by some one else. Please review
+      cursor: ACCTSIDL
+      fields: {ACSLNAMO: Kessler, INFOMSGO: Update account details presented above.}
+      transfer: {via: RETURN-TRANSID, to: CAUP}
+      commarea: {ACUP-CHANGE-ACTION: S}
+      file_effects: []
+    source: {file: app/cbl/COACTUPC.cbl, lines: [4152, 4191]}
+
+  - id: COACTUPC-120
+    summary: F5 when the account record cannot be read for update gives the lock error (state L)
+    given:
+      entry: reenter
+      commarea: {<<: *fetched, ACUP-CHANGE-ACTION: N}
+      files: {CXACAIX: [*xref], ACCTDAT: [], CUSTDAT: [*cust]}
+    when: {aid: PF5, fields: *confirmed}
+    then:
+      message: Could not lock account record for update
+      cursor: ACCTSIDL
+      fields: {ACRDLIMO: "+      2,500.00", INFOMSGO: Changes unsuccessful. Please try again}
+      transfer: {via: RETURN-TRANSID, to: CAUP}
+      commarea: {ACUP-CHANGE-ACTION: L}
+      file_effects: []
+    source: {file: app/cbl/COACTUPC.cbl, lines: [3894, 3915]}
+
+  - id: COACTUPC-121
+    summary: F5 when the customer record cannot be read for update is reported as committed (state C, latent bug)
+    given:
+      entry: reenter
+      commarea: {<<: *fetched, ACUP-CHANGE-ACTION: N}
+      files: {CXACAIX: [*xref], ACCTDAT: [*acct], CUSTDAT: []}
+    when: {aid: PF5, fields: *confirmed}
+    then:
+      message: Could not lock customer record for update
+      cursor: ACCTSIDL
+      fields: {INFOMSGO: Changes committed to database}
+      transfer: {via: RETURN-TRANSID, to: CAUP}
+      commarea: {ACUP-CHANGE-ACTION: C}
+      file_effects: []
+    source: {file: app/cbl/COACTUPC.cbl, lines: [2606, 2615]}
+
+  - id: COACTUPC-122
+    summary: F5 where the ACCTDAT REWRITE fails (injected fault) reports 'Update of record failed' (state F)
+    given: {entry: reenter, commarea: {<<: *fetched, ACUP-CHANGE-ACTION: N}, files: *db}
+    when: {aid: PF5, fields: *confirmed}
+    then:
+      message: Update of record failed
+      cursor: ACCTSIDL
+      fields: {INFOMSGO: Changes unsuccessful. Please try again}
+      transfer: {via: RETURN-TRANSID, to: CAUP}
+      commarea: {ACUP-CHANGE-ACTION: F}
+      file_effects: []
+    source: {file: app/cbl/COACTUPC.cbl, lines: [4065, 4081]}
+
+  - id: COACTUPC-123
+    summary: F5 where the CUSTDAT REWRITE fails (injected fault) rolls back the account rewrite (state F)
+    given: {entry: reenter, commarea: {<<: *fetched, ACUP-CHANGE-ACTION: N}, files: *db}
+    when: {aid: PF5, fields: *confirmed}
+    then:
+      message: Update of record failed
+      cursor: ACCTSIDL
+      fields: {INFOMSGO: Changes unsuccessful. Please try again}
+      transfer: {via: RETURN-TRANSID, to: CAUP}
+      commarea: {ACUP-CHANGE-ACTION: F}
+      file_effects: []
+    source: {file: app/cbl/COACTUPC.cbl, lines: [4085, 4103]}
+
+  - id: COACTUPC-124
+    summary: PF12 in state N cancels the pending change, re-reads the record and returns to S
+    given: {entry: reenter, commarea: {<<: *fetched, ACUP-CHANGE-ACTION: N}, files: *db}
+    when: {aid: PF12, fields: *confirmed}
+    then:
+      message: null
+      cursor: ACCTSIDL
+      fields: {ACRDLIMO: "+      2,020.00", INFOMSGO: Update account details presented above.}
+      transfer: {via: RETURN-TRANSID, to: CAUP}
+      commarea: {ACUP-CHANGE-ACTION: S, ACUP-OLD-CREDIT-LIMIT-N: "2020.00"}
+      file_effects: []
+    source: {file: app/cbl/COACTUPC.cbl, lines: [2572, 2580]}
+
+  - id: COACTUPC-125
+    summary: PF12 in state S discards an invalid edit and its message and re-shows the stored record
+    given:
+      entry: reenter
+      commarea: *fetched
+      files:
+        CXACAIX: [*xref]
+        ACCTDAT: [{<<: *acct, ACCT-CURR-BAL: "1999.99"}]
+        CUSTDAT: [*cust]
+    when: {aid: PF12, fields: {<<: *screen, ACSTFCOI: "100"}}
+    then:
+      message: null
+      cursor: ACCTSIDL
+      fields: {ACSTFCOO: "750", ACURBALO: "+      1,999.99", INFOMSGO: Update account details presented above.}
+      transfer: {via: RETURN-TRANSID, to: CAUP}
+      commarea: {ACUP-CHANGE-ACTION: S, ACUP-OLD-CURR-BAL-N: "1999.99"}
+      file_effects: []
+    source: {file: app/cbl/COACTUPC.cbl, lines: [2572, 2580]}
+
+  # ---------------------------------------------------------------- after a save attempt (C, L, F)
+  - id: COACTUPC-126
+    summary: after a successful save any key except PF3 resets to a blank search screen
+    given: {entry: reenter, commarea: {<<: *fetched, ACUP-CHANGE-ACTION: C}}
+    when: {aid: ENTER, fields: *confirmed}
+    then:
+      message: null
+      cursor: ACCTSIDL
+      fields: {ACCTSIDO: "", ACSTTUSO: "", INFOMSGO: Enter or update id of account to update}
+      transfer: {via: RETURN-TRANSID, to: CAUP}
+      commarea: {ACUP-CHANGE-ACTION: "", CDEMO-ACCT-ID: "00000000000", CDEMO-PGM-CONTEXT: 1}
+      file_effects: []
+    source: {file: app/cbl/COACTUPC.cbl, lines: [979, 989]}
+
+  - id: COACTUPC-127
+    summary: after a lock failure (state L) ENTER resets to a blank search screen
+    given: {entry: reenter, commarea: {<<: *fetched, ACUP-CHANGE-ACTION: L}}
+    when: {aid: ENTER, fields: *confirmed}
+    then:
+      message: null
+      cursor: ACCTSIDL
+      fields: {ACCTSIDO: "", INFOMSGO: Enter or update id of account to update}
+      transfer: {via: RETURN-TRANSID, to: CAUP}
+      commarea: {ACUP-CHANGE-ACTION: "", CDEMO-ACCT-ID: "00000000000"}
+      file_effects: []
+    source: {file: app/cbl/COACTUPC.cbl, lines: [979, 989]}
+
+  - id: COACTUPC-128
+    summary: after a rewrite failure (state F) even PF12 resets to a blank search screen rather than re-reading
+    given: {entry: reenter, commarea: {<<: *fetched, ACUP-CHANGE-ACTION: F}, files: *db}
+    when: {aid: PF12, fields: *confirmed}
+    then:
+      message: null
+      cursor: ACCTSIDL
+      fields: {ACCTSIDO: "", INFOMSGO: Enter or update id of account to update}
+      transfer: {via: RETURN-TRANSID, to: CAUP}
+      commarea: {ACUP-CHANGE-ACTION: ""}
+      file_effects: []
+    source: {file: app/cbl/COACTUPC.cbl, lines: [979, 989]}
+
+  - id: COACTUPC-129
+    summary: PF3 after a successful save still exits to the caller
+    given: {entry: reenter, commarea: {<<: *fetched, ACUP-CHANGE-ACTION: C}}
+    when: {aid: PF3, fields: {}}
+    then:
+      message: null
+      transfer: {via: XCTL, to: COMEN01C}
+      commarea: {CDEMO-FROM-PROGRAM: COACTUPC, CDEMO-PGM-CONTEXT: 0}
+      file_effects: []
+    source: {file: app/cbl/COACTUPC.cbl, lines: [927, 959]}
+
+  # ---------------------------------------------------------------- corrupted state
+  - id: COACTUPC-130
+    summary: unknown ACUP-CHANGE-ACTION with no detected change abends with 'UNEXPECTED DATA SCENARIO' (ABCODE 9999)
+    given: {entry: reenter, commarea: {<<: *fetched, ACUP-CHANGE-ACTION: X}}
+    when: {aid: ENTER, fields: *screen}
+    then:
+      message: UNEXPECTED DATA SCENARIO
+      transfer: {via: SEND-TEXT, to: COACTUPC}
+      file_effects: []
+    source: {file: app/cbl/COACTUPC.cbl, lines: [2633, 2640]}
