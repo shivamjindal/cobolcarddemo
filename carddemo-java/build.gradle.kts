@@ -27,6 +27,7 @@ dependencies {
     implementation("org.springframework.boot:spring-boot-starter-oauth2-client")
     implementation("org.springframework.boot:spring-boot-starter-oauth2-authorization-server")
     implementation("org.springframework.boot:spring-boot-starter-actuator")
+    implementation("org.springframework.boot:spring-boot-starter-batch")
     implementation("org.flywaydb:flyway-core")
     implementation("org.flywaydb:flyway-database-postgresql")
     runtimeOnly("org.postgresql:postgresql")
@@ -76,13 +77,19 @@ tasks.register<JavaExec>("generateDdl") {
 }
 
 val specs = rootDir.resolve("../characterization/online/specs")
+val batchCharacterization = rootDir.resolve("../characterization/batch")
 
 tasks.test {
     useJUnitPlatform()
     systemProperty("carddemo.legacy-app", legacyApp.absolutePath)
     systemProperty("carddemo.specs", specs.absolutePath)
+    systemProperty("carddemo.batch-characterization", batchCharacterization.absolutePath)
     inputs.dir(specs).withPathSensitivity(PathSensitivity.RELATIVE)
+    inputs.dir(batchCharacterization.resolve("golden")).withPathSensitivity(PathSensitivity.RELATIVE)
+    inputs.dir(batchCharacterization.resolve("fixtures")).withPathSensitivity(PathSensitivity.RELATIVE)
     addTestOutputListener { _, event ->
-        if (event.message.startsWith("[spec-replay]")) logger.lifecycle(event.message.trimEnd())
+        if (event.message.startsWith("[spec-replay]") || event.message.startsWith("[batch-golden]")) {
+            logger.lifecycle(event.message.trimEnd())
+        }
     }
 }

@@ -6,6 +6,7 @@ import org.springframework.jdbc.UncategorizedSQLException;
 import org.springframework.jdbc.core.JdbcTemplate;
 import org.springframework.jdbc.core.RowMapper;
 
+import java.util.Arrays;
 import java.util.Optional;
 
 /**
@@ -30,13 +31,13 @@ public final class RecordLock {
      * Runs a {@code SELECT ... FOR UPDATE} of one row. A lock held by another transaction for longer than
      * two seconds throws {@link CannotAcquireLockException} instead of hanging the request.
      */
-    public static <T> Optional<T> read(JdbcTemplate jdbc, String sql, RowMapper<T> row, Object key) {
+    public static <T> Optional<T> read(JdbcTemplate jdbc, String sql, RowMapper<T> row, Object... key) {
         jdbc.execute("SET LOCAL lock_timeout = '2s'");
         try {
             return jdbc.query(sql, row, key).stream().findFirst();
         } catch (UncategorizedSQLException e) {
             if (e.getSQLException() != null && LOCK_NOT_AVAILABLE.equals(e.getSQLException().getSQLState())) {
-                throw new CannotAcquireLockException("READ UPDATE timed out: " + key, e);
+                throw new CannotAcquireLockException("READ UPDATE timed out: " + Arrays.toString(key), e);
             }
             throw e;
         }

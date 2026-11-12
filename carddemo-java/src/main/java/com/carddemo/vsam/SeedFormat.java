@@ -72,9 +72,14 @@ public enum SeedFormat {
         return file(dir, dataset).map(path -> read(path, dataset));
     }
 
-    /** DALYTRAN.PS, the daily feed POSTTRAN posts into TRANSACT; its layout (CVTRA06Y) is TRAN-RECORD's. */
-    public List<String> dailyTransactions(Path dir) {
-        return read(dir.resolve(dailyTransactions), VsamDataset.TRANSACTIONS);
+    /** DALYTRAN.PS, the daily feed POSTTRAN posts into TRANSACT. */
+    public Path dailyTransactionsFile(Path dir) {
+        return dir.resolve(dailyTransactions);
+    }
+
+    /** A file of transaction records in this format; the daily feed's layout (CVTRA06Y) is TRAN-RECORD's. */
+    public List<String> transactionRecords(Path file) {
+        return read(file, VsamDataset.TRANSACTIONS);
     }
 
     private List<String> read(Path path, VsamDataset dataset) {

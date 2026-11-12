@@ -8,6 +8,10 @@
 
 Each job mirrors one JCL member under app/jcl. COBOL programs run unmodified except
 CBSTM03A (see PATCHES). IDCAMS REPRO and DFSORT steps are emulated in Python.
+
+The cycle then runs a second time with FIXES applied to the legacy source: golden-fixed/ holds each
+artifact whose output those fixes change, so the Java port's deliberate fixes are pinned by the legacy
+programs themselves rather than by hand-edited expectations.
 """
 import argparse
 import difflib
@@ -26,7 +30,9 @@ REPO = HERE.parents[1]
 APP = REPO / "app"
 FIXTURES = APP / "data" / "ASCII"
 GOLDEN = HERE / "golden"
+GOLDEN_FIXED = HERE / "golden-fixed"
 BUILD = HERE / "build"
+BUILD_FIXED = BUILD / "fixed"
 
 # Fixed clock so CURRENT-DATE derived timestamps are reproducible. Chosen inside the
 # TRANREPT date window (2022-01-01..2022-07-06) so the report has rows.
@@ -44,6 +50,39 @@ PATCHES = {
     "CBSTM03A": (r"\n(\s+SET ADDRESS OF PSA-BLOCK.*?)(?=\n\s+OPEN OUTPUT STMT-FILE HTML-FILE\.)",
                  "\n      *> characterization harness: TIOT walk removed"),
 }
+
+
+@dataclass(frozen=True)
+class Fix:
+    """A legacy bug the Java port deliberately fixes, as the smallest edit to the COBOL source."""
+    program: str
+    pattern: str
+    replacement: str
+    reason: str
+
+
+FIXES = [
+    Fix("CBTRN02C", r"(\n\s+)- ACCT-CURR-CYC-DEBIT", r"\1+ ACCT-CURR-CYC-DEBIT",
+        "Cycle debit holds credits as negative amounts, so subtracting it made every credit use up limit instead of freeing it."),
+    Fix("CBTRN03C",
+        r"(\n {16}ELSE +\n)( {17}DISPLAY 'TRAN-AMT ' TRAN-AMT +\n {17}DISPLAY 'WS-PAGE-TOTAL'  WS-PAGE-TOTAL +\n)"
+        r" {17}ADD TRAN-AMT TO WS-PAGE-TOTAL +\n {33}WS-ACCOUNT-TOTAL +\n",
+        "\\1                 IF WS-FIRST-TIME = 'N'\n                   PERFORM 1120-WRITE-ACCOUNT-TOTALS\n"
+        "                 END-IF\n\\2",
+        "At end of file the report added the last amount to the totals a second time and never wrote the last account's total."),
+    Fix("CBACT04C", r"(\n {15}ELSE +\n {20}PERFORM 1050-UPDATE-ACCOUNT +\n {15}END-IF +\n {11}END-PERFORM\.)",
+        "\\1\n           IF WS-FIRST-TIME NOT = 'Y'\n              PERFORM 1050-UPDATE-ACCOUNT\n           END-IF.",
+        "The loop exits before its end-of-file branch, so the last account's interest was posted to TRANSACT but never added to its balance."),
+]
+
+
+def patched(src, edits):
+    text = src.read_text(errors="replace")
+    for pattern, repl in edits:
+        text, n = re.subn(pattern, repl, text, flags=re.S)
+        if n != 1:
+            raise RuntimeError(f"patch for {src.stem} no longer applies: {pattern}")
+    return text
 
 
 @dataclass(frozen=True)
@@ -176,13 +215,18 @@ def build():
     for prog in PROGRAMS:
         src = next(APP.glob(f"cbl/{prog}.[cC][bB][lL]"))
         if prog in PATCHES:
-            pattern, repl = PATCHES[prog]
-            text, n = re.subn(pattern, repl, src.read_text(errors="replace"), flags=re.S)
-            if n != 1:
-                raise RuntimeError(f"patch for {prog} no longer applies")
+            text = patched(src, [PATCHES[prog]])
             src = gen / f"{prog}.cbl"
             src.write_text(text)
         cobc(["-m", *common, "-o", str(BUILD / f"{prog}.so"), str(src)], BUILD)
+    BUILD_FIXED.mkdir()
+    for prog in sorted({f.program for f in FIXES}):
+        src = next(APP.glob(f"cbl/{prog}.[cC][bB][lL]"))
+        fixed = gen / "fixed" / f"{prog}.cbl"
+        fixed.parent.mkdir(exist_ok=True)
+        fixed.write_text(patched(src, [*([PATCHES[prog]] if prog in PATCHES else []),
+                                       *((f.pattern, f.replacement) for f in FIXES if f.program == prog)]))
+        cobc(["-m", *common, "-o", str(BUILD_FIXED / f"{prog}.so"), str(fixed)], BUILD_FIXED)
     for stub in (HERE / "stubs").glob("*.cbl"):
         if stub.stem != "RUNPGM":
             cobc(["-m", "-free", "-o", str(BUILD / f"{stub.stem}.so"), str(stub)], BUILD)
@@ -198,15 +242,16 @@ def build():
 class Run:
     """One end-to-end batch run in a scratch directory."""
 
-    def __init__(self, work):
+    def __init__(self, work, library):
         self.work = work
+        self.library = library
         self.artifacts = {}
 
     def path(self, name):
         return self.work / name
 
     def env(self, dds):
-        env = dict(os.environ, COB_LIBRARY_PATH=str(BUILD), COB_CURRENT_DATE=CLOCK)
+        env = dict(os.environ, COB_LIBRARY_PATH=os.pathsep.join(map(str, self.library)), COB_CURRENT_DATE=CLOCK)
         env.update({f"DD_{dd}": str(self.path(f)) for dd, f in dds.items()})
         return env
 
@@ -356,46 +401,25 @@ def job_creastmt(run):
     run.capture("CREASTMT", "HTMLFILE", run.read_seq("STATEMNT.html", 100))
 
 
-def zoned(cents, digits=11):
-    """S9(n)V99 DISPLAY with the trailing EBCDIC sign overpunch the fixtures use."""
-    text = str(abs(cents)).rjust(digits, "0")
-    last = int(text[-1])
-    over = ("}JKLMNOPQR" if cents < 0 else "{ABCDEFGHI")[last]
-    return (text[:-1] + over).encode()
+EDGES = HERE / "fixtures" / "posttran-edges"
 
-
-def daily_tran(tran_id, card, cents, orig_date):
-    """A DALYTRAN record cloned from the first fixture row with the fields the edge cases vary."""
-    rec = bytearray(fixture_records("dailytran.txt", TRAN_LEN)[0])
-    rec[0:16] = tran_id.encode()
-    rec[132:143] = zoned(cents)
-    rec[262:278] = card.encode()
-    rec[278:304] = f"{orig_date} 12:00:00.000000".encode()
-    return bytes(rec)
-
-
-# Fixture accounts: 1 limit 2020.00 exp 2025-05-20 card 9680294154603697; 2 limit 6130.00
-# card 0923877193247330; 3 exp 2024-01-10 card 3999169246375885; 4 limit 3503.00 exp 2023-12-16
-# card 2988091353094312. Cycle credit/debit start at zero.
-POSTTRAN_EDGES = [
-    daily_tran("EDGE000000000001", "0000000000000000", 1000, "2022-06-10"),   # 100 card not in xref
-    daily_tran("EDGE000000000002", "1111222233334444", 1000, "2022-06-10"),   # 101 xref points at missing account
-    daily_tran("EDGE000000000003", "9680294154603697", 202000, "2022-06-10"), # exactly at credit limit
-    daily_tran("EDGE000000000004", "0923877193247330", 613001, "2022-06-10"), # 102 one cent over limit
-    daily_tran("EDGE000000000005", "3999169246375885", 1000, "2024-01-10"),   # on the expiration date
-    daily_tran("EDGE000000000006", "3999169246375885", 1000, "2024-01-11"),   # 103 day after expiration
-    daily_tran("EDGE000000000007", "2988091353094312", 999999, "2023-12-17"), # over limit and expired
-    daily_tran("EDGE000000000008", "9680294154603697", -5000, "2022-06-10"),  # credit on a maxed account
-    daily_tran("EDGE000000000009", "9680294154603697", 5001, "2022-06-10"),   # purchase after that credit
-]
+# Crafted daily records in fixtures/posttran-edges/dailytran.txt, cloned from the first fixture row. Fixture
+# accounts: 1 limit 2020.00 exp 2025-05-20 card 9680294154603697; 2 limit 6130.00 card 0923877193247330;
+# 3 exp 2024-01-10 card 3999169246375885; 4 limit 3503.00 exp 2023-12-16 card 2988091353094312. Cycle
+# credit/debit start at zero.
+#   1 card not in xref (100)               2 xref points at missing account (101)
+#   3 exactly at credit limit              4 one cent over limit (102)
+#   5 on the expiration date               6 day after expiration (103)
+#   7 over limit and expired (103)         8 credit of 50.00 on the maxed account
+#   9 purchase of 50.01 after that credit  10 purchase of 50.00 after that credit (102: the credit did not free limit)
 
 
 def scenario_posttran_edges(run):
     """POSTTRAN against fresh fixtures plus crafted daily transactions at each validation boundary."""
     job_load(run)
-    xref = fixture_records("cardxref.txt", 50) + [b"1111222233334444".ljust(16) + b"000000099" + b"99999999999".ljust(25)]
+    xref = fixture_records("cardxref.txt", 50) + fixture_records(EDGES / "cardxref.txt", 50)
     run.load_ksds("CARDXREF", sorted(xref, key=lambda r: r[0:16]))
-    run.write_seq("DALYTRAN.ps", POSTTRAN_EDGES)
+    run.write_seq("DALYTRAN.ps", fixture_records(EDGES / "dailytran.txt", TRAN_LEN))
     job = "POSTTRAN-EDGES"
     run.exec_pgm(job, "CBTRN02C", {"DALYTRAN": "DALYTRAN.ps", "DALYREJS": "DALYREJS.ps", **ksds_dd(
         TRANFILE="TRANSACT", XREFFILE="CARDXREF", ACCTFILE="ACCTDATA", TCATBALF="TCATBALF")})
@@ -411,10 +435,10 @@ JOBS = {
 }
 
 
-def compare(artifacts, update):
+def compare(artifacts, golden_dir, update):
     failures = 0
     for name, text in sorted(artifacts.items()):
-        golden = GOLDEN / f"{name}.txt"
+        golden = golden_dir / f"{name}.txt"
         if update:
             golden.parent.mkdir(parents=True, exist_ok=True)
             golden.write_text(text, encoding="latin-1")
@@ -429,14 +453,28 @@ def compare(artifacts, update):
         else:
             failures += 1
             print(f"FAIL  {name}")
+            label = golden_dir.name
             sys.stdout.writelines(list(difflib.unified_diff(
-                expected.splitlines(True), text.splitlines(True), f"golden/{name}", f"actual/{name}", n=1))[:40])
+                expected.splitlines(True), text.splitlines(True), f"{label}/{name}", f"actual/{name}", n=1))[:40])
     return failures
+
+
+def cycle(work, library):
+    """The nightly cycle plus the POSTTRAN-EDGES scenario, each in its own scratch directory."""
+    run = Run(work / "cycle", library)
+    run.work.mkdir(parents=True)
+    job_load(run)
+    for job in JOBS.values():
+        job(run)
+    edges = Run(work / "posttran-edges", library)
+    edges.work.mkdir()
+    scenario_posttran_edges(edges)
+    return {**run.artifacts, **edges.artifacts}
 
 
 def main():
     ap = argparse.ArgumentParser(description=__doc__, formatter_class=argparse.RawDescriptionHelpFormatter)
-    ap.add_argument("--update", action="store_true", help="rewrite golden files from this run")
+    ap.add_argument("--update", action="store_true", help="rewrite golden/ and golden-fixed/ from this run")
     ap.add_argument("--job", action="append", choices=[*JOBS, "POSTTRAN-EDGES"], help="only compare these jobs (all jobs still run, in order)")
     ap.add_argument("--keep", action="store_true", help="keep the scratch directory and print its path")
     ap.add_argument("--out", type=Path, help="also write this run's artifacts here, in the golden/ layout")
@@ -445,19 +483,19 @@ def main():
         sys.exit("cobc not found: install GnuCOBOL 3.x (apt-get install gnucobol3)")
     build()
     work = Path(tempfile.mkdtemp(prefix="carddemo-batch-"))
-    run = Run(work / "cycle")
-    run.work.mkdir()
-    job_load(run)
-    for job in JOBS.values():
-        job(run)
-    edges = Run(work / "posttran-edges")
-    edges.work.mkdir()
-    scenario_posttran_edges(edges)
-    artifacts = {**run.artifacts, **edges.artifacts}
-    artifacts = {k: v for k, v in artifacts.items() if not args.job or k.split("/")[0] in args.job}
-    if args.update and GOLDEN.exists() and not args.job:
-        shutil.rmtree(GOLDEN)
-    failures = compare(artifacts, args.update)
+    selected = lambda arts: {k: v for k, v in arts.items() if not args.job or k.split("/")[0] in args.job}
+    artifacts = selected(cycle(work / "legacy", [BUILD]))
+    fixed = {k: v for k, v in selected(cycle(work / "fixed", [BUILD_FIXED, BUILD])).items() if artifacts[k] != v}
+    if args.update and not args.job:
+        for d in (GOLDEN, GOLDEN_FIXED):
+            if d.exists():
+                shutil.rmtree(d)
+    failures = compare(artifacts, GOLDEN, args.update) + compare(fixed, GOLDEN_FIXED, args.update)
+    stale = [p for p in GOLDEN_FIXED.rglob("*.txt") if not args.update
+             and p.relative_to(GOLDEN_FIXED).with_suffix("").as_posix() in artifacts.keys() - fixed.keys()]
+    for p in stale:
+        print(f"STALE golden-fixed/{p.relative_to(GOLDEN_FIXED)} (the fixes no longer change it; run with --update)")
+    failures += len(stale)
     for name, text in artifacts.items() if args.out else ():
         (args.out / f"{name}.txt").parent.mkdir(parents=True, exist_ok=True)
         (args.out / f"{name}.txt").write_text(text, encoding="latin-1")
@@ -466,9 +504,10 @@ def main():
     else:
         shutil.rmtree(work)
     if args.update:
-        print(f"wrote {len(artifacts)} golden files to {GOLDEN.relative_to(REPO)}")
+        print(f"wrote {len(artifacts)} golden and {len(fixed)} golden-fixed files")
         return 0
-    print(f"{len(artifacts) - failures}/{len(artifacts)} artifacts match golden")
+    total = len(artifacts) + len(fixed)
+    print(f"{total - failures}/{total} artifacts match golden ({len(fixed)} of them golden-fixed)")
     return 1 if failures else 0
 
 

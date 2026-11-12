@@ -1,0 +1,18 @@
+# Deliberate departures of the Java batch jobs from characterization/batch/golden. BatchGoldenTest fails on an
+# entry with no reason and on one that no longer changes anything.
+#
+# rewrites: a regex applied to every golden artifact whose job/name matches the glob. Datasets are compared
+# without trailing spaces, as harness.py renders them; SYSOUT is compared verbatim.
+# overrides: one block of golden lines (it must occur exactly once) and the lines the Java job writes instead.
+
+rewrites:
+  - artifacts: "**"
+    pattern: '(\d{4}-\d\d-\d\d)-(\d\d)\.(\d\d)\.(\d\d)\.(\d{6})'
+    replacement: '$1 $2:$3:$4.$5'
+    reason: The legacy programs stamp TRAN-PROC-TS in DB2 format, and the Java jobs write the ISO form that every other timestamp in TRANSACT already uses.
+  - artifacts: "{POSTTRAN/TCATBALF.ksds,INTCALC/CBACT04C.sysout}"
+    pattern: '(?m)^(\d{17}\d{10}[{}A-R])0{22}$'
+    replacement: '$1                      '
+    reason: The tcatbal.txt sample fills the record's FILLER with zeros, which the tran_cat_balances table does not store, so those records come back with a blank FILLER.
+
+overrides: []

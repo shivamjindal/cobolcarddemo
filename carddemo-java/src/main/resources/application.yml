@@ -3,6 +3,11 @@ spring:
     url: ${CARDDEMO_DB_URL:jdbc:postgresql://localhost:5432/carddemo}
     username: ${CARDDEMO_DB_USER:carddemo}
     password: ${CARDDEMO_DB_PASSWORD:carddemo}
+  batch:
+    job:
+      enabled: false
+    jdbc:
+      initialize-schema: never
 
 management:
   endpoints:
@@ -13,3 +18,12 @@ management:
 # The identity provider's issuer and the app's OIDC redirect URI; browse the app at this address.
 carddemo:
   base-url: http://localhost:${server.port:8080}
+  batch:
+    # Program SYSOUT and output datasets: <spool-dir>/<job>/<job execution id>/
+    spool-dir: ${java.io.tmpdir}/carddemo-spool
+    daily-feed: ../app/data/EBCDIC/AWS.M2.CARDDEMO.DALYTRAN.PS
+    daily-feed-format: EBCDIC
+    schedule:
+      enabled: false
+      daily: "0 0 1 * * *"
+      monthly: "0 0 2 1 * *"

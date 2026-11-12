@@ -2,11 +2,14 @@ package com.carddemo.vsam;
 
 import com.carddemo.copybook.Copybook;
 import com.carddemo.copybook.Field;
+import org.springframework.jdbc.core.JdbcTemplate;
 
 import java.io.IOException;
 import java.io.InputStream;
 import java.io.UncheckedIOException;
 import java.nio.charset.StandardCharsets;
+import java.time.LocalDate;
+import java.time.LocalDateTime;
 import java.util.List;
 import java.util.stream.Collectors;
 
@@ -61,6 +64,35 @@ public record Table(VsamDataset dataset, List<Column> columns, List<Column> prim
 
     public Object[] decode(String record) {
         return columns.stream().map(c -> c.decode(record)).toArray();
+    }
+
+    /** The record {@code row} (in column order) came from; FILLER is spaces. */
+    public String encode(Object[] row) {
+        StringBuilder record = new StringBuilder(" ".repeat(dataset.recordLength));
+        for (int i = 0; i < columns.size(); i++) {
+            Field field = columns.get(i).field();
+            record.replace(field.offset(), field.end(), columns.get(i).encode(row[i]));
+        }
+        return record.toString();
+    }
+
+    /** IDCAMS REPRO of the cluster to a flat file: every record, in primary key byte order. */
+    public List<String> unload(JdbcTemplate jdbc) {
+        String order = primaryKey.stream()
+                .map(c -> c.kind() == ColumnKind.TEXT ? c.name() + " COLLATE \"C\"" : c.name())
+                .collect(Collectors.joining(", "));
+        return jdbc.query("SELECT " + names(columns) + " FROM " + name() + " ORDER BY " + order, (rs, n) -> {
+            Object[] row = new Object[columns.size()];
+            for (int i = 0; i < row.length; i++) {
+                row[i] = switch (columns.get(i).kind()) {
+                    case TEXT -> rs.getString(i + 1);
+                    case DATE -> rs.getObject(i + 1, LocalDate.class);
+                    case TIMESTAMP -> rs.getObject(i + 1, LocalDateTime.class);
+                    case INTEGER, DECIMAL -> rs.getBigDecimal(i + 1);
+                };
+            }
+            return encode(row);
+        });
     }
 
     public boolean isPlaceholder(String record) {
