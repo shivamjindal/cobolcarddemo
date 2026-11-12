@@ -83,7 +83,7 @@ notes: ['Value conventions: field and record values are shown without trailing p
   'I/O error branches: CXACAIX ''Unable to lookup Acct in XREF AIX file...'' (lines 596-603); CCXREF ''Unable to
     lookup Card # in XREF file...'' (630-637); STARTBR/READPREV ''Unable to lookup Transaction...'' (661-668, 690-697);
     WRITE DUPKEY/DUPREC ''Tran ID already exist...'' (735-741), other ''Unable to Add Transaction...'' (742-748).
-    All put the cursor on ACTIDINL except the CCXREF ones, which use CARDNINL.']
+    All put the cursor on ACTIDINL except the CCXREF ones, which use CARDNINL.', 'The Java slice replays this spec with deliberate differences listed, each with its reason, in carddemo-java/src/test/resources/spec-overrides/COTRN02C.yaml.']
 cases:
 - id: COTRN02C-001
   summary: no COMMAREA (EIBCALEN = 0) sends the user to sign-on
