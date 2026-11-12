@@ -1,0 +1,16 @@
+<html xmlns:th="http://www.thymeleaf.org" th:replace="~{layout :: screen('Add User', ~{::main}, ~{::nav})}">
+<main>
+    <div class="fields">
+        <th:block th:replace="~{fields :: field('FNAME', 'First Name:', 20)}"></th:block>
+        <th:block th:replace="~{fields :: field('LNAME', 'Last Name:', 20)}"></th:block>
+        <th:block th:replace="~{fields :: field('USERID', 'User ID (8 Char):', 8)}"></th:block>
+        <th:block th:replace="~{fields :: field('PASSWD', 'Password (8 Char):', 8)}"></th:block>
+        <th:block th:replace="~{fields :: field('USRTYPE', 'User Type (A=Admin, U=User):', 1)}"></th:block>
+    </div>
+</main>
+<nav class="keys">
+    <button name="aid" value="ENTER">ENTER=Add User</button>
+    <button name="aid" value="PF3">F3=Back</button>
+    <button name="aid" value="PF4">F4=Clear</button>
+</nav>
+</html>

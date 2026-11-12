@@ -1,0 +1,48 @@
+# Deliberate differences from characterization/online/specs/COMEN01C.yaml, applied by OnlineSpecReplayTest.
+# Each entry replaces whole keys of the case's given, when or then. Drop an entry once its target program is installed.
+COMEN01C-002:
+  reason: The menu lists only installed options and slice 1 installs none of the main-menu programs.
+  then:
+    fields: {TRNNAMEO: CM00, PGMNAMEO: COMEN01C, OPTN001O: ""}
+COMEN01C-003:
+  reason: COACTVWC is not installed yet, so option 1 shows the not-installed message instead of transferring.
+  then:
+    message: "This option Account View is not installed..."
+    fields: {OPTIONO: "01"}
+    transfer: {via: RETURN-TRANSID, to: CM00}
+    commarea: {}
+COMEN01C-004:
+  reason: COTRN00C is not installed yet, so option ' 6' shows the not-installed message instead of transferring.
+  then:
+    message: "This option Transaction List is not installed..."
+    fields: {OPTIONO: "06"}
+    transfer: {via: RETURN-TRANSID, to: CM00}
+    commarea: {}
+COMEN01C-005:
+  reason: COACTUPC is not installed yet, so option 2 shows the not-installed message instead of transferring.
+  then:
+    message: "This option Account Update is not installed..."
+    fields: {OPTIONO: "02"}
+    transfer: {via: RETURN-TRANSID, to: CM00}
+    commarea: {}
+COMEN01C-006:
+  reason: COCRDLIC is not installed yet, so option 3 shows the not-installed message instead of transferring.
+  then:
+    message: "This option Credit Card List is not installed..."
+    fields: {OPTIONO: "03"}
+    transfer: {via: RETURN-TRANSID, to: CM00}
+    commarea: {}
+COMEN01C-007:
+  reason: COTRN02C is not installed yet, so option 8 shows the not-installed message instead of transferring.
+  then:
+    message: "This option Transaction Add is not installed..."
+    fields: {OPTIONO: "08"}
+    transfer: {via: RETURN-TRANSID, to: CM00}
+    commarea: {}
+COMEN01C-008:
+  reason: COBIL00C is not installed yet, so option 10 shows the not-installed message instead of transferring.
+  then:
+    message: "This option Bill Payment is not installed..."
+    fields: {OPTIONO: "10"}
+    transfer: {via: RETURN-TRANSID, to: CM00}
+    commarea: {}

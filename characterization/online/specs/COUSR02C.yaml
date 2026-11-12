@@ -1,0 +1,551 @@
+program: COUSR02C
+transaction: CU02
+screen:
+  mapset: COUSR02
+  map: COUSR2A
+evidence: derived
+sources:
+  - app/cbl/COUSR02C.cbl
+  - app/cpy/CSUSR01Y.cpy
+  - app/cpy/COCOM01Y.cpy
+  - app/cpy/CSMSG01Y.cpy
+  - app/bms/COUSR02.bms
+files:
+  - name: USRSEC
+    ops: [READ-UPDATE, REWRITE]
+    key: SEC-USR-ID
+navigation:
+  - to: COSGN00C
+    via: XCTL
+    when: EIBCALEN = 0 (lines 90-92), COMMAREA passed (lines 250-261)
+  - to: COUSR00C
+    via: XCTL
+    when: PF3 when CDEMO-FROM-PROGRAM is COUSR00C, i.e. arrived from the user list (lines 111-119). PF3 runs UPDATE-USER-INFO first.
+  - to: COADM01C
+    via: XCTL
+    when: PF3 when CDEMO-FROM-PROGRAM is COADM01C or blank (lines 113-114), or PF12 (lines 124-126)
+  - to: CU02
+    via: RETURN-TRANSID
+    when: every path that displays the update screen (lines 135-138)
+notes:
+  - Field and record values are right-trimmed.
+  - "CDEMO-CU02-INFO (lines 50-58) has the same layout as COUSR00C's CDEMO-CU00-INFO. CDEMO-CU02-USR-SELECTED is the ID chosen on the list. Arriving from COADM01C, the shorter COMMAREA is moved into the longer group (line 94), so the CU02 fields are padded with spaces and nothing is pre-selected."
+  - "PF3 is save-and-exit. It PERFORMs UPDATE-USER-INFO (line 112) and then XCTLs unconditionally (line 119). Validation errors, 'Please modify to update ...', or a failed REWRITE are sent to the terminal and immediately replaced by the target program's screen. The REWRITE still happens when fields changed. PF12 exits without saving."
+  - "Multiple SENDs per task. READ-USER-SEC-FILE sends the screen on NORMAL with 'Press PF5 key to save your updates ...' before the record fields are moved to the map (lines 334-339). PROCESS-ENTER-KEY then sends again with the fields (lines 165-171), and the first-entry path sends a third time (line 105). The final screen has the fields and the PF5 prompt. On PF5 the READ's prompt screen is followed by the update result screen."
+  - "Latent bug. In UPDATE-USER-INFO the field comparison and REWRITE (lines 219-243) run even when the READ just failed, because ERR-FLG is tested only once before the READ (line 215). For a user ID not on file, READ NOTFND sends 'User ID NOT found...'. The comparisons then find the typed values differ from the stale SEC-USER-DATA, and REWRITE runs without a prior READ UPDATE. CICS returns INVREQ, and the final message is 'Unable to Update User...' (case COUSR02C-016). The REWRITE NOTFND branch (lines 377-382) is effectively unreachable."
+  - "Cursor in COUSR02C-016. USRIDINL is set to -1 by the NOTFND branch (line 344), and FNAMEL by lines 211 and 387. USRIDIN precedes FNAME in app/bms/COUSR02.bms (lines 85, 103), so symbolic cursor positioning puts the cursor on User ID."
+  - "PF5 updates whatever user ID is in USRIDIN at the time, using the screen's name, password and type. If the operator loads user A with ENTER, overtypes the ID with B and presses PF5, B's record is overwritten with A's displayed fields. The ID field is unprotected (FSET,UNPROT)."
+  - Change detection is an exact, case-sensitive compare of each X field (lines 219-234). No upper-casing is applied to any field, and user type accepts any non-blank character. A changed password is stored verbatim, so a lower-case password locks the user out of COSGN00C, which upper-cases typed passwords.
+  - "The current password is loaded into PASSWDI and sent to the terminal (line 169). The field is DRK (non-display) in app/bms/COUSR02.bms line 130, but the cleartext value is in the 3270 data stream."
+  - Lookup by user ID is case-sensitive with no upper-casing (lines 162, 216). 'admin001' does not find ADMIN001.
+  - READ ... UPDATE (lines 322-331) takes a record lock that is released when the task ends at RETURN. There is no lock or version check between the ENTER that displays the record and the PF5 that rewrites it.
+  - "'Unable to lookup User...' (lines 346-352) appears for other READ errors. On PF5 it falls through to the same REWRITE INVREQ path, so the final message would be 'Unable to Update User...'. No case asserts it because the schema cannot inject a file error."
+  - Message colours (DFHNEUTR prompt, DFHRED for no-change, DFHGREEN for success) are not asserted because the schema has no attribute field.
+  - The invalid-key path (lines 127-130) sets no length to -1. The cursor falls back to the IC field USRIDIN, so no cursor is asserted.
+  - There is no user-type check. Any caller with a COMMAREA can update users, including changing a type to 'A'.
+  - The Java slice replays this spec with deliberate differences listed, each with its reason, in carddemo-java/src/test/resources/spec-overrides/COUSR02C.yaml.
+cases:
+  - id: COUSR02C-001
+    summary: direct start with no COMMAREA (EIBCALEN = 0) transfers to sign-on
+    given:
+      entry: first-time
+    when:
+      aid: ENTER
+      fields: {}
+    then:
+      message: null
+      transfer: {via: XCTL, to: COSGN00C}
+      commarea:
+        CDEMO-TO-PROGRAM: COSGN00C
+        CDEMO-FROM-TRANID: CU02
+        CDEMO-FROM-PROGRAM: COUSR02C
+        CDEMO-PGM-CONTEXT: 0
+      file_effects: []
+    source:
+      file: app/cbl/COUSR02C.cbl
+      lines: [90, 92]
+
+  - id: COUSR02C-002
+    summary: arriving from the admin menu with no selection shows an empty screen with the cursor on User ID
+    given:
+      entry: xctl-from
+      commarea: {CDEMO-FROM-PROGRAM: COADM01C, CDEMO-FROM-TRANID: CA00, CDEMO-USER-TYPE: A, CDEMO-PGM-CONTEXT: 0}
+    when:
+      aid: ENTER
+      fields: {}
+    then:
+      message: null
+      cursor: USRIDINL
+      fields:
+        TRNNAMEO: CU02
+        PGMNAMEO: COUSR02C
+      transfer: {via: RETURN-TRANSID, to: CU02}
+      commarea: {CDEMO-PGM-CONTEXT: 1}
+      file_effects: []
+    source:
+      file: app/cbl/COUSR02C.cbl
+      lines: [95, 105]
+
+  - id: COUSR02C-003
+    summary: arriving from the user list with a selected ID loads that user and prompts for PF5
+    given:
+      entry: xctl-from
+      commarea:
+        CDEMO-FROM-PROGRAM: COUSR00C
+        CDEMO-FROM-TRANID: CU00
+        CDEMO-PGM-CONTEXT: 0
+        CDEMO-CU02-USR-SEL-FLG: U
+        CDEMO-CU02-USR-SELECTED: ADMIN002
+      files:
+        USRSEC:
+          - {SEC-USR-ID: ADMIN002, SEC-USR-FNAME: RUSSELL, SEC-USR-LNAME: RUSSELL, SEC-USR-PWD: PASSWORD, SEC-USR-TYPE: A}
+    when:
+      aid: ENTER
+      fields: {}
+    then:
+      message: "Press PF5 key to save your updates ..."
+      cursor: USRIDINL
+      fields:
+        USRIDINO: ADMIN002
+        FNAMEO: RUSSELL
+        LNAMEO: RUSSELL
+        PASSWDO: PASSWORD
+        USRTYPEO: A
+      transfer: {via: RETURN-TRANSID, to: CU02}
+      commarea: {CDEMO-PGM-CONTEXT: 1}
+      file_effects: []
+    source:
+      file: app/cbl/COUSR02C.cbl
+      lines: [99, 104]
+
+  - id: COUSR02C-004
+    summary: a selected ID that no longer exists shows the not-found message with blank fields
+    given:
+      entry: xctl-from
+      commarea:
+        CDEMO-FROM-PROGRAM: COUSR00C
+        CDEMO-PGM-CONTEXT: 0
+        CDEMO-CU02-USR-SELECTED: GONE0001
+      files:
+        USRSEC:
+          - {SEC-USR-ID: ADMIN001, SEC-USR-FNAME: MARGARET, SEC-USR-LNAME: GOLD, SEC-USR-PWD: PASSWORD, SEC-USR-TYPE: A}
+    when:
+      aid: ENTER
+      fields: {}
+    then:
+      message: "User ID NOT found..."
+      cursor: USRIDINL
+      fields:
+        USRIDINO: GONE0001
+        FNAMEO: ""
+        LNAMEO: ""
+        PASSWDO: ""
+        USRTYPEO: ""
+      transfer: {via: RETURN-TRANSID, to: CU02}
+      file_effects: []
+    source:
+      file: app/cbl/COUSR02C.cbl
+      lines: [340, 345]
+
+  - id: COUSR02C-005
+    summary: ENTER with a blank user ID is rejected
+    given:
+      entry: reenter
+      commarea: {CDEMO-PGM-CONTEXT: 1}
+    when:
+      aid: ENTER
+      fields: {USRIDINI: ""}
+    then:
+      message: "User ID can NOT be empty..."
+      cursor: USRIDINL
+      transfer: {via: RETURN-TRANSID, to: CU02}
+      file_effects: []
+    source:
+      file: app/cbl/COUSR02C.cbl
+      lines: [146, 151]
+
+  - id: COUSR02C-006
+    summary: ENTER with an existing user ID loads the record (password included) and prompts for PF5
+    given:
+      entry: reenter
+      commarea: {CDEMO-PGM-CONTEXT: 1}
+      files:
+        USRSEC:
+          - {SEC-USR-ID: USER0003, SEC-USR-FNAME: LAURITZ, SEC-USR-LNAME: ALME, SEC-USR-PWD: PASSWORD, SEC-USR-TYPE: U}
+    when:
+      aid: ENTER
+      fields: {USRIDINI: USER0003, FNAMEI: STALE, LNAMEI: STALE}
+    then:
+      message: "Press PF5 key to save your updates ..."
+      cursor: USRIDINL
+      fields:
+        FNAMEO: LAURITZ
+        LNAMEO: ALME
+        PASSWDO: PASSWORD
+        USRTYPEO: U
+      transfer: {via: RETURN-TRANSID, to: CU02}
+      file_effects: []
+    source:
+      file: app/cbl/COUSR02C.cbl
+      lines: [157, 172]
+
+  - id: COUSR02C-007
+    summary: ENTER with an unknown user ID blanks the fields and shows the not-found message
+    given:
+      entry: reenter
+      commarea: {CDEMO-PGM-CONTEXT: 1}
+      files:
+        USRSEC:
+          - {SEC-USR-ID: USER0003, SEC-USR-FNAME: LAURITZ, SEC-USR-LNAME: ALME, SEC-USR-PWD: PASSWORD, SEC-USR-TYPE: U}
+    when:
+      aid: ENTER
+      fields: {USRIDINI: NOBODY99, FNAMEI: STALE, LNAMEI: STALE, PASSWDI: STALE, USRTYPEI: U}
+    then:
+      message: "User ID NOT found..."
+      cursor: USRIDINL
+      fields:
+        FNAMEO: ""
+        LNAMEO: ""
+        PASSWDO: ""
+        USRTYPEO: ""
+      transfer: {via: RETURN-TRANSID, to: CU02}
+      file_effects: []
+    source:
+      file: app/cbl/COUSR02C.cbl
+      lines: [340, 345]
+
+  - id: COUSR02C-008
+    summary: lookup is case-sensitive, so a lower-case ID does not find the upper-case record
+    given:
+      entry: reenter
+      commarea: {CDEMO-PGM-CONTEXT: 1}
+      files:
+        USRSEC:
+          - {SEC-USR-ID: ADMIN001, SEC-USR-FNAME: MARGARET, SEC-USR-LNAME: GOLD, SEC-USR-PWD: PASSWORD, SEC-USR-TYPE: A}
+    when:
+      aid: ENTER
+      fields: {USRIDINI: admin001}
+    then:
+      message: "User ID NOT found..."
+      cursor: USRIDINL
+      transfer: {via: RETURN-TRANSID, to: CU02}
+      file_effects: []
+    source:
+      file: app/cbl/COUSR02C.cbl
+      lines: [162, 163]
+
+  - id: COUSR02C-009
+    summary: PF5 with a blank user ID is rejected
+    given:
+      entry: reenter
+      commarea: {CDEMO-PGM-CONTEXT: 1}
+    when:
+      aid: PF5
+      fields: {USRIDINI: "", FNAMEI: ANNA, LNAMEI: SMITH, PASSWDI: PASSWORD, USRTYPEI: U}
+    then:
+      message: "User ID can NOT be empty..."
+      cursor: USRIDINL
+      transfer: {via: RETURN-TRANSID, to: CU02}
+      file_effects: []
+    source:
+      file: app/cbl/COUSR02C.cbl
+      lines: [180, 185]
+
+  - id: COUSR02C-010
+    summary: PF5 with a blank First Name is rejected
+    given:
+      entry: reenter
+      commarea: {CDEMO-PGM-CONTEXT: 1}
+    when:
+      aid: PF5
+      fields: {USRIDINI: USER0003, FNAMEI: "", LNAMEI: ALME, PASSWDI: PASSWORD, USRTYPEI: U}
+    then:
+      message: "First Name can NOT be empty..."
+      cursor: FNAMEL
+      transfer: {via: RETURN-TRANSID, to: CU02}
+      file_effects: []
+    source:
+      file: app/cbl/COUSR02C.cbl
+      lines: [186, 191]
+
+  - id: COUSR02C-011
+    summary: PF5 with a blank Last Name is rejected
+    given:
+      entry: reenter
+      commarea: {CDEMO-PGM-CONTEXT: 1}
+    when:
+      aid: PF5
+      fields: {USRIDINI: USER0003, FNAMEI: LAURITZ, LNAMEI: "", PASSWDI: PASSWORD, USRTYPEI: U}
+    then:
+      message: "Last Name can NOT be empty..."
+      cursor: LNAMEL
+      transfer: {via: RETURN-TRANSID, to: CU02}
+      file_effects: []
+    source:
+      file: app/cbl/COUSR02C.cbl
+      lines: [192, 197]
+
+  - id: COUSR02C-012
+    summary: PF5 with a blank Password is rejected
+    given:
+      entry: reenter
+      commarea: {CDEMO-PGM-CONTEXT: 1}
+    when:
+      aid: PF5
+      fields: {USRIDINI: USER0003, FNAMEI: LAURITZ, LNAMEI: ALME, PASSWDI: "", USRTYPEI: U}
+    then:
+      message: "Password can NOT be empty..."
+      cursor: PASSWDL
+      transfer: {via: RETURN-TRANSID, to: CU02}
+      file_effects: []
+    source:
+      file: app/cbl/COUSR02C.cbl
+      lines: [198, 203]
+
+  - id: COUSR02C-013
+    summary: PF5 with a blank User Type is rejected
+    given:
+      entry: reenter
+      commarea: {CDEMO-PGM-CONTEXT: 1}
+    when:
+      aid: PF5
+      fields: {USRIDINI: USER0003, FNAMEI: LAURITZ, LNAMEI: ALME, PASSWDI: PASSWORD, USRTYPEI: ""}
+    then:
+      message: "User Type can NOT be empty..."
+      cursor: USRTYPEL
+      transfer: {via: RETURN-TRANSID, to: CU02}
+      file_effects: []
+    source:
+      file: app/cbl/COUSR02C.cbl
+      lines: [204, 209]
+
+  - id: COUSR02C-014
+    summary: PF5 with values identical to the record asks the user to modify and does not rewrite
+    given:
+      entry: reenter
+      commarea: {CDEMO-PGM-CONTEXT: 1}
+      files:
+        USRSEC:
+          - {SEC-USR-ID: USER0003, SEC-USR-FNAME: LAURITZ, SEC-USR-LNAME: ALME, SEC-USR-PWD: PASSWORD, SEC-USR-TYPE: U}
+    when:
+      aid: PF5
+      fields: {USRIDINI: USER0003, FNAMEI: LAURITZ, LNAMEI: ALME, PASSWDI: PASSWORD, USRTYPEI: U}
+    then:
+      message: "Please modify to update ..."
+      cursor: FNAMEL
+      transfer: {via: RETURN-TRANSID, to: CU02}
+      file_effects: []
+    source:
+      file: app/cbl/COUSR02C.cbl
+      lines: [236, 243]
+
+  - id: COUSR02C-015
+    summary: PF5 with a changed last name and type rewrites the whole record and confirms in green
+    given:
+      entry: reenter
+      commarea: {CDEMO-PGM-CONTEXT: 1}
+      files:
+        USRSEC:
+          - {SEC-USR-ID: USER0003, SEC-USR-FNAME: LAURITZ, SEC-USR-LNAME: ALME, SEC-USR-PWD: PASSWORD, SEC-USR-TYPE: U}
+    when:
+      aid: PF5
+      fields: {USRIDINI: USER0003, FNAMEI: LAURITZ, LNAMEI: ALMEIDA, PASSWDI: PASSWORD, USRTYPEI: A}
+    then:
+      message: "User {SEC-USR-ID} has been updated ..."
+      cursor: FNAMEL
+      fields:
+        USRIDINO: USER0003
+        LNAMEO: ALMEIDA
+        USRTYPEO: A
+      transfer: {via: RETURN-TRANSID, to: CU02}
+      file_effects:
+        - file: USRSEC
+          op: REWRITE
+          record: {SEC-USR-ID: USER0003, SEC-USR-FNAME: LAURITZ, SEC-USR-LNAME: ALMEIDA, SEC-USR-PWD: PASSWORD, SEC-USR-TYPE: A}
+    source:
+      file: app/cbl/COUSR02C.cbl
+      lines: [360, 376]
+
+  - id: COUSR02C-016
+    summary: PF5 for an ID not on file ends with 'Unable to Update User...' because REWRITE runs after the failed READ (see notes)
+    given:
+      entry: reenter
+      commarea: {CDEMO-PGM-CONTEXT: 1}
+      files:
+        USRSEC:
+          - {SEC-USR-ID: USER0003, SEC-USR-FNAME: LAURITZ, SEC-USR-LNAME: ALME, SEC-USR-PWD: PASSWORD, SEC-USR-TYPE: U}
+    when:
+      aid: PF5
+      fields: {USRIDINI: NOBODY99, FNAMEI: ANNA, LNAMEI: SMITH, PASSWDI: PASSWORD, USRTYPEI: U}
+    then:
+      message: "Unable to Update User..."
+      cursor: USRIDINL
+      transfer: {via: RETURN-TRANSID, to: CU02}
+      file_effects: []
+    source:
+      file: app/cbl/COUSR02C.cbl
+      lines: [215, 237]
+
+  - id: COUSR02C-017
+    summary: PF5 stores a changed password exactly as typed (lower case kept)
+    given:
+      entry: reenter
+      commarea: {CDEMO-PGM-CONTEXT: 1}
+      files:
+        USRSEC:
+          - {SEC-USR-ID: USER0003, SEC-USR-FNAME: LAURITZ, SEC-USR-LNAME: ALME, SEC-USR-PWD: PASSWORD, SEC-USR-TYPE: U}
+    when:
+      aid: PF5
+      fields: {USRIDINI: USER0003, FNAMEI: LAURITZ, LNAMEI: ALME, PASSWDI: newpass, USRTYPEI: U}
+    then:
+      message: "User {SEC-USR-ID} has been updated ..."
+      cursor: FNAMEL
+      transfer: {via: RETURN-TRANSID, to: CU02}
+      file_effects:
+        - file: USRSEC
+          op: REWRITE
+          record: {SEC-USR-ID: USER0003, SEC-USR-FNAME: LAURITZ, SEC-USR-LNAME: ALME, SEC-USR-PWD: newpass, SEC-USR-TYPE: U}
+    source:
+      file: app/cbl/COUSR02C.cbl
+      lines: [227, 230]
+
+  - id: COUSR02C-018
+    summary: PF3 after changes saves the record and returns to the user list it came from
+    given:
+      entry: reenter
+      commarea: {CDEMO-FROM-PROGRAM: COUSR00C, CDEMO-FROM-TRANID: CU00, CDEMO-PGM-CONTEXT: 1}
+      files:
+        USRSEC:
+          - {SEC-USR-ID: USER0003, SEC-USR-FNAME: LAURITZ, SEC-USR-LNAME: ALME, SEC-USR-PWD: PASSWORD, SEC-USR-TYPE: U}
+    when:
+      aid: PF3
+      fields: {USRIDINI: USER0003, FNAMEI: LAURA, LNAMEI: ALME, PASSWDI: PASSWORD, USRTYPEI: U}
+    then:
+      message: null
+      transfer: {via: XCTL, to: COUSR00C}
+      commarea:
+        CDEMO-TO-PROGRAM: COUSR00C
+        CDEMO-FROM-TRANID: CU02
+        CDEMO-FROM-PROGRAM: COUSR02C
+        CDEMO-PGM-CONTEXT: 0
+      file_effects:
+        - file: USRSEC
+          op: REWRITE
+          record: {SEC-USR-ID: USER0003, SEC-USR-FNAME: LAURA, SEC-USR-LNAME: ALME, SEC-USR-PWD: PASSWORD, SEC-USR-TYPE: U}
+    source:
+      file: app/cbl/COUSR02C.cbl
+      lines: [111, 119]
+
+  - id: COUSR02C-019
+    summary: PF3 with no changes writes nothing and returns to the admin menu it came from
+    given:
+      entry: reenter
+      commarea: {CDEMO-FROM-PROGRAM: COADM01C, CDEMO-FROM-TRANID: CA00, CDEMO-PGM-CONTEXT: 1}
+      files:
+        USRSEC:
+          - {SEC-USR-ID: USER0003, SEC-USR-FNAME: LAURITZ, SEC-USR-LNAME: ALME, SEC-USR-PWD: PASSWORD, SEC-USR-TYPE: U}
+    when:
+      aid: PF3
+      fields: {USRIDINI: USER0003, FNAMEI: LAURITZ, LNAMEI: ALME, PASSWDI: PASSWORD, USRTYPEI: U}
+    then:
+      message: null
+      transfer: {via: XCTL, to: COADM01C}
+      commarea: {CDEMO-TO-PROGRAM: COADM01C, CDEMO-FROM-PROGRAM: COUSR02C, CDEMO-PGM-CONTEXT: 0}
+      file_effects: []
+    source:
+      file: app/cbl/COUSR02C.cbl
+      lines: [111, 119]
+
+  - id: COUSR02C-020
+    summary: PF3 with a validation error still leaves the screen (the error is discarded) and writes nothing
+    given:
+      entry: reenter
+      commarea: {CDEMO-FROM-PROGRAM: COUSR00C, CDEMO-PGM-CONTEXT: 1}
+      files:
+        USRSEC:
+          - {SEC-USR-ID: USER0003, SEC-USR-FNAME: LAURITZ, SEC-USR-LNAME: ALME, SEC-USR-PWD: PASSWORD, SEC-USR-TYPE: U}
+    when:
+      aid: PF3
+      fields: {USRIDINI: USER0003, FNAMEI: "", LNAMEI: ALME, PASSWDI: PASSWORD, USRTYPEI: U}
+    then:
+      message: null
+      transfer: {via: XCTL, to: COUSR00C}
+      file_effects: []
+    source:
+      file: app/cbl/COUSR02C.cbl
+      lines: [111, 119]
+
+  - id: COUSR02C-021
+    summary: PF3 with a blank CDEMO-FROM-PROGRAM defaults to the admin menu
+    given:
+      entry: reenter
+      commarea: {CDEMO-FROM-PROGRAM: "", CDEMO-PGM-CONTEXT: 1}
+    when:
+      aid: PF3
+      fields: {USRIDINI: ""}
+    then:
+      message: null
+      transfer: {via: XCTL, to: COADM01C}
+      file_effects: []
+    source:
+      file: app/cbl/COUSR02C.cbl
+      lines: [113, 114]
+
+  - id: COUSR02C-022
+    summary: PF12 returns to the admin menu without saving pending changes
+    given:
+      entry: reenter
+      commarea: {CDEMO-FROM-PROGRAM: COUSR00C, CDEMO-PGM-CONTEXT: 1}
+      files:
+        USRSEC:
+          - {SEC-USR-ID: USER0003, SEC-USR-FNAME: LAURITZ, SEC-USR-LNAME: ALME, SEC-USR-PWD: PASSWORD, SEC-USR-TYPE: U}
+    when:
+      aid: PF12
+      fields: {USRIDINI: USER0003, FNAMEI: LAURA, LNAMEI: ALME, PASSWDI: PASSWORD, USRTYPEI: U}
+    then:
+      message: null
+      transfer: {via: XCTL, to: COADM01C}
+      commarea: {CDEMO-TO-PROGRAM: COADM01C, CDEMO-FROM-TRANID: CU02, CDEMO-FROM-PROGRAM: COUSR02C, CDEMO-PGM-CONTEXT: 0}
+      file_effects: []
+    source:
+      file: app/cbl/COUSR02C.cbl
+      lines: [124, 126]
+
+  - id: COUSR02C-023
+    summary: PF4 clears all fields and the message, cursor to User ID
+    given:
+      entry: reenter
+      commarea: {CDEMO-PGM-CONTEXT: 1}
+    when:
+      aid: PF4
+      fields: {USRIDINI: USER0003, FNAMEI: LAURITZ, LNAMEI: ALME, PASSWDI: PASSWORD, USRTYPEI: U}
+    then:
+      message: null
+      cursor: USRIDINL
+      fields:
+        USRIDINO: ""
+        FNAMEO: ""
+        LNAMEO: ""
+        PASSWDO: ""
+        USRTYPEO: ""
+      transfer: {via: RETURN-TRANSID, to: CU02}
+      file_effects: []
+    source:
+      file: app/cbl/COUSR02C.cbl
+      lines: [394, 411]
+
+  - id: COUSR02C-024
+    summary: any other key shows the invalid-key message
+    given:
+      entry: reenter
+      commarea: {CDEMO-PGM-CONTEXT: 1}
+    when:
+      aid: PF7
+      fields: {}
+    then:
+      message: "Invalid key pressed. Please see below..."
+      transfer: {via: RETURN-TRANSID, to: CU02}
+      file_effects: []
+    source:
+      file: app/cbl/COUSR02C.cbl
+      lines: [127, 130]

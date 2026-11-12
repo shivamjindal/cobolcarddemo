@@ -1,0 +1,18 @@
+<html xmlns:th="http://www.thymeleaf.org">
+<main th:fragment="options">
+    <ol class="options">
+        <th:block th:each="i : ${#numbers.sequence(1, 12)}"
+                  th:with="name=|OPTN${#numbers.formatInteger(i, 3)}|, option=${screen.fields.get(name)}">
+            <li th:unless="${#strings.isEmpty(option)}" th:data-testid="${name}" th:text="${option}"></li>
+        </th:block>
+    </ol>
+    <p class="intro" th:if="${#strings.isEmpty(screen.fields.get('OPTN001'))}">No options are available yet.</p>
+    <div class="fields">
+        <th:block th:replace="~{fields :: field('OPTION', 'Please select an option:', 2)}"></th:block>
+    </div>
+</main>
+<nav class="keys" th:fragment="keys">
+    <button name="aid" value="ENTER">ENTER=Continue</button>
+    <button name="aid" value="PF3">F3=Exit</button>
+</nav>
+</html>

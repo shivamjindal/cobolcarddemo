@@ -21,6 +21,12 @@ repositories {
 dependencies {
     implementation(platform(SpringBootPlugin.BOM_COORDINATES))
     implementation("org.springframework.boot:spring-boot-starter-jdbc")
+    implementation("org.springframework.boot:spring-boot-starter-web")
+    implementation("org.springframework.boot:spring-boot-starter-thymeleaf")
+    implementation("org.springframework.boot:spring-boot-starter-security")
+    implementation("org.springframework.boot:spring-boot-starter-oauth2-client")
+    implementation("org.springframework.boot:spring-boot-starter-oauth2-authorization-server")
+    implementation("org.springframework.boot:spring-boot-starter-actuator")
     implementation("org.flywaydb:flyway-core")
     implementation("org.flywaydb:flyway-database-postgresql")
     runtimeOnly("org.postgresql:postgresql")
@@ -28,9 +34,15 @@ dependencies {
     testImplementation(platform(SpringBootPlugin.BOM_COORDINATES))
     testImplementation("org.springframework.boot:spring-boot-starter-test")
     testImplementation("org.springframework.boot:spring-boot-testcontainers")
+    testImplementation("org.springframework.security:spring-security-test")
     testImplementation("org.testcontainers:junit-jupiter")
     testImplementation("org.testcontainers:postgresql")
+    testImplementation("org.jsoup:jsoup:1.21.2")
     testRuntimeOnly("org.junit.platform:junit-platform-launcher")
+}
+
+springBoot {
+    buildInfo()
 }
 
 val legacyApp = rootDir.resolve("../app")
@@ -63,7 +75,14 @@ tasks.register<JavaExec>("generateDdl") {
     args(file(migration).absolutePath)
 }
 
+val specs = rootDir.resolve("../characterization/online/specs")
+
 tasks.test {
     useJUnitPlatform()
     systemProperty("carddemo.legacy-app", legacyApp.absolutePath)
+    systemProperty("carddemo.specs", specs.absolutePath)
+    inputs.dir(specs).withPathSensitivity(PathSensitivity.RELATIVE)
+    addTestOutputListener { _, event ->
+        if (event.message.startsWith("[spec-replay]")) logger.lifecycle(event.message.trimEnd())
+    }
 }

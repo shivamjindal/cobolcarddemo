@@ -55,6 +55,10 @@ public record Table(VsamDataset dataset, List<Column> columns, List<Column> prim
                 + columns.stream().map(c -> "?").collect(Collectors.joining(", ")) + ")";
     }
 
+    public int columnIndex(String name) {
+        return columns.indexOf(columns.stream().filter(c -> c.name().equals(name)).findFirst().orElseThrow());
+    }
+
     public Object[] decode(String record) {
         return columns.stream().map(c -> c.decode(record)).toArray();
     }

@@ -1,0 +1,29 @@
+<!DOCTYPE html>
+<html lang="en" xmlns:th="http://www.thymeleaf.org" th:fragment="screen(title, body, keys)">
+<head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <title th:text="|${screen.transid} ${title} - CardDemo|">CardDemo</title>
+    <link rel="stylesheet" th:href="@{/css/screen.css}">
+    <script th:src="@{/js/screen.js}" defer></script>
+</head>
+<body>
+<form class="screen" method="post" autocomplete="off"
+      th:action="${screen.program.name() == 'COSGN00C'} ? @{/signon} : @{/screens/{p}(p=${screen.program})}">
+    <header>
+        <span>Tran: <b data-testid="TRNNAME" th:text="${screen.fields.get('TRNNAME')}"></b></span>
+        <b class="title" data-testid="TITLE01" th:text="${screen.fields.get('TITLE01')}"></b>
+        <span>Date: <b data-testid="CURDATE" th:text="${screen.fields.get('CURDATE')}"></b></span>
+        <span>Prog: <b data-testid="PGMNAME" th:text="${screen.fields.get('PGMNAME')}"></b></span>
+        <b class="title" data-testid="TITLE02" th:text="${screen.fields.get('TITLE02')}"></b>
+        <span>Time: <b data-testid="CURTIME" th:text="${screen.fields.get('CURTIME')}"></b></span>
+    </header>
+    <h1 th:text="${title}"></h1>
+    <th:block th:replace="${body}"></th:block>
+    <p class="message" data-testid="ERRMSG" th:text="${screen.message?.text}"
+       th:classappend="${screen.message} ? ${#strings.toLowerCase(screen.message.kind)}"></p>
+    <th:block th:replace="${keys}"></th:block>
+</form>
+</body>
+</html>
+

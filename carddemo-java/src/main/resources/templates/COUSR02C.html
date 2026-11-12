@@ -1,0 +1,18 @@
+<html xmlns:th="http://www.thymeleaf.org" th:replace="~{layout :: screen('Update User', ~{::main}, ~{::nav})}">
+<main>
+    <div class="fields">
+        <th:block th:replace="~{fields :: field('USRIDIN', 'Enter User ID:', 8)}"></th:block>
+        <th:block th:replace="~{fields :: field('FNAME', 'First Name:', 20)}"></th:block>
+        <th:block th:replace="~{fields :: field('LNAME', 'Last Name:', 20)}"></th:block>
+        <th:block th:replace="~{fields :: field('PASSWD', 'New Password (blank keeps it):', 8)}"></th:block>
+        <th:block th:replace="~{fields :: field('USRTYPE', 'User Type (A=Admin, U=User):', 1)}"></th:block>
+    </div>
+</main>
+<nav class="keys">
+    <button name="aid" value="ENTER">ENTER=Fetch</button>
+    <button name="aid" value="PF3">F3=Save&amp;Exit</button>
+    <button name="aid" value="PF4">F4=Clear</button>
+    <button name="aid" value="PF5">F5=Save</button>
+    <button name="aid" value="PF12">F12=Cancel</button>
+</nav>
+</html>

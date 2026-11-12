@@ -1,0 +1,44 @@
+:root {
+    --bg: #070b08; --panel: #0d140f; --line: #1f3a26; --text: #b9f3c6;
+    --field: #4dff88; --label: #67c8ff; --title: #ffd866; --error: #ff6b6b; --info: #e8e8e8;
+}
+* { box-sizing: border-box; }
+body {
+    margin: 0; min-height: 100vh; display: grid; place-items: center; color: var(--text);
+    background: radial-gradient(ellipse at top, #10241a, var(--bg) 70%);
+    font: 15px/1.6 ui-monospace, "JetBrains Mono", Menlo, Consolas, monospace;
+}
+.screen {
+    width: min(84ch, 100vw - 2rem); margin: 1rem; padding: 1.25rem 2rem 1.5rem;
+    background: var(--panel); border: 1px solid var(--line); border-radius: 10px;
+    box-shadow: 0 0 0 1px #000, 0 20px 60px #0008, inset 0 0 80px #4dff8808;
+}
+header { display: grid; grid-template-columns: 1fr auto 1fr; color: var(--label); }
+header b { color: var(--text); font-weight: normal; }
+header span:nth-of-type(even) { text-align: right; }
+header .title { text-align: center; color: var(--title); }
+h1 { margin: 1rem 0; text-align: center; font-size: 1rem; letter-spacing: .15em; color: #fff; }
+.intro, .banner { color: var(--label); text-align: center; }
+.banner { margin: .5rem auto; width: max-content; color: var(--title); }
+.fields { display: grid; grid-template-columns: max-content max-content; gap: .4rem 1rem; justify-content: center; }
+.label, label { color: var(--label); }
+.value { color: var(--field); }
+input {
+    font: inherit; color: var(--field); background: transparent; caret-color: var(--field);
+    border: 0; border-bottom: 1px solid var(--field); padding: 0 .3ch;
+}
+input:focus { outline: none; background: #4dff8820; }
+.options { list-style: none; width: max-content; margin: 0 auto 1rem; padding: 0; color: var(--text); }
+table { margin: 1rem auto; border-collapse: collapse; }
+th { color: var(--label); font-weight: normal; text-align: left; border-bottom: 1px dashed var(--line); }
+td, th { padding: .1rem .75rem; }
+.message { min-height: 1.6em; margin: 1rem 0 .5rem; color: var(--info); }
+.message.error { color: var(--error); }
+.message.success { color: var(--field); }
+.keys { display: flex; flex-wrap: wrap; gap: .5rem; padding-top: .75rem; border-top: 1px solid var(--line); }
+.keys button {
+    font: inherit; color: var(--title); background: #15211a; cursor: pointer;
+    border: 1px solid var(--line); border-radius: 4px; padding: .15rem .7rem;
+}
+.keys button:hover, .keys button:focus-visible { border-color: var(--title); outline: none; }
+a { color: var(--title); }

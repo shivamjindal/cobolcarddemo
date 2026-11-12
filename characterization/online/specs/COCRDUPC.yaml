@@ -1,0 +1,1341 @@
+program: COCRDUPC
+transaction: CCUP
+screen:
+  mapset: COCRDUP
+  map: CCRDUPA
+evidence: derived
+sources:
+  - app/cbl/COCRDUPC.cbl
+  - app/bms/COCRDUP.bms
+  - app/cpy-bms/COCRDUP.CPY
+  - app/cpy/COCOM01Y.cpy
+  - app/cpy/CVCRD01Y.cpy
+  - app/cpy/CVACT02Y.cpy
+  - app/cpy/CSSTRPFY.cpy
+files:
+  - name: CARDDAT
+    ops: [READ, READ-UPDATE, REWRITE]
+    key: CARD-NUM
+navigation:
+  - to: COCRDLIC
+    via: XCTL
+    when: >-
+      PF3, or any key after the update finished (state C) or failed (state L/F), when CDEMO-FROM-PROGRAM is COCRDLIC;
+      target is CDEMO-FROM-PROGRAM; a SYNCPOINT precedes the XCTL (lines 435-476)
+  - to: COMEN01C
+    via: XCTL
+    when: PF3 when CDEMO-FROM-PROGRAM is spaces or LOW-VALUES (first entry or arrival from the menu) (lines 449-451)
+  - to: CCUP
+    via: RETURN-TRANSID
+    when: every path that sends the update screen (COMMON-RETURN, lines 546-558)
+notes:
+  - >-
+    Value conventions used in this spec. "" means the field is all spaces. "LOW-VALUES" means the field is binary
+    zeros (nothing written to the screen). EXPDAYI is the hidden expiry-day field (BMS EXPDAY ATTRB=(DRK,FSET,PROT),
+    app/bms/COCRDUP.bms line 142): the program sends CCUP-OLD-EXPDAY in it and receives it back, so when.fields
+    include EXPDAYI to model that round trip. given.file_conditions (see SCHEMA.md) injects a CICS RESP to reach an error branch (cases COCRDUPC-012 and COCRDUPC-033).
+  - >-
+    State machine. CCUP-CHANGE-ACTION in WS-THIS-PROGCOMMAREA (lines 274-290) holds the state:
+    LOW-VALUES/spaces = details not fetched (search screen), 'S' = details shown, 'E' = edits had errors,
+    'N' = edits valid and awaiting F5 confirmation, 'C' = rewrite done, 'L' = could not lock, 'F' = rewrite failed.
+    CCUP-OLD-* holds the card as fetched (name upper-cased, lines 1357-1366), CCUP-NEW-* is rebuilt from the screen
+    on every receive (lines 585-636). Transitions -
+    (1) entry or arrival from menu: blank (lines 387-394, 502-511);
+    (2) arrival from COCRDLIC with PGM-ENTER, or PF12 while FROM-PROGRAM = COCRDLIC: re-read card, 'S' (lines 481-496);
+    (3) blank + valid keys found: 'S' (lines 954-966);
+    (4) 'S'/'E' + screen differs from CCUP-OLD (upper-case compare): 'E', then all four field edits run, 'N' if none
+    failed (lines 680-714); identical screen keeps the current state and says 'No change detected...';
+    (5) 'N' + PF5: READ UPDATE, compare with CCUP-OLD, REWRITE: 'C', or 'L' (lock), 'F' (rewrite), or 'S' with the
+    refreshed record if someone else changed it (lines 988-1001, 1420-1519); 'N' + any other key stays 'N';
+    (6) 'C'/'L'/'F' + any key: XCTL back when CDEMO-LAST-MAPSET = 'COCRDLI' (lines 435-476), otherwise reset to the
+    blank search screen (lines 517-528).
+  - >-
+    Key validity (lines 413-424). ENTER and PF3 are always valid. PF5 is valid only in state 'N'; PF12 only when
+    details have been fetched. Every other key, including PF5 before confirmation and PF12 on the search screen, is
+    silently treated as ENTER.
+  - >-
+    Latent bug: the REWRITE never preserves the CVV. 9200 moves CCUP-NEW-CVV-CD into CARD-UPDATE-CVV-CD through the
+    CARD-CVV-CD-X/-N redefine (lines 1464-1465), but CCUP-NEW-CVV-CD is only ever INITIALIZEd to spaces (line 585) and
+    no statement assigns it. The record is rewritten with a CVV derived from three spaces moved as PIC 9(3). This
+    spec records CARD-CVV-CD as "000"; the exact bytes depend on the compiler's numeric-move handling of invalid
+    zoned data ("000" or "  0" are both plausible), but in every reading the original CVV (123 in the cases) is lost.
+  - >-
+    Latent bug: CARD-UPDATE-RECORD is INITIALIZEd before the rewrite (line 1461), and INITIALIZE skips FILLER, so
+    the 59-byte FILLER of the card record is rewritten with whatever the FILLER of the COMMAREA copy held, not with the
+    FILLER read from the file.
+  - >-
+    The rewritten record takes CARD-NUM from the screen card field (CCUP-NEW-CARDID) and CARD-ACCT-ID from the screen
+    account field (CC-ACCT-ID-N), not from the record read for update (lines 1462-1463). Both fields are protected in
+    states 'S'/'E'/'N', so in practice they equal the fetched keys. CARD-EMBOSSED-NAME is saved exactly as typed
+    (mixed case kept) even though the screen showed it upper-cased. Expiry is STRINGed as YEAR-MON-DAY with the day
+    from the hidden EXPDAY field (lines 1467-1473); there is no day-of-month validation and no check that the date is
+    in the future, so '2028-06-31' is written as-is (case 030). The expiry day cannot be changed (comment lines
+    1119-1123).
+  - >-
+    Field edits (1230-1260). Name: blank/spaces/all zeros -> 'Card name not provided'; any character outside A-Z,
+    a-z and space -> 'Card name can only contain alphabets and spaces' (INSPECT CONVERTING then TRIM, lines 823-837).
+    Status: must be upper-case 'Y' or 'N' (88 FLG-YES-NO-VALID, line 91); blank uses the same message. Month: blank or
+    '00' -> blank path (gets '*'); otherwise 88 VALID-MONTH 1 THRU 12 on a PIC 9(2) redefine. Year: blank or '0000' ->
+    blank path; otherwise 88 VALID-YEAR 1950 THRU 2099. The first failing edit in the order name, status, month, year
+    sets the message (each only IF WS-RETURN-MSG-OFF) and 3300 places the cursor on the first failing field in the
+    same order (lines 1210-1235). Every failing field is shown red; blank ones also get '*' (lines 1263-1307).
+  - >-
+    Ambiguity: month and year are tested with 88-levels on PIC 9 redefines of the raw input. A one-digit month typed
+    as '6' arrives as '6 ' (space padded) and non-digits such as 'AB' are invalid zoned decimal; whether VALID-MONTH /
+    VALID-YEAR is true for such bytes depends on the compiler (on IBM zoned decimal 'AB' = X'C1C2' can read as +12).
+    No case asserts those inputs.
+  - >-
+    Quirk: the no-change test upper-cases both sides (lines 680-682), but the status edit accepts only upper-case.
+    Typing 'y' over 'Y' with nothing else changed reports 'No change detected...' (case 014), while 'y' combined with
+    any real change fails with 'Card Active Status must be Y or N' (case 020).
+  - >-
+    Quirk: arriving from the list for a card that no longer exists still sets state 'S' (line 493 runs regardless
+    of NOTFND), so the user sees the not-found message, blank detail fields, and editable inputs (case 004). A later
+    F5 then fails with 'Could not lock record for update'.
+  - >-
+    Quirk: PF12 when the update was started from the menu (CDEMO-FROM-PROGRAM blank) goes through 1200 edits before
+    2000 re-reads the card, so any edit error or 'No change detected...' produced by the abandoned input is still
+    shown in ERRMSGO above the restored values (case 041). PF12 when started from the list skips the edits (lines
+    483-496) and shows a clean screen (case 040).
+  - >-
+    Quirk: if the user is in state 'E' and restores the original values, the state stays 'E' (1200 exits early,
+    2000 WHEN CCUP-CHANGES-NOT-OK continues), so the info line keeps 'Update card details presented above.' while
+    ERRMSGO says 'No change detected...' (case 044).
+  - >-
+    Quirk: in states 'N', 'C', 'L', 'F' every field flag is valid, so 3300 puts the cursor on ACCTSIDL (WHEN OTHER,
+    line 1234) even though ACCTSID is protected in 'N'/'C'. In 'L'/'F' the account and card fields are unprotected
+    (WHEN OTHER, lines 1200-1207) but the next key ignores them (exit to list, or reset to a fresh search).
+  - >-
+    Dead code: 2000-DECIDE-ACTION WHEN CCUP-CHANGES-OKAYED-AND-DONE (lines 1011-1018) and WHEN OTHER -> ABEND-ROUTINE
+    'UNEXPECTED DATA SCENARIO' (lines 1019-1026) are unreachable through normal states, because states 'C'/'L'/'F'
+    are consumed by 0000-MAIN before 2000 runs and 1200 only produces blank/'S'/'E'/'N'. 9300-CHECK-CHANGE-IN-REC
+    leaves its PERFORM with GO TO 9200-WRITE-PROCESSING-EXIT (line 1518), leaving the 9300 PERFORM range open; IBM
+    COBOL tolerates this. Line 1519 reads 'END-IF EXIT'. The comment 'Must be 1 to 12' above the year edit
+    (line 928) is copied from the month edit.
+  - >-
+    Exit path. PF3 and the post-update auto-exit move CDEMO-FROM-PROGRAM to CDEMO-TO-PROGRAM (COMEN01C if blank),
+    zero CDEMO-ACCT-ID/CARD-NUM only when CDEMO-LAST-MAPSET = 'COCRDLI', set CDEMO-USRTYP-USER (admin becomes 'U'),
+    PGM-ENTER, CDEMO-LAST-MAPSET 'COCRDUP' (8-byte literal truncated into X(7)), then EXEC CICS SYNCPOINT and XCTL
+    (lines 440-476). The SYNCPOINT is not expressible in the schema. COMMON-RETURN never updates CDEMO-FROM-PROGRAM or
+    CDEMO-LAST-MAPSET, so both keep the values of the program that XCTLed in for the whole conversation.
+  - >-
+    Not used. None of COCRDLIC, COCRDSLC, COCRDUPC COPY or CALL CSUTLDPY/CSUTLDWY/CSUTLDTC, or reference CCXREF,
+    CXACAIX or CVACT03Y; expiry validation is only the month/year ranges above. CARDAIX appears only as the unused
+    literal LIT-CARDFILENAME-ACCT-PATH. LIT-CCLISTMAP is 'CCRDSLA' (line 234), the detail map, and is unused.
+    The 88-levels WS-NAME-MUST-BE-ALPHA etc. are the real message texts; SEARCHED-ACCT-NOT-NUMERIC,
+    SEARCHED-CARD-NOT-NUMERIC, DID-NOT-FIND-ACCT-IN-CARDXREF, XREF-READ-ERROR, CODING-TO-BE-DONE are never set.
+cases:
+  - id: COCRDUPC-001
+    summary: first entry (no COMMAREA) shows the search screen asking for account and card
+    given:
+      entry: first-time
+      commarea: {}
+      files:
+        CARDDAT: &card
+          - {CARD-NUM: "4000000000000002", CARD-ACCT-ID: "00000000001", CARD-CVV-CD: "123", CARD-EMBOSSED-NAME: "John Smith", CARD-EXPIRAION-DATE: "2027-05-31", CARD-ACTIVE-STATUS: "Y"}
+    when:
+      aid: ENTER
+      fields: {}
+    then:
+      message: null
+      cursor: ACCTSIDL
+      fields:
+        INFOMSGO: "Please enter Account and Card Number"
+        ACCTSIDO: LOW-VALUES
+        CARDSIDO: LOW-VALUES
+        CRDNAMEO: LOW-VALUES
+      transfer: {via: RETURN-TRANSID, to: CCUP}
+      commarea:
+        CDEMO-PGM-CONTEXT: 1
+        CCUP-CHANGE-ACTION: LOW-VALUES
+      file_effects: []
+    source:
+      file: app/cbl/COCRDUPC.cbl
+      lines: [502, 511]
+
+  - id: COCRDUPC-002
+    summary: arrival from the menu INITIALIZEs the whole COMMAREA (user id wiped) and shows the search screen
+    given:
+      entry: xctl-from
+      commarea:
+        CDEMO-FROM-PROGRAM: COMEN01C
+        CDEMO-FROM-TRANID: CM00
+        CDEMO-PGM-CONTEXT: 0
+        CDEMO-USER-ID: USER0001
+        CDEMO-USER-TYPE: U
+      files:
+        CARDDAT: *card
+    when:
+      aid: ENTER
+      fields: {}
+    then:
+      message: null
+      cursor: ACCTSIDL
+      fields:
+        INFOMSGO: "Please enter Account and Card Number"
+      transfer: {via: RETURN-TRANSID, to: CCUP}
+      commarea:
+        CDEMO-USER-ID: ""
+        CDEMO-USER-TYPE: ""
+        CDEMO-FROM-PROGRAM: ""
+        CDEMO-PGM-CONTEXT: 1
+        CCUP-CHANGE-ACTION: LOW-VALUES
+      file_effects: []
+    source:
+      file: app/cbl/COCRDUPC.cbl
+      lines: [387, 394]
+
+  - id: COCRDUPC-003
+    summary: arrival from the card list fetches the card and shows editable details with the name upper-cased
+    given:
+      entry: xctl-from
+      commarea:
+        CDEMO-FROM-PROGRAM: COCRDLIC
+        CDEMO-FROM-TRANID: CCLI
+        CDEMO-PGM-CONTEXT: 0
+        CDEMO-USER-TYPE: U
+        CDEMO-LAST-MAPSET: COCRDLI
+        CDEMO-ACCT-ID: "00000000001"
+        CDEMO-CARD-NUM: "4000000000000002"
+      files:
+        CARDDAT: *card
+    when:
+      aid: ENTER
+      fields: {}
+    then:
+      message: null
+      cursor: CRDNAMEL
+      fields:
+        ACCTSIDO: "00000000001"
+        CARDSIDO: "4000000000000002"
+        CRDNAMEO: "JOHN SMITH"
+        CRDSTCDO: "Y"
+        EXPMONO: "05"
+        EXPYEARO: "2027"
+        EXPDAYO: "31"
+        INFOMSGO: "Details of selected card shown above"
+      transfer: {via: RETURN-TRANSID, to: CCUP}
+      commarea:
+        CDEMO-PGM-CONTEXT: 1
+        CCUP-CHANGE-ACTION: S
+        CCUP-OLD-ACCTID: "00000000001"
+        CCUP-OLD-CARDID: "4000000000000002"
+        CCUP-OLD-CVV-CD: "123"
+        CCUP-OLD-CRDNAME: "JOHN SMITH"
+        CCUP-OLD-EXPYEAR: "2027"
+        CCUP-OLD-EXPMON: "05"
+        CCUP-OLD-EXPDAY: "31"
+        CCUP-OLD-CRDSTCD: "Y"
+      file_effects: []
+    source:
+      file: app/cbl/COCRDUPC.cbl
+      lines: [481, 496]
+
+  - id: COCRDUPC-004
+    summary: arrival from the list for a missing card shows not-found but still enters the details-shown state
+    given:
+      entry: xctl-from
+      commarea:
+        CDEMO-FROM-PROGRAM: COCRDLIC
+        CDEMO-FROM-TRANID: CCLI
+        CDEMO-PGM-CONTEXT: 0
+        CDEMO-LAST-MAPSET: COCRDLI
+        CDEMO-ACCT-ID: "00000000001"
+        CDEMO-CARD-NUM: "4000000000000099"
+      files:
+        CARDDAT: *card
+    when:
+      aid: ENTER
+      fields: {}
+    then:
+      message: "Did not find cards for this search condition"
+      cursor: CRDNAMEL
+      fields:
+        CARDSIDO: "4000000000000099"
+        CRDNAMEO: ""
+        INFOMSGO: "Details of selected card shown above"
+      transfer: {via: RETURN-TRANSID, to: CCUP}
+      commarea:
+        CCUP-CHANGE-ACTION: S
+      file_effects: []
+    source:
+      file: app/cbl/COCRDUPC.cbl
+      lines: [481, 496]
+
+  - id: COCRDUPC-005
+    summary: search with both keys blank shows 'No input received' and stars both keys
+    given:
+      entry: reenter
+      commarea: &search
+        CDEMO-FROM-PROGRAM: ""
+        CDEMO-FROM-TRANID: ""
+        CDEMO-LAST-MAPSET: ""
+        CDEMO-PGM-CONTEXT: 1
+        CCUP-CHANGE-ACTION: LOW-VALUES
+      files:
+        CARDDAT: *card
+    when:
+      aid: ENTER
+      fields: {ACCTSIDI: "", CARDSIDI: ""}
+    then:
+      message: "No input received"
+      cursor: ACCTSIDL
+      fields:
+        ACCTSIDO: "*"
+        CARDSIDO: "*"
+        INFOMSGO: "Please enter Account and Card Number"
+      transfer: {via: RETURN-TRANSID, to: CCUP}
+      commarea:
+        CCUP-CHANGE-ACTION: LOW-VALUES
+      file_effects: []
+    source:
+      file: app/cbl/COCRDUPC.cbl
+      lines: [655, 658]
+
+  - id: COCRDUPC-006
+    summary: search with blank account asks for the account number
+    given:
+      entry: reenter
+      commarea: *search
+      files:
+        CARDDAT: *card
+    when:
+      aid: ENTER
+      fields: {ACCTSIDI: "", CARDSIDI: "4000000000000002"}
+    then:
+      message: "Account number not provided"
+      cursor: ACCTSIDL
+      fields:
+        ACCTSIDO: "*"
+      transfer: {via: RETURN-TRANSID, to: CCUP}
+      file_effects: []
+    source:
+      file: app/cbl/COCRDUPC.cbl
+      lines: [725, 736]
+
+  - id: COCRDUPC-007
+    summary: search with a non-numeric account is rejected
+    given:
+      entry: reenter
+      commarea: *search
+      files:
+        CARDDAT: *card
+    when:
+      aid: ENTER
+      fields: {ACCTSIDI: "1234567890A", CARDSIDI: "4000000000000002"}
+    then:
+      message: "ACCOUNT FILTER,IF SUPPLIED MUST BE A 11 DIGIT NUMBER"
+      cursor: ACCTSIDL
+      transfer: {via: RETURN-TRANSID, to: CCUP}
+      commarea:
+        CDEMO-ACCT-ID: 0
+        CCUP-CHANGE-ACTION: LOW-VALUES
+      file_effects: []
+    source:
+      file: app/cbl/COCRDUPC.cbl
+      lines: [740, 750]
+
+  - id: COCRDUPC-008
+    summary: search with blank card asks for the card number with cursor on the card field
+    given:
+      entry: reenter
+      commarea: *search
+      files:
+        CARDDAT: *card
+    when:
+      aid: ENTER
+      fields: {ACCTSIDI: "00000000001", CARDSIDI: ""}
+    then:
+      message: "Card number not provided"
+      cursor: CARDSIDL
+      fields:
+        ACCTSIDO: "00000000001"
+        CARDSIDO: "*"
+      transfer: {via: RETURN-TRANSID, to: CCUP}
+      file_effects: []
+    source:
+      file: app/cbl/COCRDUPC.cbl
+      lines: [768, 779]
+
+  - id: COCRDUPC-009
+    summary: search with a card number shorter than 16 digits is rejected
+    given:
+      entry: reenter
+      commarea: *search
+      files:
+        CARDDAT: *card
+    when:
+      aid: ENTER
+      fields: {ACCTSIDI: "00000000001", CARDSIDI: "400000000000"}
+    then:
+      message: "CARD ID FILTER,IF SUPPLIED MUST BE A 16 DIGIT NUMBER"
+      cursor: CARDSIDL
+      transfer: {via: RETURN-TRANSID, to: CCUP}
+      commarea:
+        CDEMO-CARD-NUM: 0
+      file_effects: []
+    source:
+      file: app/cbl/COCRDUPC.cbl
+      lines: [784, 793]
+
+  - id: COCRDUPC-010
+    summary: search with valid keys fetches the card and moves to the details-shown state
+    given:
+      entry: reenter
+      commarea: *search
+      files:
+        CARDDAT: *card
+    when:
+      aid: ENTER
+      fields: {ACCTSIDI: "00000000001", CARDSIDI: "4000000000000002"}
+    then:
+      message: null
+      cursor: CRDNAMEL
+      fields:
+        ACCTSIDO: "00000000001"
+        CARDSIDO: "4000000000000002"
+        CRDNAMEO: "JOHN SMITH"
+        CRDSTCDO: "Y"
+        EXPMONO: "05"
+        EXPYEARO: "2027"
+        EXPDAYO: "31"
+        INFOMSGO: "Details of selected card shown above"
+      transfer: {via: RETURN-TRANSID, to: CCUP}
+      commarea:
+        CDEMO-ACCT-ID: "00000000001"
+        CDEMO-CARD-NUM: "4000000000000002"
+        CCUP-CHANGE-ACTION: S
+        CCUP-OLD-CVV-CD: "123"
+        CCUP-OLD-CRDNAME: "JOHN SMITH"
+      file_effects: []
+    source:
+      file: app/cbl/COCRDUPC.cbl
+      lines: [954, 966]
+
+  - id: COCRDUPC-011
+    summary: search for a card that is not on file stays on the search screen with the not-found message
+    given:
+      entry: reenter
+      commarea: *search
+      files:
+        CARDDAT: *card
+    when:
+      aid: ENTER
+      fields: {ACCTSIDI: "00000000001", CARDSIDI: "4000000000000099"}
+    then:
+      message: "Did not find cards for this search condition"
+      cursor: ACCTSIDL
+      fields:
+        ACCTSIDO: "00000000001"
+        CARDSIDO: "4000000000000099"
+        INFOMSGO: "Please enter Account and Card Number"
+      transfer: {via: RETURN-TRANSID, to: CCUP}
+      commarea:
+        CCUP-CHANGE-ACTION: LOW-VALUES
+      file_effects: []
+    source:
+      file: app/cbl/COCRDUPC.cbl
+      lines: [1394, 1401]
+
+  - id: COCRDUPC-012
+    summary: a CARDDAT read error other than NOTFND during the search shows the formatted file error
+    given:
+      entry: reenter
+      commarea: *search
+      files:
+        CARDDAT: *card
+      file_conditions:
+        - {file: CARDDAT, op: READ, resp: IOERR}
+    when:
+      aid: ENTER
+      fields: {ACCTSIDI: "00000000001", CARDSIDI: "4000000000000002"}
+    then:
+      message: "File Error: {ERROR-OPNAME} on {ERROR-FILE} returned RESP {ERROR-RESP},RESP2 {ERROR-RESP2}"
+      cursor: ACCTSIDL
+      transfer: {via: RETURN-TRANSID, to: CCUP}
+      commarea:
+        CCUP-CHANGE-ACTION: LOW-VALUES
+      file_effects: []
+    source:
+      file: app/cbl/COCRDUPC.cbl
+      lines: [1402, 1411]
+
+  - id: COCRDUPC-013
+    summary: ENTER on the details screen with nothing changed reports no change and stays in the details-shown state
+    given:
+      entry: reenter
+      commarea: &shown
+        CDEMO-FROM-PROGRAM: COCRDLIC
+        CDEMO-FROM-TRANID: CCLI
+        CDEMO-LAST-MAPSET: COCRDLI
+        CDEMO-PGM-CONTEXT: 1
+        CDEMO-USER-TYPE: U
+        CDEMO-ACCT-ID: "00000000001"
+        CDEMO-CARD-NUM: "4000000000000002"
+        CCUP-CHANGE-ACTION: S
+        CCUP-OLD-ACCTID: "00000000001"
+        CCUP-OLD-CARDID: "4000000000000002"
+        CCUP-OLD-CVV-CD: "123"
+        CCUP-OLD-CRDNAME: "JOHN SMITH"
+        CCUP-OLD-EXPYEAR: "2027"
+        CCUP-OLD-EXPMON: "05"
+        CCUP-OLD-EXPDAY: "31"
+        CCUP-OLD-CRDSTCD: "Y"
+      files:
+        CARDDAT: *card
+    when:
+      aid: ENTER
+      fields: &unchanged {ACCTSIDI: "00000000001", CARDSIDI: "4000000000000002", CRDNAMEI: "JOHN SMITH", CRDSTCDI: "Y", EXPMONI: "05", EXPYEARI: "2027", EXPDAYI: "31"}
+    then:
+      message: "No change detected with respect to values fetched."
+      cursor: CRDNAMEL
+      fields:
+        CRDNAMEO: "JOHN SMITH"
+        INFOMSGO: "Details of selected card shown above"
+      transfer: {via: RETURN-TRANSID, to: CCUP}
+      commarea:
+        CCUP-CHANGE-ACTION: S
+      file_effects: []
+    source:
+      file: app/cbl/COCRDUPC.cbl
+      lines: [680, 682]
+
+  - id: COCRDUPC-014
+    summary: retyping the same values in lower case (including status 'y') counts as no change
+    given:
+      entry: reenter
+      commarea: *shown
+      files:
+        CARDDAT: *card
+    when:
+      aid: ENTER
+      fields: {ACCTSIDI: "00000000001", CARDSIDI: "4000000000000002", CRDNAMEI: "john smith", CRDSTCDI: "y", EXPMONI: "05", EXPYEARI: "2027", EXPDAYI: "31"}
+    then:
+      message: "No change detected with respect to values fetched."
+      cursor: CRDNAMEL
+      transfer: {via: RETURN-TRANSID, to: CCUP}
+      commarea:
+        CCUP-CHANGE-ACTION: S
+      file_effects: []
+    source:
+      file: app/cbl/COCRDUPC.cbl
+      lines: [680, 682]
+
+  - id: COCRDUPC-015
+    summary: blank card name is rejected, starred, and the state becomes edit-errors
+    given:
+      entry: reenter
+      commarea: *shown
+      files:
+        CARDDAT: *card
+    when:
+      aid: ENTER
+      fields: {ACCTSIDI: "00000000001", CARDSIDI: "4000000000000002", CRDNAMEI: "", CRDSTCDI: "Y", EXPMONI: "05", EXPYEARI: "2027", EXPDAYI: "31"}
+    then:
+      message: "Card name not provided"
+      cursor: CRDNAMEL
+      fields:
+        CRDNAMEO: "*"
+        INFOMSGO: "Update card details presented above."
+      transfer: {via: RETURN-TRANSID, to: CCUP}
+      commarea:
+        CCUP-CHANGE-ACTION: E
+      file_effects: []
+    source:
+      file: app/cbl/COCRDUPC.cbl
+      lines: [811, 820]
+
+  - id: COCRDUPC-016
+    summary: card name containing a digit is rejected
+    given:
+      entry: reenter
+      commarea: *shown
+      files:
+        CARDDAT: *card
+    when:
+      aid: ENTER
+      fields: {ACCTSIDI: "00000000001", CARDSIDI: "4000000000000002", CRDNAMEI: "JOHN SMITH 2", CRDSTCDI: "Y", EXPMONI: "05", EXPYEARI: "2027", EXPDAYI: "31"}
+    then:
+      message: "Card name can only contain alphabets and spaces"
+      cursor: CRDNAMEL
+      fields:
+        CRDNAMEO: "JOHN SMITH 2"
+        INFOMSGO: "Update card details presented above."
+      transfer: {via: RETURN-TRANSID, to: CCUP}
+      commarea:
+        CCUP-CHANGE-ACTION: E
+      file_effects: []
+    source:
+      file: app/cbl/COCRDUPC.cbl
+      lines: [823, 837]
+
+  - id: COCRDUPC-017
+    summary: card name containing punctuation (apostrophe) is rejected
+    given:
+      entry: reenter
+      commarea: *shown
+      files:
+        CARDDAT: *card
+    when:
+      aid: ENTER
+      fields: {ACCTSIDI: "00000000001", CARDSIDI: "4000000000000002", CRDNAMEI: "JOHN O'BRIEN", CRDSTCDI: "Y", EXPMONI: "05", EXPYEARI: "2027", EXPDAYI: "31"}
+    then:
+      message: "Card name can only contain alphabets and spaces"
+      cursor: CRDNAMEL
+      transfer: {via: RETURN-TRANSID, to: CCUP}
+      commarea:
+        CCUP-CHANGE-ACTION: E
+      file_effects: []
+    source:
+      file: app/cbl/COCRDUPC.cbl
+      lines: [823, 837]
+
+  - id: COCRDUPC-018
+    summary: active status other than Y/N is rejected with cursor on the status field
+    given:
+      entry: reenter
+      commarea: *shown
+      files:
+        CARDDAT: *card
+    when:
+      aid: ENTER
+      fields: {ACCTSIDI: "00000000001", CARDSIDI: "4000000000000002", CRDNAMEI: "JOHN SMITH", CRDSTCDI: "X", EXPMONI: "05", EXPYEARI: "2027", EXPDAYI: "31"}
+    then:
+      message: "Card Active Status must be Y or N"
+      cursor: CRDSTCDL
+      fields:
+        CRDSTCDO: "X"
+      transfer: {via: RETURN-TRANSID, to: CCUP}
+      commarea:
+        CCUP-CHANGE-ACTION: E
+      file_effects: []
+    source:
+      file: app/cbl/COCRDUPC.cbl
+      lines: [861, 872]
+
+  - id: COCRDUPC-019
+    summary: blank active status is rejected with the same message and starred
+    given:
+      entry: reenter
+      commarea: *shown
+      files:
+        CARDDAT: *card
+    when:
+      aid: ENTER
+      fields: {ACCTSIDI: "00000000001", CARDSIDI: "4000000000000002", CRDNAMEI: "JOHN SMITH", CRDSTCDI: "", EXPMONI: "05", EXPYEARI: "2027", EXPDAYI: "31"}
+    then:
+      message: "Card Active Status must be Y or N"
+      cursor: CRDSTCDL
+      fields:
+        CRDSTCDO: "*"
+      transfer: {via: RETURN-TRANSID, to: CCUP}
+      commarea:
+        CCUP-CHANGE-ACTION: E
+      file_effects: []
+    source:
+      file: app/cbl/COCRDUPC.cbl
+      lines: [850, 859]
+
+  - id: COCRDUPC-020
+    summary: lower-case 'y' status together with a real change is rejected (only upper-case Y/N are valid)
+    given:
+      entry: reenter
+      commarea: *shown
+      files:
+        CARDDAT: *card
+    when:
+      aid: ENTER
+      fields: {ACCTSIDI: "00000000001", CARDSIDI: "4000000000000002", CRDNAMEI: "JANE DOE", CRDSTCDI: "y", EXPMONI: "05", EXPYEARI: "2027", EXPDAYI: "31"}
+    then:
+      message: "Card Active Status must be Y or N"
+      cursor: CRDSTCDL
+      transfer: {via: RETURN-TRANSID, to: CCUP}
+      commarea:
+        CCUP-CHANGE-ACTION: E
+      file_effects: []
+    source:
+      file: app/cbl/COCRDUPC.cbl
+      lines: [861, 872]
+
+  - id: COCRDUPC-021
+    summary: expiry month 13 is rejected with cursor on the month
+    given:
+      entry: reenter
+      commarea: *shown
+      files:
+        CARDDAT: *card
+    when:
+      aid: ENTER
+      fields: {ACCTSIDI: "00000000001", CARDSIDI: "4000000000000002", CRDNAMEI: "JOHN SMITH", CRDSTCDI: "Y", EXPMONI: "13", EXPYEARI: "2027", EXPDAYI: "31"}
+    then:
+      message: "Card expiry month must be between 1 and 12"
+      cursor: EXPMONL
+      fields:
+        EXPMONO: "13"
+      transfer: {via: RETURN-TRANSID, to: CCUP}
+      commarea:
+        CCUP-CHANGE-ACTION: E
+      file_effects: []
+    source:
+      file: app/cbl/COCRDUPC.cbl
+      lines: [895, 907]
+
+  - id: COCRDUPC-022
+    summary: expiry month '00' takes the not-supplied path, same message, field starred
+    given:
+      entry: reenter
+      commarea: *shown
+      files:
+        CARDDAT: *card
+    when:
+      aid: ENTER
+      fields: {ACCTSIDI: "00000000001", CARDSIDI: "4000000000000002", CRDNAMEI: "JOHN SMITH", CRDSTCDI: "Y", EXPMONI: "00", EXPYEARI: "2027", EXPDAYI: "31"}
+    then:
+      message: "Card expiry month must be between 1 and 12"
+      cursor: EXPMONL
+      fields:
+        EXPMONO: "*"
+      transfer: {via: RETURN-TRANSID, to: CCUP}
+      commarea:
+        CCUP-CHANGE-ACTION: E
+      file_effects: []
+    source:
+      file: app/cbl/COCRDUPC.cbl
+      lines: [882, 891]
+
+  - id: COCRDUPC-023
+    summary: expiry year 1949 (below range) is rejected with cursor on the year
+    given:
+      entry: reenter
+      commarea: *shown
+      files:
+        CARDDAT: *card
+    when:
+      aid: ENTER
+      fields: {ACCTSIDI: "00000000001", CARDSIDI: "4000000000000002", CRDNAMEI: "JOHN SMITH", CRDSTCDI: "Y", EXPMONI: "05", EXPYEARI: "1949", EXPDAYI: "31"}
+    then:
+      message: "Invalid card expiry year"
+      cursor: EXPYEARL
+      fields:
+        EXPYEARO: "1949"
+      transfer: {via: RETURN-TRANSID, to: CCUP}
+      commarea:
+        CCUP-CHANGE-ACTION: E
+      file_effects: []
+    source:
+      file: app/cbl/COCRDUPC.cbl
+      lines: [930, 943]
+
+  - id: COCRDUPC-024
+    summary: expiry year 2100 (above range) is rejected
+    given:
+      entry: reenter
+      commarea: *shown
+      files:
+        CARDDAT: *card
+    when:
+      aid: ENTER
+      fields: {ACCTSIDI: "00000000001", CARDSIDI: "4000000000000002", CRDNAMEI: "JOHN SMITH", CRDSTCDI: "Y", EXPMONI: "05", EXPYEARI: "2100", EXPDAYI: "31"}
+    then:
+      message: "Invalid card expiry year"
+      cursor: EXPYEARL
+      transfer: {via: RETURN-TRANSID, to: CCUP}
+      commarea:
+        CCUP-CHANGE-ACTION: E
+      file_effects: []
+    source:
+      file: app/cbl/COCRDUPC.cbl
+      lines: [930, 943]
+
+  - id: COCRDUPC-025
+    summary: blank expiry year is rejected with the same message and starred
+    given:
+      entry: reenter
+      commarea: *shown
+      files:
+        CARDDAT: *card
+    when:
+      aid: ENTER
+      fields: {ACCTSIDI: "00000000001", CARDSIDI: "4000000000000002", CRDNAMEI: "JOHN SMITH", CRDSTCDI: "Y", EXPMONI: "05", EXPYEARI: "", EXPDAYI: "31"}
+    then:
+      message: "Invalid card expiry year"
+      cursor: EXPYEARL
+      fields:
+        EXPYEARO: "*"
+      transfer: {via: RETURN-TRANSID, to: CCUP}
+      commarea:
+        CCUP-CHANGE-ACTION: E
+      file_effects: []
+    source:
+      file: app/cbl/COCRDUPC.cbl
+      lines: [916, 925]
+
+  - id: COCRDUPC-026
+    summary: several invalid fields report only the first (name) and put the cursor there
+    given:
+      entry: reenter
+      commarea: *shown
+      files:
+        CARDDAT: *card
+    when:
+      aid: ENTER
+      fields: {ACCTSIDI: "00000000001", CARDSIDI: "4000000000000002", CRDNAMEI: "JOHN 2", CRDSTCDI: "Q", EXPMONI: "13", EXPYEARI: "1900", EXPDAYI: "31"}
+    then:
+      message: "Card name can only contain alphabets and spaces"
+      cursor: CRDNAMEL
+      fields:
+        INFOMSGO: "Update card details presented above."
+      transfer: {via: RETURN-TRANSID, to: CCUP}
+      commarea:
+        CCUP-CHANGE-ACTION: E
+      file_effects: []
+    source:
+      file: app/cbl/COCRDUPC.cbl
+      lines: [697, 708]
+
+  - id: COCRDUPC-027
+    summary: valid changes (month 12, year 2099 boundaries) move to awaiting-confirmation with all fields protected
+    given:
+      entry: reenter
+      commarea: *shown
+      files:
+        CARDDAT: *card
+    when:
+      aid: ENTER
+      fields: {ACCTSIDI: "00000000001", CARDSIDI: "4000000000000002", CRDNAMEI: "Jane Doe", CRDSTCDI: "N", EXPMONI: "12", EXPYEARI: "2099", EXPDAYI: "31"}
+    then:
+      message: null
+      cursor: ACCTSIDL
+      fields:
+        CRDNAMEO: "Jane Doe"
+        CRDSTCDO: "N"
+        EXPMONO: "12"
+        EXPYEARO: "2099"
+        EXPDAYO: "31"
+        INFOMSGO: "Changes validated.Press F5 to save"
+      transfer: {via: RETURN-TRANSID, to: CCUP}
+      commarea:
+        CCUP-CHANGE-ACTION: N
+      file_effects: []
+    source:
+      file: app/cbl/COCRDUPC.cbl
+      lines: [710, 714]
+
+  - id: COCRDUPC-028
+    summary: lower boundaries month 01 and year 1950 are valid
+    given:
+      entry: reenter
+      commarea: *shown
+      files:
+        CARDDAT: *card
+    when:
+      aid: ENTER
+      fields: {ACCTSIDI: "00000000001", CARDSIDI: "4000000000000002", CRDNAMEI: "JOHN SMITH", CRDSTCDI: "Y", EXPMONI: "01", EXPYEARI: "1950", EXPDAYI: "31"}
+    then:
+      message: null
+      cursor: ACCTSIDL
+      fields:
+        INFOMSGO: "Changes validated.Press F5 to save"
+      transfer: {via: RETURN-TRANSID, to: CCUP}
+      commarea:
+        CCUP-CHANGE-ACTION: N
+      file_effects: []
+    source:
+      file: app/cbl/COCRDUPC.cbl
+      lines: [895, 899]
+
+  - id: COCRDUPC-029
+    summary: ENTER while awaiting confirmation does not save and keeps asking for F5
+    given:
+      entry: reenter
+      commarea: &confirm
+        CDEMO-FROM-PROGRAM: COCRDLIC
+        CDEMO-FROM-TRANID: CCLI
+        CDEMO-LAST-MAPSET: COCRDLI
+        CDEMO-PGM-CONTEXT: 1
+        CDEMO-USER-TYPE: U
+        CDEMO-ACCT-ID: "00000000001"
+        CDEMO-CARD-NUM: "4000000000000002"
+        CCUP-CHANGE-ACTION: N
+        CCUP-OLD-ACCTID: "00000000001"
+        CCUP-OLD-CARDID: "4000000000000002"
+        CCUP-OLD-CVV-CD: "123"
+        CCUP-OLD-CRDNAME: "JOHN SMITH"
+        CCUP-OLD-EXPYEAR: "2027"
+        CCUP-OLD-EXPMON: "05"
+        CCUP-OLD-EXPDAY: "31"
+        CCUP-OLD-CRDSTCD: "Y"
+      files:
+        CARDDAT: *card
+    when:
+      aid: ENTER
+      fields: &changed {ACCTSIDI: "00000000001", CARDSIDI: "4000000000000002", CRDNAMEI: "Jane Doe", CRDSTCDI: "N", EXPMONI: "06", EXPYEARI: "2028", EXPDAYI: "31"}
+    then:
+      message: null
+      cursor: ACCTSIDL
+      fields:
+        CRDNAMEO: "Jane Doe"
+        INFOMSGO: "Changes validated.Press F5 to save"
+      transfer: {via: RETURN-TRANSID, to: CCUP}
+      commarea:
+        CCUP-CHANGE-ACTION: N
+      file_effects: []
+    source:
+      file: app/cbl/COCRDUPC.cbl
+      lines: [1005, 1007]
+
+  - id: COCRDUPC-030
+    summary: F5 after confirmation rewrites the card with the new values (CVV not preserved) and reports success
+    given:
+      entry: reenter
+      commarea: *confirm
+      files:
+        CARDDAT: *card
+    when:
+      aid: PF5
+      fields: *changed
+    then:
+      message: null
+      cursor: ACCTSIDL
+      fields:
+        CRDNAMEO: "Jane Doe"
+        CRDSTCDO: "N"
+        EXPMONO: "06"
+        EXPYEARO: "2028"
+        EXPDAYO: "31"
+        INFOMSGO: "Changes committed to database"
+      transfer: {via: RETURN-TRANSID, to: CCUP}
+      commarea:
+        CCUP-CHANGE-ACTION: C
+      file_effects:
+        - file: CARDDAT
+          op: REWRITE
+          record:
+            CARD-NUM: "4000000000000002"
+            CARD-ACCT-ID: "00000000001"
+            CARD-CVV-CD: "000"
+            CARD-EMBOSSED-NAME: "Jane Doe"
+            CARD-EXPIRAION-DATE: "2028-06-31"
+            CARD-ACTIVE-STATUS: "N"
+    source:
+      file: app/cbl/COCRDUPC.cbl
+      lines: [1460, 1482]
+
+  - id: COCRDUPC-031
+    summary: F5 when the stored card changed since it was fetched refuses to save and shows the current record
+    given:
+      entry: reenter
+      commarea: *confirm
+      files:
+        CARDDAT:
+          - {CARD-NUM: "4000000000000002", CARD-ACCT-ID: "00000000001", CARD-CVV-CD: "123", CARD-EMBOSSED-NAME: "John Smith", CARD-EXPIRAION-DATE: "2027-05-31", CARD-ACTIVE-STATUS: "N"}
+    when:
+      aid: PF5
+      fields: *changed
+    then:
+      message: "Record changed by some one else. Please review"
+      cursor: CRDNAMEL
+      fields:
+        CRDNAMEO: "JOHN SMITH"
+        CRDSTCDO: "N"
+        EXPMONO: "05"
+        EXPYEARO: "2027"
+        INFOMSGO: "Details of selected card shown above"
+      transfer: {via: RETURN-TRANSID, to: CCUP}
+      commarea:
+        CCUP-CHANGE-ACTION: S
+        CCUP-OLD-CRDSTCD: "N"
+        CCUP-OLD-CRDNAME: "JOHN SMITH"
+      file_effects: []
+    source:
+      file: app/cbl/COCRDUPC.cbl
+      lines: [1502, 1519]
+
+  - id: COCRDUPC-032
+    summary: F5 when the card cannot be read for update (deleted meanwhile) reports a lock failure
+    given:
+      entry: reenter
+      commarea: *confirm
+      files:
+        CARDDAT: []
+    when:
+      aid: PF5
+      fields: *changed
+    then:
+      message: "Could not lock record for update"
+      cursor: ACCTSIDL
+      fields:
+        CRDNAMEO: "Jane Doe"
+        INFOMSGO: "Changes unsuccessful. Please try again"
+      transfer: {via: RETURN-TRANSID, to: CCUP}
+      commarea:
+        CCUP-CHANGE-ACTION: L
+      file_effects: []
+    source:
+      file: app/cbl/COCRDUPC.cbl
+      lines: [1441, 1449]
+
+  - id: COCRDUPC-033
+    summary: F5 when the REWRITE itself fails reports an update failure
+    given:
+      entry: reenter
+      commarea: *confirm
+      files:
+        CARDDAT: *card
+      file_conditions:
+        - {file: CARDDAT, op: REWRITE, resp: IOERR}
+    when:
+      aid: PF5
+      fields: *changed
+    then:
+      message: "Update of record failed"
+      cursor: ACCTSIDL
+      fields:
+        INFOMSGO: "Changes unsuccessful. Please try again"
+      transfer: {via: RETURN-TRANSID, to: CCUP}
+      commarea:
+        CCUP-CHANGE-ACTION: F
+      file_effects: []
+    source:
+      file: app/cbl/COCRDUPC.cbl
+      lines: [1487, 1491]
+
+  - id: COCRDUPC-034
+    summary: any key after a successful save from the list returns to COCRDLIC with account and card cleared
+    given:
+      entry: reenter
+      commarea:
+        CDEMO-FROM-PROGRAM: COCRDLIC
+        CDEMO-FROM-TRANID: CCLI
+        CDEMO-LAST-MAPSET: COCRDLI
+        CDEMO-PGM-CONTEXT: 1
+        CDEMO-USER-ID: ADMIN001
+        CDEMO-USER-TYPE: A
+        CDEMO-ACCT-ID: "00000000001"
+        CDEMO-CARD-NUM: "4000000000000002"
+        CCUP-CHANGE-ACTION: C
+      files:
+        CARDDAT: *card
+    when:
+      aid: ENTER
+      fields: *changed
+    then:
+      message: null
+      transfer: {via: XCTL, to: COCRDLIC}
+      commarea:
+        CDEMO-TO-PROGRAM: COCRDLIC
+        CDEMO-TO-TRANID: CCLI
+        CDEMO-FROM-PROGRAM: COCRDUPC
+        CDEMO-FROM-TRANID: CCUP
+        CDEMO-ACCT-ID: 0
+        CDEMO-CARD-NUM: 0
+        CDEMO-USER-ID: ADMIN001
+        CDEMO-USER-TYPE: U
+        CDEMO-PGM-CONTEXT: 0
+        CDEMO-LAST-MAPSET: COCRDUP
+        CDEMO-LAST-MAP: CCRDUPA
+      file_effects: []
+    source:
+      file: app/cbl/COCRDUPC.cbl
+      lines: [435, 476]
+
+  - id: COCRDUPC-035
+    summary: any key after a successful save started from the menu resets to a fresh search screen
+    given:
+      entry: reenter
+      commarea:
+        CDEMO-FROM-PROGRAM: ""
+        CDEMO-FROM-TRANID: ""
+        CDEMO-LAST-MAPSET: ""
+        CDEMO-PGM-CONTEXT: 1
+        CDEMO-ACCT-ID: "00000000001"
+        CDEMO-CARD-NUM: "4000000000000002"
+        CCUP-CHANGE-ACTION: C
+      files:
+        CARDDAT: *card
+    when:
+      aid: ENTER
+      fields: *changed
+    then:
+      message: null
+      cursor: ACCTSIDL
+      fields:
+        ACCTSIDO: LOW-VALUES
+        CRDNAMEO: LOW-VALUES
+        INFOMSGO: "Please enter Account and Card Number"
+      transfer: {via: RETURN-TRANSID, to: CCUP}
+      commarea:
+        CDEMO-ACCT-ID: 0
+        CDEMO-CARD-NUM: 0
+        CDEMO-PGM-CONTEXT: 1
+        CCUP-CHANGE-ACTION: LOW-VALUES
+      file_effects: []
+    source:
+      file: app/cbl/COCRDUPC.cbl
+      lines: [517, 528]
+
+  - id: COCRDUPC-036
+    summary: any key after a lock failure from the list returns to COCRDLIC
+    given:
+      entry: reenter
+      commarea:
+        CDEMO-FROM-PROGRAM: COCRDLIC
+        CDEMO-FROM-TRANID: CCLI
+        CDEMO-LAST-MAPSET: COCRDLI
+        CDEMO-PGM-CONTEXT: 1
+        CDEMO-ACCT-ID: "00000000001"
+        CDEMO-CARD-NUM: "4000000000000002"
+        CCUP-CHANGE-ACTION: L
+      files:
+        CARDDAT: *card
+    when:
+      aid: ENTER
+      fields: *changed
+    then:
+      message: null
+      transfer: {via: XCTL, to: COCRDLIC}
+      commarea:
+        CDEMO-ACCT-ID: 0
+        CDEMO-CARD-NUM: 0
+        CDEMO-FROM-PROGRAM: COCRDUPC
+      file_effects: []
+    source:
+      file: app/cbl/COCRDUPC.cbl
+      lines: [438, 476]
+
+  - id: COCRDUPC-037
+    summary: any key after a rewrite failure started from the menu resets to a fresh search screen
+    given:
+      entry: reenter
+      commarea:
+        CDEMO-FROM-PROGRAM: ""
+        CDEMO-FROM-TRANID: ""
+        CDEMO-LAST-MAPSET: ""
+        CDEMO-PGM-CONTEXT: 1
+        CCUP-CHANGE-ACTION: F
+      files:
+        CARDDAT: *card
+    when:
+      aid: ENTER
+      fields: *changed
+    then:
+      message: null
+      cursor: ACCTSIDL
+      fields:
+        INFOMSGO: "Please enter Account and Card Number"
+      transfer: {via: RETURN-TRANSID, to: CCUP}
+      commarea:
+        CCUP-CHANGE-ACTION: LOW-VALUES
+      file_effects: []
+    source:
+      file: app/cbl/COCRDUPC.cbl
+      lines: [517, 528]
+
+  - id: COCRDUPC-038
+    summary: PF3 on the details screen reached from the list returns to COCRDLIC, clears account/card, user type becomes 'U'
+    given:
+      entry: reenter
+      commarea: *shown
+      files:
+        CARDDAT: *card
+    when:
+      aid: PF3
+      fields: *unchanged
+    then:
+      message: null
+      transfer: {via: XCTL, to: COCRDLIC}
+      commarea:
+        CDEMO-TO-PROGRAM: COCRDLIC
+        CDEMO-TO-TRANID: CCLI
+        CDEMO-FROM-PROGRAM: COCRDUPC
+        CDEMO-ACCT-ID: 0
+        CDEMO-CARD-NUM: 0
+        CDEMO-USER-TYPE: U
+        CDEMO-PGM-CONTEXT: 0
+      file_effects: []
+    source:
+      file: app/cbl/COCRDUPC.cbl
+      lines: [435, 476]
+
+  - id: COCRDUPC-039
+    summary: PF3 when started from the menu returns to COMEN01C and keeps account/card in COMMAREA
+    given:
+      entry: reenter
+      commarea:
+        CDEMO-FROM-PROGRAM: ""
+        CDEMO-FROM-TRANID: ""
+        CDEMO-LAST-MAPSET: ""
+        CDEMO-PGM-CONTEXT: 1
+        CDEMO-ACCT-ID: "00000000001"
+        CDEMO-CARD-NUM: "4000000000000002"
+        CCUP-CHANGE-ACTION: S
+      files:
+        CARDDAT: *card
+    when:
+      aid: PF3
+      fields: *unchanged
+    then:
+      message: null
+      transfer: {via: XCTL, to: COMEN01C}
+      commarea:
+        CDEMO-TO-PROGRAM: COMEN01C
+        CDEMO-TO-TRANID: CM00
+        CDEMO-FROM-PROGRAM: COCRDUPC
+        CDEMO-FROM-TRANID: CCUP
+        CDEMO-ACCT-ID: "00000000001"
+        CDEMO-CARD-NUM: "4000000000000002"
+        CDEMO-USER-TYPE: U
+      file_effects: []
+    source:
+      file: app/cbl/COCRDUPC.cbl
+      lines: [442, 462]
+
+  - id: COCRDUPC-040
+    summary: PF12 after edit errors (started from the list) re-reads the card and discards the edits with a clean message line
+    given:
+      entry: reenter
+      commarea:
+        CDEMO-FROM-PROGRAM: COCRDLIC
+        CDEMO-FROM-TRANID: CCLI
+        CDEMO-LAST-MAPSET: COCRDLI
+        CDEMO-PGM-CONTEXT: 1
+        CDEMO-ACCT-ID: "00000000001"
+        CDEMO-CARD-NUM: "4000000000000002"
+        CCUP-CHANGE-ACTION: E
+        CCUP-OLD-CRDNAME: "JOHN SMITH"
+      files:
+        CARDDAT: *card
+    when:
+      aid: PF12
+      fields: {ACCTSIDI: "00000000001", CARDSIDI: "4000000000000002", CRDNAMEI: "", CRDSTCDI: "Y", EXPMONI: "05", EXPYEARI: "2027", EXPDAYI: "31"}
+    then:
+      message: null
+      cursor: CRDNAMEL
+      fields:
+        CRDNAMEO: "JOHN SMITH"
+        CRDSTCDO: "Y"
+        INFOMSGO: "Details of selected card shown above"
+      transfer: {via: RETURN-TRANSID, to: CCUP}
+      commarea:
+        CCUP-CHANGE-ACTION: S
+      file_effects: []
+    source:
+      file: app/cbl/COCRDUPC.cbl
+      lines: [481, 496]
+
+  - id: COCRDUPC-041
+    summary: PF12 when started from the menu restores the card but still shows the edit error from the abandoned input
+    given:
+      entry: reenter
+      commarea:
+        CDEMO-FROM-PROGRAM: ""
+        CDEMO-FROM-TRANID: ""
+        CDEMO-LAST-MAPSET: ""
+        CDEMO-PGM-CONTEXT: 1
+        CCUP-CHANGE-ACTION: S
+        CCUP-OLD-ACCTID: "00000000001"
+        CCUP-OLD-CARDID: "4000000000000002"
+        CCUP-OLD-CVV-CD: "123"
+        CCUP-OLD-CRDNAME: "JOHN SMITH"
+        CCUP-OLD-EXPYEAR: "2027"
+        CCUP-OLD-EXPMON: "05"
+        CCUP-OLD-EXPDAY: "31"
+        CCUP-OLD-CRDSTCD: "Y"
+      files:
+        CARDDAT: *card
+    when:
+      aid: PF12
+      fields: {ACCTSIDI: "00000000001", CARDSIDI: "4000000000000002", CRDNAMEI: "", CRDSTCDI: "Y", EXPMONI: "05", EXPYEARI: "2027", EXPDAYI: "31"}
+    then:
+      message: "Card name not provided"
+      cursor: CRDNAMEL
+      fields:
+        CRDNAMEO: "JOHN SMITH"
+        INFOMSGO: "Details of selected card shown above"
+      transfer: {via: RETURN-TRANSID, to: CCUP}
+      commarea:
+        CCUP-CHANGE-ACTION: S
+      file_effects: []
+    source:
+      file: app/cbl/COCRDUPC.cbl
+      lines: [954, 966]
+
+  - id: COCRDUPC-042
+    summary: PF12 on the search screen (nothing fetched yet) is treated as ENTER
+    given:
+      entry: reenter
+      commarea: *search
+      files:
+        CARDDAT: *card
+    when:
+      aid: PF12
+      fields: {ACCTSIDI: "", CARDSIDI: ""}
+    then:
+      message: "No input received"
+      cursor: ACCTSIDL
+      transfer: {via: RETURN-TRANSID, to: CCUP}
+      commarea:
+        CCUP-CHANGE-ACTION: LOW-VALUES
+      file_effects: []
+    source:
+      file: app/cbl/COCRDUPC.cbl
+      lines: [413, 424]
+
+  - id: COCRDUPC-043
+    summary: F5 before the changes were validated is treated as ENTER, so it validates and asks for confirmation instead of saving
+    given:
+      entry: reenter
+      commarea: *shown
+      files:
+        CARDDAT: *card
+    when:
+      aid: PF5
+      fields: *changed
+    then:
+      message: null
+      cursor: ACCTSIDL
+      fields:
+        INFOMSGO: "Changes validated.Press F5 to save"
+      transfer: {via: RETURN-TRANSID, to: CCUP}
+      commarea:
+        CCUP-CHANGE-ACTION: N
+      file_effects: []
+    source:
+      file: app/cbl/COCRDUPC.cbl
+      lines: [413, 424]
+
+  - id: COCRDUPC-044
+    summary: restoring the original values while in the edit-errors state reports no change but stays in that state
+    given:
+      entry: reenter
+      commarea:
+        CDEMO-FROM-PROGRAM: COCRDLIC
+        CDEMO-FROM-TRANID: CCLI
+        CDEMO-LAST-MAPSET: COCRDLI
+        CDEMO-PGM-CONTEXT: 1
+        CCUP-CHANGE-ACTION: E
+        CCUP-OLD-ACCTID: "00000000001"
+        CCUP-OLD-CARDID: "4000000000000002"
+        CCUP-OLD-CVV-CD: "123"
+        CCUP-OLD-CRDNAME: "JOHN SMITH"
+        CCUP-OLD-EXPYEAR: "2027"
+        CCUP-OLD-EXPMON: "05"
+        CCUP-OLD-EXPDAY: "31"
+        CCUP-OLD-CRDSTCD: "Y"
+      files:
+        CARDDAT: *card
+    when:
+      aid: ENTER
+      fields: *unchanged
+    then:
+      message: "No change detected with respect to values fetched."
+      cursor: CRDNAMEL
+      fields:
+        INFOMSGO: "Update card details presented above."
+      transfer: {via: RETURN-TRANSID, to: CCUP}
+      commarea:
+        CCUP-CHANGE-ACTION: E
+      file_effects: []
+    source:
+      file: app/cbl/COCRDUPC.cbl
+      lines: [684, 692]

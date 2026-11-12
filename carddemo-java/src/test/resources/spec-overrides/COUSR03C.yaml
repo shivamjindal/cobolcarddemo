@@ -1,0 +1,6 @@
+# Deliberate differences from characterization/online/specs/COUSR03C.yaml, applied by OnlineSpecReplayTest.
+# Each entry replaces whole keys of the case's given, when or then.
+COUSR03C-009:
+  reason: Delete reports an unknown ID as "User ID NOT found..." instead of the legacy DELETE INVREQ.
+  then:
+    message: "User ID NOT found..."

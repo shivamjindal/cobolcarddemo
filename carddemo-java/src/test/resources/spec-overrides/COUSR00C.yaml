@@ -1,0 +1,25 @@
+# Deliberate differences from characterization/online/specs/COUSR00C.yaml, applied by OnlineSpecReplayTest.
+# Each entry replaces whole keys of the case's given, when or then.
+COUSR00C-005:
+  reason: USRID-LAST is the page's real last row, where the legacy program kept the previous page's value with no visible effect.
+  then:
+    commarea:
+      CDEMO-CU00-USRID-FIRST: USER0006
+      CDEMO-CU00-USRID-LAST: USER0007
+      CDEMO-CU00-PAGE-NUM: 2
+      CDEMO-CU00-NEXT-PAGE-FLG: "N"
+COUSR00C-013:
+  reason: Only a U or D selection is handed on, so an invalid code is not stored in the conversation.
+  then:
+    commarea:
+      CDEMO-CU00-USR-SEL-FLG: ""
+      CDEMO-CU00-USR-SELECTED: ""
+      CDEMO-CU00-NEXT-PAGE-FLG: "Y"
+COUSR00C-014:
+  reason: The invalid-selection message is no longer overwritten by the bottom-of-page notice.
+  then:
+    message: "Invalid selection. Valid values are U and D"
+COUSR00C-015:
+  reason: The legacy ENDBR abend is gone, so the screen returns normally with the same message.
+  then:
+    transfer: {via: RETURN-TRANSID, to: CU00}

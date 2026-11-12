@@ -1,0 +1,31 @@
+# Deliberate differences from characterization/online/specs/COADM01C.yaml, applied by OnlineSpecReplayTest.
+# Each entry replaces whole keys of the case's given, when or then.
+COADM01C-002:
+  reason: The menu lists only installed options, and the Db2 transaction-type programs behind options 5 and 6 are not installed.
+  then:
+    fields:
+      TRNNAMEO: CA00
+      PGMNAMEO: COADM01C
+      OPTN001O: "01. User List (Security)"
+      OPTN002O: "02. User Add (Security)"
+      OPTN003O: "03. User Update (Security)"
+      OPTN004O: "04. User Delete (Security)"
+      OPTN005O: ""
+      OPTN006O: ""
+COADM01C-007:
+  reason: No XCTL is attempted for a program that is not installed, so the conversation keeps the origin it arrived with.
+  then:
+    commarea: {}
+COADM01C-011:
+  reason: PGM-CONTEXT is implicit in GET versus POST, so the legacy context bug is gone and option 1 transfers.
+  then:
+    message: null
+    fields: {}
+    transfer: {via: XCTL, to: COUSR00C}
+    commarea: {CDEMO-FROM-PROGRAM: COADM01C, CDEMO-FROM-TRANID: CA00}
+COADM01C-012:
+  reason: Admin-only programs answer 403 to a type U user, a deliberate check the legacy menu lacked.
+  then:
+    status: 403
+    transfer: null
+    fields: {}

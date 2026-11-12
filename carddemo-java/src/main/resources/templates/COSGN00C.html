@@ -1,0 +1,24 @@
+<html xmlns:th="http://www.thymeleaf.org" th:replace="~{layout :: screen('Sign-on', ~{::main}, ~{::nav})}">
+<main>
+    <p class="intro">This is a Credit Card Demo Application for Mainframe Modernization</p>
+    <pre class="banner" aria-hidden="true">
++========================================+
+|%%%%%%%  NATIONAL RESERVE NOTE  %%%%%%%%|
+|%(1)  THE UNITED STATES OF KICSLAND (1)%|
+|%$$              ___       ********  $$%|
+|%$    {x}       (o o)                 $%|
+|%$     ******  (  V  )      O N E     $%|
+|%(1)          ---m-m---             (1)%|
+|%%~~~~~~~~~~~ ONE DOLLAR ~~~~~~~~~~~~~%%|
++========================================+</pre>
+    <p class="intro">Type your User ID and Password, then press ENTER:</p>
+    <div class="fields">
+        <th:block th:replace="~{fields :: field('USERID', 'User ID (8 Char):', 8)}"></th:block>
+        <th:block th:replace="~{fields :: field('PASSWD', 'Password (8 Char):', 8)}"></th:block>
+    </div>
+</main>
+<nav class="keys">
+    <button name="aid" value="ENTER">ENTER=Sign-on</button>
+    <button name="aid" value="PF3">F3=Exit</button>
+</nav>
+</html>

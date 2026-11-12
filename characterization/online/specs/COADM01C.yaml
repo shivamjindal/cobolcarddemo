@@ -1,0 +1,309 @@
+program: COADM01C
+transaction: CA00
+screen:
+  mapset: COADM01
+  map: COADM1A
+evidence: derived
+sources:
+  - app/cbl/COADM01C.cbl
+  - app/cpy/COADM02Y.cpy
+  - app/cpy/COCOM01Y.cpy
+  - app/cpy/CSMSG01Y.cpy
+  - app/bms/COADM01.bms
+  - app/csd/CARDDEMO.CSD
+files: []
+navigation:
+  - to: COSGN00C
+    via: XCTL
+    when: EIBCALEN = 0 (lines 86-88) or PF3 (lines 100-102). RETURN-TO-SIGNON-SCREEN XCTLs with no COMMAREA (lines 163-170).
+  - to: COUSR00C
+    via: XCTL
+    when: option 1 (User List), COMMAREA passed
+  - to: COUSR01C
+    via: XCTL
+    when: option 2 (User Add)
+  - to: COUSR02C
+    via: XCTL
+    when: option 3 (User Update)
+  - to: COUSR03C
+    via: XCTL
+    when: option 4 (User Delete)
+  - to: CA00
+    via: RETURN-TRANSID
+    when: every path that displays the menu (lines 111-114), including the PGMIDERR handler (lines 280-282)
+notes:
+  - Field values are written right-trimmed. Menu lines are CDEMO-ADMIN-OPT-NUM (zero-padded) + '. ' + CDEMO-ADMIN-OPT-NAME (lines 236-239).
+  - The option table is app/cpy/COADM02Y.cpy with CDEMO-ADMIN-OPT-COUNT = 6 (line 22). The OCCURS is 9 (line 52), with 6 entries filled.
+  - "Options 5 and 6 target COTRTLIC and COTRTUPC (COADM02Y.cpy lines 46-53). Their sources live in app/app-transaction-type-db2/cbl/, and neither program is defined in app/csd/CARDDEMO.CSD. In the base install the XCTL raises PGMIDERR, which HANDLE CONDITION (lines 77-79) routes to PGMIDERR-ERR-PARA (lines 270-283). The installed path, XCTL to COTRTLIC or COTRTUPC, cannot be expressed because the validator accepts only programs in app/cbl or CSD transids."
+  - "Latent bug. Before the XCTL attempt the program sets CDEMO-PGM-CONTEXT to 0 (line 144). On PGMIDERR the handler returns with that COMMAREA (lines 280-282). The next key press therefore takes the first-entry branch (lines 91-94) and only redisplays the menu, ignoring whatever option or key the user sent (case COADM01C-011)."
+  - "The not-installed text concatenates two literals with the option name commented out (lines 152-156 and 273-277). The real screen text is exactly 'This option is not installed ...'. The validator needs every literal fragment to appear contiguously in source, and the two literals sit on separate lines. So the spec writes the message as 'This option {}is not installed ...', where {} stands for the commented-out name and is empty at runtime."
+  - The 'DUMMY' guard (line 141) is unreachable because no entry in COADM02Y starts with DUMMY. With a real program name, a successful XCTL never returns, so the green not-installed text at lines 150-157 only shows through the PGMIDERR handler.
+  - "There is no user-type check. A COMMAREA with CDEMO-USER-TYPE 'U' still gets the full admin menu. Access control relies entirely on COSGN00C routing only type 'A' here, plus EIBCALEN = 0 bouncing to sign-on when CA00 is typed directly."
+  - Option parsing is identical to COMEN01C (lines 121-129). The input is right-trimmed, right-justified into X(02), and spaces become zeros.
+  - SEND MAP has no CURSOR option (lines 182-187), so the cursor sits on the BMS IC field OPTION. No case asserts a cursor.
+  - The not-installed message is DFHGREEN (lines 151, 272). There is no colour assertion because the schema has no attribute field.
+  - The Java slice replays this spec with deliberate differences listed, each with its reason, in carddemo-java/src/test/resources/spec-overrides/COADM01C.yaml.
+cases:
+  - id: COADM01C-001
+    summary: direct start with no COMMAREA (EIBCALEN = 0) transfers to sign-on
+    given:
+      entry: first-time
+    when:
+      aid: ENTER
+      fields: {}
+    then:
+      message: null
+      transfer: {via: XCTL, to: COSGN00C}
+      file_effects: []
+    source:
+      file: app/cbl/COADM01C.cbl
+      lines: [86, 88]
+
+  - id: COADM01C-002
+    summary: arriving from sign-on (PGM-CONTEXT 0) displays the 6-option admin menu
+    given:
+      entry: xctl-from
+      commarea:
+        CDEMO-FROM-PROGRAM: COSGN00C
+        CDEMO-FROM-TRANID: CC00
+        CDEMO-USER-ID: ADMIN001
+        CDEMO-USER-TYPE: A
+        CDEMO-PGM-CONTEXT: 0
+    when:
+      aid: ENTER
+      fields: {}
+    then:
+      message: null
+      fields:
+        TRNNAMEO: CA00
+        PGMNAMEO: COADM01C
+        OPTN001O: "01. User List (Security)"
+        OPTN002O: "02. User Add (Security)"
+        OPTN003O: "03. User Update (Security)"
+        OPTN004O: "04. User Delete (Security)"
+        OPTN005O: "05. Transaction Type List/Update (Db2)"
+        OPTN006O: "06. Transaction Type Maintenance (Db2)"
+      transfer: {via: RETURN-TRANSID, to: CA00}
+      commarea:
+        CDEMO-PGM-CONTEXT: 1
+      file_effects: []
+    source:
+      file: app/cbl/COADM01C.cbl
+      lines: [90, 94]
+
+  - id: COADM01C-003
+    summary: option 1 transfers to the user list
+    given:
+      entry: reenter
+      commarea: {CDEMO-USER-ID: ADMIN001, CDEMO-USER-TYPE: A, CDEMO-PGM-CONTEXT: 1}
+    when:
+      aid: ENTER
+      fields: {OPTIONI: "1"}
+    then:
+      message: null
+      transfer: {via: XCTL, to: COUSR00C}
+      commarea:
+        CDEMO-FROM-TRANID: CA00
+        CDEMO-FROM-PROGRAM: COADM01C
+        CDEMO-PGM-CONTEXT: 0
+        CDEMO-USER-ID: ADMIN001
+        CDEMO-USER-TYPE: A
+      file_effects: []
+    source:
+      file: app/cbl/COADM01C.cbl
+      lines: [140, 148]
+
+  - id: COADM01C-004
+    summary: option 2 transfers to user add
+    given:
+      entry: reenter
+      commarea: {CDEMO-USER-TYPE: A, CDEMO-PGM-CONTEXT: 1}
+    when:
+      aid: ENTER
+      fields: {OPTIONI: "2"}
+    then:
+      message: null
+      transfer: {via: XCTL, to: COUSR01C}
+      commarea: {CDEMO-FROM-TRANID: CA00, CDEMO-FROM-PROGRAM: COADM01C, CDEMO-PGM-CONTEXT: 0}
+      file_effects: []
+    source:
+      file: app/cbl/COADM01C.cbl
+      lines: [140, 148]
+
+  - id: COADM01C-005
+    summary: option 3 transfers to user update
+    given:
+      entry: reenter
+      commarea: {CDEMO-USER-TYPE: A, CDEMO-PGM-CONTEXT: 1}
+    when:
+      aid: ENTER
+      fields: {OPTIONI: "3"}
+    then:
+      message: null
+      transfer: {via: XCTL, to: COUSR02C}
+      commarea: {CDEMO-FROM-TRANID: CA00, CDEMO-FROM-PROGRAM: COADM01C, CDEMO-PGM-CONTEXT: 0}
+      file_effects: []
+    source:
+      file: app/cbl/COADM01C.cbl
+      lines: [140, 148]
+
+  - id: COADM01C-006
+    summary: option 4 (entered as ' 4') transfers to user delete
+    given:
+      entry: reenter
+      commarea: {CDEMO-USER-TYPE: A, CDEMO-PGM-CONTEXT: 1}
+    when:
+      aid: ENTER
+      fields: {OPTIONI: " 4"}
+    then:
+      message: null
+      transfer: {via: XCTL, to: COUSR03C}
+      commarea: {CDEMO-FROM-TRANID: CA00, CDEMO-FROM-PROGRAM: COADM01C, CDEMO-PGM-CONTEXT: 0}
+      file_effects: []
+    source:
+      file: app/cbl/COADM01C.cbl
+      lines: [121, 148]
+
+  - id: COADM01C-007
+    summary: option 5 with COTRTLIC not installed (PGMIDERR) redisplays the menu with the not-installed text and PGM-CONTEXT left at 0
+    given:
+      entry: reenter
+      commarea: {CDEMO-USER-TYPE: A, CDEMO-PGM-CONTEXT: 1}
+    when:
+      aid: ENTER
+      fields: {OPTIONI: "5"}
+    then:
+      message: "This option {}is not installed ..."
+      transfer: {via: RETURN-TRANSID, to: CA00}
+      commarea:
+        CDEMO-FROM-TRANID: CA00
+        CDEMO-FROM-PROGRAM: COADM01C
+        CDEMO-PGM-CONTEXT: 0
+      file_effects: []
+    source:
+      file: app/cbl/COADM01C.cbl
+      lines: [270, 283]
+
+  - id: COADM01C-008
+    summary: option 6 with COTRTUPC not installed behaves the same as option 5
+    given:
+      entry: reenter
+      commarea: {CDEMO-USER-TYPE: A, CDEMO-PGM-CONTEXT: 1}
+    when:
+      aid: ENTER
+      fields: {OPTIONI: "6"}
+    then:
+      message: "This option {}is not installed ..."
+      transfer: {via: RETURN-TRANSID, to: CA00}
+      commarea: {CDEMO-PGM-CONTEXT: 0}
+      file_effects: []
+    source:
+      file: app/cbl/COADM01C.cbl
+      lines: [270, 283]
+
+  - id: COADM01C-009
+    summary: option above the count (7) is rejected and echoed as 07
+    given:
+      entry: reenter
+      commarea: {CDEMO-USER-TYPE: A, CDEMO-PGM-CONTEXT: 1}
+    when:
+      aid: ENTER
+      fields: {OPTIONI: "7"}
+    then:
+      message: "Please enter a valid option number..."
+      fields:
+        OPTIONO: "07"
+      transfer: {via: RETURN-TRANSID, to: CA00}
+      commarea: {CDEMO-PGM-CONTEXT: 1}
+      file_effects: []
+    source:
+      file: app/cbl/COADM01C.cbl
+      lines: [131, 137]
+
+  - id: COADM01C-010
+    summary: option zero ('00') is rejected
+    given:
+      entry: reenter
+      commarea: {CDEMO-USER-TYPE: A, CDEMO-PGM-CONTEXT: 1}
+    when:
+      aid: ENTER
+      fields: {OPTIONI: "00"}
+    then:
+      message: "Please enter a valid option number..."
+      fields:
+        OPTIONO: "00"
+      transfer: {via: RETURN-TRANSID, to: CA00}
+      file_effects: []
+    source:
+      file: app/cbl/COADM01C.cbl
+      lines: [131, 137]
+
+  - id: COADM01C-011
+    summary: after a not-installed message PGM-CONTEXT is 0, so the next ENTER only redisplays the menu and ignores the typed option
+    given:
+      entry: reenter
+      commarea: {CDEMO-FROM-PROGRAM: COADM01C, CDEMO-USER-TYPE: A, CDEMO-PGM-CONTEXT: 0}
+    when:
+      aid: ENTER
+      fields: {OPTIONI: "1"}
+    then:
+      message: null
+      fields:
+        OPTN001O: "01. User List (Security)"
+      transfer: {via: RETURN-TRANSID, to: CA00}
+      commarea: {CDEMO-PGM-CONTEXT: 1}
+      file_effects: []
+    source:
+      file: app/cbl/COADM01C.cbl
+      lines: [91, 94]
+
+  - id: COADM01C-012
+    summary: a COMMAREA with user type 'U' still gets the admin menu (no type check)
+    given:
+      entry: xctl-from
+      commarea: {CDEMO-USER-ID: USER0001, CDEMO-USER-TYPE: U, CDEMO-PGM-CONTEXT: 0}
+    when:
+      aid: ENTER
+      fields: {}
+    then:
+      message: null
+      fields:
+        OPTN001O: "01. User List (Security)"
+      transfer: {via: RETURN-TRANSID, to: CA00}
+      file_effects: []
+    source:
+      file: app/cbl/COADM01C.cbl
+      lines: [86, 94]
+
+  - id: COADM01C-013
+    summary: PF3 returns to sign-on without a COMMAREA
+    given:
+      entry: reenter
+      commarea: {CDEMO-USER-TYPE: A, CDEMO-PGM-CONTEXT: 1}
+    when:
+      aid: PF3
+      fields: {}
+    then:
+      message: null
+      transfer: {via: XCTL, to: COSGN00C}
+      commarea: {CDEMO-TO-PROGRAM: COSGN00C}
+      file_effects: []
+    source:
+      file: app/cbl/COADM01C.cbl
+      lines: [100, 102]
+
+  - id: COADM01C-014
+    summary: any other key redisplays the menu with the invalid-key message
+    given:
+      entry: reenter
+      commarea: {CDEMO-USER-TYPE: A, CDEMO-PGM-CONTEXT: 1}
+    when:
+      aid: PF12
+      fields: {}
+    then:
+      message: "Invalid key pressed. Please see below..."
+      transfer: {via: RETURN-TRANSID, to: CA00}
+      file_effects: []
+    source:
+      file: app/cbl/COADM01C.cbl
+      lines: [103, 106]
