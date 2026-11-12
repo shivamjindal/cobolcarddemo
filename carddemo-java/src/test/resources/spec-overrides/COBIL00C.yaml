@@ -1,0 +1,17 @@
+# Deliberate differences from characterization/online/specs/COBIL00C.yaml, applied by OnlineSpecReplayTest.
+# Each entry replaces whole keys of the case's given, when or then.
+COBIL00C-003:
+  reason: No program hands over CDEMO-CB00-TRN-SELECTED, so arrival always shows the empty screen.
+  skip: true
+COBIL00C-006:
+  reason: OTHER stands for any key the program does not handle and is not a key the web screens can send, so the case presses PF5.
+  when:
+    aid: PF5
+COBIL00C-017:
+  reason: An account with no CXACAIX entry stops the payment with the lookup error and writes nothing.
+  then:
+    message: Account ID NOT found...
+    cursor: ACTIDINL
+    fields: {ACTIDINO: "00000000001", CURBALO: "+0000001500.75", CONFIRMO: "Y"}
+    transfer: {via: RETURN-TRANSID, to: CB00}
+    file_effects: []
