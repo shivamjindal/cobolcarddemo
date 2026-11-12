@@ -1,0 +1,41 @@
+# Deliberate differences from characterization/online/specs/COACTVWC.yaml, applied by OnlineSpecReplayTest.
+# Each entry replaces whole keys of the case's given, when or then.
+COACTVWC-001:
+  reason: Entering without a signed-on conversation goes to sign-on instead of showing the search screen.
+  then:
+    message: null
+    cursor: null
+    fields: {}
+    transfer: {via: XCTL, to: COSGN00C}
+COACTVWC-011:
+  reason: A missing account stops the lookup with the account error, so no customer is read or shown.
+  then:
+    message: "Account:{WS-CARD-RID-ACCT-ID-X} not found in{} Acct Master file.Resp:{ERROR-RESP} Reas:{ERROR-RESP2}"
+    cursor: ACCTSIDL
+    fields: {ACCTSIDO: "00000000001", ACSTNUMO: "", ACSFNAMO: "", ACSLNAMO: ""}
+COACTVWC-018:
+  reason: PF3 keeps the signed-on user's type, where the legacy program forced it to U.
+  then:
+    commarea:
+      CDEMO-TO-PROGRAM: COMEN01C
+      CDEMO-TO-TRANID: CM00
+      CDEMO-FROM-PROGRAM: COACTVWC
+      CDEMO-FROM-TRANID: CAVW
+      CDEMO-USER-TYPE: A
+      CDEMO-PGM-CONTEXT: 0
+      CDEMO-LAST-MAPSET: COACTVW
+      CDEMO-LAST-MAP: CACTVWA
+COACTVWC-019:
+  reason: Entering without a signed-on conversation goes to sign-on, whatever key is pressed.
+  then:
+    transfer: {via: XCTL, to: COSGN00C}
+COACTVWC-020:
+  reason: The web screens offer only PF1 to PF12, so there is no PF15 to fold onto PF3.
+  skip: true
+COACTVWC-021:
+  reason: PGM-CONTEXT is implicit in GET versus POST, so an out-of-range context cannot occur and ENTER searches as usual.
+  then:
+    message: No input received
+    cursor: ACCTSIDL
+    fields: {ACCTSIDO: "*"}
+    transfer: {via: RETURN-TRANSID, to: CAVW}

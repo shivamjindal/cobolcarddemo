@@ -161,8 +161,7 @@ notes:
   - >-
     READ UPDATE in CICS waits for a held lock rather than failing. The 'Could not lock' outcomes therefore come
     from NOTFND or other errors, which is how the cases below provoke them (record absent). Cases whose
-    summary names an injected fault need the runner to force that I/O error. The schema has no field for
-    this.
+    summary names an injected fault force that I/O error with given.file_conditions (see SCHEMA.md).
   - >-
     F5 does not re-run the edits (state N skips them, line 1464). It saves whatever the protected FSET fields
     send back. The cursor ends on ACCTSIDL in every state other than an edit error or 'no change'.
@@ -182,6 +181,7 @@ notes:
   - >-
     RESP rendering is inferred. ERROR-RESP and ERROR-RESP2 are X(10) receiving S9(9) COMP values, which gives
     9 digits plus a space. The not-found messages are longer than 75 bytes and lose the tail of RESP2.
+  - The Java slice replays this spec with deliberate differences listed, each with its reason, in carddemo-java/src/test/resources/spec-overrides/COACTUPC.yaml.
 cases:
   # ---------------------------------------------------------------- entry and exit
   - id: COACTUPC-001
@@ -371,7 +371,11 @@ cases:
 
   - id: COACTUPC-012
     summary: CXACAIX READ returns a RESP other than NORMAL/NOTFND (injected fault)
-    given: {entry: reenter, commarea: *search}
+    given:
+      entry: reenter
+      commarea: *search
+      file_conditions:
+        - {file: CXACAIX, op: READ, resp: IOERR}
     when: {aid: ENTER, fields: {ACCTSIDI: "00000000001"}}
     then:
       message: "File Error: {ERROR-OPNAME} on {ERROR-FILE} returned RESP {ERROR-RESP},RESP2 {ERROR-RESP2}"
@@ -431,6 +435,8 @@ cases:
       entry: reenter
       commarea: *search
       files: {CXACAIX: [*xref], CUSTDAT: [*cust]}
+      file_conditions:
+        - {file: ACCTDAT, op: READ, resp: IOERR}
     when: {aid: ENTER, fields: {ACCTSIDI: "00000000001"}}
     then:
       message: "File Error: {ERROR-OPNAME} on {ERROR-FILE} returned RESP {ERROR-RESP},RESP2 {ERROR-RESP2}"
@@ -478,6 +484,8 @@ cases:
       entry: reenter
       commarea: *search
       files: {CXACAIX: [*xref], ACCTDAT: [*acct]}
+      file_conditions:
+        - {file: CUSTDAT, op: READ, resp: IOERR}
     when: {aid: ENTER, fields: {ACCTSIDI: "00000000001"}}
     then:
       message: "File Error: {ERROR-OPNAME} on {ERROR-FILE} returned RESP {ERROR-RESP},RESP2 {ERROR-RESP2}"
@@ -2067,7 +2075,12 @@ cases:
 
   - id: COACTUPC-122
     summary: F5 where the ACCTDAT REWRITE fails (injected fault) reports 'Update of record failed' (state F)
-    given: {entry: reenter, commarea: {<<: *fetched, ACUP-CHANGE-ACTION: N}, files: *db}
+    given:
+      entry: reenter
+      commarea: {<<: *fetched, ACUP-CHANGE-ACTION: N}
+      files: *db
+      file_conditions:
+        - {file: ACCTDAT, op: REWRITE, resp: IOERR}
     when: {aid: PF5, fields: *confirmed}
     then:
       message: Update of record failed
@@ -2080,7 +2093,12 @@ cases:
 
   - id: COACTUPC-123
     summary: F5 where the CUSTDAT REWRITE fails (injected fault) rolls back the account rewrite (state F)
-    given: {entry: reenter, commarea: {<<: *fetched, ACUP-CHANGE-ACTION: N}, files: *db}
+    given:
+      entry: reenter
+      commarea: {<<: *fetched, ACUP-CHANGE-ACTION: N}
+      files: *db
+      file_conditions:
+        - {file: CUSTDAT, op: REWRITE, resp: IOERR}
     when: {aid: PF5, fields: *confirmed}
     then:
       message: Update of record failed

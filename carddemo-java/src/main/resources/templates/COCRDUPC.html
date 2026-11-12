@@ -1,0 +1,20 @@
+<html xmlns:th="http://www.thymeleaf.org" th:replace="~{layout :: screen('Update Credit Card Details', ~{::main}, ~{::nav})}">
+<main>
+    <div class="fields">
+        <th:block th:replace="~{fields :: field('ACCTSID', 'Account Number:', 11)}"></th:block>
+        <th:block th:replace="~{fields :: field('CARDSID', 'Card Number:', 16)}"></th:block>
+        <th:block th:replace="~{fields :: field('CRDNAME', 'Name on card:', 50)}"></th:block>
+        <th:block th:replace="~{fields :: field('CRDSTCD', 'Card Active Y/N:', 1)}"></th:block>
+        <th:block th:replace="~{fields :: field('EXPMON', 'Expiry Month:', 2)}"></th:block>
+        <th:block th:replace="~{fields :: field('EXPYEAR', 'Expiry Year:', 4)}"></th:block>
+        <input type="hidden" name="EXPDAY" data-testid="EXPDAY" th:value="${screen.fields.get('EXPDAY')}">
+    </div>
+    <p class="intro" data-testid="INFOMSG" th:text="${screen.fields.get('INFOMSG')}"></p>
+</main>
+<nav class="keys">
+    <button name="aid" value="ENTER">ENTER=Process</button>
+    <button name="aid" value="PF3">F3=Exit</button>
+    <button name="aid" value="PF5">F5=Save</button>
+    <button name="aid" value="PF12">F12=Cancel</button>
+</nav>
+</html>

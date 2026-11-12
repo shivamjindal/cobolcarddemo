@@ -45,15 +45,27 @@ public class Screens {
     }
 
     public Outcome arrive(Program program, Conversation conversation) {
-        return permitted(program, conversation).arrive(conversation);
+        return sent(program, conversation, permitted(program, conversation).arrive(conversation));
     }
 
     public Outcome receive(Program program, Conversation conversation, Aid aid, Map<String, String> fields) {
         Map<String, String> trimmed = fields.entrySet().stream().filter(e -> e.getValue() != null)
                 .collect(Collectors.toMap(Map.Entry::getKey, e -> e.getValue().stripTrailing()));
+        conversation.shown().filter(shown -> shown.program() == program)
+                .ifPresent(shown -> trimmed.putAll(shown.values()));
         Outcome outcome = permitted(program, conversation).receive(conversation, aid, trimmed);
         if (outcome instanceof Outcome.Transfer) {
             conversation.from(program);
+        }
+        return sent(program, conversation, outcome);
+    }
+
+    /** A protected field comes back as it was sent (DFHBMPRF), so the client cannot change it. */
+    private static Outcome sent(Program program, Conversation conversation, Outcome outcome) {
+        if (outcome instanceof Outcome.Show show) {
+            Map<String, String> values = new TreeMap<>();
+            show.readOnly().forEach(name -> values.put(name, show.fields().getOrDefault(name, "")));
+            conversation.put(new Conversation.Protected(program, values));
         }
         return outcome;
     }
@@ -69,7 +81,7 @@ public class Screens {
         fields.put("CURDATE", CURDATE.format(now));
         fields.put("CURTIME", CURTIME.format(now));
         fields.putAll(new TreeMap<>(show.fields()));
-        return new Screen(program, program.transid, fields, show.message(), show.cursor());
+        return new Screen(program, program.transid, fields, show.message(), show.cursor(), show.readOnly());
     }
 
     /** No legacy program checks the user type; an admin-only program is 403 for a regular user. */

@@ -43,12 +43,12 @@ class ScreenPagesTest {
     Screens screens;
 
     @Autowired
-    UsersTable users;
+    Datasets datasets;
 
     @TestFactory
     Stream<DynamicTest> everyScreenLabelsItsInputsAndOffersItsKeysAsButtons() {
-        users.reset(List.of(Map.of("SEC-USR-ID", "ADMIN001", "SEC-USR-FNAME", "MARGARET", "SEC-USR-LNAME", "GOLD",
-                "SEC-USR-PWD", "PASSWORD", "SEC-USR-TYPE", "A")));
+        datasets.reset(Map.of("USRSEC", List.of(Map.of("SEC-USR-ID", "ADMIN001", "SEC-USR-FNAME", "MARGARET",
+                "SEC-USR-LNAME", "GOLD", "SEC-USR-PWD", "PASSWORD", "SEC-USR-TYPE", "A"))));
         Stream<DynamicTest> signon = Stream.of(dynamicTest("COSGN00C", () -> assertScreenContract(render(get("/signon")))));
         Stream<DynamicTest> installed = Arrays.stream(Program.values()).filter(screens::installed)
                 .map(p -> dynamicTest(p.name(), () -> assertScreenContract(
@@ -84,7 +84,7 @@ class ScreenPagesTest {
 
     @Test
     void programsThatAreNotInstalledAreNotFound() throws Exception {
-        mvc.perform(get("/screens/COACTVWC").session(admin()).with(user("ADMIN001"))).andExpect(status().isNotFound());
+        mvc.perform(get("/screens/COTRN00C").session(admin()).with(user("ADMIN001"))).andExpect(status().isNotFound());
         mvc.perform(get("/api/screens/NOSUCHPG").session(admin()).with(user("ADMIN001"))).andExpect(status().isNotFound());
     }
 

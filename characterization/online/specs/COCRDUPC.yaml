@@ -124,6 +124,7 @@ notes:
     literal LIT-CARDFILENAME-ACCT-PATH. LIT-CCLISTMAP is 'CCRDSLA' (line 234), the detail map, and is unused.
     The 88-levels WS-NAME-MUST-BE-ALPHA etc. are the real message texts; SEARCHED-ACCT-NOT-NUMERIC,
     SEARCHED-CARD-NOT-NUMERIC, DID-NOT-FIND-ACCT-IN-CARDXREF, XREF-READ-ERROR, CODING-TO-BE-DONE are never set.
+  - The Java slice replays this spec with deliberate differences listed, each with its reason, in carddemo-java/src/test/resources/spec-overrides/COCRDUPC.yaml.
 cases:
   - id: COCRDUPC-001
     summary: first entry (no COMMAREA) shows the search screen asking for account and card

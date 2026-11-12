@@ -1,0 +1,19 @@
+<html xmlns:th="http://www.thymeleaf.org" th:replace="~{layout :: screen('View Credit Card Detail', ~{::main}, ~{::nav})}">
+<main>
+    <div class="fields">
+        <th:block th:replace="~{fields :: field('ACCTSID', 'Account Number:', 11)}"></th:block>
+        <th:block th:replace="~{fields :: field('CARDSID', 'Card Number:', 16)}"></th:block>
+    </div>
+    <div class="fields">
+        <th:block th:replace="~{fields :: text('CRDNAME', 'Name on card:')}"></th:block>
+        <th:block th:replace="~{fields :: text('CRDSTCD', 'Card Active Y/N:')}"></th:block>
+        <th:block th:replace="~{fields :: text('EXPMON', 'Expiry Month:')}"></th:block>
+        <th:block th:replace="~{fields :: text('EXPYEAR', 'Expiry Year:')}"></th:block>
+    </div>
+    <p class="intro" data-testid="INFOMSG" th:text="${screen.fields.get('INFOMSG')}"></p>
+</main>
+<nav class="keys">
+    <button name="aid" value="ENTER">ENTER=Search Cards</button>
+    <button name="aid" value="PF3">F3=Exit</button>
+</nav>
+</html>

@@ -28,6 +28,8 @@ input {
     border: 0; border-bottom: 1px solid var(--field); padding: 0 .3ch;
 }
 input:focus { outline: none; background: #4dff8820; }
+input[readonly] { color: var(--text); border-bottom-color: transparent; }
+input[readonly]:focus { background: transparent; }
 .options { list-style: none; width: max-content; margin: 0 auto 1rem; padding: 0; color: var(--text); }
 table { margin: 1rem auto; border-collapse: collapse; }
 th { color: var(--label); font-weight: normal; text-align: left; border-bottom: 1px dashed var(--line); }

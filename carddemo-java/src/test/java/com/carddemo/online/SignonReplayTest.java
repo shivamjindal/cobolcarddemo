@@ -45,7 +45,7 @@ class SignonReplayTest {
     }
 
     @Autowired
-    UsersTable users;
+    Datasets datasets;
 
     @Autowired
     JdbcTemplate jdbc;
@@ -65,8 +65,8 @@ class SignonReplayTest {
 
     @Test
     void aUserAddedInLowerCaseSignsOnInAnyCase() throws Exception {
-        users.reset(List.of(Map.of("SEC-USR-ID", "ADMIN001", "SEC-USR-FNAME", "MARGARET", "SEC-USR-LNAME", "GOLD",
-                "SEC-USR-PWD", "PASSWORD", "SEC-USR-TYPE", "A")));
+        datasets.reset(Map.of("USRSEC", List.of(Map.of("SEC-USR-ID", "ADMIN001", "SEC-USR-FNAME", "MARGARET",
+                "SEC-USR-LNAME", "GOLD", "SEC-USR-PWD", "PASSWORD", "SEC-USR-TYPE", "A"))));
         Browser admin = new Browser(BASE);
         assertThat(signOn(admin, "admin001", "password").path()).isEqualTo("/screens/COADM01C");
         Browser.Page add = admin.get("/screens/COUSR01C");
@@ -85,17 +85,17 @@ class SignonReplayTest {
             TALLY.record(c);
             abort(c.reason());
         }
-        users.reset(c.users());
-        var before = users.snapshot();
+        datasets.reset(c.files());
+        var before = datasets.snapshot();
         Browser browser = new Browser(BASE);
         Browser.Page page = browser.get("/");
         if (!c.entry().equals("first-time")) {
             Map<String, String> form = new HashMap<>(c.fields());
             form.put("aid", c.aid());
             form.put("_csrf", page.csrf());
-            page = users.with(c.fileConditions(), () -> browser.post("/signon", form));
+            page = datasets.with(c.fileConditions(), () -> browser.post("/signon", form));
         }
-        c.verify(observe(page, browser, users.effectsSince(before)));
+        c.verify(observe(page, browser, datasets.effectsSince(before)), datasets);
         TALLY.record(c);
     }
 
@@ -104,7 +104,7 @@ class SignonReplayTest {
         return browser.post("/signon", Map.of("USERID", user, "PASSWD", password, "aid", "ENTER", "_csrf", signon.csrf()));
     }
 
-    private Observed observe(Browser.Page page, Browser browser, List<UsersTable.Effect> effects) throws Exception {
+    private Observed observe(Browser.Page page, Browser browser, List<Datasets.Effect> effects) throws Exception {
         String transfer = switch (page.path()) {
             case "/signon" -> "RETURN-TRANSID " + page.testid("TRNNAME");
             case "/signed-off" -> "SEND-TEXT null";
