@@ -1,0 +1,690 @@
+program: COPAUS0C
+module: app/app-authorization-ims-db2-mq
+transaction: CPVS
+screen:
+  mapset: COPAU00
+  map: COPAU0A
+evidence: derived
+sources:
+  - app/app-authorization-ims-db2-mq/cbl/COPAUS0C.cbl
+  - app/app-authorization-ims-db2-mq/cpy/CIPAUSMY.cpy
+  - app/app-authorization-ims-db2-mq/cpy/CIPAUDTY.cpy
+  - app/app-authorization-ims-db2-mq/bms/COPAU00.bms
+  - app/app-authorization-ims-db2-mq/ims/DBPAUTP0.dbd
+  - app/app-authorization-ims-db2-mq/csd/CRDDEMO2.csd
+  - app/cpy/COCOM01Y.cpy
+  - app/cpy/CSMSG01Y.cpy
+  - app/cpy/CSDAT01Y.cpy
+  - app/cpy/CVACT01Y.cpy
+  - app/cpy/CVACT03Y.cpy
+  - app/cpy/CVCUS01Y.cpy
+files:
+  - name: CXACAIX
+    ops: [READ]
+    key: XREF-ACCT-ID
+  - name: ACCTDAT
+    ops: [READ]
+    key: ACCT-ID
+  - name: CUSTDAT
+    ops: [READ]
+    key: CUST-ID
+  - name: PAUTSUM0
+    ops: [READ]
+    key: PA-ACCT-ID
+  - name: PAUTDTL1
+    ops: [READ]
+    key: PA-AUTHORIZATION-KEY
+navigation:
+  - to: COPAUS1C
+    via: XCTL
+    when: ENTER with 'S' or 's' in the selection field of a listed row (lines 310-324)
+  - to: COMEN01C
+    via: XCTL
+    when: PF3 (lines 235-237, 665-677)
+  - to: CPVS
+    via: RETURN-TRANSID
+    when: every path that displays the list, COMMAREA passed (lines 254-256)
+notes:
+  - "Field and record values are right-trimmed, a blank field is \"\". PAUTSUM0 and PAUTDTL1 records follow CIPAUSMY and CIPAUDTY, a PAUTDTL1 record also carries its parent's PA-ACCT-ID. Numbers in segment records are written as Postgres prints them (PA-ACCT-ID \"1\")."
+  - "CDEMO-CPVS-INFO follows CARDDEMO-COMMAREA (lines 117-126). An authorization key (CDEMO-CPVS-AUTH-KEYS, -PAU-SELECTED, -PAUKEY-LAST, -PAUKEY-PREV-PG) is the 8-byte PA-AUTHORIZATION-KEY, the packed PA-AUTH-DATE-9C and PA-AUTH-TIME-9C. Specs write it as <PA-AUTH-DATE-9C>/<PA-AUTH-TIME-9C>, e.g. 73984/896984999."
+  - "Under a summary IMS returns details in key order (DBPAUTP0.dbd, PAUT9CTS). COPAUA0C builds the key from the inverted date and time, so the newest authorization is listed first."
+  - "First entry. EIBCALEN = 0 sends an empty list (lines 190-198). A COMMAREA that is not re-entered shows the account in CDEMO-ACCT-ID when it is numeric, otherwise an empty list (lines 202-219). COPAUS1C's PF3 returns with the account it showed. COACTVWC, COCRDLIC and other screens also leave a numeric CDEMO-ACCT-ID that the menu passes through, so the list can open on an account viewed elsewhere."
+  - "Account id edit (lines 264-283). ACCTIDI must be all 11 characters numeric. BMS pads a shorter entry with spaces, which fails the NUMERIC test, and zeros are accepted."
+  - "GATHER-ACCOUNT-DETAILS (lines 750-808) reads CXACAIX by account id, then ACCTDAT by XREF-ACCT-ID and CUSTDAT by XREF-CUST-ID, then the summary by CDEMO-ACCT-ID. A NOTFND on any of the first three builds 'Account:...' or 'Customer:...' with Resp 000000013 and Reas 000000080 and SENDs the screen at once, then carries on. The terminal keeps the last SEND, which carries the last message STRINGed into WS-MESSAGE. STRING does not clear the rest of WS-MESSAGE."
+  - "A NOTFND leaves the record area as it was. After a CXACAIX miss the account and customer reads use whatever CARD-XREF-RECORD held, so the final message and the name, address and limits are undefined (case COPAUS0C-010). After an ACCTDAT miss the limits are undefined, after a CUSTDAT miss the customer id, name, address and phone are. Those cases leave the undefined fields out."
+  - "Display formats. CNAMEO is first name up to its first space, a space, the middle initial, a space, last name up to its first space (lines 757-763). ADDR001O is address line 1 and line 2 each up to a double space, joined by ','. ADDR002O is line 3, state and the first 5 zip digits joined by ',' (lines 765-776). CREDLIMO and CREDBALO use PIC -zzzzzzz9.99, CASHLIMO, CASHBALO, APPRAMTO and DECLAMTO PIC -zzzz9.99, the counts PIC 9(03). Without a summary the six summary fields get ZERO, which fills them with '0' characters (lines 800-806)."
+  - "Rows (POPULATE-AUTH-LIST, lines 522-605). PDATEnnO is PA-AUTH-ORIG-DATE as MM/DD/YY, PTIMEnnO PA-AUTH-ORIG-TIME as HH:MM:SS, PAPRVnnO 'A' for response code '00' and 'D' otherwise, PSTATnnO the match status, PAMTnnnO the approved amount in PIC -zzzzzzz9.99. A declined authorization lists 0.00. Unused rows are blanked and their selection field protected (lines 608-662)."
+  - "Paging (lines 362-453). A page is filled with up to 5 GNPs under the summary. Row 1 of each page is pushed to CDEMO-CPVS-PAUKEY-PREV-PG(page), row 5 or the last row filled is CDEMO-CPVS-PAUKEY-LAST. After 5 rows one more GNP sets CDEMO-CPVS-NEXT-PAGE-FLG. A page that runs out before 5 rows leaves the flag as it was, so a short last page keeps 'Y' and the next PF8 blanks the list (case COPAUS0C-017). The PREV-PG table has 20 entries."
+  - "PF7 decrements the page number, repositions on that page's first key and fills forward, but the fill adds 1 back when it reaches row 2 (lines 436-440). The page number therefore never goes down, and a second PF7 shows the same page again (case COPAUS0C-019)."
+  - "PF7 and PF8 SEND without ERASE. Fields not sent keep what the terminal showed, so the name and address stay from the previous screen. ENTER and invalid keys SEND with ERASE from the received map, where only FSET fields (rows, limits, balances and amounts) come back. The name, address, phone, customer id and counts go blank after an invalid key or an account id error. The specs assert what the program writes."
+  - "An invalid selection sets the message but not WS-ERR-FLG, so the list is rebuilt from page 1 under it (lines 326-337)."
+  - "IMS or file errors other than NOTFND build ' System error while ...' messages and SEND. The schema cannot inject IMS failures, so no case asserts them."
+  - The Java slice replays this spec with deliberate differences listed, each with its reason, in carddemo-java/src/test/resources/spec-overrides/COPAUS0C.yaml.
+cases:
+  - id: COPAUS0C-001
+    summary: direct start with no COMMAREA (EIBCALEN = 0) shows an empty list
+    given:
+      entry: first-time
+    when:
+      aid: ENTER
+      fields: {}
+    then:
+      message: null
+      cursor: ACCTIDL
+      fields:
+        TRNNAMEO: CPVS
+        PGMNAMEO: COPAUS0C
+        ACCTIDO: ""
+        TRNID01O: ""
+      transfer: {via: RETURN-TRANSID, to: CPVS}
+      file_effects: []
+    source:
+      file: app/app-authorization-ims-db2-mq/cbl/COPAUS0C.cbl
+      lines: [190, 198]
+
+  - id: COPAUS0C-002
+    summary: arriving from the menu without an account id shows an empty list
+    given:
+      entry: xctl-from
+      commarea:
+        CDEMO-FROM-PROGRAM: COMEN01C
+        CDEMO-FROM-TRANID: CM00
+        CDEMO-USER-TYPE: U
+        CDEMO-PGM-CONTEXT: 0
+        CDEMO-ACCT-ID: LOW-VALUES
+    when:
+      aid: ENTER
+      fields: {}
+    then:
+      message: null
+      cursor: ACCTIDL
+      fields:
+        TRNNAMEO: CPVS
+        PGMNAMEO: COPAUS0C
+        ACCTIDO: ""
+        CNAMEO: ""
+        TRNID01O: ""
+      transfer: {via: RETURN-TRANSID, to: CPVS}
+      commarea:
+        CDEMO-CPVS-PAGE-NUM: 0
+      file_effects: []
+    source:
+      file: app/app-authorization-ims-db2-mq/cbl/COPAUS0C.cbl
+      lines: [202, 219]
+
+  - id: COPAUS0C-003
+    summary: returning from the detail screen with an account id lists that account's first 5 authorizations, newest first
+    given:
+      entry: xctl-from
+      commarea:
+        CDEMO-FROM-PROGRAM: COPAUS1C
+        CDEMO-FROM-TRANID: CPVD
+        CDEMO-USER-TYPE: U
+        CDEMO-PGM-CONTEXT: 0
+        CDEMO-ACCT-ID: "00000000001"
+      files:
+        CXACAIX: &xref
+          - {XREF-CARD-NUM: "4111000011112222", XREF-CUST-ID: "000000001", XREF-ACCT-ID: "00000000001"}
+        ACCTDAT: &account
+          - {ACCT-ID: "00000000001", ACCT-ACTIVE-STATUS: "Y", ACCT-CURR-BAL: "300.00", ACCT-CREDIT-LIMIT: "2000.00", ACCT-CASH-CREDIT-LIMIT: "500.00"}
+        CUSTDAT: &customer
+          - {CUST-ID: "000000001", CUST-FIRST-NAME: JOHN, CUST-MIDDLE-NAME: QUINCY, CUST-LAST-NAME: SMITH, CUST-ADDR-LINE-1: 123 MAIN ST, CUST-ADDR-LINE-2: APT 4, CUST-ADDR-LINE-3: SEATTLE, CUST-ADDR-STATE-CD: WA, CUST-ADDR-ZIP: "98101", CUST-PHONE-NUM-1: (206)555-0100}
+        PAUTSUM0: &summary
+          - {PA-ACCT-ID: "1", PA-CUST-ID: "1", PA-CREDIT-LIMIT: "2000.00", PA-CASH-LIMIT: "500.00", PA-CREDIT-BALANCE: "625.50", PA-CASH-BALANCE: "0.00", PA-APPROVED-AUTH-CNT: "6", PA-DECLINED-AUTH-CNT: "1", PA-APPROVED-AUTH-AMT: "625.50", PA-DECLINED-AUTH-AMT: "2500.00"}
+        PAUTDTL1: &details
+          - {PA-ACCT-ID: "1", PA-AUTH-DATE-9C: "73984", PA-AUTH-TIME-9C: "896984999", PA-AUTH-ORIG-DATE: "260115", PA-AUTH-ORIG-TIME: "103015", PA-CARD-NUM: "4111000011112222", PA-AUTH-TYPE: "0100", PA-AUTH-RESP-CODE: "00", PA-AUTH-RESP-REASON: "0000", PA-TRANSACTION-AMT: "125.50", PA-APPROVED-AMT: "125.50", PA-TRANSACTION-ID: TXN000000000001, PA-MATCH-STATUS: P}
+          - {PA-ACCT-ID: "1", PA-AUTH-DATE-9C: "73984", PA-AUTH-TIME-9C: "908755999", PA-AUTH-ORIG-DATE: "260115", PA-AUTH-ORIG-TIME: "091244", PA-CARD-NUM: "4111000011112222", PA-AUTH-TYPE: "0100", PA-AUTH-RESP-CODE: "00", PA-AUTH-RESP-REASON: "0000", PA-TRANSACTION-AMT: "40.00", PA-APPROVED-AMT: "40.00", PA-TRANSACTION-ID: TXN000000000002, PA-MATCH-STATUS: P}
+          - {PA-ACCT-ID: "1", PA-AUTH-DATE-9C: "73985", PA-AUTH-TIME-9C: "819490999", PA-AUTH-ORIG-DATE: "260114", PA-AUTH-ORIG-TIME: "180509", PA-CARD-NUM: "4111000011112222", PA-AUTH-TYPE: "0100", PA-AUTH-RESP-CODE: "05", PA-AUTH-RESP-REASON: "4100", PA-TRANSACTION-AMT: "2500.00", PA-APPROVED-AMT: "0.00", PA-TRANSACTION-ID: TXN000000000003, PA-MATCH-STATUS: D}
+          - {PA-ACCT-ID: "1", PA-AUTH-DATE-9C: "73985", PA-AUTH-TIME-9C: "879999999", PA-AUTH-ORIG-DATE: "260114", PA-AUTH-ORIG-TIME: "120000", PA-CARD-NUM: "4111000011112222", PA-AUTH-TYPE: "0100", PA-AUTH-RESP-CODE: "00", PA-AUTH-RESP-REASON: "0000", PA-TRANSACTION-AMT: "210.00", PA-APPROVED-AMT: "210.00", PA-TRANSACTION-ID: TXN000000000004, PA-MATCH-STATUS: P}
+          - {PA-ACCT-ID: "1", PA-AUTH-DATE-9C: "73986", PA-AUTH-TIME-9C: "915469999", PA-AUTH-ORIG-DATE: "260113", PA-AUTH-ORIG-TIME: "084530", PA-CARD-NUM: "4111000011112222", PA-AUTH-TYPE: "0100", PA-AUTH-RESP-CODE: "00", PA-AUTH-RESP-REASON: "0000", PA-TRANSACTION-AMT: "100.00", PA-APPROVED-AMT: "100.00", PA-TRANSACTION-ID: TXN000000000005, PA-MATCH-STATUS: M}
+          - {PA-ACCT-ID: "1", PA-AUTH-DATE-9C: "73987", PA-AUTH-TIME-9C: "798989999", PA-AUTH-ORIG-DATE: "260112", PA-AUTH-ORIG-TIME: "201010", PA-CARD-NUM: "4111000011112222", PA-AUTH-TYPE: "0100", PA-AUTH-RESP-CODE: "00", PA-AUTH-RESP-REASON: "0000", PA-TRANSACTION-AMT: "75.00", PA-APPROVED-AMT: "75.00", PA-TRANSACTION-ID: TXN000000000006, PA-MATCH-STATUS: P}
+          - {PA-ACCT-ID: "1", PA-AUTH-DATE-9C: "73987", PA-AUTH-TIME-9C: "929998999", PA-AUTH-ORIG-DATE: "260112", PA-AUTH-ORIG-TIME: "070001", PA-CARD-NUM: "4111000011112222", PA-AUTH-TYPE: "0100", PA-AUTH-RESP-CODE: "00", PA-AUTH-RESP-REASON: "0000", PA-TRANSACTION-AMT: "75.00", PA-APPROVED-AMT: "75.00", PA-TRANSACTION-ID: TXN000000000007, PA-MATCH-STATUS: E}
+    when:
+      aid: ENTER
+      fields: {}
+    then:
+      message: null
+      cursor: ACCTIDL
+      fields: &page1
+        TRNNAMEO: CPVS
+        PGMNAMEO: COPAUS0C
+        ACCTIDO: "00000000001"
+        CNAMEO: JOHN Q SMITH
+        CUSTIDO: "000000001"
+        ADDR001O: 123 MAIN ST,APT 4
+        ADDR002O: SEATTLE,WA,98101
+        PHONE1O: (206)555-0100
+        ACCSTATO: ""
+        CREDLIMO: "     2000.00"
+        CASHLIMO: "   500.00"
+        APPRCNTO: "006"
+        DECLCNTO: "001"
+        CREDBALO: "      625.50"
+        CASHBALO: "     0.00"
+        APPRAMTO: "   625.50"
+        DECLAMTO: "  2500.00"
+        TRNID01O: TXN000000000001
+        PDATE01O: 01/15/26
+        PTIME01O: "10:30:15"
+        PTYPE01O: "0100"
+        PAPRV01O: A
+        PSTAT01O: P
+        PAMT001O: "      125.50"
+        TRNID02O: TXN000000000002
+        PTIME02O: "09:12:44"
+        PAMT002O: "       40.00"
+        TRNID03O: TXN000000000003
+        PDATE03O: 01/14/26
+        PAPRV03O: D
+        PSTAT03O: D
+        PAMT003O: "        0.00"
+        TRNID04O: TXN000000000004
+        PAMT004O: "      210.00"
+        TRNID05O: TXN000000000005
+        PDATE05O: 01/13/26
+        PTIME05O: "08:45:30"
+        PSTAT05O: M
+        PAMT005O: "      100.00"
+      transfer: {via: RETURN-TRANSID, to: CPVS}
+      commarea:
+        CDEMO-ACCT-ID: "00000000001"
+        CDEMO-CUST-ID: "000000001"
+        CDEMO-CPVS-PAGE-NUM: 1
+        CDEMO-CPVS-NEXT-PAGE-FLG: "Y"
+        CDEMO-CPVS-AUTH-KEYS(1): 73984/896984999
+        CDEMO-CPVS-AUTH-KEYS(5): 73986/915469999
+        CDEMO-CPVS-PAUKEY-LAST: 73986/915469999
+        CDEMO-CPVS-PAUKEY-PREV-PG(1): 73984/896984999
+      file_effects: []
+    source:
+      file: app/app-authorization-ims-db2-mq/cbl/COPAUS0C.cbl
+      lines: [342, 357]
+
+  - id: COPAUS0C-004
+    summary: ENTER with a blank account id asks for one
+    given:
+      entry: reenter
+      commarea: {CDEMO-USER-TYPE: U, CDEMO-PGM-CONTEXT: 1}
+    when:
+      aid: ENTER
+      fields: {ACCTIDI: ""}
+    then:
+      message: Please enter Acct Id...
+      cursor: ACCTIDL
+      fields: {ACCTIDO: "", TRNID01O: ""}
+      transfer: {via: RETURN-TRANSID, to: CPVS}
+      file_effects: []
+    source:
+      file: app/app-authorization-ims-db2-mq/cbl/COPAUS0C.cbl
+      lines: [264, 271]
+
+  - id: COPAUS0C-005
+    summary: ENTER with letters in the account id is rejected
+    given:
+      entry: reenter
+      commarea: {CDEMO-USER-TYPE: U, CDEMO-PGM-CONTEXT: 1}
+    when:
+      aid: ENTER
+      fields: {ACCTIDI: "ABCDEFGHIJK"}
+    then:
+      message: Acct Id must be Numeric ...
+      cursor: ACCTIDL
+      fields: {ACCTIDO: "", TRNID01O: ""}
+      transfer: {via: RETURN-TRANSID, to: CPVS}
+      file_effects: []
+    source:
+      file: app/app-authorization-ims-db2-mq/cbl/COPAUS0C.cbl
+      lines: [273, 280]
+
+  - id: COPAUS0C-006
+    summary: ENTER with fewer than 11 digits is rejected as not numeric, because BMS pads the field with spaces
+    given:
+      entry: reenter
+      commarea: {CDEMO-USER-TYPE: U, CDEMO-PGM-CONTEXT: 1}
+      files:
+        CXACAIX: *xref
+        ACCTDAT: *account
+        CUSTDAT: *customer
+    when:
+      aid: ENTER
+      fields: {ACCTIDI: "1"}
+    then:
+      message: Acct Id must be Numeric ...
+      cursor: ACCTIDL
+      fields: {ACCTIDO: "", CNAMEO: "", TRNID01O: ""}
+      transfer: {via: RETURN-TRANSID, to: CPVS}
+      file_effects: []
+    source:
+      file: app/app-authorization-ims-db2-mq/cbl/COPAUS0C.cbl
+      lines: [273, 280]
+
+  - id: COPAUS0C-007
+    summary: ENTER with an account id lists the account, its summary and its first 5 authorizations
+    given:
+      entry: reenter
+      commarea: {CDEMO-USER-TYPE: U, CDEMO-PGM-CONTEXT: 1}
+      files:
+        CXACAIX: *xref
+        ACCTDAT: *account
+        CUSTDAT: *customer
+        PAUTSUM0: *summary
+        PAUTDTL1: *details
+    when:
+      aid: ENTER
+      fields: {ACCTIDI: "00000000001"}
+    then:
+      message: null
+      cursor: ACCTIDL
+      fields: *page1
+      transfer: {via: RETURN-TRANSID, to: CPVS}
+      commarea:
+        CDEMO-ACCT-ID: "00000000001"
+        CDEMO-CUST-ID: "000000001"
+        CDEMO-CPVS-PAGE-NUM: 1
+        CDEMO-CPVS-NEXT-PAGE-FLG: "Y"
+        CDEMO-CPVS-AUTH-KEYS(2): 73984/908755999
+        CDEMO-CPVS-PAUKEY-LAST: 73986/915469999
+      file_effects: []
+    source:
+      file: app/app-authorization-ims-db2-mq/cbl/COPAUS0C.cbl
+      lines: [282, 283]
+
+  - id: COPAUS0C-008
+    summary: an account without a summary segment shows zeros in the summary fields and no rows
+    given:
+      entry: reenter
+      commarea: {CDEMO-USER-TYPE: U, CDEMO-PGM-CONTEXT: 1}
+      files:
+        CXACAIX: *xref
+        ACCTDAT: *account
+        CUSTDAT: *customer
+    when:
+      aid: ENTER
+      fields: {ACCTIDI: "00000000001"}
+    then:
+      message: null
+      cursor: ACCTIDL
+      fields:
+        ACCTIDO: "00000000001"
+        CNAMEO: JOHN Q SMITH
+        CREDLIMO: "     2000.00"
+        CASHLIMO: "   500.00"
+        APPRCNTO: "000"
+        DECLCNTO: "000"
+        CREDBALO: "000000000000"
+        CASHBALO: "000000000"
+        APPRAMTO: "0000000000"
+        DECLAMTO: "0000000000"
+        TRNID01O: ""
+      transfer: {via: RETURN-TRANSID, to: CPVS}
+      commarea:
+        CDEMO-CPVS-PAGE-NUM: 0
+      file_effects: []
+    source:
+      file: app/app-authorization-ims-db2-mq/cbl/COPAUS0C.cbl
+      lines: [800, 806]
+
+  - id: COPAUS0C-009
+    summary: an account whose customer is missing from CUSTDAT still lists its authorizations, with the customer message
+    given:
+      entry: reenter
+      commarea: {CDEMO-USER-TYPE: U, CDEMO-PGM-CONTEXT: 1}
+      files:
+        CXACAIX: *xref
+        ACCTDAT: *account
+        PAUTSUM0: *summary
+        PAUTDTL1: *details
+    when:
+      aid: ENTER
+      fields: {ACCTIDI: "00000000001"}
+    then:
+      message: "Customer:{WS-CARD-RID-CUST-ID-X} not found in CUST file. Resp:{WS-RESP-CD-DIS} Reas:{WS-REAS-CD-DIS}"
+      cursor: ACCTIDL
+      fields:
+        ACCTIDO: "00000000001"
+        CREDLIMO: "     2000.00"
+        CASHLIMO: "   500.00"
+        APPRCNTO: "006"
+        TRNID01O: TXN000000000001
+        TRNID05O: TXN000000000005
+      transfer: {via: RETURN-TRANSID, to: CPVS}
+      file_effects: []
+    source:
+      file: app/app-authorization-ims-db2-mq/cbl/COPAUS0C.cbl
+      lines: [933, 946]
+
+  - id: COPAUS0C-010
+    summary: an account id missing from CXACAIX shows the account's summary as zeros, with the rest of the screen undefined
+    given:
+      entry: reenter
+      commarea: {CDEMO-USER-TYPE: U, CDEMO-PGM-CONTEXT: 1}
+      files:
+        CXACAIX: *xref
+        ACCTDAT: *account
+        CUSTDAT: *customer
+    when:
+      aid: ENTER
+      fields: {ACCTIDI: "00000000099"}
+    then:
+      cursor: ACCTIDL
+      fields:
+        ACCTIDO: "00000000099"
+        APPRCNTO: "000"
+        CREDBALO: "000000000000"
+        TRNID01O: ""
+      transfer: {via: RETURN-TRANSID, to: CPVS}
+      file_effects: []
+    source:
+      file: app/app-authorization-ims-db2-mq/cbl/COPAUS0C.cbl
+      lines: [832, 845]
+
+  - id: COPAUS0C-011
+    summary: an account in CXACAIX but missing from ACCTDAT still lists its authorizations, with the account message
+    given:
+      entry: reenter
+      commarea: {CDEMO-USER-TYPE: U, CDEMO-PGM-CONTEXT: 1}
+      files:
+        CXACAIX: *xref
+        CUSTDAT: *customer
+        PAUTSUM0: *summary
+        PAUTDTL1: *details
+    when:
+      aid: ENTER
+      fields: {ACCTIDI: "00000000001"}
+    then:
+      message: "Account:{WS-CARD-RID-ACCT-ID-X} not found in ACCT file. Resp:{WS-RESP-CD-DIS} Reas:{WS-REAS-CD-DIS}"
+      cursor: ACCTIDL
+      fields:
+        ACCTIDO: "00000000001"
+        CNAMEO: JOHN Q SMITH
+        CUSTIDO: "000000001"
+        APPRCNTO: "006"
+        TRNID01O: TXN000000000001
+      transfer: {via: RETURN-TRANSID, to: CPVS}
+      file_effects: []
+    source:
+      file: app/app-authorization-ims-db2-mq/cbl/COPAUS0C.cbl
+      lines: [882, 895]
+
+  - id: COPAUS0C-012
+    summary: ENTER with 's' on a listed row transfers to the detail screen with that row's key
+    given:
+      entry: reenter
+      commarea: &on-page1
+        CDEMO-USER-TYPE: U
+        CDEMO-PGM-CONTEXT: 1
+        CDEMO-ACCT-ID: "00000000001"
+        CDEMO-CUST-ID: "000000001"
+        CDEMO-CPVS-PAGE-NUM: 1
+        CDEMO-CPVS-NEXT-PAGE-FLG: "Y"
+        CDEMO-CPVS-PAUKEY-PREV-PG(1): 73984/896984999
+        CDEMO-CPVS-AUTH-KEYS(1): 73984/896984999
+        CDEMO-CPVS-AUTH-KEYS(2): 73984/908755999
+        CDEMO-CPVS-AUTH-KEYS(3): 73985/819490999
+        CDEMO-CPVS-AUTH-KEYS(4): 73985/879999999
+        CDEMO-CPVS-AUTH-KEYS(5): 73986/915469999
+        CDEMO-CPVS-PAUKEY-LAST: 73986/915469999
+      files:
+        CXACAIX: *xref
+        ACCTDAT: *account
+        CUSTDAT: *customer
+        PAUTSUM0: *summary
+        PAUTDTL1: *details
+    when:
+      aid: ENTER
+      fields: {ACCTIDI: "00000000001", SEL0002I: "s"}
+    then:
+      message: null
+      transfer: {via: XCTL, to: COPAUS1C}
+      commarea:
+        CDEMO-FROM-PROGRAM: COPAUS0C
+        CDEMO-FROM-TRANID: CPVS
+        CDEMO-PGM-CONTEXT: 0
+        CDEMO-ACCT-ID: "00000000001"
+        CDEMO-CUST-ID: "000000001"
+        CDEMO-CPVS-PAU-SELECTED: 73984/908755999
+      file_effects: []
+    source:
+      file: app/app-authorization-ims-db2-mq/cbl/COPAUS0C.cbl
+      lines: [310, 324]
+
+  - id: COPAUS0C-013
+    summary: a selection other than S is rejected and page 1 is listed again under the message
+    given:
+      entry: reenter
+      commarea: *on-page1
+      files:
+        CXACAIX: *xref
+        ACCTDAT: *account
+        CUSTDAT: *customer
+        PAUTSUM0: *summary
+        PAUTDTL1: *details
+    when:
+      aid: ENTER
+      fields: {ACCTIDI: "00000000001", SEL0001I: "X"}
+    then:
+      message: Invalid selection. Valid value is S
+      cursor: ACCTIDL
+      fields:
+        ACCTIDO: "00000000001"
+        TRNID01O: TXN000000000001
+        TRNID05O: TXN000000000005
+      transfer: {via: RETURN-TRANSID, to: CPVS}
+      commarea:
+        CDEMO-CPVS-PAGE-NUM: 1
+      file_effects: []
+    source:
+      file: app/app-authorization-ims-db2-mq/cbl/COPAUS0C.cbl
+      lines: [325, 337]
+
+  - id: COPAUS0C-014
+    summary: PF3 returns to the main menu
+    given:
+      entry: reenter
+      commarea: *on-page1
+    when:
+      aid: PF3
+      fields: {}
+    then:
+      transfer: {via: XCTL, to: COMEN01C}
+      commarea:
+        CDEMO-FROM-PROGRAM: COPAUS0C
+        CDEMO-FROM-TRANID: CPVS
+        CDEMO-PGM-CONTEXT: 0
+      file_effects: []
+    source:
+      file: app/app-authorization-ims-db2-mq/cbl/COPAUS0C.cbl
+      lines: [665, 677]
+
+  - id: COPAUS0C-015
+    summary: PF8 from page 1 lists the remaining 2 authorizations as page 2 and leaves the next-page flag at Y
+    given:
+      entry: reenter
+      commarea: *on-page1
+      files:
+        CXACAIX: *xref
+        ACCTDAT: *account
+        CUSTDAT: *customer
+        PAUTSUM0: *summary
+        PAUTDTL1: *details
+    when:
+      aid: PF8
+      fields: {ACCTIDI: "00000000001"}
+    then:
+      message: null
+      cursor: ACCTIDL
+      fields:
+        TRNID01O: TXN000000000006
+        PDATE01O: 01/12/26
+        PTIME01O: "20:10:10"
+        PAMT001O: "       75.00"
+        TRNID02O: TXN000000000007
+        PTIME02O: "07:00:01"
+        PSTAT02O: E
+        TRNID03O: ""
+        PAMT003O: ""
+        TRNID05O: ""
+      transfer: {via: RETURN-TRANSID, to: CPVS}
+      commarea:
+        CDEMO-CPVS-PAGE-NUM: 2
+        CDEMO-CPVS-NEXT-PAGE-FLG: "Y"
+        CDEMO-CPVS-AUTH-KEYS(1): 73987/798989999
+        CDEMO-CPVS-AUTH-KEYS(2): 73987/929998999
+        CDEMO-CPVS-PAUKEY-LAST: 73987/929998999
+        CDEMO-CPVS-PAUKEY-PREV-PG(1): 73984/896984999
+        CDEMO-CPVS-PAUKEY-PREV-PG(2): 73987/798989999
+      file_effects: []
+    source:
+      file: app/app-authorization-ims-db2-mq/cbl/COPAUS0C.cbl
+      lines: [388, 453]
+
+  - id: COPAUS0C-016
+    summary: PF8 when the next-page flag is N says the list is already at the bottom
+    given:
+      entry: reenter
+      commarea: &on-page2
+        CDEMO-USER-TYPE: U
+        CDEMO-PGM-CONTEXT: 1
+        CDEMO-ACCT-ID: "00000000001"
+        CDEMO-CUST-ID: "000000001"
+        CDEMO-CPVS-PAGE-NUM: 2
+        CDEMO-CPVS-NEXT-PAGE-FLG: "N"
+        CDEMO-CPVS-PAUKEY-PREV-PG(1): 73984/896984999
+        CDEMO-CPVS-PAUKEY-PREV-PG(2): 73987/798989999
+        CDEMO-CPVS-AUTH-KEYS(1): 73987/798989999
+        CDEMO-CPVS-AUTH-KEYS(2): 73987/929998999
+        CDEMO-CPVS-PAUKEY-LAST: 73987/929998999
+      files:
+        CXACAIX: *xref
+        ACCTDAT: *account
+        CUSTDAT: *customer
+        PAUTSUM0: *summary
+        PAUTDTL1: *details
+    when:
+      aid: PF8
+      fields: {ACCTIDI: "00000000001"}
+    then:
+      message: You are already at the bottom of the page...
+      cursor: ACCTIDL
+      transfer: {via: RETURN-TRANSID, to: CPVS}
+      commarea:
+        CDEMO-CPVS-PAGE-NUM: 2
+      file_effects: []
+    source:
+      file: app/app-authorization-ims-db2-mq/cbl/COPAUS0C.cbl
+      lines: [403, 411]
+
+  - id: COPAUS0C-017
+    summary: PF8 on a short last page that left the next-page flag at Y blanks the list without a message
+    given:
+      entry: reenter
+      commarea:
+        CDEMO-USER-TYPE: U
+        CDEMO-PGM-CONTEXT: 1
+        CDEMO-ACCT-ID: "00000000001"
+        CDEMO-CUST-ID: "000000001"
+        CDEMO-CPVS-PAGE-NUM: 2
+        CDEMO-CPVS-NEXT-PAGE-FLG: "Y"
+        CDEMO-CPVS-PAUKEY-PREV-PG(1): 73984/896984999
+        CDEMO-CPVS-PAUKEY-PREV-PG(2): 73987/798989999
+        CDEMO-CPVS-AUTH-KEYS(1): 73987/798989999
+        CDEMO-CPVS-AUTH-KEYS(2): 73987/929998999
+        CDEMO-CPVS-PAUKEY-LAST: 73987/929998999
+      files:
+        CXACAIX: *xref
+        ACCTDAT: *account
+        CUSTDAT: *customer
+        PAUTSUM0: *summary
+        PAUTDTL1: *details
+    when:
+      aid: PF8
+      fields: {ACCTIDI: "00000000001"}
+    then:
+      message: null
+      cursor: ACCTIDL
+      fields:
+        TRNID01O: ""
+        TRNID02O: ""
+      transfer: {via: RETURN-TRANSID, to: CPVS}
+      commarea:
+        CDEMO-CPVS-PAGE-NUM: 2
+        CDEMO-CPVS-PAUKEY-LAST: LOW-VALUES
+      file_effects: []
+    source:
+      file: app/app-authorization-ims-db2-mq/cbl/COPAUS0C.cbl
+      lines: [416, 443]
+
+  - id: COPAUS0C-018
+    summary: PF7 on page 1 says the list is already at the top
+    given:
+      entry: reenter
+      commarea: *on-page1
+      files:
+        CXACAIX: *xref
+        ACCTDAT: *account
+        CUSTDAT: *customer
+        PAUTSUM0: *summary
+        PAUTDTL1: *details
+    when:
+      aid: PF7
+      fields: {ACCTIDI: "00000000001"}
+    then:
+      message: You are already at the top of the page...
+      transfer: {via: RETURN-TRANSID, to: CPVS}
+      commarea:
+        CDEMO-CPVS-PAGE-NUM: 1
+      file_effects: []
+    source:
+      file: app/app-authorization-ims-db2-mq/cbl/COPAUS0C.cbl
+      lines: [380, 383]
+
+  - id: COPAUS0C-019
+    summary: PF7 on page 2 lists page 1 again but leaves the page number at 2
+    given:
+      entry: reenter
+      commarea: *on-page2
+      files:
+        CXACAIX: *xref
+        ACCTDAT: *account
+        CUSTDAT: *customer
+        PAUTSUM0: *summary
+        PAUTDTL1: *details
+    when:
+      aid: PF7
+      fields: {ACCTIDI: "00000000001"}
+    then:
+      message: null
+      cursor: ACCTIDL
+      fields:
+        TRNID01O: TXN000000000001
+        PAMT001O: "      125.50"
+        TRNID02O: TXN000000000002
+        TRNID05O: TXN000000000005
+      transfer: {via: RETURN-TRANSID, to: CPVS}
+      commarea:
+        CDEMO-CPVS-PAGE-NUM: 2
+        CDEMO-CPVS-NEXT-PAGE-FLG: "Y"
+        CDEMO-CPVS-AUTH-KEYS(1): 73984/896984999
+        CDEMO-CPVS-PAUKEY-LAST: 73986/915469999
+        CDEMO-CPVS-PAUKEY-PREV-PG(2): 73984/896984999
+      file_effects: []
+    source:
+      file: app/app-authorization-ims-db2-mq/cbl/COPAUS0C.cbl
+      lines: [365, 379]
+
+  - id: COPAUS0C-020
+    summary: any other key shows the invalid key message
+    given:
+      entry: reenter
+      commarea: *on-page1
+    when:
+      aid: PF5
+      fields: {ACCTIDI: "00000000001"}
+    then:
+      message: Invalid key pressed. Please see below...
+      cursor: ACCTIDL
+      transfer: {via: RETURN-TRANSID, to: CPVS}
+      file_effects: []
+    source:
+      file: app/app-authorization-ims-db2-mq/cbl/COPAUS0C.cbl
+      lines: [245, 249]
