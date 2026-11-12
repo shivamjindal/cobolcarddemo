@@ -1,0 +1,47 @@
+program: CODATE01
+transaction: CDRD
+module: app/app-vsam-mq
+evidence: derived
+sources:
+  - app/app-vsam-mq/cbl/CODATE01.cbl
+files: []
+navigation: []
+notes:
+  - "Derived from source, not executed. The module README describes a DATE request and a DATE response on CARDDEMO.REQUEST.QUEUE and CARDDEMO.RESPONSE.QUEUE. The program never reads the request. It replies with SYSTEM DATE and SYSTEM TIME on the literal CARD.DEMO.REPLY.DATE."
+  - "The trigger message names the input queue (lines 140-147). The reply queue literal is line 147. The error queue literal CARD.DEMO.ERROR is line 243. 4100-PUT-REPLY copies the request MQMD-CORRELID and MQMD-MSGID onto the reply (lines 373-374). SAVE-REPLY2Q is saved (line 320) and never read."
+  - "ASKTIME then FORMATTIME (lines 343-353) fill WS-MMDDYYYY with DATESEP('-'), so MM-DD-YYYY, and WS-TIME with the default TIMESEP, so HH:MM:SS. The STRING (lines 355-360) abuts the two labels and those fields. LIT-ACCTFILENAME (lines 115-116) is unused. The program reads no file, so there is no invalid-request branch and no file-error branch."
+  - "These paths need an MQ or CICS failure and are not cases. RETRIEVE failure (lines 148-158) puts an error. Line 151 moves WS-CICS-RESP2-CD onto itself, so the displayed RESP2 stays zero. INP MQOPEN (lines 195-201), OUT MQOPEN (lines 229-235), MQGET other than no message (lines 329-335), and reply MQPUT (lines 396-402) each put an error and end. ERR MQOPEN (lines 264-270) and the error-queue MQPUT (lines 433-439) only DISPLAY and end. MQCLOSE of the input (lines 471-476) or the reply (lines 493-498) ends without a put. MQCLOSE of the error queue (lines 516-522) puts an error and ends."
+cases:
+  - id: CODATE01-001
+    summary: a request is answered with the system date and time and the request correlation id
+    given:
+      entry: trigger
+    when:
+      message: DATE00000001
+      correlation_id: DATEREQ1
+    then:
+      replies:
+        - queue: CARD.DEMO.REPLY.DATE
+          message: "SYSTEM DATE : {WS-MMDDYYYY}SYSTEM TIME : {WS-TIME}"
+          correlation_id: DATEREQ1
+      file_effects: []
+    source:
+      file: app/app-vsam-mq/cbl/CODATE01.cbl
+      lines: [339, 361]
+
+  - id: CODATE01-002
+    summary: the request text is not inspected, so a body that is not a date request gets the same reply
+    given:
+      entry: trigger
+    when:
+      message: NOT-A-DATE-REQUEST
+      correlation_id: DATEREQ2
+    then:
+      replies:
+        - queue: CARD.DEMO.REPLY.DATE
+          message: "SYSTEM DATE : {WS-MMDDYYYY}SYSTEM TIME : {WS-TIME}"
+          correlation_id: DATEREQ2
+      file_effects: []
+    source:
+      file: app/app-vsam-mq/cbl/CODATE01.cbl
+      lines: [339, 361]
