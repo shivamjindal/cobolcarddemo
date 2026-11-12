@@ -102,6 +102,36 @@ def stored_password(base, user):
     return sql(base, f"SELECT sec_usr_pwd FROM users WHERE sec_usr_id = '{user}'")
 
 
+def drive_accounts(base, transcript):
+    account = "00000000050"
+    user = Client(base, transcript, "accounts")
+    user.sign_on("USER0001", "PASSWORD")
+    s = user.send("COMEN01C", "ENTER", OPTION="1")
+    check(s["program"] == "COACTVWC", "option 1 opens account view", s)
+    s = user.send("COACTVWC", "ENTER", ACCTSID=account)
+    check(s["fields"].get("ACCTSID") == account and s["fields"].get("ACSTNUM"),
+          "account view shows the account with its customer", s["fields"])
+
+    zip_before = sql(base, f"SELECT acct_addr_zip FROM accounts WHERE acct_id = {int(account)}")
+    s = user.send("COACTVWC", "PF3")
+    s = user.send("COMEN01C", "ENTER", OPTION="2")
+    s = user.send("COACTUPC", "ENTER", ACCTSID=account)
+    check(s["fields"].get("INFOMSG") == "Update account details presented above.",
+          "account update fetches the account for editing", s["fields"])
+    fields = {k: v for k, v in s["fields"].items() if k not in ("INFOMSG", "ERRMSG")}
+    # No seeded customer passes every legacy edit (FICO, area codes, SSN, state and zip), so type valid ones.
+    valid_customer = {"ACTSSN1": "123", "ACTSSN2": "45", "ACTSSN3": "6789", "ACSTFCO": "700", "ACSSTTE": "NY",
+                      "ACSZIPC": "10001", "ACSCTRY": "USA", "ACSPH1A": "212", "ACSPH1B": "555", "ACSPH1C": "0100",
+                      "ACSPH2A": "212", "ACSPH2B": "555", "ACSPH2C": "0101"}
+    edited = {**fields, **valid_customer, "AADDGRP": "DRIVEGRP"}
+    s = user.send("COACTUPC", "ENTER", **edited)
+    check(s["fields"].get("INFOMSG") == "Changes validated.Press F5 to save", "a valid change asks for F5", s["fields"])
+    s = user.send("COACTUPC", "PF5", **edited)
+    check(s["fields"].get("INFOMSG") == "Changes committed to database", "F5 saves the account", s["fields"])
+    check(sql(base, f"SELECT acct_group_id || '|' || acct_addr_zip FROM accounts WHERE acct_id = {int(account)}")
+          == f"DRIVEGRP|{zip_before}", "the group id goes to acct_group_id and the zip is kept", zip_before)
+
+
 def drive_cards(base, transcript):
     card, account = "0500024453765740", "00000000050"
     user = Client(base, transcript, "cards")
@@ -210,6 +240,7 @@ def main():
     transcript = []
     try:
         drive(args.base, transcript)
+        drive_accounts(args.base, transcript)
         drive_cards(args.base, transcript)
     finally:
         if args.out:

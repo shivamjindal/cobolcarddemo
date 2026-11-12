@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Drive the slice 1 screens in Chrome with the keyboard (ENTER and F-keys) and save a screenshot per screen.
+"""Drive the slice 1 and 2 screens in Chrome with the keyboard (ENTER and F-keys) and save a screenshot per screen.
 
 Needs `pip install --user --break-system-packages playwright` and a Chrome binary ($CHROME, default
 /usr/local/bin/google-chrome). Exits non-zero on the first failed check.
@@ -96,7 +96,41 @@ def main():
         testid("PASSWD").fill("PASSWORD")
         page.keyboard.press("Enter")
         expect(testid("PGMNAME")).to_have_text("COMEN01C")
-        shot("main-menu", "a regular user lands on the main menu, which has no installed options yet")
+        expect(testid("OPTN005")).to_have_text("05. Credit Card Update")
+        expect(testid("OPTN006")).to_have_count(0)
+        shot("main-menu", "a regular user lands on the main menu listing the installed account and card options")
+
+        testid("OPTION").fill("1")
+        page.keyboard.press("Enter")
+        expect(testid("PGMNAME")).to_have_text("COACTVWC")
+        testid("ACCTSID").fill("00000000050")
+        page.keyboard.press("Enter")
+        expect(testid("ACSFNAM")).to_have_text("Aniya")
+        shot("account-view", "account view shows account 50 with its customer")
+
+        page.keyboard.press("F3")
+        testid("OPTION").fill("3")
+        page.keyboard.press("Enter")
+        expect(testid("PGMNAME")).to_have_text("COCRDLIC")
+        expect(testid("CRDNUM1")).to_have_count(0)
+        expect(testid("ERRMSG")).to_have_text("ENTER AN ACCOUNT NUMBER TO LIST ITS CARDS")
+        shot("card-list-prompt", "a regular user's card list asks for an account before listing cards")
+        testid("ACCTSID").fill("00000000050")
+        page.keyboard.press("Enter")
+        expect(testid("CRDNUM1")).to_have_text("0500024453765740")
+        expect(testid("CRDNUM2")).to_have_count(0)
+        shot("card-list-filtered", "filtering by account 50 lists only its card")
+
+        testid("CRDSEL1").fill("U")
+        page.keyboard.press("Enter")
+        expect(testid("PGMNAME")).to_have_text("COCRDUPC")
+        expect(testid("CARDSID")).to_have_value("0500024453765740")
+        shot("card-update", "U opens card update with the selected card")
+        page.keyboard.press("F3")
+        expect(testid("PGMNAME")).to_have_text("COCRDLIC")
+        expect(testid("ACCTSID")).to_have_value("00000000050")
+        expect(testid("CRDNUM1")).to_have_text("0500024453765740")
+        shot("card-list-return", "F3 from update returns to the list with its filter kept")
         browser.close()
 
     (args.out / "browser.txt").write_text("".join(f"PASS  {p}\n" for p in passed))

@@ -11,7 +11,7 @@ CardDemo has two legacy surfaces and one future one.
 | --- | --- | --- |
 | Batch jobs (`app/jcl`, `app/cbl/CB*`) | The real COBOL, compiled by GnuCOBOL, against `app/data/ASCII` fixtures | **Executed.** Golden files in `characterization/batch/golden/` |
 | CICS screens (`app/cbl/CO*`, `app/bms`) | Nothing. CICS is not available | **Derived from source.** YAML specs in `characterization/online/specs/`, checked for grounding only |
-| Java/Spring app (`carddemo-java/`) | Slice 1 screens (sign-on, menus, user admin) on Postgres, OIDC sign-on | **Executed.** Spec replay in `./gradlew test`, plus live HTTP and browser drives. See [Spring app](#spring-app-filled-in-by-slices) |
+| Java/Spring app (`carddemo-java/`) | Slice 1 and 2 screens (sign-on, menus, user admin, account and card view/update) on Postgres, OIDC sign-on | **Executed.** Spec replay in `./gradlew test`, plus live HTTP and browser drives. See [Spring app](#spring-app-filled-in-by-slices) |
 
 Never describe a derived spec as observed behavior. When you report results, say which kind of evidence backs each claim.
 
