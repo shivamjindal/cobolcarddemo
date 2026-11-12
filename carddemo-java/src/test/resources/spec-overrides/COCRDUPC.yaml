@@ -1,0 +1,90 @@
+# Deliberate differences from characterization/online/specs/COCRDUPC.yaml, applied by OnlineSpecReplayTest.
+# Each entry replaces whole keys of the case's given, when or then.
+COCRDUPC-001:
+  reason: A first entry with no signed-on user goes to sign-on.
+  then:
+    message: null
+    cursor: null
+    fields: {}
+    transfer: {via: XCTL, to: COSGN00C}
+    commarea: {}
+COCRDUPC-002:
+  reason: No arrival INITIALIZEs the conversation, so the user id and type survive and the origin is kept.
+  then:
+    commarea: {CDEMO-USER-ID: USER0001, CDEMO-USER-TYPE: U, CDEMO-FROM-PROGRAM: COMEN01C, CCUP-CHANGE-ACTION: ""}
+COCRDUPC-004:
+  reason: A card that is not found leaves the screen searching, with the prompt, instead of editing a card that was never fetched.
+  then:
+    message: "Did not find cards for this search condition"
+    cursor: ACCTSIDL
+    fields: {CARDSIDO: "4000000000000099", CRDNAMEO: "", INFOMSGO: "Please enter Account and Card Number"}
+    commarea: {CCUP-CHANGE-ACTION: ""}
+COCRDUPC-029:
+  reason: F5 saves the values validated before CONFIRM, held as typed state, and compares the fetched card name case included, so the given carries CCUP-NEW-* and the name as stored.
+  given:
+    commarea: &confirm
+      CDEMO-FROM-PROGRAM: COCRDLIC
+      CDEMO-FROM-TRANID: CCLI
+      CDEMO-LAST-MAPSET: COCRDLI
+      CDEMO-PGM-CONTEXT: 1
+      CDEMO-USER-TYPE: U
+      CDEMO-ACCT-ID: "00000000001"
+      CDEMO-CARD-NUM: "4000000000000002"
+      CCUP-CHANGE-ACTION: "N"
+      CCUP-OLD-ACCTID: "00000000001"
+      CCUP-OLD-CARDID: "4000000000000002"
+      CCUP-OLD-CVV-CD: "123"
+      CCUP-OLD-CRDNAME: "John Smith"
+      CCUP-OLD-EXPYEAR: "2027"
+      CCUP-OLD-EXPMON: "05"
+      CCUP-OLD-EXPDAY: "31"
+      CCUP-OLD-CRDSTCD: "Y"
+      CCUP-NEW-CVV-CD: "123"
+      CCUP-NEW-CRDNAME: "Jane Doe"
+      CCUP-NEW-EXPYEAR: "2028"
+      CCUP-NEW-EXPMON: "06"
+      CCUP-NEW-EXPDAY: "30"
+      CCUP-NEW-CRDSTCD: "N"
+COCRDUPC-030:
+  reason: The save keeps the stored CVV instead of zeroing it, and a fetched expiry day the new month lacks becomes its last day, since a date column holds no June 31.
+  given:
+    commarea: *confirm
+  then:
+    message: null
+    cursor: ACCTSIDL
+    fields: {CRDNAMEO: "Jane Doe", CRDSTCDO: "N", EXPMONO: "06", EXPYEARO: "2028", EXPDAYO: "30", INFOMSGO: "Changes committed to database"}
+    transfer: {via: RETURN-TRANSID, to: CCUP}
+    commarea: {CCUP-CHANGE-ACTION: C}
+    file_effects:
+      - file: CARDDAT
+        op: REWRITE
+        record: {CARD-NUM: "4000000000000002", CARD-ACCT-ID: "00000000001", CARD-CVV-CD: "123", CARD-EMBOSSED-NAME: "Jane Doe", CARD-EXPIRAION-DATE: "2028-06-30", CARD-ACTIVE-STATUS: "N"}
+COCRDUPC-031:
+  reason: F5 saves the values validated before CONFIRM, held as typed state, and compares the fetched card name case included, so the given carries CCUP-NEW-* and the name as stored.
+  given:
+    commarea: *confirm
+COCRDUPC-032:
+  reason: F5 saves the values validated before CONFIRM, held as typed state, and compares the fetched card name case included, so the given carries CCUP-NEW-* and the name as stored.
+  given:
+    commarea: *confirm
+COCRDUPC-033:
+  reason: F5 saves the values validated before CONFIRM, held as typed state, and compares the fetched card name case included, so the given carries CCUP-NEW-* and the name as stored.
+  given:
+    commarea: *confirm
+COCRDUPC-034:
+  reason: The user type is never reset to 'U', and the card handed to the list is not kept once update is left.
+  then:
+    commarea: {CDEMO-FROM-PROGRAM: COCRDUPC, CDEMO-FROM-TRANID: CCUP, CDEMO-USER-ID: ADMIN001, CDEMO-USER-TYPE: A}
+COCRDUPC-039:
+  reason: The user type is never reset to 'U', and the card is not kept in the conversation once update is left.
+  then:
+    commarea: {CDEMO-FROM-PROGRAM: COCRDUPC, CDEMO-FROM-TRANID: CCUP, CDEMO-USER-TYPE: A}
+COCRDUPC-041:
+  reason: F12 restores the card as fetched without the edit error left from the abandoned changes.
+  then:
+    message: null
+COCRDUPC-044:
+  reason: Restoring the fetched values returns to the details-shown state, so the next change is edited afresh.
+  then:
+    fields: {INFOMSGO: "Details of selected card shown above"}
+    commarea: {CCUP-CHANGE-ACTION: "S"}
