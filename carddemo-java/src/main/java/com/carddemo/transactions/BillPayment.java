@@ -23,6 +23,7 @@ import java.util.List;
 import java.util.Locale;
 import java.util.Map;
 import java.util.Optional;
+import java.util.Set;
 import java.util.function.Supplier;
 
 /**
@@ -177,11 +178,12 @@ class BillPayment implements ScreenProgram {
 
     private static Outcome paid(Transaction payment) {
         return new Outcome.Show(Map.of(),
-                Message.success("Payment successful.  Your Transaction ID is " + payment.id() + "."), ID);
+                Message.success("Payment successful.  Your Transaction ID is " + payment.id() + "."), ID)
+                .protecting(Set.of(BALANCE));
     }
 
     private static Outcome cleared() {
-        return new Outcome.Show(Map.of(), null, ID);
+        return new Outcome.Show(Map.of(), null, ID).protecting(Set.of(BALANCE));
     }
 
     /** The map is sent back as it was received, except the balance when this task read the account. */
@@ -190,6 +192,6 @@ class BillPayment implements ScreenProgram {
         Map<String, String> shown = new LinkedHashMap<>();
         List.of(ID, BALANCE, CONFIRM).forEach(name -> shown.put(name, input.getOrDefault(name, "")));
         balance.ifPresent(b -> shown.put(BALANCE, String.format(Locale.ROOT, "%+014.2f", b)));
-        return new Outcome.Show(shown, message, cursor);
+        return new Outcome.Show(shown, message, cursor).protecting(Set.of(BALANCE));
     }
 }

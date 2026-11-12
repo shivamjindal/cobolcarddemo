@@ -93,6 +93,23 @@ class ProtectedFieldsTest {
         assertThat(again.fields()).containsEntry("CARDSID", "4000000000000001");
     }
 
+    @Test
+    void transactionListSelectsTheIdTheRowShowed() {
+        jdbc.execute("TRUNCATE transactions");
+        for (String id : new String[] {"0000000000000001", "0000000000000002"}) {
+            jdbc.update("INSERT INTO transactions VALUES (?, '01', 1, 'POS TERM', 'PURCHASE', 22.00, 1, 'SHOP',"
+                    + " 'CITY', '00000', '4000000000000001', '2026-11-01 00:00:00', '2026-11-01 00:00:00')", id);
+        }
+        Conversation conversation = new Conversation(ADMIN, Program.COMEN01C);
+        assertThat(show(screens.arrive(Program.COTRN00C, conversation)).readOnly()).contains("TRNID01", "TRNID10");
+
+        Outcome selected = screens.receive(Program.COTRN00C, conversation, Aid.ENTER,
+                Map.of("SEL0001", "S", "TRNID01", "0000000000000002"));
+        assertThat(selected).isEqualTo(new Outcome.Transfer(Program.COTRN01C));
+        assertThat(show(screens.arrive(Program.COTRN01C, conversation)).fields())
+                .containsEntry("TRNID", "0000000000000001");
+    }
+
     private static Outcome.Show show(Outcome outcome) {
         assertThat(outcome).isInstanceOf(Outcome.Show.class);
         return (Outcome.Show) outcome;

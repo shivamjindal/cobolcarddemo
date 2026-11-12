@@ -14,6 +14,7 @@ import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Locale;
 import java.util.Map;
+import java.util.Set;
 
 /** COTRN01C: reads one transaction by id. PF3 returns to the caller and PF5 opens the list. */
 @Component
@@ -21,6 +22,7 @@ class TransactionView implements ScreenProgram {
 
     private static final List<String> DETAILS = List.of("TRNID", "CARDNUM", "TTYPCD", "TCATCD", "TRNSRC", "TDESC",
             "TRNAMT", "TORIGDT", "TPROCDT", "MID", "MNAME", "MCITY", "MZIP");
+    private static final Set<String> PROTECTED = Set.copyOf(DETAILS);
 
     private final TransactionRepository transactions;
 
@@ -45,7 +47,8 @@ class TransactionView implements ScreenProgram {
             case PF3 -> new Outcome.Transfer(conversation.from().orElse(Program.COMEN01C));
             case PF4 -> blank();
             case PF5 -> new Outcome.Transfer(Program.COTRN00C);
-            default -> new Outcome.Show(new LinkedHashMap<>(fields), Message.INVALID_KEY, null);
+            default -> new Outcome.Show(new LinkedHashMap<>(fields), Message.INVALID_KEY, null)
+                    .protecting(PROTECTED);
         };
     }
 
@@ -81,7 +84,7 @@ class TransactionView implements ScreenProgram {
             fields.put("MCITY", cut(transaction.merchantCity(), 25));
             fields.put("MZIP", cut(transaction.merchantZip(), 10));
         }
-        return new Outcome.Show(fields, message, "TRNIDIN");
+        return new Outcome.Show(fields, message, "TRNIDIN").protecting(PROTECTED);
     }
 
     private static String amount(BigDecimal value) {

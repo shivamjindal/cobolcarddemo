@@ -15,6 +15,9 @@ import java.util.HashMap;
 import java.util.List;
 import java.util.Locale;
 import java.util.Map;
+import java.util.Set;
+import java.util.stream.Collectors;
+import java.util.stream.IntStream;
 
 /** COTRN00C: ten transactions a page in id order, a start-from filter, and S row selection. */
 @Component
@@ -22,6 +25,9 @@ class TransactionList implements ScreenProgram {
 
     private static final int ROWS = 10;
     private static final DateTimeFormatter LIST_DATE = DateTimeFormatter.ofPattern("MM/dd/yy");
+    /** TRNID01-10 are ASKIP, so the id a selection acts on is the one this page showed. */
+    private static final Set<String> IDS = IntStream.rangeClosed(1, ROWS).mapToObj("TRNID%02d"::formatted)
+            .collect(Collectors.toUnmodifiableSet());
 
     private final TransactionRepository transactions;
 
@@ -76,7 +82,8 @@ class TransactionList implements ScreenProgram {
     private Outcome search(Conversation conversation, Map<String, String> fields, Message message) {
         String typed = fields.getOrDefault("TRNIDIN", "");
         if (!typed.isEmpty() && !numericId(typed)) {
-            return new Outcome.Show(Map.of("TRNIDIN", typed), Message.error("Tran ID must be Numeric ..."), "TRNIDIN");
+            return new Outcome.Show(Map.of("TRNIDIN", typed), Message.error("Tran ID must be Numeric ..."), "TRNIDIN")
+                    .protecting(IDS);
         }
         return page(conversation, transactions.pageFrom(typed, ROWS + 1), 1, message);
     }
@@ -133,7 +140,7 @@ class TransactionList implements ScreenProgram {
         } else if (message == null && !hasNext) {
             message = Message.info("You have reached the bottom of the page...");
         }
-        return new Outcome.Show(fields, message, "TRNIDIN");
+        return new Outcome.Show(fields, message, "TRNIDIN").protecting(IDS);
     }
 
     private static String amount(BigDecimal value) {

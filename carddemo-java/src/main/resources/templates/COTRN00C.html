@@ -14,8 +14,7 @@
             <tr th:unless="${#strings.isEmpty(id)}">
                 <td><input th:id="${sel}" th:name="${sel}" th:data-testid="${sel}" size="1" maxlength="1"
                            th:value="${screen.fields.get(sel)}" th:autofocus="${screen.cursor == sel}"></td>
-                <td><label th:for="${sel}" th:data-testid="|TRNID${row}|" th:text="${id}"></label>
-                    <input type="hidden" th:name="|TRNID${row}|" th:value="${id}"></td>
+                <td><label th:for="${sel}" th:data-testid="|TRNID${row}|" th:text="${id}"></label></td>
                 <td th:data-testid="|TDATE${row}|" th:text="${screen.fields.get('TDATE' + row)}"></td>
                 <td th:data-testid="|TDESC${row}|" th:text="${screen.fields.get('TDESC' + row)}"></td>
                 <td th:data-testid="|TAMT${amt}|" th:text="${screen.fields.get('TAMT' + amt)}"></td>
