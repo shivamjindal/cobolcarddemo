@@ -1,0 +1,2945 @@
+# COTRN02C characterization spec. Derived from reading source, not executed.
+# See ../SCHEMA.md. Conventions for values are in `notes`.
+program: COTRN02C
+transaction: CT02
+screen:
+  mapset: COTRN02
+  map: COTRN2A
+evidence: derived
+sources: [app/cbl/COTRN02C.cbl, app/cbl/CSUTLDTC.cbl, app/bms/COTRN02.bms, app/cpy-bms/COTRN02.CPY, app/cpy/COCOM01Y.cpy,
+  app/cpy/CVTRA05Y.cpy, app/cpy/CVACT03Y.cpy, app/cpy/CSDAT01Y.cpy, app/cpy/CSMSG01Y.cpy, app/csd/CARDDEMO.CSD]
+files:
+- name: CXACAIX
+  ops: [READ]
+  key: XREF-ACCT-ID
+- name: CCXREF
+  ops: [READ]
+  key: XREF-CARD-NUM
+- name: TRANSACT
+  ops: [STARTBR, READPREV, ENDBR, WRITE]
+  key: TRAN-ID
+navigation:
+- to: COSGN00C
+  via: XCTL
+  when: started without a COMMAREA (EIBCALEN = 0), lines 115-117
+- to: COMEN01C
+  via: XCTL
+  when: PF3; goes to CDEMO-FROM-PROGRAM, COMEN01C when blank (the menu is the only caller), lines 136-143
+- to: CT02
+  via: RETURN-TRANSID
+  when: every screen send, lines 530-534
+notes: ['Value conventions: field and record values are shown without trailing pad spaces; "" means the field is
+    all spaces or LOW-VALUES. Numeric record fields are written as decimal strings (e.g. TRAN-AMT "12.50"). Input
+    values are the full field content as BMS delivers it: default JUSTIFY=(LEFT,BLANK) pads short input with trailing
+    spaces, which is why several IS NUMERIC checks reject short entries.', 'A {NAME} placeholder inside a message
+    or a record value is a runtime value. {} marks the seam between two adjacent STRING literals and renders as
+    the empty string, because the schema''s fragment check cannot match two literals that the COBOL concatenates
+    with no variable between them. A runner should treat {NAME} and {} as wildcards. This is the same convention
+    COACTVWC.yaml uses.', 'CICS RESP branches other than NORMAL/NOTFND/ENDFILE/DUPKEY (I/O errors, DISABLED files)
+    cannot be set up through `given.files`, so they are listed here instead of as cases.', 'SEND-TRNADD-SCREEN ends
+    with EXEC CICS RETURN TRANSID (lines 530-534). Every validation failure ends the task at its own send, so the
+    checks run in a fixed order and the first failure is the only message. In order: key fields (lines 193-230),
+    empty data fields in the order Type, Category, Source, Description, Amount, Orig Date, Proc Date, Merchant ID/Name/City/Zip
+    (lines 251-320), Type and Category numeric (322-337), amount mask (339-351), date masks (353-380), CSUTLDTC
+    validity (388-427), Merchant ID numeric (430-436), then the confirmation (169-187).', 'Dead code: lines 237-249
+    blank the data fields when the error flag is on, but no error can reach there because each one RETURNs first.
+    WS-ACCTDAT-FILE (line 40) and COPY CVACT01Y are declared and never used; ACCTDAT is not touched.', 'Key fields:
+    a non-blank Account ID takes priority. It must be all digits across 11 characters, is normalised with NUMVAL,
+    read through CXACAIX (the account-keyed AIX path over CCXREF; both names refer to the same records), and the
+    card field is replaced with XREF-CARD-NUM. Otherwise a non-blank Card Number must be all 16 digits, is read
+    in CCXREF, and the account field is filled from XREF-ACCT-ID.', 'The CXACAIX AIX is defined NONUNIQUEKEY (app/jcl/XREFFILE.jcl
+    line 75). For an account with more than one card, CICS returns DUPKEY on the READ, and line 596 treats that
+    as an error (case COTRN02C-012). This runtime behavior is inferred from CICS semantics, not observed.', 'Amount
+    mask (lines 340-343): position 1 must be ''-'' or ''+'', positions 2-9 digits, position 10 ''.'', positions
+    11-12 digits. The message shows only the ''-'' form. After the checks, line 382 re-edits the field through NUMVAL-C
+    into PIC +99999999.99.', 'Type CD is X(02) and Category CD X(04). Each must be fully numeric, so ''1'' (padded
+    to ''1 '') is rejected as not numeric.', 'Date validity calls CSUTLDTC with a COBOL CALL (lines 392-394, 413-415),
+    not EXEC CICS LINK. CSUTLDTC passes the date and the mask ''YYYY-MM-DD'' to the LE service CEEDAYS (app/cbl/CSUTLDTC.cbl
+    lines 116-120). It returns the severity in result positions 1-4 and the message number in positions 16-19 (CSUTLDTC.cbl
+    lines 42-49, 123-124). The screen messages are COTRN02C literals, not CSUTLDTC text. The caller accepts severity
+    ''0000'' and also ignores message number 2513, which is CEEDAYS ''Unsupp. Range'' (X''09D1'', CSUTLDTC.cbl lines
+    66, 136-137). Dates outside the CEEDAYS range therefore pass (case COTRN02C-036).', 'Merchant ID is checked
+    for empty and numeric only. Merchant name, city and zip are only checked for empty. No check ties the card to
+    the account beyond the xref lookup, and no check compares Orig and Proc dates.', 'Confirmation: ''Y'' or ''y''
+    adds. ''N'', ''n'', blank and LOW-VALUES all re-prompt with ''Confirm to add this transaction...'' (lines 173-181).
+    Unlike COBIL00C, ''N'' does not clear the screen.', 'New id (lines 444-451): STARTBR with TRAN-ID = HIGH-VALUES,
+    one READPREV (the highest key on file), ENDBR, then TRAN-ID + 1 as a 16-digit zero-padded number. There is no
+    locking between the READPREV and the WRITE. Two concurrent adds can compute the same id, and the loser gets
+    ''Tran ID already exist...'' (DUPREC, lines 735-741).', 'Unverified runtime behavior for an empty TRANSACT file:
+    READPREV ENDFILE would set TRAN-ID to zeros, making the new id 0000000000000001 (lines 687-688). CICS may instead
+    return NOTFND on the HIGH-VALUES STARTBR, which shows ''Transaction ID NOT found...'' and stops (lines 655-660).',
+  'Record written (lines 450-465): INITIALIZE TRAN-RECORD, then TRAN-TYPE-CD, TRAN-CAT-CD, TRAN-SOURCE, TRAN-DESC,
+    TRAN-MERCHANT-ID/NAME/CITY/ZIP and TRAN-CARD-NUM straight from the screen, with TRAN-AMT = NUMVAL-C(amount).
+    TRAN-ORIG-TS and TRAN-PROC-TS receive only the 10-character screen date, left-justified in X(26) with no time
+    part. Batch-loaded records carry full timestamps.', 'Success: the green message (ERRMSGC = DFHGREEN, line 727)
+    renders as ''Transaction added successfully.  Your Tran ID is 0000000000000023.'', with two spaces after the
+    first period.', 'PF5 (COPY-LAST-TRAN-DATA, lines 472-494) validates the key fields, then copies the highest-keyed
+    TRANSACT record onto the screen: type, category, source, amount, description (cut to 60), both timestamps cut
+    to YYYY-MM-DD, and merchant id, name (cut to 30), city (cut to 25) and zip. It then runs full ENTER processing.
+    The source record may belong to any card. If the confirmation field already holds ''Y'', the copy is written
+    at once (case COTRN02C-045).', 'Arrival with CDEMO-CT02-TRN-SELECTED (lines 124-129) puts it in the Card Number
+    field and runs ENTER processing, so the first screen already shows ''Type CD can NOT be empty...''. Nothing
+    in this repo XCTLs here with that field set. COMEN01C passes only COCOM01Y, which line 119 pads with spaces.',
+  'I/O error branches: CXACAIX ''Unable to lookup Acct in XREF AIX file...'' (lines 596-603); CCXREF ''Unable to
+    lookup Card # in XREF file...'' (630-637); STARTBR/READPREV ''Unable to lookup Transaction...'' (661-668, 690-697);
+    WRITE DUPKEY/DUPREC ''Tran ID already exist...'' (735-741), other ''Unable to Add Transaction...'' (742-748).
+    All put the cursor on ACTIDINL except the CCXREF ones, which use CARDNINL.']
+cases:
+- id: COTRN02C-001
+  summary: no COMMAREA (EIBCALEN = 0) sends the user to sign-on
+  given:
+    entry: first-time
+  when:
+    aid: ENTER
+  then:
+    message: null
+    transfer:
+      via: XCTL
+      to: COSGN00C
+    file_effects: []
+  source:
+    file: app/cbl/COTRN02C.cbl
+    lines: [115, 117]
+- id: COTRN02C-002
+  summary: arrival from the menu shows an empty add screen with the cursor on Account ID
+  given:
+    entry: xctl-from
+    commarea:
+      CDEMO-PGM-CONTEXT: 0
+      CDEMO-FROM-PROGRAM: COMEN01C
+      CDEMO-FROM-TRANID: CM00
+      CDEMO-CT02-TRN-SELECTED: ''
+    files:
+      CXACAIX:
+      - {XREF-CARD-NUM: '4111111111111111', XREF-CUST-ID: '000000001', XREF-ACCT-ID: '00000000001'}
+      CCXREF:
+      - {XREF-CARD-NUM: '4111111111111111', XREF-CUST-ID: '000000001', XREF-ACCT-ID: '00000000001'}
+      TRANSACT:
+      - TRAN-ID: '0000000000000021'
+        TRAN-TYPE-CD: '01'
+        TRAN-CAT-CD: '0001'
+        TRAN-SOURCE: POS TERM
+        TRAN-DESC: PURCHASE 21
+        TRAN-AMT: '21.00'
+        TRAN-MERCHANT-ID: '000011111'
+        TRAN-MERCHANT-NAME: CORNER SHOP
+        TRAN-MERCHANT-CITY: BOSTON
+        TRAN-MERCHANT-ZIP: '02101'
+        TRAN-CARD-NUM: '4333333333333333'
+        TRAN-ORIG-TS: '2022-06-21 10:00:00.000000'
+        TRAN-PROC-TS: '2022-06-22 10:00:00.000000'
+      - TRAN-ID: '0000000000000022'
+        TRAN-TYPE-CD: '03'
+        TRAN-CAT-CD: '0002'
+        TRAN-SOURCE: OPERATOR
+        TRAN-DESC: GROCERY STORE
+        TRAN-AMT: '-22.00'
+        TRAN-MERCHANT-ID: '000054321'
+        TRAN-MERCHANT-NAME: FRESH MART
+        TRAN-MERCHANT-CITY: PORTLAND
+        TRAN-MERCHANT-ZIP: '97201'
+        TRAN-CARD-NUM: '4222222222222222'
+        TRAN-ORIG-TS: '2022-06-22 10:00:00.000000'
+        TRAN-PROC-TS: '2022-06-23 10:00:00.000000'
+  when:
+    aid: ENTER
+  then:
+    message: null
+    cursor: ACTIDINL
+    fields:
+      ACTIDINO: ''
+      CARDNINO: ''
+      TTYPCDO: ''
+      TCATCDO: ''
+      TRNSRCO: ''
+      TDESCO: ''
+      TRNAMTO: ''
+      TORIGDTO: ''
+      TPROCDTO: ''
+      MIDO: ''
+      MNAMEO: ''
+      MCITYO: ''
+      MZIPO: ''
+      CONFIRMO: ''
+    transfer:
+      via: RETURN-TRANSID
+      to: CT02
+    commarea:
+      CDEMO-PGM-CONTEXT: 1
+    file_effects: []
+  source:
+    file: app/cbl/COTRN02C.cbl
+    lines: [120, 130]
+- id: COTRN02C-003
+  summary: arrival with CDEMO-CT02-TRN-SELECTED set treats it as a card number, fills the account from CCXREF, then
+    stops at the first empty data field
+  given:
+    entry: xctl-from
+    commarea:
+      CDEMO-PGM-CONTEXT: 0
+      CDEMO-FROM-PROGRAM: COMEN01C
+      CDEMO-FROM-TRANID: CM00
+      CDEMO-CT02-TRN-SELECTED: '4111111111111111'
+    files:
+      CXACAIX:
+      - {XREF-CARD-NUM: '4111111111111111', XREF-CUST-ID: '000000001', XREF-ACCT-ID: '00000000001'}
+      CCXREF:
+      - {XREF-CARD-NUM: '4111111111111111', XREF-CUST-ID: '000000001', XREF-ACCT-ID: '00000000001'}
+      TRANSACT:
+      - TRAN-ID: '0000000000000021'
+        TRAN-TYPE-CD: '01'
+        TRAN-CAT-CD: '0001'
+        TRAN-SOURCE: POS TERM
+        TRAN-DESC: PURCHASE 21
+        TRAN-AMT: '21.00'
+        TRAN-MERCHANT-ID: '000011111'
+        TRAN-MERCHANT-NAME: CORNER SHOP
+        TRAN-MERCHANT-CITY: BOSTON
+        TRAN-MERCHANT-ZIP: '02101'
+        TRAN-CARD-NUM: '4333333333333333'
+        TRAN-ORIG-TS: '2022-06-21 10:00:00.000000'
+        TRAN-PROC-TS: '2022-06-22 10:00:00.000000'
+      - TRAN-ID: '0000000000000022'
+        TRAN-TYPE-CD: '03'
+        TRAN-CAT-CD: '0002'
+        TRAN-SOURCE: OPERATOR
+        TRAN-DESC: GROCERY STORE
+        TRAN-AMT: '-22.00'
+        TRAN-MERCHANT-ID: '000054321'
+        TRAN-MERCHANT-NAME: FRESH MART
+        TRAN-MERCHANT-CITY: PORTLAND
+        TRAN-MERCHANT-ZIP: '97201'
+        TRAN-CARD-NUM: '4222222222222222'
+        TRAN-ORIG-TS: '2022-06-22 10:00:00.000000'
+        TRAN-PROC-TS: '2022-06-23 10:00:00.000000'
+  when:
+    aid: ENTER
+  then:
+    message: Type CD can NOT be empty...
+    cursor: TTYPCDL
+    fields:
+      ACTIDINO: '00000000001'
+      CARDNINO: '4111111111111111'
+    transfer:
+      via: RETURN-TRANSID
+      to: CT02
+    file_effects: []
+  source:
+    file: app/cbl/COTRN02C.cbl
+    lines: [124, 129]
+- id: COTRN02C-004
+  summary: PF3 returns to the program in CDEMO-FROM-PROGRAM
+  given:
+    entry: reenter
+    commarea:
+      CDEMO-PGM-CONTEXT: 1
+      CDEMO-FROM-PROGRAM: COMEN01C
+  when:
+    aid: PF3
+  then:
+    message: null
+    transfer:
+      via: XCTL
+      to: COMEN01C
+    commarea:
+      CDEMO-FROM-PROGRAM: COTRN02C
+      CDEMO-FROM-TRANID: CT02
+      CDEMO-PGM-CONTEXT: 0
+    file_effects: []
+  source:
+    file: app/cbl/COTRN02C.cbl
+    lines: [136, 143]
+- id: COTRN02C-005
+  summary: PF3 with a blank CDEMO-FROM-PROGRAM falls back to the menu
+  given:
+    entry: reenter
+    commarea:
+      CDEMO-PGM-CONTEXT: 1
+      CDEMO-FROM-PROGRAM: ''
+  when:
+    aid: PF3
+  then:
+    message: null
+    transfer:
+      via: XCTL
+      to: COMEN01C
+    file_effects: []
+  source:
+    file: app/cbl/COTRN02C.cbl
+    lines: [137, 138]
+- id: COTRN02C-006
+  summary: PF4 clears every input field, including the confirmation
+  given:
+    entry: reenter
+    commarea:
+      CDEMO-PGM-CONTEXT: 1
+      CDEMO-FROM-PROGRAM: COMEN01C
+  when:
+    aid: PF4
+    fields:
+      TTYPCDI: '01'
+      TCATCDI: '0001'
+      TRNSRCI: POS TERM
+      TDESCI: COFFEE SHOP
+      TRNAMTI: '+00000012.50'
+      TORIGDTI: '2026-11-01'
+      TPROCDTI: '2026-11-02'
+      MIDI: '000012345'
+      MNAMEI: JOES COFFEE
+      MCITYI: SEATTLE
+      MZIPI: '98101'
+      ACTIDINI: '00000000001'
+      CARDNINI: ''
+      CONFIRMI: 'Y'
+  then:
+    message: null
+    cursor: ACTIDINL
+    fields:
+      ACTIDINO: ''
+      CARDNINO: ''
+      TTYPCDO: ''
+      TCATCDO: ''
+      TRNSRCO: ''
+      TDESCO: ''
+      TRNAMTO: ''
+      TORIGDTO: ''
+      TPROCDTO: ''
+      MIDO: ''
+      MNAMEO: ''
+      MCITYO: ''
+      MZIPO: ''
+      CONFIRMO: ''
+    transfer:
+      via: RETURN-TRANSID
+      to: CT02
+    file_effects: []
+  source:
+    file: app/cbl/COTRN02C.cbl
+    lines: [754, 779]
+- id: COTRN02C-007
+  summary: any other attention key shows the invalid-key message
+  given:
+    entry: reenter
+    commarea:
+      CDEMO-PGM-CONTEXT: 1
+      CDEMO-FROM-PROGRAM: COMEN01C
+  when:
+    aid: OTHER
+    fields:
+      TTYPCDI: '01'
+      TCATCDI: '0001'
+      TRNSRCI: POS TERM
+      TDESCI: COFFEE SHOP
+      TRNAMTI: '+00000012.50'
+      TORIGDTI: '2026-11-01'
+      TPROCDTI: '2026-11-02'
+      MIDI: '000012345'
+      MNAMEI: JOES COFFEE
+      MCITYI: SEATTLE
+      MZIPI: '98101'
+      ACTIDINI: '00000000001'
+      CARDNINI: ''
+      CONFIRMI: ''
+  then:
+    message: Invalid key pressed. Please see below...
+    transfer:
+      via: RETURN-TRANSID
+      to: CT02
+    file_effects: []
+  source:
+    file: app/cbl/COTRN02C.cbl
+    lines: [148, 151]
+- id: COTRN02C-008
+  summary: neither Account ID nor Card Number entered
+  given:
+    entry: reenter
+    commarea:
+      CDEMO-PGM-CONTEXT: 1
+      CDEMO-FROM-PROGRAM: COMEN01C
+    files:
+      CXACAIX:
+      - {XREF-CARD-NUM: '4111111111111111', XREF-CUST-ID: '000000001', XREF-ACCT-ID: '00000000001'}
+      CCXREF:
+      - {XREF-CARD-NUM: '4111111111111111', XREF-CUST-ID: '000000001', XREF-ACCT-ID: '00000000001'}
+      TRANSACT:
+      - TRAN-ID: '0000000000000021'
+        TRAN-TYPE-CD: '01'
+        TRAN-CAT-CD: '0001'
+        TRAN-SOURCE: POS TERM
+        TRAN-DESC: PURCHASE 21
+        TRAN-AMT: '21.00'
+        TRAN-MERCHANT-ID: '000011111'
+        TRAN-MERCHANT-NAME: CORNER SHOP
+        TRAN-MERCHANT-CITY: BOSTON
+        TRAN-MERCHANT-ZIP: '02101'
+        TRAN-CARD-NUM: '4333333333333333'
+        TRAN-ORIG-TS: '2022-06-21 10:00:00.000000'
+        TRAN-PROC-TS: '2022-06-22 10:00:00.000000'
+      - TRAN-ID: '0000000000000022'
+        TRAN-TYPE-CD: '03'
+        TRAN-CAT-CD: '0002'
+        TRAN-SOURCE: OPERATOR
+        TRAN-DESC: GROCERY STORE
+        TRAN-AMT: '-22.00'
+        TRAN-MERCHANT-ID: '000054321'
+        TRAN-MERCHANT-NAME: FRESH MART
+        TRAN-MERCHANT-CITY: PORTLAND
+        TRAN-MERCHANT-ZIP: '97201'
+        TRAN-CARD-NUM: '4222222222222222'
+        TRAN-ORIG-TS: '2022-06-22 10:00:00.000000'
+        TRAN-PROC-TS: '2022-06-23 10:00:00.000000'
+  when:
+    aid: ENTER
+    fields:
+      TTYPCDI: '01'
+      TCATCDI: '0001'
+      TRNSRCI: POS TERM
+      TDESCI: COFFEE SHOP
+      TRNAMTI: '+00000012.50'
+      TORIGDTI: '2026-11-01'
+      TPROCDTI: '2026-11-02'
+      MIDI: '000012345'
+      MNAMEI: JOES COFFEE
+      MCITYI: SEATTLE
+      MZIPI: '98101'
+      ACTIDINI: ''
+      CARDNINI: ''
+  then:
+    message: Account or Card Number must be entered...
+    cursor: ACTIDINL
+    transfer:
+      via: RETURN-TRANSID
+      to: CT02
+    file_effects: []
+  source:
+    file: app/cbl/COTRN02C.cbl
+    lines: [224, 229]
+- id: COTRN02C-009
+  summary: non-numeric Account ID
+  given:
+    entry: reenter
+    commarea:
+      CDEMO-PGM-CONTEXT: 1
+      CDEMO-FROM-PROGRAM: COMEN01C
+    files:
+      CXACAIX:
+      - {XREF-CARD-NUM: '4111111111111111', XREF-CUST-ID: '000000001', XREF-ACCT-ID: '00000000001'}
+      CCXREF:
+      - {XREF-CARD-NUM: '4111111111111111', XREF-CUST-ID: '000000001', XREF-ACCT-ID: '00000000001'}
+      TRANSACT:
+      - TRAN-ID: '0000000000000021'
+        TRAN-TYPE-CD: '01'
+        TRAN-CAT-CD: '0001'
+        TRAN-SOURCE: POS TERM
+        TRAN-DESC: PURCHASE 21
+        TRAN-AMT: '21.00'
+        TRAN-MERCHANT-ID: '000011111'
+        TRAN-MERCHANT-NAME: CORNER SHOP
+        TRAN-MERCHANT-CITY: BOSTON
+        TRAN-MERCHANT-ZIP: '02101'
+        TRAN-CARD-NUM: '4333333333333333'
+        TRAN-ORIG-TS: '2022-06-21 10:00:00.000000'
+        TRAN-PROC-TS: '2022-06-22 10:00:00.000000'
+      - TRAN-ID: '0000000000000022'
+        TRAN-TYPE-CD: '03'
+        TRAN-CAT-CD: '0002'
+        TRAN-SOURCE: OPERATOR
+        TRAN-DESC: GROCERY STORE
+        TRAN-AMT: '-22.00'
+        TRAN-MERCHANT-ID: '000054321'
+        TRAN-MERCHANT-NAME: FRESH MART
+        TRAN-MERCHANT-CITY: PORTLAND
+        TRAN-MERCHANT-ZIP: '97201'
+        TRAN-CARD-NUM: '4222222222222222'
+        TRAN-ORIG-TS: '2022-06-22 10:00:00.000000'
+        TRAN-PROC-TS: '2022-06-23 10:00:00.000000'
+  when:
+    aid: ENTER
+    fields:
+      TTYPCDI: '01'
+      TCATCDI: '0001'
+      TRNSRCI: POS TERM
+      TDESCI: COFFEE SHOP
+      TRNAMTI: '+00000012.50'
+      TORIGDTI: '2026-11-01'
+      TPROCDTI: '2026-11-02'
+      MIDI: '000012345'
+      MNAMEI: JOES COFFEE
+      MCITYI: SEATTLE
+      MZIPI: '98101'
+      ACTIDINI: ABC
+      CARDNINI: ''
+      CONFIRMI: ''
+  then:
+    message: Account ID must be Numeric...
+    cursor: ACTIDINL
+    transfer:
+      via: RETURN-TRANSID
+      to: CT02
+    file_effects: []
+  source:
+    file: app/cbl/COTRN02C.cbl
+    lines: [196, 202]
+- id: COTRN02C-010
+  summary: a short Account ID ('1' padded with spaces by BMS) fails IS NUMERIC
+  given:
+    entry: reenter
+    commarea:
+      CDEMO-PGM-CONTEXT: 1
+      CDEMO-FROM-PROGRAM: COMEN01C
+    files:
+      CXACAIX:
+      - {XREF-CARD-NUM: '4111111111111111', XREF-CUST-ID: '000000001', XREF-ACCT-ID: '00000000001'}
+      CCXREF:
+      - {XREF-CARD-NUM: '4111111111111111', XREF-CUST-ID: '000000001', XREF-ACCT-ID: '00000000001'}
+      TRANSACT:
+      - TRAN-ID: '0000000000000021'
+        TRAN-TYPE-CD: '01'
+        TRAN-CAT-CD: '0001'
+        TRAN-SOURCE: POS TERM
+        TRAN-DESC: PURCHASE 21
+        TRAN-AMT: '21.00'
+        TRAN-MERCHANT-ID: '000011111'
+        TRAN-MERCHANT-NAME: CORNER SHOP
+        TRAN-MERCHANT-CITY: BOSTON
+        TRAN-MERCHANT-ZIP: '02101'
+        TRAN-CARD-NUM: '4333333333333333'
+        TRAN-ORIG-TS: '2022-06-21 10:00:00.000000'
+        TRAN-PROC-TS: '2022-06-22 10:00:00.000000'
+      - TRAN-ID: '0000000000000022'
+        TRAN-TYPE-CD: '03'
+        TRAN-CAT-CD: '0002'
+        TRAN-SOURCE: OPERATOR
+        TRAN-DESC: GROCERY STORE
+        TRAN-AMT: '-22.00'
+        TRAN-MERCHANT-ID: '000054321'
+        TRAN-MERCHANT-NAME: FRESH MART
+        TRAN-MERCHANT-CITY: PORTLAND
+        TRAN-MERCHANT-ZIP: '97201'
+        TRAN-CARD-NUM: '4222222222222222'
+        TRAN-ORIG-TS: '2022-06-22 10:00:00.000000'
+        TRAN-PROC-TS: '2022-06-23 10:00:00.000000'
+  when:
+    aid: ENTER
+    fields:
+      TTYPCDI: '01'
+      TCATCDI: '0001'
+      TRNSRCI: POS TERM
+      TDESCI: COFFEE SHOP
+      TRNAMTI: '+00000012.50'
+      TORIGDTI: '2026-11-01'
+      TPROCDTI: '2026-11-02'
+      MIDI: '000012345'
+      MNAMEI: JOES COFFEE
+      MCITYI: SEATTLE
+      MZIPI: '98101'
+      ACTIDINI: '1'
+      CARDNINI: ''
+      CONFIRMI: ''
+  then:
+    message: Account ID must be Numeric...
+    cursor: ACTIDINL
+    transfer:
+      via: RETURN-TRANSID
+      to: CT02
+    file_effects: []
+  source:
+    file: app/cbl/COTRN02C.cbl
+    lines: [196, 202]
+- id: COTRN02C-011
+  summary: Account ID not in the CXACAIX alternate index
+  given:
+    entry: reenter
+    commarea:
+      CDEMO-PGM-CONTEXT: 1
+      CDEMO-FROM-PROGRAM: COMEN01C
+    files:
+      CXACAIX:
+      - {XREF-CARD-NUM: '4111111111111111', XREF-CUST-ID: '000000001', XREF-ACCT-ID: '00000000001'}
+      CCXREF:
+      - {XREF-CARD-NUM: '4111111111111111', XREF-CUST-ID: '000000001', XREF-ACCT-ID: '00000000001'}
+      TRANSACT:
+      - TRAN-ID: '0000000000000021'
+        TRAN-TYPE-CD: '01'
+        TRAN-CAT-CD: '0001'
+        TRAN-SOURCE: POS TERM
+        TRAN-DESC: PURCHASE 21
+        TRAN-AMT: '21.00'
+        TRAN-MERCHANT-ID: '000011111'
+        TRAN-MERCHANT-NAME: CORNER SHOP
+        TRAN-MERCHANT-CITY: BOSTON
+        TRAN-MERCHANT-ZIP: '02101'
+        TRAN-CARD-NUM: '4333333333333333'
+        TRAN-ORIG-TS: '2022-06-21 10:00:00.000000'
+        TRAN-PROC-TS: '2022-06-22 10:00:00.000000'
+      - TRAN-ID: '0000000000000022'
+        TRAN-TYPE-CD: '03'
+        TRAN-CAT-CD: '0002'
+        TRAN-SOURCE: OPERATOR
+        TRAN-DESC: GROCERY STORE
+        TRAN-AMT: '-22.00'
+        TRAN-MERCHANT-ID: '000054321'
+        TRAN-MERCHANT-NAME: FRESH MART
+        TRAN-MERCHANT-CITY: PORTLAND
+        TRAN-MERCHANT-ZIP: '97201'
+        TRAN-CARD-NUM: '4222222222222222'
+        TRAN-ORIG-TS: '2022-06-22 10:00:00.000000'
+        TRAN-PROC-TS: '2022-06-23 10:00:00.000000'
+  when:
+    aid: ENTER
+    fields:
+      TTYPCDI: '01'
+      TCATCDI: '0001'
+      TRNSRCI: POS TERM
+      TDESCI: COFFEE SHOP
+      TRNAMTI: '+00000012.50'
+      TORIGDTI: '2026-11-01'
+      TPROCDTI: '2026-11-02'
+      MIDI: '000012345'
+      MNAMEI: JOES COFFEE
+      MCITYI: SEATTLE
+      MZIPI: '98101'
+      ACTIDINI: 00000000099
+      CARDNINI: ''
+      CONFIRMI: ''
+  then:
+    message: Account ID NOT found...
+    cursor: ACTIDINL
+    transfer:
+      via: RETURN-TRANSID
+      to: CT02
+    file_effects: []
+  source:
+    file: app/cbl/COTRN02C.cbl
+    lines: [591, 595]
+- id: COTRN02C-012
+  summary: 'an account with two cards: READ on the NONUNIQUEKEY path returns DUPKEY, which falls into the error
+    branch'
+  given:
+    entry: reenter
+    commarea:
+      CDEMO-PGM-CONTEXT: 1
+      CDEMO-FROM-PROGRAM: COMEN01C
+    files:
+      CXACAIX:
+      - {XREF-CARD-NUM: '4111111111111111', XREF-CUST-ID: '000000001', XREF-ACCT-ID: '00000000001'}
+      - {XREF-CARD-NUM: '4555555555555555', XREF-CUST-ID: '000000001', XREF-ACCT-ID: '00000000001'}
+      CCXREF:
+      - {XREF-CARD-NUM: '4111111111111111', XREF-CUST-ID: '000000001', XREF-ACCT-ID: '00000000001'}
+      TRANSACT:
+      - TRAN-ID: '0000000000000021'
+        TRAN-TYPE-CD: '01'
+        TRAN-CAT-CD: '0001'
+        TRAN-SOURCE: POS TERM
+        TRAN-DESC: PURCHASE 21
+        TRAN-AMT: '21.00'
+        TRAN-MERCHANT-ID: '000011111'
+        TRAN-MERCHANT-NAME: CORNER SHOP
+        TRAN-MERCHANT-CITY: BOSTON
+        TRAN-MERCHANT-ZIP: '02101'
+        TRAN-CARD-NUM: '4333333333333333'
+        TRAN-ORIG-TS: '2022-06-21 10:00:00.000000'
+        TRAN-PROC-TS: '2022-06-22 10:00:00.000000'
+      - TRAN-ID: '0000000000000022'
+        TRAN-TYPE-CD: '03'
+        TRAN-CAT-CD: '0002'
+        TRAN-SOURCE: OPERATOR
+        TRAN-DESC: GROCERY STORE
+        TRAN-AMT: '-22.00'
+        TRAN-MERCHANT-ID: '000054321'
+        TRAN-MERCHANT-NAME: FRESH MART
+        TRAN-MERCHANT-CITY: PORTLAND
+        TRAN-MERCHANT-ZIP: '97201'
+        TRAN-CARD-NUM: '4222222222222222'
+        TRAN-ORIG-TS: '2022-06-22 10:00:00.000000'
+        TRAN-PROC-TS: '2022-06-23 10:00:00.000000'
+  when:
+    aid: ENTER
+    fields:
+      TTYPCDI: '01'
+      TCATCDI: '0001'
+      TRNSRCI: POS TERM
+      TDESCI: COFFEE SHOP
+      TRNAMTI: '+00000012.50'
+      TORIGDTI: '2026-11-01'
+      TPROCDTI: '2026-11-02'
+      MIDI: '000012345'
+      MNAMEI: JOES COFFEE
+      MCITYI: SEATTLE
+      MZIPI: '98101'
+      ACTIDINI: '00000000001'
+      CARDNINI: ''
+      CONFIRMI: ''
+  then:
+    message: Unable to lookup Acct in XREF AIX file...
+    cursor: ACTIDINL
+    transfer:
+      via: RETURN-TRANSID
+      to: CT02
+    file_effects: []
+  source:
+    file: app/cbl/COTRN02C.cbl
+    lines: [596, 603]
+- id: COTRN02C-013
+  summary: non-numeric Card Number
+  given:
+    entry: reenter
+    commarea:
+      CDEMO-PGM-CONTEXT: 1
+      CDEMO-FROM-PROGRAM: COMEN01C
+    files:
+      CXACAIX:
+      - {XREF-CARD-NUM: '4111111111111111', XREF-CUST-ID: '000000001', XREF-ACCT-ID: '00000000001'}
+      CCXREF:
+      - {XREF-CARD-NUM: '4111111111111111', XREF-CUST-ID: '000000001', XREF-ACCT-ID: '00000000001'}
+      TRANSACT:
+      - TRAN-ID: '0000000000000021'
+        TRAN-TYPE-CD: '01'
+        TRAN-CAT-CD: '0001'
+        TRAN-SOURCE: POS TERM
+        TRAN-DESC: PURCHASE 21
+        TRAN-AMT: '21.00'
+        TRAN-MERCHANT-ID: '000011111'
+        TRAN-MERCHANT-NAME: CORNER SHOP
+        TRAN-MERCHANT-CITY: BOSTON
+        TRAN-MERCHANT-ZIP: '02101'
+        TRAN-CARD-NUM: '4333333333333333'
+        TRAN-ORIG-TS: '2022-06-21 10:00:00.000000'
+        TRAN-PROC-TS: '2022-06-22 10:00:00.000000'
+      - TRAN-ID: '0000000000000022'
+        TRAN-TYPE-CD: '03'
+        TRAN-CAT-CD: '0002'
+        TRAN-SOURCE: OPERATOR
+        TRAN-DESC: GROCERY STORE
+        TRAN-AMT: '-22.00'
+        TRAN-MERCHANT-ID: '000054321'
+        TRAN-MERCHANT-NAME: FRESH MART
+        TRAN-MERCHANT-CITY: PORTLAND
+        TRAN-MERCHANT-ZIP: '97201'
+        TRAN-CARD-NUM: '4222222222222222'
+        TRAN-ORIG-TS: '2022-06-22 10:00:00.000000'
+        TRAN-PROC-TS: '2022-06-23 10:00:00.000000'
+  when:
+    aid: ENTER
+    fields:
+      TTYPCDI: '01'
+      TCATCDI: '0001'
+      TRNSRCI: POS TERM
+      TDESCI: COFFEE SHOP
+      TRNAMTI: '+00000012.50'
+      TORIGDTI: '2026-11-01'
+      TPROCDTI: '2026-11-02'
+      MIDI: '000012345'
+      MNAMEI: JOES COFFEE
+      MCITYI: SEATTLE
+      MZIPI: '98101'
+      ACTIDINI: ''
+      CARDNINI: 4111-1111
+      CONFIRMI: ''
+  then:
+    message: Card Number must be Numeric...
+    cursor: CARDNINL
+    transfer:
+      via: RETURN-TRANSID
+      to: CT02
+    file_effects: []
+  source:
+    file: app/cbl/COTRN02C.cbl
+    lines: [211, 217]
+- id: COTRN02C-014
+  summary: Card Number not in CCXREF
+  given:
+    entry: reenter
+    commarea:
+      CDEMO-PGM-CONTEXT: 1
+      CDEMO-FROM-PROGRAM: COMEN01C
+    files:
+      CXACAIX:
+      - {XREF-CARD-NUM: '4111111111111111', XREF-CUST-ID: '000000001', XREF-ACCT-ID: '00000000001'}
+      CCXREF:
+      - {XREF-CARD-NUM: '4111111111111111', XREF-CUST-ID: '000000001', XREF-ACCT-ID: '00000000001'}
+      TRANSACT:
+      - TRAN-ID: '0000000000000021'
+        TRAN-TYPE-CD: '01'
+        TRAN-CAT-CD: '0001'
+        TRAN-SOURCE: POS TERM
+        TRAN-DESC: PURCHASE 21
+        TRAN-AMT: '21.00'
+        TRAN-MERCHANT-ID: '000011111'
+        TRAN-MERCHANT-NAME: CORNER SHOP
+        TRAN-MERCHANT-CITY: BOSTON
+        TRAN-MERCHANT-ZIP: '02101'
+        TRAN-CARD-NUM: '4333333333333333'
+        TRAN-ORIG-TS: '2022-06-21 10:00:00.000000'
+        TRAN-PROC-TS: '2022-06-22 10:00:00.000000'
+      - TRAN-ID: '0000000000000022'
+        TRAN-TYPE-CD: '03'
+        TRAN-CAT-CD: '0002'
+        TRAN-SOURCE: OPERATOR
+        TRAN-DESC: GROCERY STORE
+        TRAN-AMT: '-22.00'
+        TRAN-MERCHANT-ID: '000054321'
+        TRAN-MERCHANT-NAME: FRESH MART
+        TRAN-MERCHANT-CITY: PORTLAND
+        TRAN-MERCHANT-ZIP: '97201'
+        TRAN-CARD-NUM: '4222222222222222'
+        TRAN-ORIG-TS: '2022-06-22 10:00:00.000000'
+        TRAN-PROC-TS: '2022-06-23 10:00:00.000000'
+  when:
+    aid: ENTER
+    fields:
+      TTYPCDI: '01'
+      TCATCDI: '0001'
+      TRNSRCI: POS TERM
+      TDESCI: COFFEE SHOP
+      TRNAMTI: '+00000012.50'
+      TORIGDTI: '2026-11-01'
+      TPROCDTI: '2026-11-02'
+      MIDI: '000012345'
+      MNAMEI: JOES COFFEE
+      MCITYI: SEATTLE
+      MZIPI: '98101'
+      ACTIDINI: ''
+      CARDNINI: '4999999999999999'
+      CONFIRMI: ''
+  then:
+    message: Card Number NOT found...
+    cursor: CARDNINL
+    transfer:
+      via: RETURN-TRANSID
+      to: CT02
+    file_effects: []
+  source:
+    file: app/cbl/COTRN02C.cbl
+    lines: [624, 628]
+- id: COTRN02C-015
+  summary: 'both entered: Account ID wins and the card field is overwritten with the account''s card from CXACAIX'
+  given:
+    entry: reenter
+    commarea:
+      CDEMO-PGM-CONTEXT: 1
+      CDEMO-FROM-PROGRAM: COMEN01C
+    files:
+      CXACAIX:
+      - {XREF-CARD-NUM: '4111111111111111', XREF-CUST-ID: '000000001', XREF-ACCT-ID: '00000000001'}
+      CCXREF:
+      - {XREF-CARD-NUM: '4111111111111111', XREF-CUST-ID: '000000001', XREF-ACCT-ID: '00000000001'}
+      TRANSACT:
+      - TRAN-ID: '0000000000000021'
+        TRAN-TYPE-CD: '01'
+        TRAN-CAT-CD: '0001'
+        TRAN-SOURCE: POS TERM
+        TRAN-DESC: PURCHASE 21
+        TRAN-AMT: '21.00'
+        TRAN-MERCHANT-ID: '000011111'
+        TRAN-MERCHANT-NAME: CORNER SHOP
+        TRAN-MERCHANT-CITY: BOSTON
+        TRAN-MERCHANT-ZIP: '02101'
+        TRAN-CARD-NUM: '4333333333333333'
+        TRAN-ORIG-TS: '2022-06-21 10:00:00.000000'
+        TRAN-PROC-TS: '2022-06-22 10:00:00.000000'
+      - TRAN-ID: '0000000000000022'
+        TRAN-TYPE-CD: '03'
+        TRAN-CAT-CD: '0002'
+        TRAN-SOURCE: OPERATOR
+        TRAN-DESC: GROCERY STORE
+        TRAN-AMT: '-22.00'
+        TRAN-MERCHANT-ID: '000054321'
+        TRAN-MERCHANT-NAME: FRESH MART
+        TRAN-MERCHANT-CITY: PORTLAND
+        TRAN-MERCHANT-ZIP: '97201'
+        TRAN-CARD-NUM: '4222222222222222'
+        TRAN-ORIG-TS: '2022-06-22 10:00:00.000000'
+        TRAN-PROC-TS: '2022-06-23 10:00:00.000000'
+  when:
+    aid: ENTER
+    fields:
+      TTYPCDI: '01'
+      TCATCDI: '0001'
+      TRNSRCI: POS TERM
+      TDESCI: COFFEE SHOP
+      TRNAMTI: '+00000012.50'
+      TORIGDTI: '2026-11-01'
+      TPROCDTI: '2026-11-02'
+      MIDI: '000012345'
+      MNAMEI: JOES COFFEE
+      MCITYI: SEATTLE
+      MZIPI: '98101'
+      ACTIDINI: '00000000001'
+      CARDNINI: '4999999999999999'
+      CONFIRMI: ''
+  then:
+    message: Confirm to add this transaction...
+    cursor: CONFIRML
+    fields:
+      ACTIDINO: '00000000001'
+      CARDNINO: '4111111111111111'
+    transfer:
+      via: RETURN-TRANSID
+      to: CT02
+    file_effects: []
+  source:
+    file: app/cbl/COTRN02C.cbl
+    lines: [195, 209]
+- id: COTRN02C-016
+  summary: 'Card Number only: the Account ID is filled from CCXREF'
+  given:
+    entry: reenter
+    commarea:
+      CDEMO-PGM-CONTEXT: 1
+      CDEMO-FROM-PROGRAM: COMEN01C
+    files:
+      CXACAIX:
+      - {XREF-CARD-NUM: '4111111111111111', XREF-CUST-ID: '000000001', XREF-ACCT-ID: '00000000001'}
+      CCXREF:
+      - {XREF-CARD-NUM: '4111111111111111', XREF-CUST-ID: '000000001', XREF-ACCT-ID: '00000000001'}
+      TRANSACT:
+      - TRAN-ID: '0000000000000021'
+        TRAN-TYPE-CD: '01'
+        TRAN-CAT-CD: '0001'
+        TRAN-SOURCE: POS TERM
+        TRAN-DESC: PURCHASE 21
+        TRAN-AMT: '21.00'
+        TRAN-MERCHANT-ID: '000011111'
+        TRAN-MERCHANT-NAME: CORNER SHOP
+        TRAN-MERCHANT-CITY: BOSTON
+        TRAN-MERCHANT-ZIP: '02101'
+        TRAN-CARD-NUM: '4333333333333333'
+        TRAN-ORIG-TS: '2022-06-21 10:00:00.000000'
+        TRAN-PROC-TS: '2022-06-22 10:00:00.000000'
+      - TRAN-ID: '0000000000000022'
+        TRAN-TYPE-CD: '03'
+        TRAN-CAT-CD: '0002'
+        TRAN-SOURCE: OPERATOR
+        TRAN-DESC: GROCERY STORE
+        TRAN-AMT: '-22.00'
+        TRAN-MERCHANT-ID: '000054321'
+        TRAN-MERCHANT-NAME: FRESH MART
+        TRAN-MERCHANT-CITY: PORTLAND
+        TRAN-MERCHANT-ZIP: '97201'
+        TRAN-CARD-NUM: '4222222222222222'
+        TRAN-ORIG-TS: '2022-06-22 10:00:00.000000'
+        TRAN-PROC-TS: '2022-06-23 10:00:00.000000'
+  when:
+    aid: ENTER
+    fields:
+      TTYPCDI: '01'
+      TCATCDI: '0001'
+      TRNSRCI: POS TERM
+      TDESCI: COFFEE SHOP
+      TRNAMTI: '+00000012.50'
+      TORIGDTI: '2026-11-01'
+      TPROCDTI: '2026-11-02'
+      MIDI: '000012345'
+      MNAMEI: JOES COFFEE
+      MCITYI: SEATTLE
+      MZIPI: '98101'
+      ACTIDINI: ''
+      CARDNINI: '4111111111111111'
+      CONFIRMI: ''
+  then:
+    message: Confirm to add this transaction...
+    cursor: CONFIRML
+    fields:
+      ACTIDINO: '00000000001'
+      CARDNINO: '4111111111111111'
+    transfer:
+      via: RETURN-TRANSID
+      to: CT02
+    file_effects: []
+  source:
+    file: app/cbl/COTRN02C.cbl
+    lines: [210, 223]
+- id: COTRN02C-017
+  summary: TTYPCDI empty (empty checks run in this fixed order; the first one wins)
+  given:
+    entry: reenter
+    commarea:
+      CDEMO-PGM-CONTEXT: 1
+      CDEMO-FROM-PROGRAM: COMEN01C
+    files:
+      CXACAIX:
+      - {XREF-CARD-NUM: '4111111111111111', XREF-CUST-ID: '000000001', XREF-ACCT-ID: '00000000001'}
+      CCXREF:
+      - {XREF-CARD-NUM: '4111111111111111', XREF-CUST-ID: '000000001', XREF-ACCT-ID: '00000000001'}
+      TRANSACT:
+      - TRAN-ID: '0000000000000021'
+        TRAN-TYPE-CD: '01'
+        TRAN-CAT-CD: '0001'
+        TRAN-SOURCE: POS TERM
+        TRAN-DESC: PURCHASE 21
+        TRAN-AMT: '21.00'
+        TRAN-MERCHANT-ID: '000011111'
+        TRAN-MERCHANT-NAME: CORNER SHOP
+        TRAN-MERCHANT-CITY: BOSTON
+        TRAN-MERCHANT-ZIP: '02101'
+        TRAN-CARD-NUM: '4333333333333333'
+        TRAN-ORIG-TS: '2022-06-21 10:00:00.000000'
+        TRAN-PROC-TS: '2022-06-22 10:00:00.000000'
+      - TRAN-ID: '0000000000000022'
+        TRAN-TYPE-CD: '03'
+        TRAN-CAT-CD: '0002'
+        TRAN-SOURCE: OPERATOR
+        TRAN-DESC: GROCERY STORE
+        TRAN-AMT: '-22.00'
+        TRAN-MERCHANT-ID: '000054321'
+        TRAN-MERCHANT-NAME: FRESH MART
+        TRAN-MERCHANT-CITY: PORTLAND
+        TRAN-MERCHANT-ZIP: '97201'
+        TRAN-CARD-NUM: '4222222222222222'
+        TRAN-ORIG-TS: '2022-06-22 10:00:00.000000'
+        TRAN-PROC-TS: '2022-06-23 10:00:00.000000'
+  when:
+    aid: ENTER
+    fields:
+      TTYPCDI: ''
+      TCATCDI: '0001'
+      TRNSRCI: POS TERM
+      TDESCI: COFFEE SHOP
+      TRNAMTI: '+00000012.50'
+      TORIGDTI: '2026-11-01'
+      TPROCDTI: '2026-11-02'
+      MIDI: '000012345'
+      MNAMEI: JOES COFFEE
+      MCITYI: SEATTLE
+      MZIPI: '98101'
+      ACTIDINI: '00000000001'
+      CARDNINI: ''
+      CONFIRMI: ''
+  then:
+    message: Type CD can NOT be empty...
+    cursor: TTYPCDL
+    transfer:
+      via: RETURN-TRANSID
+      to: CT02
+    file_effects: []
+  source:
+    file: app/cbl/COTRN02C.cbl
+    lines: [252, 257]
+- id: COTRN02C-018
+  summary: TCATCDI empty (empty checks run in this fixed order; the first one wins)
+  given:
+    entry: reenter
+    commarea:
+      CDEMO-PGM-CONTEXT: 1
+      CDEMO-FROM-PROGRAM: COMEN01C
+    files:
+      CXACAIX:
+      - {XREF-CARD-NUM: '4111111111111111', XREF-CUST-ID: '000000001', XREF-ACCT-ID: '00000000001'}
+      CCXREF:
+      - {XREF-CARD-NUM: '4111111111111111', XREF-CUST-ID: '000000001', XREF-ACCT-ID: '00000000001'}
+      TRANSACT:
+      - TRAN-ID: '0000000000000021'
+        TRAN-TYPE-CD: '01'
+        TRAN-CAT-CD: '0001'
+        TRAN-SOURCE: POS TERM
+        TRAN-DESC: PURCHASE 21
+        TRAN-AMT: '21.00'
+        TRAN-MERCHANT-ID: '000011111'
+        TRAN-MERCHANT-NAME: CORNER SHOP
+        TRAN-MERCHANT-CITY: BOSTON
+        TRAN-MERCHANT-ZIP: '02101'
+        TRAN-CARD-NUM: '4333333333333333'
+        TRAN-ORIG-TS: '2022-06-21 10:00:00.000000'
+        TRAN-PROC-TS: '2022-06-22 10:00:00.000000'
+      - TRAN-ID: '0000000000000022'
+        TRAN-TYPE-CD: '03'
+        TRAN-CAT-CD: '0002'
+        TRAN-SOURCE: OPERATOR
+        TRAN-DESC: GROCERY STORE
+        TRAN-AMT: '-22.00'
+        TRAN-MERCHANT-ID: '000054321'
+        TRAN-MERCHANT-NAME: FRESH MART
+        TRAN-MERCHANT-CITY: PORTLAND
+        TRAN-MERCHANT-ZIP: '97201'
+        TRAN-CARD-NUM: '4222222222222222'
+        TRAN-ORIG-TS: '2022-06-22 10:00:00.000000'
+        TRAN-PROC-TS: '2022-06-23 10:00:00.000000'
+  when:
+    aid: ENTER
+    fields:
+      TTYPCDI: '01'
+      TCATCDI: ''
+      TRNSRCI: POS TERM
+      TDESCI: COFFEE SHOP
+      TRNAMTI: '+00000012.50'
+      TORIGDTI: '2026-11-01'
+      TPROCDTI: '2026-11-02'
+      MIDI: '000012345'
+      MNAMEI: JOES COFFEE
+      MCITYI: SEATTLE
+      MZIPI: '98101'
+      ACTIDINI: '00000000001'
+      CARDNINI: ''
+      CONFIRMI: ''
+  then:
+    message: Category CD can NOT be empty...
+    cursor: TCATCDL
+    transfer:
+      via: RETURN-TRANSID
+      to: CT02
+    file_effects: []
+  source:
+    file: app/cbl/COTRN02C.cbl
+    lines: [258, 263]
+- id: COTRN02C-019
+  summary: TRNSRCI empty (empty checks run in this fixed order; the first one wins)
+  given:
+    entry: reenter
+    commarea:
+      CDEMO-PGM-CONTEXT: 1
+      CDEMO-FROM-PROGRAM: COMEN01C
+    files:
+      CXACAIX:
+      - {XREF-CARD-NUM: '4111111111111111', XREF-CUST-ID: '000000001', XREF-ACCT-ID: '00000000001'}
+      CCXREF:
+      - {XREF-CARD-NUM: '4111111111111111', XREF-CUST-ID: '000000001', XREF-ACCT-ID: '00000000001'}
+      TRANSACT:
+      - TRAN-ID: '0000000000000021'
+        TRAN-TYPE-CD: '01'
+        TRAN-CAT-CD: '0001'
+        TRAN-SOURCE: POS TERM
+        TRAN-DESC: PURCHASE 21
+        TRAN-AMT: '21.00'
+        TRAN-MERCHANT-ID: '000011111'
+        TRAN-MERCHANT-NAME: CORNER SHOP
+        TRAN-MERCHANT-CITY: BOSTON
+        TRAN-MERCHANT-ZIP: '02101'
+        TRAN-CARD-NUM: '4333333333333333'
+        TRAN-ORIG-TS: '2022-06-21 10:00:00.000000'
+        TRAN-PROC-TS: '2022-06-22 10:00:00.000000'
+      - TRAN-ID: '0000000000000022'
+        TRAN-TYPE-CD: '03'
+        TRAN-CAT-CD: '0002'
+        TRAN-SOURCE: OPERATOR
+        TRAN-DESC: GROCERY STORE
+        TRAN-AMT: '-22.00'
+        TRAN-MERCHANT-ID: '000054321'
+        TRAN-MERCHANT-NAME: FRESH MART
+        TRAN-MERCHANT-CITY: PORTLAND
+        TRAN-MERCHANT-ZIP: '97201'
+        TRAN-CARD-NUM: '4222222222222222'
+        TRAN-ORIG-TS: '2022-06-22 10:00:00.000000'
+        TRAN-PROC-TS: '2022-06-23 10:00:00.000000'
+  when:
+    aid: ENTER
+    fields:
+      TTYPCDI: '01'
+      TCATCDI: '0001'
+      TRNSRCI: ''
+      TDESCI: COFFEE SHOP
+      TRNAMTI: '+00000012.50'
+      TORIGDTI: '2026-11-01'
+      TPROCDTI: '2026-11-02'
+      MIDI: '000012345'
+      MNAMEI: JOES COFFEE
+      MCITYI: SEATTLE
+      MZIPI: '98101'
+      ACTIDINI: '00000000001'
+      CARDNINI: ''
+      CONFIRMI: ''
+  then:
+    message: Source can NOT be empty...
+    cursor: TRNSRCL
+    transfer:
+      via: RETURN-TRANSID
+      to: CT02
+    file_effects: []
+  source:
+    file: app/cbl/COTRN02C.cbl
+    lines: [264, 269]
+- id: COTRN02C-020
+  summary: TDESCI empty (empty checks run in this fixed order; the first one wins)
+  given:
+    entry: reenter
+    commarea:
+      CDEMO-PGM-CONTEXT: 1
+      CDEMO-FROM-PROGRAM: COMEN01C
+    files:
+      CXACAIX:
+      - {XREF-CARD-NUM: '4111111111111111', XREF-CUST-ID: '000000001', XREF-ACCT-ID: '00000000001'}
+      CCXREF:
+      - {XREF-CARD-NUM: '4111111111111111', XREF-CUST-ID: '000000001', XREF-ACCT-ID: '00000000001'}
+      TRANSACT:
+      - TRAN-ID: '0000000000000021'
+        TRAN-TYPE-CD: '01'
+        TRAN-CAT-CD: '0001'
+        TRAN-SOURCE: POS TERM
+        TRAN-DESC: PURCHASE 21
+        TRAN-AMT: '21.00'
+        TRAN-MERCHANT-ID: '000011111'
+        TRAN-MERCHANT-NAME: CORNER SHOP
+        TRAN-MERCHANT-CITY: BOSTON
+        TRAN-MERCHANT-ZIP: '02101'
+        TRAN-CARD-NUM: '4333333333333333'
+        TRAN-ORIG-TS: '2022-06-21 10:00:00.000000'
+        TRAN-PROC-TS: '2022-06-22 10:00:00.000000'
+      - TRAN-ID: '0000000000000022'
+        TRAN-TYPE-CD: '03'
+        TRAN-CAT-CD: '0002'
+        TRAN-SOURCE: OPERATOR
+        TRAN-DESC: GROCERY STORE
+        TRAN-AMT: '-22.00'
+        TRAN-MERCHANT-ID: '000054321'
+        TRAN-MERCHANT-NAME: FRESH MART
+        TRAN-MERCHANT-CITY: PORTLAND
+        TRAN-MERCHANT-ZIP: '97201'
+        TRAN-CARD-NUM: '4222222222222222'
+        TRAN-ORIG-TS: '2022-06-22 10:00:00.000000'
+        TRAN-PROC-TS: '2022-06-23 10:00:00.000000'
+  when:
+    aid: ENTER
+    fields:
+      TTYPCDI: '01'
+      TCATCDI: '0001'
+      TRNSRCI: POS TERM
+      TDESCI: ''
+      TRNAMTI: '+00000012.50'
+      TORIGDTI: '2026-11-01'
+      TPROCDTI: '2026-11-02'
+      MIDI: '000012345'
+      MNAMEI: JOES COFFEE
+      MCITYI: SEATTLE
+      MZIPI: '98101'
+      ACTIDINI: '00000000001'
+      CARDNINI: ''
+      CONFIRMI: ''
+  then:
+    message: Description can NOT be empty...
+    cursor: TDESCL
+    transfer:
+      via: RETURN-TRANSID
+      to: CT02
+    file_effects: []
+  source:
+    file: app/cbl/COTRN02C.cbl
+    lines: [270, 275]
+- id: COTRN02C-021
+  summary: TRNAMTI empty (empty checks run in this fixed order; the first one wins)
+  given:
+    entry: reenter
+    commarea:
+      CDEMO-PGM-CONTEXT: 1
+      CDEMO-FROM-PROGRAM: COMEN01C
+    files:
+      CXACAIX:
+      - {XREF-CARD-NUM: '4111111111111111', XREF-CUST-ID: '000000001', XREF-ACCT-ID: '00000000001'}
+      CCXREF:
+      - {XREF-CARD-NUM: '4111111111111111', XREF-CUST-ID: '000000001', XREF-ACCT-ID: '00000000001'}
+      TRANSACT:
+      - TRAN-ID: '0000000000000021'
+        TRAN-TYPE-CD: '01'
+        TRAN-CAT-CD: '0001'
+        TRAN-SOURCE: POS TERM
+        TRAN-DESC: PURCHASE 21
+        TRAN-AMT: '21.00'
+        TRAN-MERCHANT-ID: '000011111'
+        TRAN-MERCHANT-NAME: CORNER SHOP
+        TRAN-MERCHANT-CITY: BOSTON
+        TRAN-MERCHANT-ZIP: '02101'
+        TRAN-CARD-NUM: '4333333333333333'
+        TRAN-ORIG-TS: '2022-06-21 10:00:00.000000'
+        TRAN-PROC-TS: '2022-06-22 10:00:00.000000'
+      - TRAN-ID: '0000000000000022'
+        TRAN-TYPE-CD: '03'
+        TRAN-CAT-CD: '0002'
+        TRAN-SOURCE: OPERATOR
+        TRAN-DESC: GROCERY STORE
+        TRAN-AMT: '-22.00'
+        TRAN-MERCHANT-ID: '000054321'
+        TRAN-MERCHANT-NAME: FRESH MART
+        TRAN-MERCHANT-CITY: PORTLAND
+        TRAN-MERCHANT-ZIP: '97201'
+        TRAN-CARD-NUM: '4222222222222222'
+        TRAN-ORIG-TS: '2022-06-22 10:00:00.000000'
+        TRAN-PROC-TS: '2022-06-23 10:00:00.000000'
+  when:
+    aid: ENTER
+    fields:
+      TTYPCDI: '01'
+      TCATCDI: '0001'
+      TRNSRCI: POS TERM
+      TDESCI: COFFEE SHOP
+      TRNAMTI: ''
+      TORIGDTI: '2026-11-01'
+      TPROCDTI: '2026-11-02'
+      MIDI: '000012345'
+      MNAMEI: JOES COFFEE
+      MCITYI: SEATTLE
+      MZIPI: '98101'
+      ACTIDINI: '00000000001'
+      CARDNINI: ''
+      CONFIRMI: ''
+  then:
+    message: Amount can NOT be empty...
+    cursor: TRNAMTL
+    transfer:
+      via: RETURN-TRANSID
+      to: CT02
+    file_effects: []
+  source:
+    file: app/cbl/COTRN02C.cbl
+    lines: [276, 281]
+- id: COTRN02C-022
+  summary: TORIGDTI empty (empty checks run in this fixed order; the first one wins)
+  given:
+    entry: reenter
+    commarea:
+      CDEMO-PGM-CONTEXT: 1
+      CDEMO-FROM-PROGRAM: COMEN01C
+    files:
+      CXACAIX:
+      - {XREF-CARD-NUM: '4111111111111111', XREF-CUST-ID: '000000001', XREF-ACCT-ID: '00000000001'}
+      CCXREF:
+      - {XREF-CARD-NUM: '4111111111111111', XREF-CUST-ID: '000000001', XREF-ACCT-ID: '00000000001'}
+      TRANSACT:
+      - TRAN-ID: '0000000000000021'
+        TRAN-TYPE-CD: '01'
+        TRAN-CAT-CD: '0001'
+        TRAN-SOURCE: POS TERM
+        TRAN-DESC: PURCHASE 21
+        TRAN-AMT: '21.00'
+        TRAN-MERCHANT-ID: '000011111'
+        TRAN-MERCHANT-NAME: CORNER SHOP
+        TRAN-MERCHANT-CITY: BOSTON
+        TRAN-MERCHANT-ZIP: '02101'
+        TRAN-CARD-NUM: '4333333333333333'
+        TRAN-ORIG-TS: '2022-06-21 10:00:00.000000'
+        TRAN-PROC-TS: '2022-06-22 10:00:00.000000'
+      - TRAN-ID: '0000000000000022'
+        TRAN-TYPE-CD: '03'
+        TRAN-CAT-CD: '0002'
+        TRAN-SOURCE: OPERATOR
+        TRAN-DESC: GROCERY STORE
+        TRAN-AMT: '-22.00'
+        TRAN-MERCHANT-ID: '000054321'
+        TRAN-MERCHANT-NAME: FRESH MART
+        TRAN-MERCHANT-CITY: PORTLAND
+        TRAN-MERCHANT-ZIP: '97201'
+        TRAN-CARD-NUM: '4222222222222222'
+        TRAN-ORIG-TS: '2022-06-22 10:00:00.000000'
+        TRAN-PROC-TS: '2022-06-23 10:00:00.000000'
+  when:
+    aid: ENTER
+    fields:
+      TTYPCDI: '01'
+      TCATCDI: '0001'
+      TRNSRCI: POS TERM
+      TDESCI: COFFEE SHOP
+      TRNAMTI: '+00000012.50'
+      TORIGDTI: ''
+      TPROCDTI: '2026-11-02'
+      MIDI: '000012345'
+      MNAMEI: JOES COFFEE
+      MCITYI: SEATTLE
+      MZIPI: '98101'
+      ACTIDINI: '00000000001'
+      CARDNINI: ''
+      CONFIRMI: ''
+  then:
+    message: Orig Date can NOT be empty...
+    cursor: TORIGDTL
+    transfer:
+      via: RETURN-TRANSID
+      to: CT02
+    file_effects: []
+  source:
+    file: app/cbl/COTRN02C.cbl
+    lines: [282, 287]
+- id: COTRN02C-023
+  summary: TPROCDTI empty (empty checks run in this fixed order; the first one wins)
+  given:
+    entry: reenter
+    commarea:
+      CDEMO-PGM-CONTEXT: 1
+      CDEMO-FROM-PROGRAM: COMEN01C
+    files:
+      CXACAIX:
+      - {XREF-CARD-NUM: '4111111111111111', XREF-CUST-ID: '000000001', XREF-ACCT-ID: '00000000001'}
+      CCXREF:
+      - {XREF-CARD-NUM: '4111111111111111', XREF-CUST-ID: '000000001', XREF-ACCT-ID: '00000000001'}
+      TRANSACT:
+      - TRAN-ID: '0000000000000021'
+        TRAN-TYPE-CD: '01'
+        TRAN-CAT-CD: '0001'
+        TRAN-SOURCE: POS TERM
+        TRAN-DESC: PURCHASE 21
+        TRAN-AMT: '21.00'
+        TRAN-MERCHANT-ID: '000011111'
+        TRAN-MERCHANT-NAME: CORNER SHOP
+        TRAN-MERCHANT-CITY: BOSTON
+        TRAN-MERCHANT-ZIP: '02101'
+        TRAN-CARD-NUM: '4333333333333333'
+        TRAN-ORIG-TS: '2022-06-21 10:00:00.000000'
+        TRAN-PROC-TS: '2022-06-22 10:00:00.000000'
+      - TRAN-ID: '0000000000000022'
+        TRAN-TYPE-CD: '03'
+        TRAN-CAT-CD: '0002'
+        TRAN-SOURCE: OPERATOR
+        TRAN-DESC: GROCERY STORE
+        TRAN-AMT: '-22.00'
+        TRAN-MERCHANT-ID: '000054321'
+        TRAN-MERCHANT-NAME: FRESH MART
+        TRAN-MERCHANT-CITY: PORTLAND
+        TRAN-MERCHANT-ZIP: '97201'
+        TRAN-CARD-NUM: '4222222222222222'
+        TRAN-ORIG-TS: '2022-06-22 10:00:00.000000'
+        TRAN-PROC-TS: '2022-06-23 10:00:00.000000'
+  when:
+    aid: ENTER
+    fields:
+      TTYPCDI: '01'
+      TCATCDI: '0001'
+      TRNSRCI: POS TERM
+      TDESCI: COFFEE SHOP
+      TRNAMTI: '+00000012.50'
+      TORIGDTI: '2026-11-01'
+      TPROCDTI: ''
+      MIDI: '000012345'
+      MNAMEI: JOES COFFEE
+      MCITYI: SEATTLE
+      MZIPI: '98101'
+      ACTIDINI: '00000000001'
+      CARDNINI: ''
+      CONFIRMI: ''
+  then:
+    message: Proc Date can NOT be empty...
+    cursor: TPROCDTL
+    transfer:
+      via: RETURN-TRANSID
+      to: CT02
+    file_effects: []
+  source:
+    file: app/cbl/COTRN02C.cbl
+    lines: [288, 293]
+- id: COTRN02C-024
+  summary: MIDI empty (empty checks run in this fixed order; the first one wins)
+  given:
+    entry: reenter
+    commarea:
+      CDEMO-PGM-CONTEXT: 1
+      CDEMO-FROM-PROGRAM: COMEN01C
+    files:
+      CXACAIX:
+      - {XREF-CARD-NUM: '4111111111111111', XREF-CUST-ID: '000000001', XREF-ACCT-ID: '00000000001'}
+      CCXREF:
+      - {XREF-CARD-NUM: '4111111111111111', XREF-CUST-ID: '000000001', XREF-ACCT-ID: '00000000001'}
+      TRANSACT:
+      - TRAN-ID: '0000000000000021'
+        TRAN-TYPE-CD: '01'
+        TRAN-CAT-CD: '0001'
+        TRAN-SOURCE: POS TERM
+        TRAN-DESC: PURCHASE 21
+        TRAN-AMT: '21.00'
+        TRAN-MERCHANT-ID: '000011111'
+        TRAN-MERCHANT-NAME: CORNER SHOP
+        TRAN-MERCHANT-CITY: BOSTON
+        TRAN-MERCHANT-ZIP: '02101'
+        TRAN-CARD-NUM: '4333333333333333'
+        TRAN-ORIG-TS: '2022-06-21 10:00:00.000000'
+        TRAN-PROC-TS: '2022-06-22 10:00:00.000000'
+      - TRAN-ID: '0000000000000022'
+        TRAN-TYPE-CD: '03'
+        TRAN-CAT-CD: '0002'
+        TRAN-SOURCE: OPERATOR
+        TRAN-DESC: GROCERY STORE
+        TRAN-AMT: '-22.00'
+        TRAN-MERCHANT-ID: '000054321'
+        TRAN-MERCHANT-NAME: FRESH MART
+        TRAN-MERCHANT-CITY: PORTLAND
+        TRAN-MERCHANT-ZIP: '97201'
+        TRAN-CARD-NUM: '4222222222222222'
+        TRAN-ORIG-TS: '2022-06-22 10:00:00.000000'
+        TRAN-PROC-TS: '2022-06-23 10:00:00.000000'
+  when:
+    aid: ENTER
+    fields:
+      TTYPCDI: '01'
+      TCATCDI: '0001'
+      TRNSRCI: POS TERM
+      TDESCI: COFFEE SHOP
+      TRNAMTI: '+00000012.50'
+      TORIGDTI: '2026-11-01'
+      TPROCDTI: '2026-11-02'
+      MIDI: ''
+      MNAMEI: JOES COFFEE
+      MCITYI: SEATTLE
+      MZIPI: '98101'
+      ACTIDINI: '00000000001'
+      CARDNINI: ''
+      CONFIRMI: ''
+  then:
+    message: Merchant ID can NOT be empty...
+    cursor: MIDL
+    transfer:
+      via: RETURN-TRANSID
+      to: CT02
+    file_effects: []
+  source:
+    file: app/cbl/COTRN02C.cbl
+    lines: [294, 299]
+- id: COTRN02C-025
+  summary: MNAMEI empty (empty checks run in this fixed order; the first one wins)
+  given:
+    entry: reenter
+    commarea:
+      CDEMO-PGM-CONTEXT: 1
+      CDEMO-FROM-PROGRAM: COMEN01C
+    files:
+      CXACAIX:
+      - {XREF-CARD-NUM: '4111111111111111', XREF-CUST-ID: '000000001', XREF-ACCT-ID: '00000000001'}
+      CCXREF:
+      - {XREF-CARD-NUM: '4111111111111111', XREF-CUST-ID: '000000001', XREF-ACCT-ID: '00000000001'}
+      TRANSACT:
+      - TRAN-ID: '0000000000000021'
+        TRAN-TYPE-CD: '01'
+        TRAN-CAT-CD: '0001'
+        TRAN-SOURCE: POS TERM
+        TRAN-DESC: PURCHASE 21
+        TRAN-AMT: '21.00'
+        TRAN-MERCHANT-ID: '000011111'
+        TRAN-MERCHANT-NAME: CORNER SHOP
+        TRAN-MERCHANT-CITY: BOSTON
+        TRAN-MERCHANT-ZIP: '02101'
+        TRAN-CARD-NUM: '4333333333333333'
+        TRAN-ORIG-TS: '2022-06-21 10:00:00.000000'
+        TRAN-PROC-TS: '2022-06-22 10:00:00.000000'
+      - TRAN-ID: '0000000000000022'
+        TRAN-TYPE-CD: '03'
+        TRAN-CAT-CD: '0002'
+        TRAN-SOURCE: OPERATOR
+        TRAN-DESC: GROCERY STORE
+        TRAN-AMT: '-22.00'
+        TRAN-MERCHANT-ID: '000054321'
+        TRAN-MERCHANT-NAME: FRESH MART
+        TRAN-MERCHANT-CITY: PORTLAND
+        TRAN-MERCHANT-ZIP: '97201'
+        TRAN-CARD-NUM: '4222222222222222'
+        TRAN-ORIG-TS: '2022-06-22 10:00:00.000000'
+        TRAN-PROC-TS: '2022-06-23 10:00:00.000000'
+  when:
+    aid: ENTER
+    fields:
+      TTYPCDI: '01'
+      TCATCDI: '0001'
+      TRNSRCI: POS TERM
+      TDESCI: COFFEE SHOP
+      TRNAMTI: '+00000012.50'
+      TORIGDTI: '2026-11-01'
+      TPROCDTI: '2026-11-02'
+      MIDI: '000012345'
+      MNAMEI: ''
+      MCITYI: SEATTLE
+      MZIPI: '98101'
+      ACTIDINI: '00000000001'
+      CARDNINI: ''
+      CONFIRMI: ''
+  then:
+    message: Merchant Name can NOT be empty...
+    cursor: MNAMEL
+    transfer:
+      via: RETURN-TRANSID
+      to: CT02
+    file_effects: []
+  source:
+    file: app/cbl/COTRN02C.cbl
+    lines: [300, 305]
+- id: COTRN02C-026
+  summary: MCITYI empty (empty checks run in this fixed order; the first one wins)
+  given:
+    entry: reenter
+    commarea:
+      CDEMO-PGM-CONTEXT: 1
+      CDEMO-FROM-PROGRAM: COMEN01C
+    files:
+      CXACAIX:
+      - {XREF-CARD-NUM: '4111111111111111', XREF-CUST-ID: '000000001', XREF-ACCT-ID: '00000000001'}
+      CCXREF:
+      - {XREF-CARD-NUM: '4111111111111111', XREF-CUST-ID: '000000001', XREF-ACCT-ID: '00000000001'}
+      TRANSACT:
+      - TRAN-ID: '0000000000000021'
+        TRAN-TYPE-CD: '01'
+        TRAN-CAT-CD: '0001'
+        TRAN-SOURCE: POS TERM
+        TRAN-DESC: PURCHASE 21
+        TRAN-AMT: '21.00'
+        TRAN-MERCHANT-ID: '000011111'
+        TRAN-MERCHANT-NAME: CORNER SHOP
+        TRAN-MERCHANT-CITY: BOSTON
+        TRAN-MERCHANT-ZIP: '02101'
+        TRAN-CARD-NUM: '4333333333333333'
+        TRAN-ORIG-TS: '2022-06-21 10:00:00.000000'
+        TRAN-PROC-TS: '2022-06-22 10:00:00.000000'
+      - TRAN-ID: '0000000000000022'
+        TRAN-TYPE-CD: '03'
+        TRAN-CAT-CD: '0002'
+        TRAN-SOURCE: OPERATOR
+        TRAN-DESC: GROCERY STORE
+        TRAN-AMT: '-22.00'
+        TRAN-MERCHANT-ID: '000054321'
+        TRAN-MERCHANT-NAME: FRESH MART
+        TRAN-MERCHANT-CITY: PORTLAND
+        TRAN-MERCHANT-ZIP: '97201'
+        TRAN-CARD-NUM: '4222222222222222'
+        TRAN-ORIG-TS: '2022-06-22 10:00:00.000000'
+        TRAN-PROC-TS: '2022-06-23 10:00:00.000000'
+  when:
+    aid: ENTER
+    fields:
+      TTYPCDI: '01'
+      TCATCDI: '0001'
+      TRNSRCI: POS TERM
+      TDESCI: COFFEE SHOP
+      TRNAMTI: '+00000012.50'
+      TORIGDTI: '2026-11-01'
+      TPROCDTI: '2026-11-02'
+      MIDI: '000012345'
+      MNAMEI: JOES COFFEE
+      MCITYI: ''
+      MZIPI: '98101'
+      ACTIDINI: '00000000001'
+      CARDNINI: ''
+      CONFIRMI: ''
+  then:
+    message: Merchant City can NOT be empty...
+    cursor: MCITYL
+    transfer:
+      via: RETURN-TRANSID
+      to: CT02
+    file_effects: []
+  source:
+    file: app/cbl/COTRN02C.cbl
+    lines: [306, 311]
+- id: COTRN02C-027
+  summary: MZIPI empty (empty checks run in this fixed order; the first one wins)
+  given:
+    entry: reenter
+    commarea:
+      CDEMO-PGM-CONTEXT: 1
+      CDEMO-FROM-PROGRAM: COMEN01C
+    files:
+      CXACAIX:
+      - {XREF-CARD-NUM: '4111111111111111', XREF-CUST-ID: '000000001', XREF-ACCT-ID: '00000000001'}
+      CCXREF:
+      - {XREF-CARD-NUM: '4111111111111111', XREF-CUST-ID: '000000001', XREF-ACCT-ID: '00000000001'}
+      TRANSACT:
+      - TRAN-ID: '0000000000000021'
+        TRAN-TYPE-CD: '01'
+        TRAN-CAT-CD: '0001'
+        TRAN-SOURCE: POS TERM
+        TRAN-DESC: PURCHASE 21
+        TRAN-AMT: '21.00'
+        TRAN-MERCHANT-ID: '000011111'
+        TRAN-MERCHANT-NAME: CORNER SHOP
+        TRAN-MERCHANT-CITY: BOSTON
+        TRAN-MERCHANT-ZIP: '02101'
+        TRAN-CARD-NUM: '4333333333333333'
+        TRAN-ORIG-TS: '2022-06-21 10:00:00.000000'
+        TRAN-PROC-TS: '2022-06-22 10:00:00.000000'
+      - TRAN-ID: '0000000000000022'
+        TRAN-TYPE-CD: '03'
+        TRAN-CAT-CD: '0002'
+        TRAN-SOURCE: OPERATOR
+        TRAN-DESC: GROCERY STORE
+        TRAN-AMT: '-22.00'
+        TRAN-MERCHANT-ID: '000054321'
+        TRAN-MERCHANT-NAME: FRESH MART
+        TRAN-MERCHANT-CITY: PORTLAND
+        TRAN-MERCHANT-ZIP: '97201'
+        TRAN-CARD-NUM: '4222222222222222'
+        TRAN-ORIG-TS: '2022-06-22 10:00:00.000000'
+        TRAN-PROC-TS: '2022-06-23 10:00:00.000000'
+  when:
+    aid: ENTER
+    fields:
+      TTYPCDI: '01'
+      TCATCDI: '0001'
+      TRNSRCI: POS TERM
+      TDESCI: COFFEE SHOP
+      TRNAMTI: '+00000012.50'
+      TORIGDTI: '2026-11-01'
+      TPROCDTI: '2026-11-02'
+      MIDI: '000012345'
+      MNAMEI: JOES COFFEE
+      MCITYI: SEATTLE
+      MZIPI: ''
+      ACTIDINI: '00000000001'
+      CARDNINI: ''
+      CONFIRMI: ''
+  then:
+    message: Merchant Zip can NOT be empty...
+    cursor: MZIPL
+    transfer:
+      via: RETURN-TRANSID
+      to: CT02
+    file_effects: []
+  source:
+    file: app/cbl/COTRN02C.cbl
+    lines: [312, 317]
+- id: COTRN02C-028
+  summary: Type CD not numeric
+  given:
+    entry: reenter
+    commarea:
+      CDEMO-PGM-CONTEXT: 1
+      CDEMO-FROM-PROGRAM: COMEN01C
+    files:
+      CXACAIX:
+      - {XREF-CARD-NUM: '4111111111111111', XREF-CUST-ID: '000000001', XREF-ACCT-ID: '00000000001'}
+      CCXREF:
+      - {XREF-CARD-NUM: '4111111111111111', XREF-CUST-ID: '000000001', XREF-ACCT-ID: '00000000001'}
+      TRANSACT:
+      - TRAN-ID: '0000000000000021'
+        TRAN-TYPE-CD: '01'
+        TRAN-CAT-CD: '0001'
+        TRAN-SOURCE: POS TERM
+        TRAN-DESC: PURCHASE 21
+        TRAN-AMT: '21.00'
+        TRAN-MERCHANT-ID: '000011111'
+        TRAN-MERCHANT-NAME: CORNER SHOP
+        TRAN-MERCHANT-CITY: BOSTON
+        TRAN-MERCHANT-ZIP: '02101'
+        TRAN-CARD-NUM: '4333333333333333'
+        TRAN-ORIG-TS: '2022-06-21 10:00:00.000000'
+        TRAN-PROC-TS: '2022-06-22 10:00:00.000000'
+      - TRAN-ID: '0000000000000022'
+        TRAN-TYPE-CD: '03'
+        TRAN-CAT-CD: '0002'
+        TRAN-SOURCE: OPERATOR
+        TRAN-DESC: GROCERY STORE
+        TRAN-AMT: '-22.00'
+        TRAN-MERCHANT-ID: '000054321'
+        TRAN-MERCHANT-NAME: FRESH MART
+        TRAN-MERCHANT-CITY: PORTLAND
+        TRAN-MERCHANT-ZIP: '97201'
+        TRAN-CARD-NUM: '4222222222222222'
+        TRAN-ORIG-TS: '2022-06-22 10:00:00.000000'
+        TRAN-PROC-TS: '2022-06-23 10:00:00.000000'
+  when:
+    aid: ENTER
+    fields:
+      TTYPCDI: AB
+      TCATCDI: '0001'
+      TRNSRCI: POS TERM
+      TDESCI: COFFEE SHOP
+      TRNAMTI: '+00000012.50'
+      TORIGDTI: '2026-11-01'
+      TPROCDTI: '2026-11-02'
+      MIDI: '000012345'
+      MNAMEI: JOES COFFEE
+      MCITYI: SEATTLE
+      MZIPI: '98101'
+      ACTIDINI: '00000000001'
+      CARDNINI: ''
+      CONFIRMI: ''
+  then:
+    message: Type CD must be Numeric...
+    cursor: TTYPCDL
+    transfer:
+      via: RETURN-TRANSID
+      to: CT02
+    file_effects: []
+  source:
+    file: app/cbl/COTRN02C.cbl
+    lines: [323, 328]
+- id: COTRN02C-029
+  summary: Category CD not numeric
+  given:
+    entry: reenter
+    commarea:
+      CDEMO-PGM-CONTEXT: 1
+      CDEMO-FROM-PROGRAM: COMEN01C
+    files:
+      CXACAIX:
+      - {XREF-CARD-NUM: '4111111111111111', XREF-CUST-ID: '000000001', XREF-ACCT-ID: '00000000001'}
+      CCXREF:
+      - {XREF-CARD-NUM: '4111111111111111', XREF-CUST-ID: '000000001', XREF-ACCT-ID: '00000000001'}
+      TRANSACT:
+      - TRAN-ID: '0000000000000021'
+        TRAN-TYPE-CD: '01'
+        TRAN-CAT-CD: '0001'
+        TRAN-SOURCE: POS TERM
+        TRAN-DESC: PURCHASE 21
+        TRAN-AMT: '21.00'
+        TRAN-MERCHANT-ID: '000011111'
+        TRAN-MERCHANT-NAME: CORNER SHOP
+        TRAN-MERCHANT-CITY: BOSTON
+        TRAN-MERCHANT-ZIP: '02101'
+        TRAN-CARD-NUM: '4333333333333333'
+        TRAN-ORIG-TS: '2022-06-21 10:00:00.000000'
+        TRAN-PROC-TS: '2022-06-22 10:00:00.000000'
+      - TRAN-ID: '0000000000000022'
+        TRAN-TYPE-CD: '03'
+        TRAN-CAT-CD: '0002'
+        TRAN-SOURCE: OPERATOR
+        TRAN-DESC: GROCERY STORE
+        TRAN-AMT: '-22.00'
+        TRAN-MERCHANT-ID: '000054321'
+        TRAN-MERCHANT-NAME: FRESH MART
+        TRAN-MERCHANT-CITY: PORTLAND
+        TRAN-MERCHANT-ZIP: '97201'
+        TRAN-CARD-NUM: '4222222222222222'
+        TRAN-ORIG-TS: '2022-06-22 10:00:00.000000'
+        TRAN-PROC-TS: '2022-06-23 10:00:00.000000'
+  when:
+    aid: ENTER
+    fields:
+      TTYPCDI: '01'
+      TCATCDI: 00A1
+      TRNSRCI: POS TERM
+      TDESCI: COFFEE SHOP
+      TRNAMTI: '+00000012.50'
+      TORIGDTI: '2026-11-01'
+      TPROCDTI: '2026-11-02'
+      MIDI: '000012345'
+      MNAMEI: JOES COFFEE
+      MCITYI: SEATTLE
+      MZIPI: '98101'
+      ACTIDINI: '00000000001'
+      CARDNINI: ''
+      CONFIRMI: ''
+  then:
+    message: Category CD must be Numeric...
+    cursor: TCATCDL
+    transfer:
+      via: RETURN-TRANSID
+      to: CT02
+    file_effects: []
+  source:
+    file: app/cbl/COTRN02C.cbl
+    lines: [329, 334]
+- id: COTRN02C-030
+  summary: amount without a leading sign
+  given:
+    entry: reenter
+    commarea:
+      CDEMO-PGM-CONTEXT: 1
+      CDEMO-FROM-PROGRAM: COMEN01C
+    files:
+      CXACAIX:
+      - {XREF-CARD-NUM: '4111111111111111', XREF-CUST-ID: '000000001', XREF-ACCT-ID: '00000000001'}
+      CCXREF:
+      - {XREF-CARD-NUM: '4111111111111111', XREF-CUST-ID: '000000001', XREF-ACCT-ID: '00000000001'}
+      TRANSACT:
+      - TRAN-ID: '0000000000000021'
+        TRAN-TYPE-CD: '01'
+        TRAN-CAT-CD: '0001'
+        TRAN-SOURCE: POS TERM
+        TRAN-DESC: PURCHASE 21
+        TRAN-AMT: '21.00'
+        TRAN-MERCHANT-ID: '000011111'
+        TRAN-MERCHANT-NAME: CORNER SHOP
+        TRAN-MERCHANT-CITY: BOSTON
+        TRAN-MERCHANT-ZIP: '02101'
+        TRAN-CARD-NUM: '4333333333333333'
+        TRAN-ORIG-TS: '2022-06-21 10:00:00.000000'
+        TRAN-PROC-TS: '2022-06-22 10:00:00.000000'
+      - TRAN-ID: '0000000000000022'
+        TRAN-TYPE-CD: '03'
+        TRAN-CAT-CD: '0002'
+        TRAN-SOURCE: OPERATOR
+        TRAN-DESC: GROCERY STORE
+        TRAN-AMT: '-22.00'
+        TRAN-MERCHANT-ID: '000054321'
+        TRAN-MERCHANT-NAME: FRESH MART
+        TRAN-MERCHANT-CITY: PORTLAND
+        TRAN-MERCHANT-ZIP: '97201'
+        TRAN-CARD-NUM: '4222222222222222'
+        TRAN-ORIG-TS: '2022-06-22 10:00:00.000000'
+        TRAN-PROC-TS: '2022-06-23 10:00:00.000000'
+  when:
+    aid: ENTER
+    fields:
+      TTYPCDI: '01'
+      TCATCDI: '0001'
+      TRNSRCI: POS TERM
+      TDESCI: COFFEE SHOP
+      TRNAMTI: '000000012.50'
+      TORIGDTI: '2026-11-01'
+      TPROCDTI: '2026-11-02'
+      MIDI: '000012345'
+      MNAMEI: JOES COFFEE
+      MCITYI: SEATTLE
+      MZIPI: '98101'
+      ACTIDINI: '00000000001'
+      CARDNINI: ''
+      CONFIRMI: ''
+  then:
+    message: Amount should be in format -99999999.99
+    cursor: TRNAMTL
+    transfer:
+      via: RETURN-TRANSID
+      to: CT02
+    file_effects: []
+  source:
+    file: app/cbl/COTRN02C.cbl
+    lines: [339, 348]
+- id: COTRN02C-031
+  summary: amount not filling the 12-character mask ('+12.50')
+  given:
+    entry: reenter
+    commarea:
+      CDEMO-PGM-CONTEXT: 1
+      CDEMO-FROM-PROGRAM: COMEN01C
+    files:
+      CXACAIX:
+      - {XREF-CARD-NUM: '4111111111111111', XREF-CUST-ID: '000000001', XREF-ACCT-ID: '00000000001'}
+      CCXREF:
+      - {XREF-CARD-NUM: '4111111111111111', XREF-CUST-ID: '000000001', XREF-ACCT-ID: '00000000001'}
+      TRANSACT:
+      - TRAN-ID: '0000000000000021'
+        TRAN-TYPE-CD: '01'
+        TRAN-CAT-CD: '0001'
+        TRAN-SOURCE: POS TERM
+        TRAN-DESC: PURCHASE 21
+        TRAN-AMT: '21.00'
+        TRAN-MERCHANT-ID: '000011111'
+        TRAN-MERCHANT-NAME: CORNER SHOP
+        TRAN-MERCHANT-CITY: BOSTON
+        TRAN-MERCHANT-ZIP: '02101'
+        TRAN-CARD-NUM: '4333333333333333'
+        TRAN-ORIG-TS: '2022-06-21 10:00:00.000000'
+        TRAN-PROC-TS: '2022-06-22 10:00:00.000000'
+      - TRAN-ID: '0000000000000022'
+        TRAN-TYPE-CD: '03'
+        TRAN-CAT-CD: '0002'
+        TRAN-SOURCE: OPERATOR
+        TRAN-DESC: GROCERY STORE
+        TRAN-AMT: '-22.00'
+        TRAN-MERCHANT-ID: '000054321'
+        TRAN-MERCHANT-NAME: FRESH MART
+        TRAN-MERCHANT-CITY: PORTLAND
+        TRAN-MERCHANT-ZIP: '97201'
+        TRAN-CARD-NUM: '4222222222222222'
+        TRAN-ORIG-TS: '2022-06-22 10:00:00.000000'
+        TRAN-PROC-TS: '2022-06-23 10:00:00.000000'
+  when:
+    aid: ENTER
+    fields:
+      TTYPCDI: '01'
+      TCATCDI: '0001'
+      TRNSRCI: POS TERM
+      TDESCI: COFFEE SHOP
+      TRNAMTI: '+12.50'
+      TORIGDTI: '2026-11-01'
+      TPROCDTI: '2026-11-02'
+      MIDI: '000012345'
+      MNAMEI: JOES COFFEE
+      MCITYI: SEATTLE
+      MZIPI: '98101'
+      ACTIDINI: '00000000001'
+      CARDNINI: ''
+      CONFIRMI: ''
+  then:
+    message: Amount should be in format -99999999.99
+    cursor: TRNAMTL
+    transfer:
+      via: RETURN-TRANSID
+      to: CT02
+    file_effects: []
+  source:
+    file: app/cbl/COTRN02C.cbl
+    lines: [339, 348]
+- id: COTRN02C-032
+  summary: Orig Date not in YYYY-MM-DD layout
+  given:
+    entry: reenter
+    commarea:
+      CDEMO-PGM-CONTEXT: 1
+      CDEMO-FROM-PROGRAM: COMEN01C
+    files:
+      CXACAIX:
+      - {XREF-CARD-NUM: '4111111111111111', XREF-CUST-ID: '000000001', XREF-ACCT-ID: '00000000001'}
+      CCXREF:
+      - {XREF-CARD-NUM: '4111111111111111', XREF-CUST-ID: '000000001', XREF-ACCT-ID: '00000000001'}
+      TRANSACT:
+      - TRAN-ID: '0000000000000021'
+        TRAN-TYPE-CD: '01'
+        TRAN-CAT-CD: '0001'
+        TRAN-SOURCE: POS TERM
+        TRAN-DESC: PURCHASE 21
+        TRAN-AMT: '21.00'
+        TRAN-MERCHANT-ID: '000011111'
+        TRAN-MERCHANT-NAME: CORNER SHOP
+        TRAN-MERCHANT-CITY: BOSTON
+        TRAN-MERCHANT-ZIP: '02101'
+        TRAN-CARD-NUM: '4333333333333333'
+        TRAN-ORIG-TS: '2022-06-21 10:00:00.000000'
+        TRAN-PROC-TS: '2022-06-22 10:00:00.000000'
+      - TRAN-ID: '0000000000000022'
+        TRAN-TYPE-CD: '03'
+        TRAN-CAT-CD: '0002'
+        TRAN-SOURCE: OPERATOR
+        TRAN-DESC: GROCERY STORE
+        TRAN-AMT: '-22.00'
+        TRAN-MERCHANT-ID: '000054321'
+        TRAN-MERCHANT-NAME: FRESH MART
+        TRAN-MERCHANT-CITY: PORTLAND
+        TRAN-MERCHANT-ZIP: '97201'
+        TRAN-CARD-NUM: '4222222222222222'
+        TRAN-ORIG-TS: '2022-06-22 10:00:00.000000'
+        TRAN-PROC-TS: '2022-06-23 10:00:00.000000'
+  when:
+    aid: ENTER
+    fields:
+      TTYPCDI: '01'
+      TCATCDI: '0001'
+      TRNSRCI: POS TERM
+      TDESCI: COFFEE SHOP
+      TRNAMTI: '+00000012.50'
+      TORIGDTI: 11/01/2026
+      TPROCDTI: '2026-11-02'
+      MIDI: '000012345'
+      MNAMEI: JOES COFFEE
+      MCITYI: SEATTLE
+      MZIPI: '98101'
+      ACTIDINI: '00000000001'
+      CARDNINI: ''
+      CONFIRMI: ''
+  then:
+    message: Orig Date should be in format YYYY-MM-DD
+    cursor: TORIGDTL
+    transfer:
+      via: RETURN-TRANSID
+      to: CT02
+    file_effects: []
+  source:
+    file: app/cbl/COTRN02C.cbl
+    lines: [353, 363]
+- id: COTRN02C-033
+  summary: Proc Date not in YYYY-MM-DD layout
+  given:
+    entry: reenter
+    commarea:
+      CDEMO-PGM-CONTEXT: 1
+      CDEMO-FROM-PROGRAM: COMEN01C
+    files:
+      CXACAIX:
+      - {XREF-CARD-NUM: '4111111111111111', XREF-CUST-ID: '000000001', XREF-ACCT-ID: '00000000001'}
+      CCXREF:
+      - {XREF-CARD-NUM: '4111111111111111', XREF-CUST-ID: '000000001', XREF-ACCT-ID: '00000000001'}
+      TRANSACT:
+      - TRAN-ID: '0000000000000021'
+        TRAN-TYPE-CD: '01'
+        TRAN-CAT-CD: '0001'
+        TRAN-SOURCE: POS TERM
+        TRAN-DESC: PURCHASE 21
+        TRAN-AMT: '21.00'
+        TRAN-MERCHANT-ID: '000011111'
+        TRAN-MERCHANT-NAME: CORNER SHOP
+        TRAN-MERCHANT-CITY: BOSTON
+        TRAN-MERCHANT-ZIP: '02101'
+        TRAN-CARD-NUM: '4333333333333333'
+        TRAN-ORIG-TS: '2022-06-21 10:00:00.000000'
+        TRAN-PROC-TS: '2022-06-22 10:00:00.000000'
+      - TRAN-ID: '0000000000000022'
+        TRAN-TYPE-CD: '03'
+        TRAN-CAT-CD: '0002'
+        TRAN-SOURCE: OPERATOR
+        TRAN-DESC: GROCERY STORE
+        TRAN-AMT: '-22.00'
+        TRAN-MERCHANT-ID: '000054321'
+        TRAN-MERCHANT-NAME: FRESH MART
+        TRAN-MERCHANT-CITY: PORTLAND
+        TRAN-MERCHANT-ZIP: '97201'
+        TRAN-CARD-NUM: '4222222222222222'
+        TRAN-ORIG-TS: '2022-06-22 10:00:00.000000'
+        TRAN-PROC-TS: '2022-06-23 10:00:00.000000'
+  when:
+    aid: ENTER
+    fields:
+      TTYPCDI: '01'
+      TCATCDI: '0001'
+      TRNSRCI: POS TERM
+      TDESCI: COFFEE SHOP
+      TRNAMTI: '+00000012.50'
+      TORIGDTI: '2026-11-01'
+      TPROCDTI: '20261102'
+      MIDI: '000012345'
+      MNAMEI: JOES COFFEE
+      MCITYI: SEATTLE
+      MZIPI: '98101'
+      ACTIDINI: '00000000001'
+      CARDNINI: ''
+      CONFIRMI: ''
+  then:
+    message: Proc Date should be in format YYYY-MM-DD
+    cursor: TPROCDTL
+    transfer:
+      via: RETURN-TRANSID
+      to: CT02
+    file_effects: []
+  source:
+    file: app/cbl/COTRN02C.cbl
+    lines: [368, 377]
+- id: COTRN02C-034
+  summary: Orig Date with a valid layout but no such calendar day (CSUTLDTC/CEEDAYS rejects it)
+  given:
+    entry: reenter
+    commarea:
+      CDEMO-PGM-CONTEXT: 1
+      CDEMO-FROM-PROGRAM: COMEN01C
+    files:
+      CXACAIX:
+      - {XREF-CARD-NUM: '4111111111111111', XREF-CUST-ID: '000000001', XREF-ACCT-ID: '00000000001'}
+      CCXREF:
+      - {XREF-CARD-NUM: '4111111111111111', XREF-CUST-ID: '000000001', XREF-ACCT-ID: '00000000001'}
+      TRANSACT:
+      - TRAN-ID: '0000000000000021'
+        TRAN-TYPE-CD: '01'
+        TRAN-CAT-CD: '0001'
+        TRAN-SOURCE: POS TERM
+        TRAN-DESC: PURCHASE 21
+        TRAN-AMT: '21.00'
+        TRAN-MERCHANT-ID: '000011111'
+        TRAN-MERCHANT-NAME: CORNER SHOP
+        TRAN-MERCHANT-CITY: BOSTON
+        TRAN-MERCHANT-ZIP: '02101'
+        TRAN-CARD-NUM: '4333333333333333'
+        TRAN-ORIG-TS: '2022-06-21 10:00:00.000000'
+        TRAN-PROC-TS: '2022-06-22 10:00:00.000000'
+      - TRAN-ID: '0000000000000022'
+        TRAN-TYPE-CD: '03'
+        TRAN-CAT-CD: '0002'
+        TRAN-SOURCE: OPERATOR
+        TRAN-DESC: GROCERY STORE
+        TRAN-AMT: '-22.00'
+        TRAN-MERCHANT-ID: '000054321'
+        TRAN-MERCHANT-NAME: FRESH MART
+        TRAN-MERCHANT-CITY: PORTLAND
+        TRAN-MERCHANT-ZIP: '97201'
+        TRAN-CARD-NUM: '4222222222222222'
+        TRAN-ORIG-TS: '2022-06-22 10:00:00.000000'
+        TRAN-PROC-TS: '2022-06-23 10:00:00.000000'
+  when:
+    aid: ENTER
+    fields:
+      TTYPCDI: '01'
+      TCATCDI: '0001'
+      TRNSRCI: POS TERM
+      TDESCI: COFFEE SHOP
+      TRNAMTI: '+00000012.50'
+      TORIGDTI: '2026-02-30'
+      TPROCDTI: '2026-11-02'
+      MIDI: '000012345'
+      MNAMEI: JOES COFFEE
+      MCITYI: SEATTLE
+      MZIPI: '98101'
+      ACTIDINI: '00000000001'
+      CARDNINI: ''
+      CONFIRMI: ''
+  then:
+    message: Orig Date - Not a valid date...
+    cursor: TORIGDTL
+    transfer:
+      via: RETURN-TRANSID
+      to: CT02
+    file_effects: []
+  source:
+    file: app/cbl/COTRN02C.cbl
+    lines: [396, 406]
+- id: COTRN02C-035
+  summary: Proc Date with month 13 (CSUTLDTC/CEEDAYS rejects it)
+  given:
+    entry: reenter
+    commarea:
+      CDEMO-PGM-CONTEXT: 1
+      CDEMO-FROM-PROGRAM: COMEN01C
+    files:
+      CXACAIX:
+      - {XREF-CARD-NUM: '4111111111111111', XREF-CUST-ID: '000000001', XREF-ACCT-ID: '00000000001'}
+      CCXREF:
+      - {XREF-CARD-NUM: '4111111111111111', XREF-CUST-ID: '000000001', XREF-ACCT-ID: '00000000001'}
+      TRANSACT:
+      - TRAN-ID: '0000000000000021'
+        TRAN-TYPE-CD: '01'
+        TRAN-CAT-CD: '0001'
+        TRAN-SOURCE: POS TERM
+        TRAN-DESC: PURCHASE 21
+        TRAN-AMT: '21.00'
+        TRAN-MERCHANT-ID: '000011111'
+        TRAN-MERCHANT-NAME: CORNER SHOP
+        TRAN-MERCHANT-CITY: BOSTON
+        TRAN-MERCHANT-ZIP: '02101'
+        TRAN-CARD-NUM: '4333333333333333'
+        TRAN-ORIG-TS: '2022-06-21 10:00:00.000000'
+        TRAN-PROC-TS: '2022-06-22 10:00:00.000000'
+      - TRAN-ID: '0000000000000022'
+        TRAN-TYPE-CD: '03'
+        TRAN-CAT-CD: '0002'
+        TRAN-SOURCE: OPERATOR
+        TRAN-DESC: GROCERY STORE
+        TRAN-AMT: '-22.00'
+        TRAN-MERCHANT-ID: '000054321'
+        TRAN-MERCHANT-NAME: FRESH MART
+        TRAN-MERCHANT-CITY: PORTLAND
+        TRAN-MERCHANT-ZIP: '97201'
+        TRAN-CARD-NUM: '4222222222222222'
+        TRAN-ORIG-TS: '2022-06-22 10:00:00.000000'
+        TRAN-PROC-TS: '2022-06-23 10:00:00.000000'
+  when:
+    aid: ENTER
+    fields:
+      TTYPCDI: '01'
+      TCATCDI: '0001'
+      TRNSRCI: POS TERM
+      TDESCI: COFFEE SHOP
+      TRNAMTI: '+00000012.50'
+      TORIGDTI: '2026-11-01'
+      TPROCDTI: '2026-13-01'
+      MIDI: '000012345'
+      MNAMEI: JOES COFFEE
+      MCITYI: SEATTLE
+      MZIPI: '98101'
+      ACTIDINI: '00000000001'
+      CARDNINI: ''
+      CONFIRMI: ''
+  then:
+    message: Proc Date - Not a valid date...
+    cursor: TPROCDTL
+    transfer:
+      via: RETURN-TRANSID
+      to: CT02
+    file_effects: []
+  source:
+    file: app/cbl/COTRN02C.cbl
+    lines: [416, 427]
+- id: COTRN02C-036
+  summary: a date before the CEEDAYS range (1582-10-15) gets feedback 2513, which the caller ignores, so it is accepted
+  given:
+    entry: reenter
+    commarea:
+      CDEMO-PGM-CONTEXT: 1
+      CDEMO-FROM-PROGRAM: COMEN01C
+    files:
+      CXACAIX:
+      - {XREF-CARD-NUM: '4111111111111111', XREF-CUST-ID: '000000001', XREF-ACCT-ID: '00000000001'}
+      CCXREF:
+      - {XREF-CARD-NUM: '4111111111111111', XREF-CUST-ID: '000000001', XREF-ACCT-ID: '00000000001'}
+      TRANSACT:
+      - TRAN-ID: '0000000000000021'
+        TRAN-TYPE-CD: '01'
+        TRAN-CAT-CD: '0001'
+        TRAN-SOURCE: POS TERM
+        TRAN-DESC: PURCHASE 21
+        TRAN-AMT: '21.00'
+        TRAN-MERCHANT-ID: '000011111'
+        TRAN-MERCHANT-NAME: CORNER SHOP
+        TRAN-MERCHANT-CITY: BOSTON
+        TRAN-MERCHANT-ZIP: '02101'
+        TRAN-CARD-NUM: '4333333333333333'
+        TRAN-ORIG-TS: '2022-06-21 10:00:00.000000'
+        TRAN-PROC-TS: '2022-06-22 10:00:00.000000'
+      - TRAN-ID: '0000000000000022'
+        TRAN-TYPE-CD: '03'
+        TRAN-CAT-CD: '0002'
+        TRAN-SOURCE: OPERATOR
+        TRAN-DESC: GROCERY STORE
+        TRAN-AMT: '-22.00'
+        TRAN-MERCHANT-ID: '000054321'
+        TRAN-MERCHANT-NAME: FRESH MART
+        TRAN-MERCHANT-CITY: PORTLAND
+        TRAN-MERCHANT-ZIP: '97201'
+        TRAN-CARD-NUM: '4222222222222222'
+        TRAN-ORIG-TS: '2022-06-22 10:00:00.000000'
+        TRAN-PROC-TS: '2022-06-23 10:00:00.000000'
+  when:
+    aid: ENTER
+    fields:
+      TTYPCDI: '01'
+      TCATCDI: '0001'
+      TRNSRCI: POS TERM
+      TDESCI: COFFEE SHOP
+      TRNAMTI: '+00000012.50'
+      TORIGDTI: '1500-01-01'
+      TPROCDTI: '2026-11-02'
+      MIDI: '000012345'
+      MNAMEI: JOES COFFEE
+      MCITYI: SEATTLE
+      MZIPI: '98101'
+      ACTIDINI: '00000000001'
+      CARDNINI: ''
+      CONFIRMI: ''
+  then:
+    message: Confirm to add this transaction...
+    cursor: CONFIRML
+    transfer:
+      via: RETURN-TRANSID
+      to: CT02
+    file_effects: []
+  source:
+    file: app/cbl/COTRN02C.cbl
+    lines: [396, 406]
+- id: COTRN02C-037
+  summary: Merchant ID not numeric
+  given:
+    entry: reenter
+    commarea:
+      CDEMO-PGM-CONTEXT: 1
+      CDEMO-FROM-PROGRAM: COMEN01C
+    files:
+      CXACAIX:
+      - {XREF-CARD-NUM: '4111111111111111', XREF-CUST-ID: '000000001', XREF-ACCT-ID: '00000000001'}
+      CCXREF:
+      - {XREF-CARD-NUM: '4111111111111111', XREF-CUST-ID: '000000001', XREF-ACCT-ID: '00000000001'}
+      TRANSACT:
+      - TRAN-ID: '0000000000000021'
+        TRAN-TYPE-CD: '01'
+        TRAN-CAT-CD: '0001'
+        TRAN-SOURCE: POS TERM
+        TRAN-DESC: PURCHASE 21
+        TRAN-AMT: '21.00'
+        TRAN-MERCHANT-ID: '000011111'
+        TRAN-MERCHANT-NAME: CORNER SHOP
+        TRAN-MERCHANT-CITY: BOSTON
+        TRAN-MERCHANT-ZIP: '02101'
+        TRAN-CARD-NUM: '4333333333333333'
+        TRAN-ORIG-TS: '2022-06-21 10:00:00.000000'
+        TRAN-PROC-TS: '2022-06-22 10:00:00.000000'
+      - TRAN-ID: '0000000000000022'
+        TRAN-TYPE-CD: '03'
+        TRAN-CAT-CD: '0002'
+        TRAN-SOURCE: OPERATOR
+        TRAN-DESC: GROCERY STORE
+        TRAN-AMT: '-22.00'
+        TRAN-MERCHANT-ID: '000054321'
+        TRAN-MERCHANT-NAME: FRESH MART
+        TRAN-MERCHANT-CITY: PORTLAND
+        TRAN-MERCHANT-ZIP: '97201'
+        TRAN-CARD-NUM: '4222222222222222'
+        TRAN-ORIG-TS: '2022-06-22 10:00:00.000000'
+        TRAN-PROC-TS: '2022-06-23 10:00:00.000000'
+  when:
+    aid: ENTER
+    fields:
+      TTYPCDI: '01'
+      TCATCDI: '0001'
+      TRNSRCI: POS TERM
+      TDESCI: COFFEE SHOP
+      TRNAMTI: '+00000012.50'
+      TORIGDTI: '2026-11-01'
+      TPROCDTI: '2026-11-02'
+      MIDI: ABC123XYZ
+      MNAMEI: JOES COFFEE
+      MCITYI: SEATTLE
+      MZIPI: '98101'
+      ACTIDINI: '00000000001'
+      CARDNINI: ''
+      CONFIRMI: ''
+  then:
+    message: Merchant ID must be Numeric...
+    cursor: MIDL
+    transfer:
+      via: RETURN-TRANSID
+      to: CT02
+    file_effects: []
+  source:
+    file: app/cbl/COTRN02C.cbl
+    lines: [430, 436]
+- id: COTRN02C-038
+  summary: 'all fields valid, confirmation blank: asks for confirmation; the amount is re-edited as +99999999.99'
+  given:
+    entry: reenter
+    commarea:
+      CDEMO-PGM-CONTEXT: 1
+      CDEMO-FROM-PROGRAM: COMEN01C
+    files:
+      CXACAIX:
+      - {XREF-CARD-NUM: '4111111111111111', XREF-CUST-ID: '000000001', XREF-ACCT-ID: '00000000001'}
+      CCXREF:
+      - {XREF-CARD-NUM: '4111111111111111', XREF-CUST-ID: '000000001', XREF-ACCT-ID: '00000000001'}
+      TRANSACT:
+      - TRAN-ID: '0000000000000021'
+        TRAN-TYPE-CD: '01'
+        TRAN-CAT-CD: '0001'
+        TRAN-SOURCE: POS TERM
+        TRAN-DESC: PURCHASE 21
+        TRAN-AMT: '21.00'
+        TRAN-MERCHANT-ID: '000011111'
+        TRAN-MERCHANT-NAME: CORNER SHOP
+        TRAN-MERCHANT-CITY: BOSTON
+        TRAN-MERCHANT-ZIP: '02101'
+        TRAN-CARD-NUM: '4333333333333333'
+        TRAN-ORIG-TS: '2022-06-21 10:00:00.000000'
+        TRAN-PROC-TS: '2022-06-22 10:00:00.000000'
+      - TRAN-ID: '0000000000000022'
+        TRAN-TYPE-CD: '03'
+        TRAN-CAT-CD: '0002'
+        TRAN-SOURCE: OPERATOR
+        TRAN-DESC: GROCERY STORE
+        TRAN-AMT: '-22.00'
+        TRAN-MERCHANT-ID: '000054321'
+        TRAN-MERCHANT-NAME: FRESH MART
+        TRAN-MERCHANT-CITY: PORTLAND
+        TRAN-MERCHANT-ZIP: '97201'
+        TRAN-CARD-NUM: '4222222222222222'
+        TRAN-ORIG-TS: '2022-06-22 10:00:00.000000'
+        TRAN-PROC-TS: '2022-06-23 10:00:00.000000'
+  when:
+    aid: ENTER
+    fields:
+      TTYPCDI: '01'
+      TCATCDI: '0001'
+      TRNSRCI: POS TERM
+      TDESCI: COFFEE SHOP
+      TRNAMTI: '-00000012.50'
+      TORIGDTI: '2026-11-01'
+      TPROCDTI: '2026-11-02'
+      MIDI: '000012345'
+      MNAMEI: JOES COFFEE
+      MCITYI: SEATTLE
+      MZIPI: '98101'
+      ACTIDINI: '00000000001'
+      CARDNINI: ''
+      CONFIRMI: ''
+  then:
+    message: Confirm to add this transaction...
+    cursor: CONFIRML
+    fields:
+      TRNAMTO: '-00000012.50'
+      CARDNINO: '4111111111111111'
+    transfer:
+      via: RETURN-TRANSID
+      to: CT02
+    file_effects: []
+  source:
+    file: app/cbl/COTRN02C.cbl
+    lines: [173, 181]
+- id: COTRN02C-039
+  summary: confirmation 'N' does not cancel; it asks for confirmation again, same as blank
+  given:
+    entry: reenter
+    commarea:
+      CDEMO-PGM-CONTEXT: 1
+      CDEMO-FROM-PROGRAM: COMEN01C
+    files:
+      CXACAIX:
+      - {XREF-CARD-NUM: '4111111111111111', XREF-CUST-ID: '000000001', XREF-ACCT-ID: '00000000001'}
+      CCXREF:
+      - {XREF-CARD-NUM: '4111111111111111', XREF-CUST-ID: '000000001', XREF-ACCT-ID: '00000000001'}
+      TRANSACT:
+      - TRAN-ID: '0000000000000021'
+        TRAN-TYPE-CD: '01'
+        TRAN-CAT-CD: '0001'
+        TRAN-SOURCE: POS TERM
+        TRAN-DESC: PURCHASE 21
+        TRAN-AMT: '21.00'
+        TRAN-MERCHANT-ID: '000011111'
+        TRAN-MERCHANT-NAME: CORNER SHOP
+        TRAN-MERCHANT-CITY: BOSTON
+        TRAN-MERCHANT-ZIP: '02101'
+        TRAN-CARD-NUM: '4333333333333333'
+        TRAN-ORIG-TS: '2022-06-21 10:00:00.000000'
+        TRAN-PROC-TS: '2022-06-22 10:00:00.000000'
+      - TRAN-ID: '0000000000000022'
+        TRAN-TYPE-CD: '03'
+        TRAN-CAT-CD: '0002'
+        TRAN-SOURCE: OPERATOR
+        TRAN-DESC: GROCERY STORE
+        TRAN-AMT: '-22.00'
+        TRAN-MERCHANT-ID: '000054321'
+        TRAN-MERCHANT-NAME: FRESH MART
+        TRAN-MERCHANT-CITY: PORTLAND
+        TRAN-MERCHANT-ZIP: '97201'
+        TRAN-CARD-NUM: '4222222222222222'
+        TRAN-ORIG-TS: '2022-06-22 10:00:00.000000'
+        TRAN-PROC-TS: '2022-06-23 10:00:00.000000'
+  when:
+    aid: ENTER
+    fields:
+      TTYPCDI: '01'
+      TCATCDI: '0001'
+      TRNSRCI: POS TERM
+      TDESCI: COFFEE SHOP
+      TRNAMTI: '+00000012.50'
+      TORIGDTI: '2026-11-01'
+      TPROCDTI: '2026-11-02'
+      MIDI: '000012345'
+      MNAMEI: JOES COFFEE
+      MCITYI: SEATTLE
+      MZIPI: '98101'
+      ACTIDINI: '00000000001'
+      CARDNINI: ''
+      CONFIRMI: 'N'
+  then:
+    message: Confirm to add this transaction...
+    cursor: CONFIRML
+    transfer:
+      via: RETURN-TRANSID
+      to: CT02
+    file_effects: []
+  source:
+    file: app/cbl/COTRN02C.cbl
+    lines: [173, 181]
+- id: COTRN02C-040
+  summary: confirmation other than Y/N
+  given:
+    entry: reenter
+    commarea:
+      CDEMO-PGM-CONTEXT: 1
+      CDEMO-FROM-PROGRAM: COMEN01C
+    files:
+      CXACAIX:
+      - {XREF-CARD-NUM: '4111111111111111', XREF-CUST-ID: '000000001', XREF-ACCT-ID: '00000000001'}
+      CCXREF:
+      - {XREF-CARD-NUM: '4111111111111111', XREF-CUST-ID: '000000001', XREF-ACCT-ID: '00000000001'}
+      TRANSACT:
+      - TRAN-ID: '0000000000000021'
+        TRAN-TYPE-CD: '01'
+        TRAN-CAT-CD: '0001'
+        TRAN-SOURCE: POS TERM
+        TRAN-DESC: PURCHASE 21
+        TRAN-AMT: '21.00'
+        TRAN-MERCHANT-ID: '000011111'
+        TRAN-MERCHANT-NAME: CORNER SHOP
+        TRAN-MERCHANT-CITY: BOSTON
+        TRAN-MERCHANT-ZIP: '02101'
+        TRAN-CARD-NUM: '4333333333333333'
+        TRAN-ORIG-TS: '2022-06-21 10:00:00.000000'
+        TRAN-PROC-TS: '2022-06-22 10:00:00.000000'
+      - TRAN-ID: '0000000000000022'
+        TRAN-TYPE-CD: '03'
+        TRAN-CAT-CD: '0002'
+        TRAN-SOURCE: OPERATOR
+        TRAN-DESC: GROCERY STORE
+        TRAN-AMT: '-22.00'
+        TRAN-MERCHANT-ID: '000054321'
+        TRAN-MERCHANT-NAME: FRESH MART
+        TRAN-MERCHANT-CITY: PORTLAND
+        TRAN-MERCHANT-ZIP: '97201'
+        TRAN-CARD-NUM: '4222222222222222'
+        TRAN-ORIG-TS: '2022-06-22 10:00:00.000000'
+        TRAN-PROC-TS: '2022-06-23 10:00:00.000000'
+  when:
+    aid: ENTER
+    fields:
+      TTYPCDI: '01'
+      TCATCDI: '0001'
+      TRNSRCI: POS TERM
+      TDESCI: COFFEE SHOP
+      TRNAMTI: '+00000012.50'
+      TORIGDTI: '2026-11-01'
+      TPROCDTI: '2026-11-02'
+      MIDI: '000012345'
+      MNAMEI: JOES COFFEE
+      MCITYI: SEATTLE
+      MZIPI: '98101'
+      ACTIDINI: '00000000001'
+      CARDNINI: ''
+      CONFIRMI: X
+  then:
+    message: Invalid value. Valid values are (Y/N)...
+    cursor: CONFIRML
+    transfer:
+      via: RETURN-TRANSID
+      to: CT02
+    file_effects: []
+  source:
+    file: app/cbl/COTRN02C.cbl
+    lines: [182, 186]
+- id: COTRN02C-041
+  summary: 'confirmation ''Y'' by account: new id = last TRAN-ID + 1, record written from the screen, screen cleared,
+    green success message'
+  given:
+    entry: reenter
+    commarea:
+      CDEMO-PGM-CONTEXT: 1
+      CDEMO-FROM-PROGRAM: COMEN01C
+    files:
+      CXACAIX:
+      - {XREF-CARD-NUM: '4111111111111111', XREF-CUST-ID: '000000001', XREF-ACCT-ID: '00000000001'}
+      CCXREF:
+      - {XREF-CARD-NUM: '4111111111111111', XREF-CUST-ID: '000000001', XREF-ACCT-ID: '00000000001'}
+      TRANSACT:
+      - TRAN-ID: '0000000000000021'
+        TRAN-TYPE-CD: '01'
+        TRAN-CAT-CD: '0001'
+        TRAN-SOURCE: POS TERM
+        TRAN-DESC: PURCHASE 21
+        TRAN-AMT: '21.00'
+        TRAN-MERCHANT-ID: '000011111'
+        TRAN-MERCHANT-NAME: CORNER SHOP
+        TRAN-MERCHANT-CITY: BOSTON
+        TRAN-MERCHANT-ZIP: '02101'
+        TRAN-CARD-NUM: '4333333333333333'
+        TRAN-ORIG-TS: '2022-06-21 10:00:00.000000'
+        TRAN-PROC-TS: '2022-06-22 10:00:00.000000'
+      - TRAN-ID: '0000000000000022'
+        TRAN-TYPE-CD: '03'
+        TRAN-CAT-CD: '0002'
+        TRAN-SOURCE: OPERATOR
+        TRAN-DESC: GROCERY STORE
+        TRAN-AMT: '-22.00'
+        TRAN-MERCHANT-ID: '000054321'
+        TRAN-MERCHANT-NAME: FRESH MART
+        TRAN-MERCHANT-CITY: PORTLAND
+        TRAN-MERCHANT-ZIP: '97201'
+        TRAN-CARD-NUM: '4222222222222222'
+        TRAN-ORIG-TS: '2022-06-22 10:00:00.000000'
+        TRAN-PROC-TS: '2022-06-23 10:00:00.000000'
+  when:
+    aid: ENTER
+    fields:
+      TTYPCDI: '01'
+      TCATCDI: '0001'
+      TRNSRCI: POS TERM
+      TDESCI: COFFEE SHOP
+      TRNAMTI: '+00000012.50'
+      TORIGDTI: '2026-11-01'
+      TPROCDTI: '2026-11-02'
+      MIDI: '000012345'
+      MNAMEI: JOES COFFEE
+      MCITYI: SEATTLE
+      MZIPI: '98101'
+      ACTIDINI: '00000000001'
+      CARDNINI: ''
+      CONFIRMI: 'Y'
+  then:
+    message: Transaction added successfully. {} Your Tran ID is {TRAN-ID}.
+    cursor: ACTIDINL
+    fields:
+      ACTIDINO: ''
+      CARDNINO: ''
+      TTYPCDO: ''
+      TCATCDO: ''
+      TRNSRCO: ''
+      TDESCO: ''
+      TRNAMTO: ''
+      TORIGDTO: ''
+      TPROCDTO: ''
+      MIDO: ''
+      MNAMEO: ''
+      MCITYO: ''
+      MZIPO: ''
+      CONFIRMO: ''
+    transfer:
+      via: RETURN-TRANSID
+      to: CT02
+    file_effects:
+    - file: TRANSACT
+      op: WRITE
+      record:
+        TRAN-ID: '0000000000000023'
+        TRAN-TYPE-CD: '01'
+        TRAN-CAT-CD: '0001'
+        TRAN-SOURCE: POS TERM
+        TRAN-DESC: COFFEE SHOP
+        TRAN-AMT: '12.50'
+        TRAN-MERCHANT-ID: '000012345'
+        TRAN-MERCHANT-NAME: JOES COFFEE
+        TRAN-MERCHANT-CITY: SEATTLE
+        TRAN-MERCHANT-ZIP: '98101'
+        TRAN-CARD-NUM: '4111111111111111'
+        TRAN-ORIG-TS: '2026-11-01'
+        TRAN-PROC-TS: '2026-11-02'
+  source:
+    file: app/cbl/COTRN02C.cbl
+    lines: [442, 466]
+- id: COTRN02C-042
+  summary: confirmation 'y' by card with a negative amount writes the card that was typed
+  given:
+    entry: reenter
+    commarea:
+      CDEMO-PGM-CONTEXT: 1
+      CDEMO-FROM-PROGRAM: COMEN01C
+    files:
+      CXACAIX:
+      - {XREF-CARD-NUM: '4111111111111111', XREF-CUST-ID: '000000001', XREF-ACCT-ID: '00000000001'}
+      CCXREF:
+      - {XREF-CARD-NUM: '4111111111111111', XREF-CUST-ID: '000000001', XREF-ACCT-ID: '00000000001'}
+      TRANSACT:
+      - TRAN-ID: '0000000000000021'
+        TRAN-TYPE-CD: '01'
+        TRAN-CAT-CD: '0001'
+        TRAN-SOURCE: POS TERM
+        TRAN-DESC: PURCHASE 21
+        TRAN-AMT: '21.00'
+        TRAN-MERCHANT-ID: '000011111'
+        TRAN-MERCHANT-NAME: CORNER SHOP
+        TRAN-MERCHANT-CITY: BOSTON
+        TRAN-MERCHANT-ZIP: '02101'
+        TRAN-CARD-NUM: '4333333333333333'
+        TRAN-ORIG-TS: '2022-06-21 10:00:00.000000'
+        TRAN-PROC-TS: '2022-06-22 10:00:00.000000'
+      - TRAN-ID: '0000000000000022'
+        TRAN-TYPE-CD: '03'
+        TRAN-CAT-CD: '0002'
+        TRAN-SOURCE: OPERATOR
+        TRAN-DESC: GROCERY STORE
+        TRAN-AMT: '-22.00'
+        TRAN-MERCHANT-ID: '000054321'
+        TRAN-MERCHANT-NAME: FRESH MART
+        TRAN-MERCHANT-CITY: PORTLAND
+        TRAN-MERCHANT-ZIP: '97201'
+        TRAN-CARD-NUM: '4222222222222222'
+        TRAN-ORIG-TS: '2022-06-22 10:00:00.000000'
+        TRAN-PROC-TS: '2022-06-23 10:00:00.000000'
+  when:
+    aid: ENTER
+    fields:
+      TTYPCDI: '01'
+      TCATCDI: '0001'
+      TRNSRCI: POS TERM
+      TDESCI: COFFEE SHOP
+      TRNAMTI: '-00000099.99'
+      TORIGDTI: '2026-11-01'
+      TPROCDTI: '2026-11-02'
+      MIDI: '000012345'
+      MNAMEI: JOES COFFEE
+      MCITYI: SEATTLE
+      MZIPI: '98101'
+      ACTIDINI: ''
+      CARDNINI: '4111111111111111'
+      CONFIRMI: 'y'
+  then:
+    message: Transaction added successfully. {} Your Tran ID is {TRAN-ID}.
+    cursor: ACTIDINL
+    fields:
+      ACTIDINO: ''
+      CARDNINO: ''
+      TTYPCDO: ''
+      TCATCDO: ''
+      TRNSRCO: ''
+      TDESCO: ''
+      TRNAMTO: ''
+      TORIGDTO: ''
+      TPROCDTO: ''
+      MIDO: ''
+      MNAMEO: ''
+      MCITYO: ''
+      MZIPO: ''
+      CONFIRMO: ''
+    transfer:
+      via: RETURN-TRANSID
+      to: CT02
+    file_effects:
+    - file: TRANSACT
+      op: WRITE
+      record:
+        TRAN-ID: '0000000000000023'
+        TRAN-TYPE-CD: '01'
+        TRAN-CAT-CD: '0001'
+        TRAN-SOURCE: POS TERM
+        TRAN-DESC: COFFEE SHOP
+        TRAN-AMT: '-99.99'
+        TRAN-MERCHANT-ID: '000012345'
+        TRAN-MERCHANT-NAME: JOES COFFEE
+        TRAN-MERCHANT-CITY: SEATTLE
+        TRAN-MERCHANT-ZIP: '98101'
+        TRAN-CARD-NUM: '4111111111111111'
+        TRAN-ORIG-TS: '2026-11-01'
+        TRAN-PROC-TS: '2026-11-02'
+  source:
+    file: app/cbl/COTRN02C.cbl
+    lines: [722, 734]
+- id: COTRN02C-043
+  summary: PF5 copies the last transaction in the whole file (not the entered card's) onto the screen and asks for
+    confirmation
+  given:
+    entry: reenter
+    commarea:
+      CDEMO-PGM-CONTEXT: 1
+      CDEMO-FROM-PROGRAM: COMEN01C
+    files:
+      CXACAIX:
+      - {XREF-CARD-NUM: '4111111111111111', XREF-CUST-ID: '000000001', XREF-ACCT-ID: '00000000001'}
+      CCXREF:
+      - {XREF-CARD-NUM: '4111111111111111', XREF-CUST-ID: '000000001', XREF-ACCT-ID: '00000000001'}
+      TRANSACT:
+      - TRAN-ID: '0000000000000021'
+        TRAN-TYPE-CD: '01'
+        TRAN-CAT-CD: '0001'
+        TRAN-SOURCE: POS TERM
+        TRAN-DESC: PURCHASE 21
+        TRAN-AMT: '21.00'
+        TRAN-MERCHANT-ID: '000011111'
+        TRAN-MERCHANT-NAME: CORNER SHOP
+        TRAN-MERCHANT-CITY: BOSTON
+        TRAN-MERCHANT-ZIP: '02101'
+        TRAN-CARD-NUM: '4333333333333333'
+        TRAN-ORIG-TS: '2022-06-21 10:00:00.000000'
+        TRAN-PROC-TS: '2022-06-22 10:00:00.000000'
+      - TRAN-ID: '0000000000000022'
+        TRAN-TYPE-CD: '03'
+        TRAN-CAT-CD: '0002'
+        TRAN-SOURCE: OPERATOR
+        TRAN-DESC: GROCERY STORE
+        TRAN-AMT: '-22.00'
+        TRAN-MERCHANT-ID: '000054321'
+        TRAN-MERCHANT-NAME: FRESH MART
+        TRAN-MERCHANT-CITY: PORTLAND
+        TRAN-MERCHANT-ZIP: '97201'
+        TRAN-CARD-NUM: '4222222222222222'
+        TRAN-ORIG-TS: '2022-06-22 10:00:00.000000'
+        TRAN-PROC-TS: '2022-06-23 10:00:00.000000'
+  when:
+    aid: PF5
+    fields:
+      ACTIDINI: '00000000001'
+      CARDNINI: ''
+      CONFIRMI: ''
+  then:
+    message: Confirm to add this transaction...
+    cursor: CONFIRML
+    fields:
+      ACTIDINO: '00000000001'
+      CARDNINO: '4111111111111111'
+      TTYPCDO: '03'
+      TCATCDO: '0002'
+      TRNSRCO: OPERATOR
+      TRNAMTO: '-00000022.00'
+      TDESCO: GROCERY STORE
+      TORIGDTO: '2022-06-22'
+      TPROCDTO: '2022-06-23'
+      MIDO: '000054321'
+      MNAMEO: FRESH MART
+      MCITYO: PORTLAND
+      MZIPO: '97201'
+    transfer:
+      via: RETURN-TRANSID
+      to: CT02
+    file_effects: []
+  source:
+    file: app/cbl/COTRN02C.cbl
+    lines: [472, 494]
+- id: COTRN02C-044
+  summary: PF5 validates the key fields first
+  given:
+    entry: reenter
+    commarea:
+      CDEMO-PGM-CONTEXT: 1
+      CDEMO-FROM-PROGRAM: COMEN01C
+    files:
+      CXACAIX:
+      - {XREF-CARD-NUM: '4111111111111111', XREF-CUST-ID: '000000001', XREF-ACCT-ID: '00000000001'}
+      CCXREF:
+      - {XREF-CARD-NUM: '4111111111111111', XREF-CUST-ID: '000000001', XREF-ACCT-ID: '00000000001'}
+      TRANSACT:
+      - TRAN-ID: '0000000000000021'
+        TRAN-TYPE-CD: '01'
+        TRAN-CAT-CD: '0001'
+        TRAN-SOURCE: POS TERM
+        TRAN-DESC: PURCHASE 21
+        TRAN-AMT: '21.00'
+        TRAN-MERCHANT-ID: '000011111'
+        TRAN-MERCHANT-NAME: CORNER SHOP
+        TRAN-MERCHANT-CITY: BOSTON
+        TRAN-MERCHANT-ZIP: '02101'
+        TRAN-CARD-NUM: '4333333333333333'
+        TRAN-ORIG-TS: '2022-06-21 10:00:00.000000'
+        TRAN-PROC-TS: '2022-06-22 10:00:00.000000'
+      - TRAN-ID: '0000000000000022'
+        TRAN-TYPE-CD: '03'
+        TRAN-CAT-CD: '0002'
+        TRAN-SOURCE: OPERATOR
+        TRAN-DESC: GROCERY STORE
+        TRAN-AMT: '-22.00'
+        TRAN-MERCHANT-ID: '000054321'
+        TRAN-MERCHANT-NAME: FRESH MART
+        TRAN-MERCHANT-CITY: PORTLAND
+        TRAN-MERCHANT-ZIP: '97201'
+        TRAN-CARD-NUM: '4222222222222222'
+        TRAN-ORIG-TS: '2022-06-22 10:00:00.000000'
+        TRAN-PROC-TS: '2022-06-23 10:00:00.000000'
+  when:
+    aid: PF5
+    fields:
+      ACTIDINI: ''
+      CARDNINI: ''
+      CONFIRMI: ''
+  then:
+    message: Account or Card Number must be entered...
+    cursor: ACTIDINL
+    transfer:
+      via: RETURN-TRANSID
+      to: CT02
+    file_effects: []
+  source:
+    file: app/cbl/COTRN02C.cbl
+    lines: [472, 474]
+- id: COTRN02C-045
+  summary: PF5 with 'Y' already in the confirmation field copies and writes in one step
+  given:
+    entry: reenter
+    commarea:
+      CDEMO-PGM-CONTEXT: 1
+      CDEMO-FROM-PROGRAM: COMEN01C
+    files:
+      CXACAIX:
+      - {XREF-CARD-NUM: '4111111111111111', XREF-CUST-ID: '000000001', XREF-ACCT-ID: '00000000001'}
+      CCXREF:
+      - {XREF-CARD-NUM: '4111111111111111', XREF-CUST-ID: '000000001', XREF-ACCT-ID: '00000000001'}
+      TRANSACT:
+      - TRAN-ID: '0000000000000021'
+        TRAN-TYPE-CD: '01'
+        TRAN-CAT-CD: '0001'
+        TRAN-SOURCE: POS TERM
+        TRAN-DESC: PURCHASE 21
+        TRAN-AMT: '21.00'
+        TRAN-MERCHANT-ID: '000011111'
+        TRAN-MERCHANT-NAME: CORNER SHOP
+        TRAN-MERCHANT-CITY: BOSTON
+        TRAN-MERCHANT-ZIP: '02101'
+        TRAN-CARD-NUM: '4333333333333333'
+        TRAN-ORIG-TS: '2022-06-21 10:00:00.000000'
+        TRAN-PROC-TS: '2022-06-22 10:00:00.000000'
+      - TRAN-ID: '0000000000000022'
+        TRAN-TYPE-CD: '03'
+        TRAN-CAT-CD: '0002'
+        TRAN-SOURCE: OPERATOR
+        TRAN-DESC: GROCERY STORE
+        TRAN-AMT: '-22.00'
+        TRAN-MERCHANT-ID: '000054321'
+        TRAN-MERCHANT-NAME: FRESH MART
+        TRAN-MERCHANT-CITY: PORTLAND
+        TRAN-MERCHANT-ZIP: '97201'
+        TRAN-CARD-NUM: '4222222222222222'
+        TRAN-ORIG-TS: '2022-06-22 10:00:00.000000'
+        TRAN-PROC-TS: '2022-06-23 10:00:00.000000'
+  when:
+    aid: PF5
+    fields:
+      ACTIDINI: '00000000001'
+      CARDNINI: ''
+      CONFIRMI: 'Y'
+  then:
+    message: Transaction added successfully. {} Your Tran ID is {TRAN-ID}.
+    cursor: ACTIDINL
+    fields:
+      ACTIDINO: ''
+      CARDNINO: ''
+      TTYPCDO: ''
+      TCATCDO: ''
+      TRNSRCO: ''
+      TDESCO: ''
+      TRNAMTO: ''
+      TORIGDTO: ''
+      TPROCDTO: ''
+      MIDO: ''
+      MNAMEO: ''
+      MCITYO: ''
+      MZIPO: ''
+      CONFIRMO: ''
+    transfer:
+      via: RETURN-TRANSID
+      to: CT02
+    file_effects:
+    - file: TRANSACT
+      op: WRITE
+      record:
+        TRAN-ID: '0000000000000023'
+        TRAN-TYPE-CD: '03'
+        TRAN-CAT-CD: '0002'
+        TRAN-SOURCE: OPERATOR
+        TRAN-DESC: GROCERY STORE
+        TRAN-AMT: '-22.00'
+        TRAN-MERCHANT-ID: '000054321'
+        TRAN-MERCHANT-NAME: FRESH MART
+        TRAN-MERCHANT-CITY: PORTLAND
+        TRAN-MERCHANT-ZIP: '97201'
+        TRAN-CARD-NUM: '4111111111111111'
+        TRAN-ORIG-TS: '2022-06-22'
+        TRAN-PROC-TS: '2022-06-23'
+  source:
+    file: app/cbl/COTRN02C.cbl
+    lines: [472, 494]

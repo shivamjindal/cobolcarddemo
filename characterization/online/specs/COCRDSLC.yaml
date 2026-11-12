@@ -1,0 +1,636 @@
+program: COCRDSLC
+transaction: CCDL
+screen:
+  mapset: COCRDSL
+  map: CCRDSLA
+evidence: derived
+sources:
+  - app/cbl/COCRDSLC.cbl
+  - app/bms/COCRDSL.bms
+  - app/cpy-bms/COCRDSL.CPY
+  - app/cpy/COCOM01Y.cpy
+  - app/cpy/CVCRD01Y.cpy
+  - app/cpy/CVACT02Y.cpy
+  - app/cpy/CSSTRPFY.cpy
+files:
+  - name: CARDDAT
+    ops: [READ]
+    key: CARD-NUM
+navigation:
+  - to: COCRDLIC
+    via: XCTL
+    when: PF3 when CDEMO-FROM-PROGRAM is COCRDLIC (arrived from the card list); target is CDEMO-FROM-PROGRAM (lines 305-334)
+  - to: COMEN01C
+    via: XCTL
+    when: PF3 when CDEMO-FROM-PROGRAM is spaces or LOW-VALUES (first entry or arrival from the menu) (lines 316-318)
+  - to: CCDL
+    via: RETURN-TRANSID
+    when: every path that sends the detail screen (COMMON-RETURN, lines 394-407)
+  - to: null
+    via: SEND-TEXT
+    when: CDEMO-PGM-CONTEXT is neither 0 nor 1; plain text 'UNEXPECTED DATA SCENARIO' then RETURN without TRANSID (lines 373-380, 838-848)
+notes:
+  - >-
+    Value conventions used in this spec. "" means the field is all spaces. "LOW-VALUES" means the field is
+    binary zeros (nothing written to the screen). given.file_conditions (see SCHEMA.md) injects a CICS RESP to reach an error branch (case COCRDSLC-016).
+  - >-
+    State is carried entirely in CARDDEMO-COMMAREA. WS-THIS-PROGCOMMAREA (CA-FROM-PROGRAM/CA-FROM-TRANID,
+    lines 200-203) is saved and restored but never read. The decision is CDEMO-PGM-CONTEXT plus
+    CDEMO-FROM-PROGRAM (lines 304-381). 1400-SEND-SCREEN sets CDEMO-PGM-REENTER before every SEND MAP (line 566),
+    so every later turn is a REENTER that receives and edits the map. COMMON-RETURN never updates
+    CDEMO-FROM-PROGRAM, so PF3 always returns to whichever program last XCTLed in (or the menu when blank).
+  - >-
+    Entry. EIBCALEN = 0, or CDEMO-FROM-PROGRAM = COMEN01C with PGM-ENTER, INITIALIZEs the whole
+    CARDDEMO-COMMAREA (lines 268-272). Arriving from the menu therefore wipes CDEMO-USER-ID, CDEMO-USER-TYPE and
+    CDEMO-FROM-PROGRAM/TRANID (case 002), so PF3 afterwards goes to COMEN01C with a blank user. Arrival with
+    PGM-ENTER from COCRDLIC skips the edits and reads the card from CDEMO-CARD-NUM straight away (lines 339-348).
+  - >-
+    The account number is never used for the lookup. 9100-GETCARD-BYACCTCARD reads CARDDAT by card number only
+    (lines 736-750; the account RIDFLD move is commented out at line 739). A valid account that does not own the
+    card still displays the card, and ACCTSIDO shows the account the user typed, not CARD-ACCT-ID (case 014).
+    9150-GETCARD-BYACCT (CARDAIX path, lines 779-809) is never performed, so 'Did not find this account in cards
+    database' is unreachable. CARDAIX is therefore not listed under files.
+  - >-
+    Message precedence in 2200-EDIT-MAP-INPUTS (lines 609-641). Each edit only sets WS-RETURN-MSG IF
+    WS-RETURN-MSG-OFF, so the account message wins over the card message. The cross-field check at lines 637-640
+    overwrites unconditionally, so blank account plus blank card shows 'No input received' instead of 'Account
+    number not provided'. Account all zeros is treated as blank (line 653). The 88-level texts
+    SEARCHED-ACCT-NOT-NUMERIC / SEARCHED-CARD-NOT-NUMERIC (lines 145-149) are never used; the program moves the
+    upper-case literals at lines 670 and 711 instead. As in COCRDLIC, the 11/16-digit length rule holds only because
+    BMS pads short input with spaces (default JUSTIFY=(LEFT,BLANK); a CICS assumption).
+  - >-
+    Screen field display. 1200-SETUP-SCREEN-VARS shows ACCTSIDO/CARDSIDO from CC-ACCT-ID/CC-CARD-NUM only when
+    CDEMO-ACCT-ID/CDEMO-CARD-NUM are non-zero (lines 462-472). A blank filter on reenter is replaced by '*' in red
+    (lines 541-551). A non-numeric filter sets CDEMO-ACCT-ID/CARD-NUM to zero, so the user's bad input is erased from
+    the screen rather than echoed (cases 009, 012). Card details are shown only when FOUND-CARDS-FOR-ACCOUNT
+    (lines 474-484): CRDNAMEO = CARD-EMBOSSED-NAME as stored (no case change), EXPMONO = characters 6-7 and
+    EXPYEARO = characters 1-4 of CARD-EXPIRAION-DATE, CRDSTCDO = CARD-ACTIVE-STATUS. CVV and expiry day are never
+    displayed. INFOMSGO falls back to 'Please enter Account and Card Number' whenever no other info message is set
+    (lines 489-491).
+  - >-
+    Field protection. When CDEMO-LAST-MAPSET = 'COCRDLI' and CDEMO-FROM-PROGRAM = COCRDLIC the account and card
+    fields are sent protected with MDT on (DFHBMPRF, lines 505-508); they come back on ENTER, so ENTER re-reads the
+    same card. Otherwise both are unprotected (DFHBMFSE). The schema has no place for attribute bytes, so protection
+    and colour are recorded here and in summaries, not asserted.
+  - >-
+    Unmapped keys (anything except ENTER and PF3) are treated as ENTER (lines 291-299). PF3 sets CDEMO-USRTYP-USER
+    (line 326), so an admin returns to the list or menu as a regular user. PF3 also sets CDEMO-LAST-MAPSET to
+    'COCRDSL' (8-byte literal 'COCRDSL ' truncated into PIC X(7)).
+  - >-
+    Quirk: LIT-CCLISTMAP is 'CCRDSLA' (line 177), the detail map name, not the list map CCRDLIA; it is unused. The
+    file-error branch only sets FLG-ACCTFILTER-NOT-OK IF WS-RETURN-MSG-OFF (lines 764-766), which is always true at
+    that point. EXEC CICS HANDLE ABEND (lines 250-252) routes abends to ABEND-ROUTINE, which sends ABEND-DATA and
+    abends with code 9999 (lines 857-877); no case covers abends.
+cases:
+  - id: COCRDSLC-001
+    summary: first entry (no COMMAREA) shows an empty search screen with the input prompt
+    given:
+      entry: first-time
+      commarea: {}
+      files:
+        CARDDAT: &cards
+          - {CARD-NUM: "4000000000000002", CARD-ACCT-ID: "00000000001", CARD-CVV-CD: "123", CARD-EMBOSSED-NAME: "John Smith", CARD-EXPIRAION-DATE: "2027-05-31", CARD-ACTIVE-STATUS: "Y"}
+          - {CARD-NUM: "4000000000000005", CARD-ACCT-ID: "00000000002", CARD-CVV-CD: "456", CARD-EMBOSSED-NAME: "MARY MAJOR", CARD-EXPIRAION-DATE: "2026-12-01", CARD-ACTIVE-STATUS: "N"}
+    when:
+      aid: ENTER
+      fields: {}
+    then:
+      message: null
+      cursor: ACCTSIDL
+      fields:
+        INFOMSGO: "Please enter Account and Card Number"
+        ACCTSIDO: LOW-VALUES
+        CARDSIDO: LOW-VALUES
+        CRDNAMEO: LOW-VALUES
+      transfer: {via: RETURN-TRANSID, to: CCDL}
+      commarea:
+        CDEMO-PGM-CONTEXT: 1
+        CDEMO-FROM-PROGRAM: ""
+      file_effects: []
+    source:
+      file: app/cbl/COCRDSLC.cbl
+      lines: [349, 356]
+
+  - id: COCRDSLC-002
+    summary: arrival from the menu INITIALIZEs the whole COMMAREA (user id and type wiped) and shows the search prompt
+    given:
+      entry: xctl-from
+      commarea:
+        CDEMO-FROM-PROGRAM: COMEN01C
+        CDEMO-FROM-TRANID: CM00
+        CDEMO-PGM-CONTEXT: 0
+        CDEMO-USER-ID: USER0001
+        CDEMO-USER-TYPE: U
+        CDEMO-ACCT-ID: "00000000001"
+      files:
+        CARDDAT: *cards
+    when:
+      aid: ENTER
+      fields: {}
+    then:
+      message: null
+      cursor: ACCTSIDL
+      fields:
+        INFOMSGO: "Please enter Account and Card Number"
+        ACCTSIDO: LOW-VALUES
+        CARDSIDO: LOW-VALUES
+      transfer: {via: RETURN-TRANSID, to: CCDL}
+      commarea:
+        CDEMO-USER-ID: ""
+        CDEMO-USER-TYPE: ""
+        CDEMO-FROM-PROGRAM: ""
+        CDEMO-ACCT-ID: 0
+        CDEMO-PGM-CONTEXT: 1
+      file_effects: []
+    source:
+      file: app/cbl/COCRDSLC.cbl
+      lines: [268, 272]
+
+  - id: COCRDSLC-003
+    summary: arrival from the card list reads the selected card and shows its details with the search keys protected
+    given:
+      entry: xctl-from
+      commarea:
+        CDEMO-FROM-PROGRAM: COCRDLIC
+        CDEMO-FROM-TRANID: CCLI
+        CDEMO-PGM-CONTEXT: 0
+        CDEMO-USER-ID: USER0001
+        CDEMO-USER-TYPE: U
+        CDEMO-LAST-MAPSET: COCRDLI
+        CDEMO-ACCT-ID: "00000000001"
+        CDEMO-CARD-NUM: "4000000000000002"
+      files:
+        CARDDAT: *cards
+    when:
+      aid: ENTER
+      fields: {}
+    then:
+      message: null
+      cursor: ACCTSIDL
+      fields:
+        ACCTSIDO: "00000000001"
+        CARDSIDO: "4000000000000002"
+        CRDNAMEO: "John Smith"
+        CRDSTCDO: "Y"
+        EXPMONO: "05"
+        EXPYEARO: "2027"
+        INFOMSGO: "   Displaying requested details"
+      transfer: {via: RETURN-TRANSID, to: CCDL}
+      commarea:
+        CDEMO-PGM-CONTEXT: 1
+        CDEMO-FROM-PROGRAM: COCRDLIC
+        CDEMO-USER-ID: USER0001
+      file_effects: []
+    source:
+      file: app/cbl/COCRDSLC.cbl
+      lines: [339, 348]
+
+  - id: COCRDSLC-004
+    summary: arrival from the card list for a card that no longer exists shows the not-found message
+    given:
+      entry: xctl-from
+      commarea:
+        CDEMO-FROM-PROGRAM: COCRDLIC
+        CDEMO-FROM-TRANID: CCLI
+        CDEMO-PGM-CONTEXT: 0
+        CDEMO-LAST-MAPSET: COCRDLI
+        CDEMO-ACCT-ID: "00000000001"
+        CDEMO-CARD-NUM: "4000000000000099"
+      files:
+        CARDDAT: *cards
+    when:
+      aid: ENTER
+      fields: {}
+    then:
+      message: "Did not find cards for this search condition"
+      cursor: ACCTSIDL
+      fields:
+        ACCTSIDO: "00000000001"
+        CARDSIDO: "4000000000000099"
+        CRDNAMEO: LOW-VALUES
+        INFOMSGO: "Please enter Account and Card Number"
+      transfer: {via: RETURN-TRANSID, to: CCDL}
+      file_effects: []
+    source:
+      file: app/cbl/COCRDSLC.cbl
+      lines: [755, 761]
+
+  - id: COCRDSLC-005
+    summary: reenter with a valid account and card shows the card details
+    given:
+      entry: reenter
+      commarea: &search
+        CDEMO-FROM-PROGRAM: ""
+        CDEMO-FROM-TRANID: ""
+        CDEMO-PGM-CONTEXT: 1
+      files:
+        CARDDAT: *cards
+    when:
+      aid: ENTER
+      fields: {ACCTSIDI: "00000000002", CARDSIDI: "4000000000000005"}
+    then:
+      message: null
+      cursor: ACCTSIDL
+      fields:
+        ACCTSIDO: "00000000002"
+        CARDSIDO: "4000000000000005"
+        CRDNAMEO: "MARY MAJOR"
+        CRDSTCDO: "N"
+        EXPMONO: "12"
+        EXPYEARO: "2026"
+        INFOMSGO: "   Displaying requested details"
+      transfer: {via: RETURN-TRANSID, to: CCDL}
+      commarea:
+        CDEMO-ACCT-ID: "00000000002"
+        CDEMO-CARD-NUM: "4000000000000005"
+        CDEMO-PGM-CONTEXT: 1
+      file_effects: []
+    source:
+      file: app/cbl/COCRDSLC.cbl
+      lines: [357, 369]
+
+  - id: COCRDSLC-006
+    summary: both search fields blank shows 'No input received' and stars both fields
+    given:
+      entry: reenter
+      commarea: *search
+      files:
+        CARDDAT: *cards
+    when:
+      aid: ENTER
+      fields: {ACCTSIDI: "", CARDSIDI: ""}
+    then:
+      message: "No input received"
+      cursor: ACCTSIDL
+      fields:
+        ACCTSIDO: "*"
+        CARDSIDO: "*"
+        INFOMSGO: "Please enter Account and Card Number"
+      transfer: {via: RETURN-TRANSID, to: CCDL}
+      file_effects: []
+    source:
+      file: app/cbl/COCRDSLC.cbl
+      lines: [636, 640]
+
+  - id: COCRDSLC-007
+    summary: blank account with a valid card asks for the account number
+    given:
+      entry: reenter
+      commarea: *search
+      files:
+        CARDDAT: *cards
+    when:
+      aid: ENTER
+      fields: {ACCTSIDI: "", CARDSIDI: "4000000000000002"}
+    then:
+      message: "Account number not provided"
+      cursor: ACCTSIDL
+      fields:
+        ACCTSIDO: "*"
+        CARDSIDO: "4000000000000002"
+      transfer: {via: RETURN-TRANSID, to: CCDL}
+      commarea:
+        CDEMO-ACCT-ID: 0
+      file_effects: []
+    source:
+      file: app/cbl/COCRDSLC.cbl
+      lines: [651, 661]
+
+  - id: COCRDSLC-008
+    summary: an all-zero account number is treated as not provided
+    given:
+      entry: reenter
+      commarea: *search
+      files:
+        CARDDAT: *cards
+    when:
+      aid: ENTER
+      fields: {ACCTSIDI: "00000000000", CARDSIDI: "4000000000000002"}
+    then:
+      message: "Account number not provided"
+      cursor: ACCTSIDL
+      fields:
+        ACCTSIDO: "*"
+      transfer: {via: RETURN-TRANSID, to: CCDL}
+      file_effects: []
+    source:
+      file: app/cbl/COCRDSLC.cbl
+      lines: [651, 661]
+
+  - id: COCRDSLC-009
+    summary: non-numeric account is rejected and the bad input is cleared from the screen
+    given:
+      entry: reenter
+      commarea: *search
+      files:
+        CARDDAT: *cards
+    when:
+      aid: ENTER
+      fields: {ACCTSIDI: "ABC", CARDSIDI: "4000000000000002"}
+    then:
+      message: "ACCOUNT FILTER,IF SUPPLIED MUST BE A 11 DIGIT NUMBER"
+      cursor: ACCTSIDL
+      fields:
+        ACCTSIDO: LOW-VALUES
+        CARDSIDO: "4000000000000002"
+      transfer: {via: RETURN-TRANSID, to: CCDL}
+      commarea:
+        CDEMO-ACCT-ID: 0
+      file_effects: []
+    source:
+      file: app/cbl/COCRDSLC.cbl
+      lines: [665, 674]
+
+  - id: COCRDSLC-010
+    summary: account shorter than 11 digits is rejected with the same message (space padding makes it non-numeric)
+    given:
+      entry: reenter
+      commarea: *search
+      files:
+        CARDDAT: *cards
+    when:
+      aid: ENTER
+      fields: {ACCTSIDI: "1234", CARDSIDI: "4000000000000002"}
+    then:
+      message: "ACCOUNT FILTER,IF SUPPLIED MUST BE A 11 DIGIT NUMBER"
+      cursor: ACCTSIDL
+      transfer: {via: RETURN-TRANSID, to: CCDL}
+      file_effects: []
+    source:
+      file: app/cbl/COCRDSLC.cbl
+      lines: [665, 674]
+
+  - id: COCRDSLC-011
+    summary: blank card with a valid account asks for the card number
+    given:
+      entry: reenter
+      commarea: *search
+      files:
+        CARDDAT: *cards
+    when:
+      aid: ENTER
+      fields: {ACCTSIDI: "00000000001", CARDSIDI: ""}
+    then:
+      message: "Card number not provided"
+      cursor: CARDSIDL
+      fields:
+        ACCTSIDO: "00000000001"
+        CARDSIDO: "*"
+      transfer: {via: RETURN-TRANSID, to: CCDL}
+      commarea:
+        CDEMO-CARD-NUM: 0
+      file_effects: []
+    source:
+      file: app/cbl/COCRDSLC.cbl
+      lines: [691, 702]
+
+  - id: COCRDSLC-012
+    summary: non-numeric card number is rejected with cursor on the card field and the input cleared
+    given:
+      entry: reenter
+      commarea: *search
+      files:
+        CARDDAT: *cards
+    when:
+      aid: ENTER
+      fields: {ACCTSIDI: "00000000001", CARDSIDI: "4000-0000-0000-0"}
+    then:
+      message: "CARD ID FILTER,IF SUPPLIED MUST BE A 16 DIGIT NUMBER"
+      cursor: CARDSIDL
+      fields:
+        ACCTSIDO: "00000000001"
+        CARDSIDO: LOW-VALUES
+      transfer: {via: RETURN-TRANSID, to: CCDL}
+      file_effects: []
+    source:
+      file: app/cbl/COCRDSLC.cbl
+      lines: [706, 715]
+
+  - id: COCRDSLC-013
+    summary: invalid account plus blank card shows only the account message; the card field still gets a star
+    given:
+      entry: reenter
+      commarea: *search
+      files:
+        CARDDAT: *cards
+    when:
+      aid: ENTER
+      fields: {ACCTSIDI: "ABC", CARDSIDI: ""}
+    then:
+      message: "ACCOUNT FILTER,IF SUPPLIED MUST BE A 11 DIGIT NUMBER"
+      cursor: ACCTSIDL
+      fields:
+        CARDSIDO: "*"
+      transfer: {via: RETURN-TRANSID, to: CCDL}
+      file_effects: []
+    source:
+      file: app/cbl/COCRDSLC.cbl
+      lines: [665, 674]
+
+  - id: COCRDSLC-014
+    summary: a valid account that does not own the card still shows the card (lookup is by card number only)
+    given:
+      entry: reenter
+      commarea: *search
+      files:
+        CARDDAT: *cards
+    when:
+      aid: ENTER
+      fields: {ACCTSIDI: "00000000002", CARDSIDI: "4000000000000002"}
+    then:
+      message: null
+      cursor: ACCTSIDL
+      fields:
+        ACCTSIDO: "00000000002"
+        CARDSIDO: "4000000000000002"
+        CRDNAMEO: "John Smith"
+        INFOMSGO: "   Displaying requested details"
+      transfer: {via: RETURN-TRANSID, to: CCDL}
+      file_effects: []
+    source:
+      file: app/cbl/COCRDSLC.cbl
+      lines: [736, 754]
+
+  - id: COCRDSLC-015
+    summary: a well-formed card number that is not on file shows the not-found message with both keys kept
+    given:
+      entry: reenter
+      commarea: *search
+      files:
+        CARDDAT: *cards
+    when:
+      aid: ENTER
+      fields: {ACCTSIDI: "00000000001", CARDSIDI: "4000000000000099"}
+    then:
+      message: "Did not find cards for this search condition"
+      cursor: ACCTSIDL
+      fields:
+        ACCTSIDO: "00000000001"
+        CARDSIDO: "4000000000000099"
+        CRDNAMEO: LOW-VALUES
+        INFOMSGO: "Please enter Account and Card Number"
+      transfer: {via: RETURN-TRANSID, to: CCDL}
+      file_effects: []
+    source:
+      file: app/cbl/COCRDSLC.cbl
+      lines: [755, 761]
+
+  - id: COCRDSLC-016
+    summary: a CARDDAT read error other than NOTFND shows the formatted file error
+    given:
+      entry: reenter
+      commarea: *search
+      files:
+        CARDDAT: *cards
+      file_conditions:
+        - {file: CARDDAT, op: READ, resp: IOERR}
+    when:
+      aid: ENTER
+      fields: {ACCTSIDI: "00000000001", CARDSIDI: "4000000000000002"}
+    then:
+      message: "File Error: {ERROR-OPNAME} on {ERROR-FILE} returned RESP {ERROR-RESP},RESP2 {ERROR-RESP2}"
+      cursor: ACCTSIDL
+      transfer: {via: RETURN-TRANSID, to: CCDL}
+      file_effects: []
+    source:
+      file: app/cbl/COCRDSLC.cbl
+      lines: [762, 771]
+
+  - id: COCRDSLC-017
+    summary: PF3 after arriving from the card list returns to COCRDLIC and resets user type to 'U'
+    given:
+      entry: reenter
+      commarea:
+        CDEMO-FROM-PROGRAM: COCRDLIC
+        CDEMO-FROM-TRANID: CCLI
+        CDEMO-PGM-CONTEXT: 1
+        CDEMO-USER-ID: ADMIN001
+        CDEMO-USER-TYPE: A
+        CDEMO-LAST-MAPSET: COCRDLI
+        CDEMO-ACCT-ID: "00000000001"
+        CDEMO-CARD-NUM: "4000000000000002"
+      files:
+        CARDDAT: *cards
+    when:
+      aid: PF3
+      fields: {ACCTSIDI: "00000000001", CARDSIDI: "4000000000000002"}
+    then:
+      message: null
+      transfer: {via: XCTL, to: COCRDLIC}
+      commarea:
+        CDEMO-TO-PROGRAM: COCRDLIC
+        CDEMO-TO-TRANID: CCLI
+        CDEMO-FROM-PROGRAM: COCRDSLC
+        CDEMO-FROM-TRANID: CCDL
+        CDEMO-USER-ID: ADMIN001
+        CDEMO-USER-TYPE: U
+        CDEMO-PGM-CONTEXT: 0
+        CDEMO-LAST-MAPSET: COCRDSL
+        CDEMO-LAST-MAP: CCRDSLA
+        CDEMO-ACCT-ID: "00000000001"
+        CDEMO-CARD-NUM: "4000000000000002"
+      file_effects: []
+    source:
+      file: app/cbl/COCRDSLC.cbl
+      lines: [305, 334]
+
+  - id: COCRDSLC-018
+    summary: PF3 when no calling program is recorded (first entry or menu arrival) returns to the main menu
+    given:
+      entry: reenter
+      commarea: *search
+      files:
+        CARDDAT: *cards
+    when:
+      aid: PF3
+      fields: {ACCTSIDI: "", CARDSIDI: ""}
+    then:
+      message: null
+      transfer: {via: XCTL, to: COMEN01C}
+      commarea:
+        CDEMO-TO-PROGRAM: COMEN01C
+        CDEMO-TO-TRANID: CM00
+        CDEMO-FROM-PROGRAM: COCRDSLC
+        CDEMO-FROM-TRANID: CCDL
+        CDEMO-USER-TYPE: U
+        CDEMO-PGM-CONTEXT: 0
+      file_effects: []
+    source:
+      file: app/cbl/COCRDSLC.cbl
+      lines: [308, 321]
+
+  - id: COCRDSLC-019
+    summary: an unmapped key (PF8) is treated as ENTER and runs the search
+    given:
+      entry: reenter
+      commarea: *search
+      files:
+        CARDDAT: *cards
+    when:
+      aid: PF8
+      fields: {ACCTSIDI: "00000000001", CARDSIDI: "4000000000000002"}
+    then:
+      message: null
+      cursor: ACCTSIDL
+      fields:
+        CRDNAMEO: "John Smith"
+        INFOMSGO: "   Displaying requested details"
+      transfer: {via: RETURN-TRANSID, to: CCDL}
+      file_effects: []
+    source:
+      file: app/cbl/COCRDSLC.cbl
+      lines: [291, 299]
+
+  - id: COCRDSLC-020
+    summary: CDEMO-PGM-CONTEXT other than 0/1 ends the conversation with plain text (not the map's message field)
+    given:
+      entry: reenter
+      commarea:
+        CDEMO-FROM-PROGRAM: COCRDLIC
+        CDEMO-PGM-CONTEXT: 5
+      files:
+        CARDDAT: *cards
+    when:
+      aid: ENTER
+      fields: {}
+    then:
+      message: "UNEXPECTED DATA SCENARIO"
+      transfer: {via: SEND-TEXT, to: null}
+      file_effects: []
+    source:
+      file: app/cbl/COCRDSLC.cbl
+      lines: [373, 380]
+
+  - id: COCRDSLC-021
+    summary: ENTER on a detail screen reached from the list re-reads the same card from the protected key fields
+    given:
+      entry: reenter
+      commarea:
+        CDEMO-FROM-PROGRAM: COCRDLIC
+        CDEMO-FROM-TRANID: CCLI
+        CDEMO-PGM-CONTEXT: 1
+        CDEMO-LAST-MAPSET: COCRDLI
+        CDEMO-ACCT-ID: "00000000002"
+        CDEMO-CARD-NUM: "4000000000000005"
+      files:
+        CARDDAT: *cards
+    when:
+      aid: ENTER
+      fields: {ACCTSIDI: "00000000002", CARDSIDI: "4000000000000005"}
+    then:
+      message: null
+      cursor: ACCTSIDL
+      fields:
+        ACCTSIDO: "00000000002"
+        CARDSIDO: "4000000000000005"
+        CRDNAMEO: "MARY MAJOR"
+        CRDSTCDO: "N"
+        INFOMSGO: "   Displaying requested details"
+      transfer: {via: RETURN-TRANSID, to: CCDL}
+      commarea:
+        CDEMO-FROM-PROGRAM: COCRDLIC
+        CDEMO-PGM-CONTEXT: 1
+      file_effects: []
+    source:
+      file: app/cbl/COCRDSLC.cbl
+      lines: [357, 369]

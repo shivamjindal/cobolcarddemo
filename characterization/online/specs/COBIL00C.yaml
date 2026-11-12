@@ -1,0 +1,645 @@
+# COBIL00C characterization spec. Derived from reading source, not executed.
+# See ../SCHEMA.md. Conventions for values are in `notes`.
+program: COBIL00C
+transaction: CB00
+screen:
+  mapset: COBIL00
+  map: COBIL0A
+evidence: derived
+sources: [app/cbl/COBIL00C.cbl, app/bms/COBIL00.bms, app/cpy-bms/COBIL00.CPY, app/cpy/COCOM01Y.cpy, app/cpy/CVACT01Y.cpy,
+  app/cpy/CVACT03Y.cpy, app/cpy/CVTRA05Y.cpy, app/cpy/CSDAT01Y.cpy, app/cpy/CSMSG01Y.cpy, app/csd/CARDDEMO.CSD]
+files:
+- name: ACCTDAT
+  ops: [READ-UPDATE, REWRITE]
+  key: ACCT-ID
+- name: CXACAIX
+  ops: [READ]
+  key: XREF-ACCT-ID
+- name: TRANSACT
+  ops: [STARTBR, READPREV, ENDBR, WRITE]
+  key: TRAN-ID
+navigation:
+- to: COSGN00C
+  via: XCTL
+  when: started without a COMMAREA (EIBCALEN = 0), lines 106-108
+- to: COMEN01C
+  via: XCTL
+  when: PF3; goes to CDEMO-FROM-PROGRAM, COMEN01C when blank (the menu is the only caller), lines 128-135
+- to: CB00
+  via: RETURN-TRANSID
+  when: end of every task, lines 146-149
+notes: ['Value conventions: field and record values are shown without trailing pad spaces; "" means the field is
+    all spaces or LOW-VALUES. Numeric record fields are written as decimal strings (e.g. TRAN-AMT "12.50"). Input
+    values are the full field content as BMS delivers it: default JUSTIFY=(LEFT,BLANK) pads short input with trailing
+    spaces, which is why several IS NUMERIC checks reject short entries.', 'A {NAME} placeholder inside a message
+    or a record value is a runtime value. {} marks the seam between two adjacent STRING literals and renders as
+    the empty string, because the schema''s fragment check cannot match two literals that the COBOL concatenates
+    with no variable between them. A runner should treat {NAME} and {} as wildcards. This is the same convention
+    COACTVWC.yaml uses.', 'CICS RESP branches other than NORMAL/NOTFND/ENDFILE/DUPKEY (I/O errors, DISABLED files)
+    cannot be set up through `given.files`, so they are listed here instead of as cases.', 'Unlike COTRN02C, SEND-BILLPAY-SCREEN
+    (lines 288-301) does not RETURN, so processing continues after an error send. Several sends can happen in one
+    task, and the terminal shows the last one.', 'Latent bug (lines 210-236): after READ-CXACAIX-FILE the error
+    flag is never re-checked. If the account has no xref record, or the NONUNIQUEKEY AIX returns DUPKEY for an account
+    with several cards (app/jcl/XREFFILE.jcl line 75), the error is sent but the WRITE and REWRITE still run. The
+    WRITE''s success message then overwrites the screen. On NOTFND, TRAN-CARD-NUM comes from an uninitialised CARD-XREF-RECORD.
+    On DUPKEY, CICS still returns the first card''s record.', 'The payment always equals the full current balance
+    (line 224 TRAN-AMT = ACCT-CURR-BAL), and the new balance is ACCT-CURR-BAL - TRAN-AMT (line 234). TRAN-AMT is
+    S9(09)V99 while ACCT-CURR-BAL is S9(10)V99. A balance of 1,000,000,000.00 or more loses its high-order digit
+    in TRAN-AMT, and the account keeps that remainder.', 'Payment record (lines 218-232): INITIALIZE TRAN-RECORD;
+    TRAN-ID = last TRAN-ID + 1 (STARTBR HIGH-VALUES, READPREV, ENDBR, lines 212-217); TRAN-TYPE-CD ''02''; TRAN-CAT-CD
+    2 (0002); TRAN-SOURCE ''POS TERM''; TRAN-DESC ''BILL PAYMENT - ONLINE''; TRAN-AMT = balance; TRAN-CARD-NUM =
+    XREF-CARD-NUM; TRAN-MERCHANT-ID 999999999; TRAN-MERCHANT-NAME ''BILL PAYMENT''; TRAN-MERCHANT-CITY and ZIP ''N/A''.
+    TRAN-ORIG-TS and TRAN-PROC-TS both get the CICS ASKTIME/FORMATTIME timestamp ''YYYY-MM-DD HH:MM:SS.000000''
+    (lines 249-266). The fraction is always zero.', 'Success message: green (ERRMSGC = DFHGREEN, line 526). It renders
+    as ''Payment successful.  Your Transaction ID is 0000000000000023.'', with two spaces after the first period.
+    WRITE-TRANSACT-FILE sends it (line 532) and line 242 sends it again after the REWRITE.', 'Ordering: the TRANSACT
+    WRITE happens before the ACCTDAT REWRITE, and there is no SYNCPOINT or error rollback in the program. If the
+    REWRITE fails (''Unable to Update Account...'', lines 396-402), the payment record stays written. Whether CICS
+    backs it out depends on the file''s recovery attributes, and the CSD defines RECOVERY(NONE).', 'ACCTDAT is read
+    with UPDATE (line 351) even when only showing the balance (confirmation blank), so the record is locked until
+    the task''s RETURN.', 'The confirmation is evaluated before the balance check. ''N'' or ''n'' clears the screen
+    and sets the error flag, with no message (lines 178-181). Blank or LOW-VALUES reads the account and asks to
+    confirm. Any other value is rejected without reading ACCTDAT. For both ''N'' and invalid values, lines 192-193
+    then move the never-read ACCT-CURR-BAL into CURBALI after the screen was already sent, which has no visible
+    effect.', 'Account id is not validated as numeric. ACTIDINI X(11) is moved straight into ACCT-ID 9(11) and XREF-ACCT-ID
+    (line 170). Short or non-numeric input most likely misses on READ and shows ''Account ID NOT found...''. This
+    is inferred, not traced.', 'Arrival with CDEMO-CB00-TRN-SELECTED (lines 116-121) prefills the account and runs
+    ENTER processing, then line 122 sends the screen a second time. No program in this repo XCTLs here with that
+    field set.', 'I/O error branches: ACCTDAT READ ''Unable to lookup Account...'' (lines 365-371); REWRITE NOTFND
+    ''Account ID NOT found...'', other ''Unable to Update Account...'' (390-402); CXACAIX other ''Unable to lookup
+    XREF AIX file...'' (429-436); STARTBR NOTFND ''Transaction ID NOT found...'', other ''Unable to lookup Transaction...''
+    (454-466, 488-495); WRITE DUPKEY/DUPREC ''Tran ID already exist...'', other ''Unable to Add Bill pay Transaction...''
+    (533-546). All put the cursor on ACTIDINL. None of them stops the rest of the payment path.']
+cases:
+- id: COBIL00C-001
+  summary: no COMMAREA (EIBCALEN = 0) sends the user to sign-on
+  given:
+    entry: first-time
+  when:
+    aid: ENTER
+  then:
+    message: null
+    transfer:
+      via: XCTL
+      to: COSGN00C
+    file_effects: []
+  source:
+    file: app/cbl/COBIL00C.cbl
+    lines: [106, 108]
+- id: COBIL00C-002
+  summary: arrival from the menu shows an empty bill-pay screen
+  given:
+    entry: xctl-from
+    commarea:
+      CDEMO-PGM-CONTEXT: 0
+      CDEMO-FROM-PROGRAM: COMEN01C
+      CDEMO-FROM-TRANID: CM00
+      CDEMO-CB00-TRN-SELECTED: ''
+    files:
+      ACCTDAT:
+      - {ACCT-ID: '00000000001', ACCT-ACTIVE-STATUS: 'Y', ACCT-CURR-BAL: '1500.75', ACCT-CREDIT-LIMIT: '5000.00'}
+      - {ACCT-ID: '00000000002', ACCT-ACTIVE-STATUS: 'Y', ACCT-CURR-BAL: '0.00', ACCT-CREDIT-LIMIT: '5000.00'}
+      - {ACCT-ID: '00000000003', ACCT-ACTIVE-STATUS: 'Y', ACCT-CURR-BAL: '-10.00', ACCT-CREDIT-LIMIT: '5000.00'}
+      CXACAIX:
+      - {XREF-CARD-NUM: '4111111111111111', XREF-CUST-ID: '000000001', XREF-ACCT-ID: '00000000001'}
+      TRANSACT:
+      - {TRAN-ID: '0000000000000022', TRAN-TYPE-CD: '01', TRAN-CAT-CD: '0001', TRAN-AMT: '22.00'}
+  when:
+    aid: ENTER
+  then:
+    message: null
+    cursor: ACTIDINL
+    fields:
+      ACTIDINO: ''
+      CURBALO: ''
+      CONFIRMO: ''
+    transfer:
+      via: RETURN-TRANSID
+      to: CB00
+    commarea:
+      CDEMO-PGM-CONTEXT: 1
+    file_effects: []
+  source:
+    file: app/cbl/COBIL00C.cbl
+    lines: [112, 122]
+- id: COBIL00C-003
+  summary: arrival with CDEMO-CB00-TRN-SELECTED set uses it as the account id, shows the balance and asks for confirmation
+  given:
+    entry: xctl-from
+    commarea:
+      CDEMO-PGM-CONTEXT: 0
+      CDEMO-FROM-PROGRAM: COMEN01C
+      CDEMO-FROM-TRANID: CM00
+      CDEMO-CB00-TRN-SELECTED: '00000000001'
+    files:
+      ACCTDAT:
+      - {ACCT-ID: '00000000001', ACCT-ACTIVE-STATUS: 'Y', ACCT-CURR-BAL: '1500.75', ACCT-CREDIT-LIMIT: '5000.00'}
+      - {ACCT-ID: '00000000002', ACCT-ACTIVE-STATUS: 'Y', ACCT-CURR-BAL: '0.00', ACCT-CREDIT-LIMIT: '5000.00'}
+      - {ACCT-ID: '00000000003', ACCT-ACTIVE-STATUS: 'Y', ACCT-CURR-BAL: '-10.00', ACCT-CREDIT-LIMIT: '5000.00'}
+      CXACAIX:
+      - {XREF-CARD-NUM: '4111111111111111', XREF-CUST-ID: '000000001', XREF-ACCT-ID: '00000000001'}
+      TRANSACT:
+      - {TRAN-ID: '0000000000000022', TRAN-TYPE-CD: '01', TRAN-CAT-CD: '0001', TRAN-AMT: '22.00'}
+  when:
+    aid: ENTER
+  then:
+    message: Confirm to make a bill payment...
+    cursor: CONFIRML
+    fields:
+      ACTIDINO: '00000000001'
+      CURBALO: '+0000001500.75'
+    transfer:
+      via: RETURN-TRANSID
+      to: CB00
+    file_effects: []
+  source:
+    file: app/cbl/COBIL00C.cbl
+    lines: [116, 121]
+- id: COBIL00C-004
+  summary: PF3 returns to the program in CDEMO-FROM-PROGRAM
+  given:
+    entry: reenter
+    commarea:
+      CDEMO-PGM-CONTEXT: 1
+      CDEMO-FROM-PROGRAM: COMEN01C
+  when:
+    aid: PF3
+  then:
+    message: null
+    transfer:
+      via: XCTL
+      to: COMEN01C
+    commarea:
+      CDEMO-FROM-PROGRAM: COBIL00C
+      CDEMO-FROM-TRANID: CB00
+      CDEMO-PGM-CONTEXT: 0
+    file_effects: []
+  source:
+    file: app/cbl/COBIL00C.cbl
+    lines: [128, 135]
+- id: COBIL00C-005
+  summary: PF4 clears the account, balance and confirmation fields
+  given:
+    entry: reenter
+    commarea:
+      CDEMO-PGM-CONTEXT: 1
+      CDEMO-FROM-PROGRAM: COMEN01C
+  when:
+    aid: PF4
+    fields:
+      ACTIDINI: '00000000001'
+      CURBALI: '+0000001500.75'
+      CONFIRMI: 'Y'
+  then:
+    message: null
+    cursor: ACTIDINL
+    fields:
+      ACTIDINO: ''
+      CURBALO: ''
+      CONFIRMO: ''
+    transfer:
+      via: RETURN-TRANSID
+      to: CB00
+    file_effects: []
+  source:
+    file: app/cbl/COBIL00C.cbl
+    lines: [136, 137]
+- id: COBIL00C-006
+  summary: any other attention key shows the invalid-key message
+  given:
+    entry: reenter
+    commarea:
+      CDEMO-PGM-CONTEXT: 1
+      CDEMO-FROM-PROGRAM: COMEN01C
+  when:
+    aid: OTHER
+  then:
+    message: Invalid key pressed. Please see below...
+    transfer:
+      via: RETURN-TRANSID
+      to: CB00
+    file_effects: []
+  source:
+    file: app/cbl/COBIL00C.cbl
+    lines: [138, 141]
+- id: COBIL00C-007
+  summary: blank account id
+  given:
+    entry: reenter
+    commarea:
+      CDEMO-PGM-CONTEXT: 1
+      CDEMO-FROM-PROGRAM: COMEN01C
+    files:
+      ACCTDAT:
+      - {ACCT-ID: '00000000001', ACCT-ACTIVE-STATUS: 'Y', ACCT-CURR-BAL: '1500.75', ACCT-CREDIT-LIMIT: '5000.00'}
+      - {ACCT-ID: '00000000002', ACCT-ACTIVE-STATUS: 'Y', ACCT-CURR-BAL: '0.00', ACCT-CREDIT-LIMIT: '5000.00'}
+      - {ACCT-ID: '00000000003', ACCT-ACTIVE-STATUS: 'Y', ACCT-CURR-BAL: '-10.00', ACCT-CREDIT-LIMIT: '5000.00'}
+      CXACAIX:
+      - {XREF-CARD-NUM: '4111111111111111', XREF-CUST-ID: '000000001', XREF-ACCT-ID: '00000000001'}
+      TRANSACT:
+      - {TRAN-ID: '0000000000000022', TRAN-TYPE-CD: '01', TRAN-CAT-CD: '0001', TRAN-AMT: '22.00'}
+  when:
+    aid: ENTER
+    fields:
+      ACTIDINI: ''
+      CONFIRMI: ''
+  then:
+    message: Acct ID can NOT be empty...
+    cursor: ACTIDINL
+    transfer:
+      via: RETURN-TRANSID
+      to: CB00
+    file_effects: []
+  source:
+    file: app/cbl/COBIL00C.cbl
+    lines: [159, 164]
+- id: COBIL00C-008
+  summary: account id not in ACCTDAT
+  given:
+    entry: reenter
+    commarea:
+      CDEMO-PGM-CONTEXT: 1
+      CDEMO-FROM-PROGRAM: COMEN01C
+    files:
+      ACCTDAT:
+      - {ACCT-ID: '00000000001', ACCT-ACTIVE-STATUS: 'Y', ACCT-CURR-BAL: '1500.75', ACCT-CREDIT-LIMIT: '5000.00'}
+      - {ACCT-ID: '00000000002', ACCT-ACTIVE-STATUS: 'Y', ACCT-CURR-BAL: '0.00', ACCT-CREDIT-LIMIT: '5000.00'}
+      - {ACCT-ID: '00000000003', ACCT-ACTIVE-STATUS: 'Y', ACCT-CURR-BAL: '-10.00', ACCT-CREDIT-LIMIT: '5000.00'}
+      CXACAIX:
+      - {XREF-CARD-NUM: '4111111111111111', XREF-CUST-ID: '000000001', XREF-ACCT-ID: '00000000001'}
+      TRANSACT:
+      - {TRAN-ID: '0000000000000022', TRAN-TYPE-CD: '01', TRAN-CAT-CD: '0001', TRAN-AMT: '22.00'}
+  when:
+    aid: ENTER
+    fields:
+      ACTIDINI: 00000000099
+      CONFIRMI: ''
+  then:
+    message: Account ID NOT found...
+    cursor: ACTIDINL
+    transfer:
+      via: RETURN-TRANSID
+      to: CB00
+    file_effects: []
+  source:
+    file: app/cbl/COBIL00C.cbl
+    lines: [359, 364]
+- id: COBIL00C-009
+  summary: 'account with a positive balance, confirmation blank: shows the balance and asks to confirm'
+  given:
+    entry: reenter
+    commarea:
+      CDEMO-PGM-CONTEXT: 1
+      CDEMO-FROM-PROGRAM: COMEN01C
+    files:
+      ACCTDAT:
+      - {ACCT-ID: '00000000001', ACCT-ACTIVE-STATUS: 'Y', ACCT-CURR-BAL: '1500.75', ACCT-CREDIT-LIMIT: '5000.00'}
+      - {ACCT-ID: '00000000002', ACCT-ACTIVE-STATUS: 'Y', ACCT-CURR-BAL: '0.00', ACCT-CREDIT-LIMIT: '5000.00'}
+      - {ACCT-ID: '00000000003', ACCT-ACTIVE-STATUS: 'Y', ACCT-CURR-BAL: '-10.00', ACCT-CREDIT-LIMIT: '5000.00'}
+      CXACAIX:
+      - {XREF-CARD-NUM: '4111111111111111', XREF-CUST-ID: '000000001', XREF-ACCT-ID: '00000000001'}
+      TRANSACT:
+      - {TRAN-ID: '0000000000000022', TRAN-TYPE-CD: '01', TRAN-CAT-CD: '0001', TRAN-AMT: '22.00'}
+  when:
+    aid: ENTER
+    fields:
+      ACTIDINI: '00000000001'
+      CONFIRMI: ''
+  then:
+    message: Confirm to make a bill payment...
+    cursor: CONFIRML
+    fields:
+      CURBALO: '+0000001500.75'
+    transfer:
+      via: RETURN-TRANSID
+      to: CB00
+    file_effects: []
+  source:
+    file: app/cbl/COBIL00C.cbl
+    lines: [237, 242]
+- id: COBIL00C-010
+  summary: 'zero balance: nothing to pay'
+  given:
+    entry: reenter
+    commarea:
+      CDEMO-PGM-CONTEXT: 1
+      CDEMO-FROM-PROGRAM: COMEN01C
+    files:
+      ACCTDAT:
+      - {ACCT-ID: '00000000001', ACCT-ACTIVE-STATUS: 'Y', ACCT-CURR-BAL: '1500.75', ACCT-CREDIT-LIMIT: '5000.00'}
+      - {ACCT-ID: '00000000002', ACCT-ACTIVE-STATUS: 'Y', ACCT-CURR-BAL: '0.00', ACCT-CREDIT-LIMIT: '5000.00'}
+      - {ACCT-ID: '00000000003', ACCT-ACTIVE-STATUS: 'Y', ACCT-CURR-BAL: '-10.00', ACCT-CREDIT-LIMIT: '5000.00'}
+      CXACAIX:
+      - {XREF-CARD-NUM: '4111111111111111', XREF-CUST-ID: '000000001', XREF-ACCT-ID: '00000000001'}
+      TRANSACT:
+      - {TRAN-ID: '0000000000000022', TRAN-TYPE-CD: '01', TRAN-CAT-CD: '0001', TRAN-AMT: '22.00'}
+  when:
+    aid: ENTER
+    fields:
+      ACTIDINI: '00000000002'
+      CONFIRMI: ''
+  then:
+    message: You have nothing to pay...
+    cursor: ACTIDINL
+    fields:
+      CURBALO: '+0000000000.00'
+    transfer:
+      via: RETURN-TRANSID
+      to: CB00
+    file_effects: []
+  source:
+    file: app/cbl/COBIL00C.cbl
+    lines: [197, 205]
+- id: COBIL00C-011
+  summary: negative (credit) balance also counts as nothing to pay
+  given:
+    entry: reenter
+    commarea:
+      CDEMO-PGM-CONTEXT: 1
+      CDEMO-FROM-PROGRAM: COMEN01C
+    files:
+      ACCTDAT:
+      - {ACCT-ID: '00000000001', ACCT-ACTIVE-STATUS: 'Y', ACCT-CURR-BAL: '1500.75', ACCT-CREDIT-LIMIT: '5000.00'}
+      - {ACCT-ID: '00000000002', ACCT-ACTIVE-STATUS: 'Y', ACCT-CURR-BAL: '0.00', ACCT-CREDIT-LIMIT: '5000.00'}
+      - {ACCT-ID: '00000000003', ACCT-ACTIVE-STATUS: 'Y', ACCT-CURR-BAL: '-10.00', ACCT-CREDIT-LIMIT: '5000.00'}
+      CXACAIX:
+      - {XREF-CARD-NUM: '4111111111111111', XREF-CUST-ID: '000000001', XREF-ACCT-ID: '00000000001'}
+      TRANSACT:
+      - {TRAN-ID: '0000000000000022', TRAN-TYPE-CD: '01', TRAN-CAT-CD: '0001', TRAN-AMT: '22.00'}
+  when:
+    aid: ENTER
+    fields:
+      ACTIDINI: '00000000003'
+      CONFIRMI: ''
+  then:
+    message: You have nothing to pay...
+    cursor: ACTIDINL
+    fields:
+      CURBALO: '-0000000010.00'
+    transfer:
+      via: RETURN-TRANSID
+      to: CB00
+    file_effects: []
+  source:
+    file: app/cbl/COBIL00C.cbl
+    lines: [197, 205]
+- id: COBIL00C-012
+  summary: confirmation 'Y' on a zero balance still says nothing to pay and writes nothing
+  given:
+    entry: reenter
+    commarea:
+      CDEMO-PGM-CONTEXT: 1
+      CDEMO-FROM-PROGRAM: COMEN01C
+    files:
+      ACCTDAT:
+      - {ACCT-ID: '00000000001', ACCT-ACTIVE-STATUS: 'Y', ACCT-CURR-BAL: '1500.75', ACCT-CREDIT-LIMIT: '5000.00'}
+      - {ACCT-ID: '00000000002', ACCT-ACTIVE-STATUS: 'Y', ACCT-CURR-BAL: '0.00', ACCT-CREDIT-LIMIT: '5000.00'}
+      - {ACCT-ID: '00000000003', ACCT-ACTIVE-STATUS: 'Y', ACCT-CURR-BAL: '-10.00', ACCT-CREDIT-LIMIT: '5000.00'}
+      CXACAIX:
+      - {XREF-CARD-NUM: '4111111111111111', XREF-CUST-ID: '000000001', XREF-ACCT-ID: '00000000001'}
+      TRANSACT:
+      - {TRAN-ID: '0000000000000022', TRAN-TYPE-CD: '01', TRAN-CAT-CD: '0001', TRAN-AMT: '22.00'}
+  when:
+    aid: ENTER
+    fields:
+      ACTIDINI: '00000000002'
+      CONFIRMI: 'Y'
+  then:
+    message: You have nothing to pay...
+    cursor: ACTIDINL
+    transfer:
+      via: RETURN-TRANSID
+      to: CB00
+    file_effects: []
+  source:
+    file: app/cbl/COBIL00C.cbl
+    lines: [197, 205]
+- id: COBIL00C-013
+  summary: confirmation other than Y/N
+  given:
+    entry: reenter
+    commarea:
+      CDEMO-PGM-CONTEXT: 1
+      CDEMO-FROM-PROGRAM: COMEN01C
+    files:
+      ACCTDAT:
+      - {ACCT-ID: '00000000001', ACCT-ACTIVE-STATUS: 'Y', ACCT-CURR-BAL: '1500.75', ACCT-CREDIT-LIMIT: '5000.00'}
+      - {ACCT-ID: '00000000002', ACCT-ACTIVE-STATUS: 'Y', ACCT-CURR-BAL: '0.00', ACCT-CREDIT-LIMIT: '5000.00'}
+      - {ACCT-ID: '00000000003', ACCT-ACTIVE-STATUS: 'Y', ACCT-CURR-BAL: '-10.00', ACCT-CREDIT-LIMIT: '5000.00'}
+      CXACAIX:
+      - {XREF-CARD-NUM: '4111111111111111', XREF-CUST-ID: '000000001', XREF-ACCT-ID: '00000000001'}
+      TRANSACT:
+      - {TRAN-ID: '0000000000000022', TRAN-TYPE-CD: '01', TRAN-CAT-CD: '0001', TRAN-AMT: '22.00'}
+  when:
+    aid: ENTER
+    fields:
+      ACTIDINI: '00000000001'
+      CONFIRMI: X
+  then:
+    message: Invalid value. Valid values are (Y/N)...
+    cursor: CONFIRML
+    transfer:
+      via: RETURN-TRANSID
+      to: CB00
+    file_effects: []
+  source:
+    file: app/cbl/COBIL00C.cbl
+    lines: [184, 190]
+- id: COBIL00C-014
+  summary: 'confirmation ''N'' cancels: the screen is cleared with no message'
+  given:
+    entry: reenter
+    commarea:
+      CDEMO-PGM-CONTEXT: 1
+      CDEMO-FROM-PROGRAM: COMEN01C
+    files:
+      ACCTDAT:
+      - {ACCT-ID: '00000000001', ACCT-ACTIVE-STATUS: 'Y', ACCT-CURR-BAL: '1500.75', ACCT-CREDIT-LIMIT: '5000.00'}
+      - {ACCT-ID: '00000000002', ACCT-ACTIVE-STATUS: 'Y', ACCT-CURR-BAL: '0.00', ACCT-CREDIT-LIMIT: '5000.00'}
+      - {ACCT-ID: '00000000003', ACCT-ACTIVE-STATUS: 'Y', ACCT-CURR-BAL: '-10.00', ACCT-CREDIT-LIMIT: '5000.00'}
+      CXACAIX:
+      - {XREF-CARD-NUM: '4111111111111111', XREF-CUST-ID: '000000001', XREF-ACCT-ID: '00000000001'}
+      TRANSACT:
+      - {TRAN-ID: '0000000000000022', TRAN-TYPE-CD: '01', TRAN-CAT-CD: '0001', TRAN-AMT: '22.00'}
+  when:
+    aid: ENTER
+    fields:
+      ACTIDINI: '00000000001'
+      CONFIRMI: 'N'
+  then:
+    message: null
+    cursor: ACTIDINL
+    fields:
+      ACTIDINO: ''
+      CURBALO: ''
+      CONFIRMO: ''
+    transfer:
+      via: RETURN-TRANSID
+      to: CB00
+    file_effects: []
+  source:
+    file: app/cbl/COBIL00C.cbl
+    lines: [178, 181]
+- id: COBIL00C-015
+  summary: 'confirmation ''Y'' pays the full balance: a type 02 / category 2 transaction is written with id = last
+    + 1, and the account balance is rewritten as balance - amount (0.00)'
+  given:
+    entry: reenter
+    commarea:
+      CDEMO-PGM-CONTEXT: 1
+      CDEMO-FROM-PROGRAM: COMEN01C
+    files:
+      ACCTDAT:
+      - {ACCT-ID: '00000000001', ACCT-ACTIVE-STATUS: 'Y', ACCT-CURR-BAL: '1500.75', ACCT-CREDIT-LIMIT: '5000.00'}
+      - {ACCT-ID: '00000000002', ACCT-ACTIVE-STATUS: 'Y', ACCT-CURR-BAL: '0.00', ACCT-CREDIT-LIMIT: '5000.00'}
+      - {ACCT-ID: '00000000003', ACCT-ACTIVE-STATUS: 'Y', ACCT-CURR-BAL: '-10.00', ACCT-CREDIT-LIMIT: '5000.00'}
+      CXACAIX:
+      - {XREF-CARD-NUM: '4111111111111111', XREF-CUST-ID: '000000001', XREF-ACCT-ID: '00000000001'}
+      TRANSACT:
+      - {TRAN-ID: '0000000000000022', TRAN-TYPE-CD: '01', TRAN-CAT-CD: '0001', TRAN-AMT: '22.00'}
+  when:
+    aid: ENTER
+    fields:
+      ACTIDINI: '00000000001'
+      CONFIRMI: 'Y'
+  then:
+    message: Payment successful. {} Your Transaction ID is {TRAN-ID}.
+    cursor: ACTIDINL
+    fields:
+      ACTIDINO: ''
+      CURBALO: ''
+      CONFIRMO: ''
+    transfer:
+      via: RETURN-TRANSID
+      to: CB00
+    file_effects:
+    - file: TRANSACT
+      op: WRITE
+      record:
+        TRAN-ID: '0000000000000023'
+        TRAN-TYPE-CD: '02'
+        TRAN-CAT-CD: '0002'
+        TRAN-SOURCE: POS TERM
+        TRAN-DESC: BILL PAYMENT - ONLINE
+        TRAN-AMT: '1500.75'
+        TRAN-MERCHANT-ID: '999999999'
+        TRAN-MERCHANT-NAME: BILL PAYMENT
+        TRAN-MERCHANT-CITY: N/A
+        TRAN-MERCHANT-ZIP: N/A
+        TRAN-CARD-NUM: '4111111111111111'
+        TRAN-ORIG-TS: '{ASKTIME-YYYY-MM-DD} {ASKTIME-HH:MM:SS}.000000'
+        TRAN-PROC-TS: '{ASKTIME-YYYY-MM-DD} {ASKTIME-HH:MM:SS}.000000'
+    - file: ACCTDAT
+      op: REWRITE
+      record: {ACCT-ID: '00000000001', ACCT-ACTIVE-STATUS: 'Y', ACCT-CURR-BAL: '0.00', ACCT-CREDIT-LIMIT: '5000.00'}
+  source:
+    file: app/cbl/COBIL00C.cbl
+    lines: [210, 236]
+- id: COBIL00C-016
+  summary: lower-case 'y' confirms too
+  given:
+    entry: reenter
+    commarea:
+      CDEMO-PGM-CONTEXT: 1
+      CDEMO-FROM-PROGRAM: COMEN01C
+    files:
+      ACCTDAT:
+      - {ACCT-ID: '00000000001', ACCT-ACTIVE-STATUS: 'Y', ACCT-CURR-BAL: '1500.75', ACCT-CREDIT-LIMIT: '5000.00'}
+      - {ACCT-ID: '00000000002', ACCT-ACTIVE-STATUS: 'Y', ACCT-CURR-BAL: '0.00', ACCT-CREDIT-LIMIT: '5000.00'}
+      - {ACCT-ID: '00000000003', ACCT-ACTIVE-STATUS: 'Y', ACCT-CURR-BAL: '-10.00', ACCT-CREDIT-LIMIT: '5000.00'}
+      CXACAIX:
+      - {XREF-CARD-NUM: '4111111111111111', XREF-CUST-ID: '000000001', XREF-ACCT-ID: '00000000001'}
+      TRANSACT:
+      - {TRAN-ID: '0000000000000022', TRAN-TYPE-CD: '01', TRAN-CAT-CD: '0001', TRAN-AMT: '22.00'}
+  when:
+    aid: ENTER
+    fields:
+      ACTIDINI: '00000000001'
+      CONFIRMI: 'y'
+  then:
+    message: Payment successful. {} Your Transaction ID is {TRAN-ID}.
+    cursor: ACTIDINL
+    fields:
+      ACTIDINO: ''
+      CURBALO: ''
+      CONFIRMO: ''
+    transfer:
+      via: RETURN-TRANSID
+      to: CB00
+    file_effects:
+    - file: TRANSACT
+      op: WRITE
+      record:
+        TRAN-ID: '0000000000000023'
+        TRAN-TYPE-CD: '02'
+        TRAN-CAT-CD: '0002'
+        TRAN-SOURCE: POS TERM
+        TRAN-DESC: BILL PAYMENT - ONLINE
+        TRAN-AMT: '1500.75'
+        TRAN-MERCHANT-ID: '999999999'
+        TRAN-MERCHANT-NAME: BILL PAYMENT
+        TRAN-MERCHANT-CITY: N/A
+        TRAN-MERCHANT-ZIP: N/A
+        TRAN-CARD-NUM: '4111111111111111'
+        TRAN-ORIG-TS: '{ASKTIME-YYYY-MM-DD} {ASKTIME-HH:MM:SS}.000000'
+        TRAN-PROC-TS: '{ASKTIME-YYYY-MM-DD} {ASKTIME-HH:MM:SS}.000000'
+    - file: ACCTDAT
+      op: REWRITE
+      record: {ACCT-ID: '00000000001', ACCT-ACTIVE-STATUS: 'Y', ACCT-CURR-BAL: '0.00', ACCT-CREDIT-LIMIT: '5000.00'}
+  source:
+    file: app/cbl/COBIL00C.cbl
+    lines: [173, 176]
+- id: COBIL00C-017
+  summary: 'latent bug: the account has no CXACAIX entry, yet the payment is still written (card number uninitialised)
+    and the balance zeroed; the ''Account ID NOT found...'' send is overwritten by the success message'
+  given:
+    entry: reenter
+    commarea:
+      CDEMO-PGM-CONTEXT: 1
+      CDEMO-FROM-PROGRAM: COMEN01C
+    files:
+      ACCTDAT:
+      - {ACCT-ID: '00000000001', ACCT-ACTIVE-STATUS: 'Y', ACCT-CURR-BAL: '1500.75', ACCT-CREDIT-LIMIT: '5000.00'}
+      - {ACCT-ID: '00000000002', ACCT-ACTIVE-STATUS: 'Y', ACCT-CURR-BAL: '0.00', ACCT-CREDIT-LIMIT: '5000.00'}
+      - {ACCT-ID: '00000000003', ACCT-ACTIVE-STATUS: 'Y', ACCT-CURR-BAL: '-10.00', ACCT-CREDIT-LIMIT: '5000.00'}
+      CXACAIX: []
+      TRANSACT:
+      - {TRAN-ID: '0000000000000022', TRAN-TYPE-CD: '01', TRAN-CAT-CD: '0001', TRAN-AMT: '22.00'}
+  when:
+    aid: ENTER
+    fields:
+      ACTIDINI: '00000000001'
+      CONFIRMI: 'Y'
+  then:
+    message: Payment successful. {} Your Transaction ID is {TRAN-ID}.
+    cursor: ACTIDINL
+    fields:
+      ACTIDINO: ''
+      CURBALO: ''
+      CONFIRMO: ''
+    transfer:
+      via: RETURN-TRANSID
+      to: CB00
+    file_effects:
+    - file: TRANSACT
+      op: WRITE
+      record:
+        TRAN-ID: '0000000000000023'
+        TRAN-TYPE-CD: '02'
+        TRAN-CAT-CD: '0002'
+        TRAN-SOURCE: POS TERM
+        TRAN-DESC: BILL PAYMENT - ONLINE
+        TRAN-AMT: '1500.75'
+        TRAN-MERCHANT-ID: '999999999'
+        TRAN-MERCHANT-NAME: BILL PAYMENT
+        TRAN-MERCHANT-CITY: N/A
+        TRAN-MERCHANT-ZIP: N/A
+        TRAN-CARD-NUM: '{UNINITIALISED-XREF-CARD-NUM}'
+        TRAN-ORIG-TS: '{ASKTIME-YYYY-MM-DD} {ASKTIME-HH:MM:SS}.000000'
+        TRAN-PROC-TS: '{ASKTIME-YYYY-MM-DD} {ASKTIME-HH:MM:SS}.000000'
+    - file: ACCTDAT
+      op: REWRITE
+      record: {ACCT-ID: '00000000001', ACCT-ACTIVE-STATUS: 'Y', ACCT-CURR-BAL: '0.00', ACCT-CREDIT-LIMIT: '5000.00'}
+  source:
+    file: app/cbl/COBIL00C.cbl
+    lines: [210, 236]

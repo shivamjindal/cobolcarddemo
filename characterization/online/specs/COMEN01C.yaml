@@ -1,0 +1,329 @@
+program: COMEN01C
+transaction: CM00
+screen:
+  mapset: COMEN01
+  map: COMEN1A
+evidence: derived
+sources:
+  - app/cbl/COMEN01C.cbl
+  - app/cpy/COMEN02Y.cpy
+  - app/cpy/COCOM01Y.cpy
+  - app/cpy/CSMSG01Y.cpy
+  - app/bms/COMEN01.bms
+  - app/csd/CARDDEMO.CSD
+files: []
+navigation:
+  - to: COSGN00C
+    via: XCTL
+    when: EIBCALEN = 0 (lines 82-84) or PF3 (lines 96-98). RETURN-TO-SIGNON-SCREEN XCTLs with no COMMAREA (lines 196-203), so the sign-on screen starts fresh.
+  - to: COACTVWC
+    via: XCTL
+    when: option 1 (Account View), COMMAREA passed
+  - to: COACTUPC
+    via: XCTL
+    when: option 2 (Account Update)
+  - to: COCRDLIC
+    via: XCTL
+    when: option 3 (Credit Card List)
+  - to: COCRDSLC
+    via: XCTL
+    when: option 4 (Credit Card View)
+  - to: COCRDUPC
+    via: XCTL
+    when: option 5 (Credit Card Update)
+  - to: COTRN00C
+    via: XCTL
+    when: option 6 (Transaction List)
+  - to: COTRN01C
+    via: XCTL
+    when: option 7 (Transaction View)
+  - to: COTRN02C
+    via: XCTL
+    when: option 8 (Transaction Add)
+  - to: CORPT00C
+    via: XCTL
+    when: option 9 (Transaction Reports)
+  - to: COBIL00C
+    via: XCTL
+    when: option 10 (Bill Payment)
+  - to: CM00
+    via: RETURN-TRANSID
+    when: every path that displays the menu, COMMAREA passed (lines 107-110)
+notes:
+  - Field values are written right-trimmed. Menu lines are built as CDEMO-MENU-OPT-NUM (PIC 9(02), zero-padded) + '. ' + CDEMO-MENU-OPT-NAME (lines 269-272).
+  - The option table is app/cpy/COMEN02Y.cpy with CDEMO-MENU-OPT-COUNT = 11 (line 21). The OCCURS is 12 (line 94), but only 11 entries hold data, so OPTN012O is never set.
+  - "Option 11 targets COPAUS0C (COMEN02Y.cpy lines 86-90). Before transferring, the program issues EXEC CICS INQUIRE PROGRAM ... NOHANDLE (lines 146-151). COPAUS0C is not defined in app/csd/CARDDEMO.CSD and its source lives in app/app-authorization-ims-db2-mq/cbl/, outside app/cbl. In the base install the INQUIRE fails and the red 'not installed' message shows (case COMEN01C-009). The installed path XCTLs to COPAUS0C with FROM-TRANID CM00, FROM-PROGRAM COMEN01C, PGM-CONTEXT 0 (lines 152-159). The schema cannot express it because the validator accepts only programs in app/cbl or CSD transids as transfer targets."
+  - "Admin-only gating (lines 136-143) applies only when CDEMO-USRTYP-USER ('U') picks an entry whose CDEMO-MENU-OPT-USRTYPE is 'A'. Every entry in the shipped COMEN02Y has 'U'. Option 8 was once admin-only, and its old name is commented out at COMEN02Y.cpy line 69. So the 'No access - Admin Only option... ' message is unreachable with the shipped table and no case asserts it. A user of type 'A' or any other value is never gated."
+  - "The 'DUMMY' branch (lines 169-176) is unreachable because no program name in COMEN02Y starts with DUMMY. If it were reached, the option name is DELIMITED BY SPACE and the next literal has no leading space, so the text would read e.g. 'This option Accountis coming soon ...'."
+  - "Option parsing (lines 117-125). The input is right-trimmed to its last non-space character, moved to a JUST RIGHT X(02), and spaces become zeros. '1', ' 1' and '1 ' all mean option 01. OPTIONO echoes the normalized 2-digit value on the error screen."
+  - "After an invalid option the menu is sent (line 133), but execution continues to the admin gate at line 136. That gate subscripts CDEMO-MENU-OPT-USRTYPE with the invalid WS-OPTION (0, 12-99, or non-numeric). This is an out-of-range table reference reading neighbouring storage. If that byte happened to be 'A' for a 'U' user, a second SEND would overwrite the message with 'No access - Admin Only option... '. The spec assumes the normal single-send outcome."
+  - "The not-installed message for option 11 is DFHRED (line 162). The success-path messages have no colour assertion because the schema has no attribute field."
+  - The menu RECEIVEs the map for every AID on re-entry (line 92), including PF3 and invalid keys.
+  - There is no user-type check on entry. Any caller passing a COMMAREA gets the regular menu. COSGN00C routes only non-'A' users here, and nothing in COADM01C links to this program.
+  - SEND MAP has no CURSOR option (lines 215-220), so the cursor always lands on the BMS IC field OPTION (app/bms/COMEN01.bms line 145). No case asserts a cursor.
+  - "EIBCALEN = 0 moves 'COSGN00C' to CDEMO-FROM-PROGRAM (line 83), not CDEMO-TO-PROGRAM. RETURN-TO-SIGNON-SCREEN then relies on CDEMO-TO-PROGRAM being LOW-VALUES or SPACES in fresh working storage (line 198) to default to COSGN00C."
+cases:
+  - id: COMEN01C-001
+    summary: direct start with no COMMAREA (EIBCALEN = 0) transfers to sign-on
+    given:
+      entry: first-time
+    when:
+      aid: ENTER
+      fields: {}
+    then:
+      message: null
+      transfer: {via: XCTL, to: COSGN00C}
+      file_effects: []
+    source:
+      file: app/cbl/COMEN01C.cbl
+      lines: [82, 84]
+
+  - id: COMEN01C-002
+    summary: arriving from sign-on (PGM-CONTEXT 0) displays the 11-option menu and marks the COMMAREA as re-entered
+    given:
+      entry: xctl-from
+      commarea:
+        CDEMO-FROM-PROGRAM: COSGN00C
+        CDEMO-FROM-TRANID: CC00
+        CDEMO-USER-ID: USER0001
+        CDEMO-USER-TYPE: U
+        CDEMO-PGM-CONTEXT: 0
+    when:
+      aid: ENTER
+      fields: {}
+    then:
+      message: null
+      fields:
+        TRNNAMEO: CM00
+        PGMNAMEO: COMEN01C
+        OPTN001O: "01. Account View"
+        OPTN002O: "02. Account Update"
+        OPTN003O: "03. Credit Card List"
+        OPTN004O: "04. Credit Card View"
+        OPTN005O: "05. Credit Card Update"
+        OPTN006O: "06. Transaction List"
+        OPTN007O: "07. Transaction View"
+        OPTN008O: "08. Transaction Add"
+        OPTN009O: "09. Transaction Reports"
+        OPTN010O: "10. Bill Payment"
+        OPTN011O: "11. Pending Authorization View"
+      transfer: {via: RETURN-TRANSID, to: CM00}
+      commarea:
+        CDEMO-PGM-CONTEXT: 1
+      file_effects: []
+    source:
+      file: app/cbl/COMEN01C.cbl
+      lines: [86, 90]
+
+  - id: COMEN01C-003
+    summary: option 1 transfers to Account View with this program recorded as the origin
+    given:
+      entry: reenter
+      commarea: {CDEMO-USER-ID: USER0001, CDEMO-USER-TYPE: U, CDEMO-PGM-CONTEXT: 1}
+    when:
+      aid: ENTER
+      fields:
+        OPTIONI: "1"
+    then:
+      message: null
+      transfer: {via: XCTL, to: COACTVWC}
+      commarea:
+        CDEMO-FROM-TRANID: CM00
+        CDEMO-FROM-PROGRAM: COMEN01C
+        CDEMO-PGM-CONTEXT: 0
+        CDEMO-USER-ID: USER0001
+        CDEMO-USER-TYPE: U
+      file_effects: []
+    source:
+      file: app/cbl/COMEN01C.cbl
+      lines: [177, 187]
+
+  - id: COMEN01C-004
+    summary: a right-justified two-digit entry ' 6' is normalized to 06 and transfers to Transaction List
+    given:
+      entry: reenter
+      commarea: {CDEMO-USER-TYPE: U, CDEMO-PGM-CONTEXT: 1}
+    when:
+      aid: ENTER
+      fields:
+        OPTIONI: " 6"
+    then:
+      message: null
+      transfer: {via: XCTL, to: COTRN00C}
+      commarea: {CDEMO-FROM-TRANID: CM00, CDEMO-FROM-PROGRAM: COMEN01C, CDEMO-PGM-CONTEXT: 0}
+      file_effects: []
+    source:
+      file: app/cbl/COMEN01C.cbl
+      lines: [117, 125]
+
+  - id: COMEN01C-005
+    summary: option 2 transfers to Account Update
+    given:
+      entry: reenter
+      commarea: {CDEMO-USER-TYPE: U, CDEMO-PGM-CONTEXT: 1}
+    when:
+      aid: ENTER
+      fields: {OPTIONI: "2"}
+    then:
+      message: null
+      transfer: {via: XCTL, to: COACTUPC}
+      commarea: {CDEMO-FROM-TRANID: CM00, CDEMO-FROM-PROGRAM: COMEN01C, CDEMO-PGM-CONTEXT: 0}
+      file_effects: []
+    source:
+      file: app/cbl/COMEN01C.cbl
+      lines: [177, 187]
+
+  - id: COMEN01C-006
+    summary: options 3, 4 and 5 transfer to the card programs (option 3 shown; 4 is COCRDSLC, 5 is COCRDUPC)
+    given:
+      entry: reenter
+      commarea: {CDEMO-USER-TYPE: U, CDEMO-PGM-CONTEXT: 1}
+    when:
+      aid: ENTER
+      fields: {OPTIONI: "3"}
+    then:
+      message: null
+      transfer: {via: XCTL, to: COCRDLIC}
+      commarea: {CDEMO-FROM-TRANID: CM00, CDEMO-FROM-PROGRAM: COMEN01C, CDEMO-PGM-CONTEXT: 0}
+      file_effects: []
+    source:
+      file: app/cbl/COMEN01C.cbl
+      lines: [177, 187]
+
+  - id: COMEN01C-007
+    summary: option 8 (Transaction Add, once admin-only) is open to a type 'U' user because its table entry is 'U'
+    given:
+      entry: reenter
+      commarea: {CDEMO-USER-TYPE: U, CDEMO-PGM-CONTEXT: 1}
+    when:
+      aid: ENTER
+      fields: {OPTIONI: "8"}
+    then:
+      message: null
+      transfer: {via: XCTL, to: COTRN02C}
+      commarea: {CDEMO-FROM-TRANID: CM00, CDEMO-FROM-PROGRAM: COMEN01C, CDEMO-PGM-CONTEXT: 0}
+      file_effects: []
+    source:
+      file: app/cbl/COMEN01C.cbl
+      lines: [136, 143]
+
+  - id: COMEN01C-008
+    summary: option 10 transfers to Bill Payment (option 7 is COTRN01C, 9 is CORPT00C)
+    given:
+      entry: reenter
+      commarea: {CDEMO-USER-TYPE: U, CDEMO-PGM-CONTEXT: 1}
+    when:
+      aid: ENTER
+      fields: {OPTIONI: "10"}
+    then:
+      message: null
+      transfer: {via: XCTL, to: COBIL00C}
+      commarea: {CDEMO-FROM-TRANID: CM00, CDEMO-FROM-PROGRAM: COMEN01C, CDEMO-PGM-CONTEXT: 0}
+      file_effects: []
+    source:
+      file: app/cbl/COMEN01C.cbl
+      lines: [177, 187]
+
+  - id: COMEN01C-009
+    summary: "option 11 when COPAUS0C is not installed (base CSD) redisplays the menu in red; the resolved text is 'This option Pending Authorization View is not installed...'"
+    given:
+      entry: reenter
+      commarea: {CDEMO-USER-TYPE: U, CDEMO-PGM-CONTEXT: 1}
+    when:
+      aid: ENTER
+      fields: {OPTIONI: "11"}
+    then:
+      message: "This option {CDEMO-MENU-OPT-NAME} is not installed..."
+      fields:
+        OPTIONO: "11"
+      transfer: {via: RETURN-TRANSID, to: CM00}
+      file_effects: []
+    source:
+      file: app/cbl/COMEN01C.cbl
+      lines: [146, 168]
+
+  - id: COMEN01C-010
+    summary: option number above the table count (12) is rejected
+    given:
+      entry: reenter
+      commarea: {CDEMO-USER-TYPE: U, CDEMO-PGM-CONTEXT: 1}
+    when:
+      aid: ENTER
+      fields: {OPTIONI: "12"}
+    then:
+      message: "Please enter a valid option number..."
+      fields:
+        OPTIONO: "12"
+      transfer: {via: RETURN-TRANSID, to: CM00}
+      file_effects: []
+    source:
+      file: app/cbl/COMEN01C.cbl
+      lines: [127, 134]
+
+  - id: COMEN01C-011
+    summary: option zero is rejected and echoed as 00
+    given:
+      entry: reenter
+      commarea: {CDEMO-USER-TYPE: U, CDEMO-PGM-CONTEXT: 1}
+    when:
+      aid: ENTER
+      fields: {OPTIONI: "0"}
+    then:
+      message: "Please enter a valid option number..."
+      fields:
+        OPTIONO: "00"
+      transfer: {via: RETURN-TRANSID, to: CM00}
+      file_effects: []
+    source:
+      file: app/cbl/COMEN01C.cbl
+      lines: [127, 134]
+
+  - id: COMEN01C-012
+    summary: blank option is rejected
+    given:
+      entry: reenter
+      commarea: {CDEMO-USER-TYPE: U, CDEMO-PGM-CONTEXT: 1}
+    when:
+      aid: ENTER
+      fields: {OPTIONI: ""}
+    then:
+      message: "Please enter a valid option number..."
+      transfer: {via: RETURN-TRANSID, to: CM00}
+      file_effects: []
+    source:
+      file: app/cbl/COMEN01C.cbl
+      lines: [117, 134]
+
+  - id: COMEN01C-013
+    summary: PF3 returns to sign-on without passing a COMMAREA
+    given:
+      entry: reenter
+      commarea: {CDEMO-USER-TYPE: U, CDEMO-PGM-CONTEXT: 1}
+    when:
+      aid: PF3
+      fields: {}
+    then:
+      message: null
+      transfer: {via: XCTL, to: COSGN00C}
+      commarea:
+        CDEMO-TO-PROGRAM: COSGN00C
+      file_effects: []
+    source:
+      file: app/cbl/COMEN01C.cbl
+      lines: [96, 98]
+
+  - id: COMEN01C-014
+    summary: any other key redisplays the menu with the invalid-key message
+    given:
+      entry: reenter
+      commarea: {CDEMO-USER-TYPE: U, CDEMO-PGM-CONTEXT: 1}
+    when:
+      aid: PF7
+      fields: {}
+    then:
+      message: "Invalid key pressed. Please see below..."
+      transfer: {via: RETURN-TRANSID, to: CM00}
+      file_effects: []
+    source:
+      file: app/cbl/COMEN01C.cbl
+      lines: [99, 102]

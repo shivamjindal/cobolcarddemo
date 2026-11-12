@@ -1,0 +1,338 @@
+program: COUSR03C
+transaction: CU03
+screen:
+  mapset: COUSR03
+  map: COUSR3A
+evidence: derived
+sources:
+  - app/cbl/COUSR03C.cbl
+  - app/cpy/CSUSR01Y.cpy
+  - app/cpy/COCOM01Y.cpy
+  - app/cpy/CSMSG01Y.cpy
+  - app/bms/COUSR03.bms
+files:
+  - name: USRSEC
+    ops: [READ-UPDATE, DELETE]
+    key: SEC-USR-ID
+navigation:
+  - to: COSGN00C
+    via: XCTL
+    when: EIBCALEN = 0 (lines 90-92), COMMAREA passed (lines 197-208)
+  - to: COUSR00C
+    via: XCTL
+    when: PF3 when CDEMO-FROM-PROGRAM is COUSR00C, i.e. arrived from the user list (lines 111-118)
+  - to: COADM01C
+    via: XCTL
+    when: PF3 when CDEMO-FROM-PROGRAM is COADM01C or blank (lines 112-113), or PF12 (lines 123-125)
+  - to: CU03
+    via: RETURN-TRANSID
+    when: every path that displays the delete screen (lines 134-137)
+notes:
+  - Field and record values are right-trimmed.
+  - CDEMO-CU03-INFO (lines 50-58) has the same layout as COUSR00C's CDEMO-CU00-INFO. CDEMO-CU03-USR-SELECTED carries the ID chosen on the list. The working storage also declares WS-USR-MODIFIED (lines 45-47), which is never used.
+  - "PF5 deletes whatever ID is in USRIDIN (lines 187-191). It needs no prior ENTER review and asks for no confirmation beyond the PF5 key itself. The FNAME/LNAME/USRTYPE fields are protected display-only (ASKIP in app/bms/COUSR03.bms lines 103-130), and the ID field is unprotected."
+  - "Latent bug. DELETE-USER-INFO runs DELETE-USER-SEC-FILE unconditionally after READ-USER-SEC-FILE (lines 190-191). For an ID not on file, the READ sends 'User ID NOT found...' and the DELETE then runs without a prior READ UPDATE. CICS returns INVREQ, and the final screen says 'Unable to Update User...', which also says 'Update' on a delete screen (case COUSR03C-009). The DELETE NOTFND branch (lines 323-328) is effectively unreachable."
+  - "Cursor in COUSR03C-009. USRIDINL is set to -1 at lines 183 and 291, and FNAMEL at line 334. USRIDIN precedes FNAME in app/bms/COUSR03.bms (lines 85, 103), so symbolic cursor positioning puts the cursor on User ID."
+  - "Multiple SENDs per task. READ NORMAL sends the prompt 'Press PF5 key to delete this user ...' before the fields are moved (lines 281-285). PROCESS-ENTER-KEY sends again with the fields (lines 164-169), and the first-entry path sends a third time (line 105). On PF5 the READ's prompt screen is immediately followed by the delete result screen."
+  - Lookup is case-sensitive with no upper-casing (lines 160, 189).
+  - Unlike COUSR02C, PF3 here does not perform any file action (lines 111-118).
+  - "'Unable to lookup User...' (lines 293-299) shows for other READ errors. On PF5 the DELETE then also fails, ending with 'Unable to Update User...'. No case asserts it because the schema cannot inject a file error."
+  - The invalid-key path (lines 126-129) sets no length to -1, so no cursor is asserted. Message colours (DFHNEUTR prompt, DFHGREEN success) are not asserted because the schema has no attribute field.
+  - There is no user-type check. Any caller with a COMMAREA can delete any user, including the signed-on admin.
+cases:
+  - id: COUSR03C-001
+    summary: direct start with no COMMAREA (EIBCALEN = 0) transfers to sign-on
+    given:
+      entry: first-time
+    when:
+      aid: ENTER
+      fields: {}
+    then:
+      message: null
+      transfer: {via: XCTL, to: COSGN00C}
+      commarea:
+        CDEMO-TO-PROGRAM: COSGN00C
+        CDEMO-FROM-TRANID: CU03
+        CDEMO-FROM-PROGRAM: COUSR03C
+        CDEMO-PGM-CONTEXT: 0
+      file_effects: []
+    source:
+      file: app/cbl/COUSR03C.cbl
+      lines: [90, 92]
+
+  - id: COUSR03C-002
+    summary: arriving from the admin menu with no selection shows an empty screen with the cursor on User ID
+    given:
+      entry: xctl-from
+      commarea: {CDEMO-FROM-PROGRAM: COADM01C, CDEMO-FROM-TRANID: CA00, CDEMO-USER-TYPE: A, CDEMO-PGM-CONTEXT: 0}
+    when:
+      aid: ENTER
+      fields: {}
+    then:
+      message: null
+      cursor: USRIDINL
+      fields:
+        TRNNAMEO: CU03
+        PGMNAMEO: COUSR03C
+      transfer: {via: RETURN-TRANSID, to: CU03}
+      commarea: {CDEMO-PGM-CONTEXT: 1}
+      file_effects: []
+    source:
+      file: app/cbl/COUSR03C.cbl
+      lines: [95, 105]
+
+  - id: COUSR03C-003
+    summary: arriving from the user list with a selected ID shows that user and prompts for PF5
+    given:
+      entry: xctl-from
+      commarea:
+        CDEMO-FROM-PROGRAM: COUSR00C
+        CDEMO-FROM-TRANID: CU00
+        CDEMO-PGM-CONTEXT: 0
+        CDEMO-CU03-USR-SEL-FLG: D
+        CDEMO-CU03-USR-SELECTED: USER0002
+      files:
+        USRSEC:
+          - {SEC-USR-ID: USER0002, SEC-USR-FNAME: AJITH, SEC-USR-LNAME: KUMAR, SEC-USR-PWD: PASSWORD, SEC-USR-TYPE: U}
+    when:
+      aid: ENTER
+      fields: {}
+    then:
+      message: "Press PF5 key to delete this user ..."
+      cursor: USRIDINL
+      fields:
+        USRIDINO: USER0002
+        FNAMEO: AJITH
+        LNAMEO: KUMAR
+        USRTYPEO: U
+      transfer: {via: RETURN-TRANSID, to: CU03}
+      commarea: {CDEMO-PGM-CONTEXT: 1}
+      file_effects: []
+    source:
+      file: app/cbl/COUSR03C.cbl
+      lines: [99, 104]
+
+  - id: COUSR03C-004
+    summary: ENTER with a blank user ID is rejected
+    given:
+      entry: reenter
+      commarea: {CDEMO-PGM-CONTEXT: 1}
+    when:
+      aid: ENTER
+      fields: {USRIDINI: ""}
+    then:
+      message: "User ID can NOT be empty..."
+      cursor: USRIDINL
+      transfer: {via: RETURN-TRANSID, to: CU03}
+      file_effects: []
+    source:
+      file: app/cbl/COUSR03C.cbl
+      lines: [145, 150]
+
+  - id: COUSR03C-005
+    summary: ENTER with an existing user ID shows the record and prompts for PF5
+    given:
+      entry: reenter
+      commarea: {CDEMO-PGM-CONTEXT: 1}
+      files:
+        USRSEC:
+          - {SEC-USR-ID: USER0004, SEC-USR-FNAME: AVERARDO, SEC-USR-LNAME: MAZZI, SEC-USR-PWD: PASSWORD, SEC-USR-TYPE: U}
+    when:
+      aid: ENTER
+      fields: {USRIDINI: USER0004}
+    then:
+      message: "Press PF5 key to delete this user ..."
+      cursor: USRIDINL
+      fields:
+        FNAMEO: AVERARDO
+        LNAMEO: MAZZI
+        USRTYPEO: U
+      transfer: {via: RETURN-TRANSID, to: CU03}
+      file_effects: []
+    source:
+      file: app/cbl/COUSR03C.cbl
+      lines: [156, 169]
+
+  - id: COUSR03C-006
+    summary: ENTER with an unknown user ID blanks the fields and shows the not-found message
+    given:
+      entry: reenter
+      commarea: {CDEMO-PGM-CONTEXT: 1}
+      files:
+        USRSEC:
+          - {SEC-USR-ID: USER0004, SEC-USR-FNAME: AVERARDO, SEC-USR-LNAME: MAZZI, SEC-USR-PWD: PASSWORD, SEC-USR-TYPE: U}
+    when:
+      aid: ENTER
+      fields: {USRIDINI: NOBODY99}
+    then:
+      message: "User ID NOT found..."
+      cursor: USRIDINL
+      fields:
+        FNAMEO: ""
+        LNAMEO: ""
+        USRTYPEO: ""
+      transfer: {via: RETURN-TRANSID, to: CU03}
+      file_effects: []
+    source:
+      file: app/cbl/COUSR03C.cbl
+      lines: [286, 292]
+
+  - id: COUSR03C-007
+    summary: PF5 with a blank user ID is rejected and nothing is deleted
+    given:
+      entry: reenter
+      commarea: {CDEMO-PGM-CONTEXT: 1}
+    when:
+      aid: PF5
+      fields: {USRIDINI: ""}
+    then:
+      message: "User ID can NOT be empty..."
+      cursor: USRIDINL
+      transfer: {via: RETURN-TRANSID, to: CU03}
+      file_effects: []
+    source:
+      file: app/cbl/COUSR03C.cbl
+      lines: [176, 182]
+
+  - id: COUSR03C-008
+    summary: PF5 on an existing ID deletes the record, clears the screen and confirms in green
+    given:
+      entry: reenter
+      commarea: {CDEMO-PGM-CONTEXT: 1}
+      files:
+        USRSEC:
+          - {SEC-USR-ID: USER0004, SEC-USR-FNAME: AVERARDO, SEC-USR-LNAME: MAZZI, SEC-USR-PWD: PASSWORD, SEC-USR-TYPE: U}
+    when:
+      aid: PF5
+      fields: {USRIDINI: USER0004}
+    then:
+      message: "User {SEC-USR-ID} has been deleted ..."
+      cursor: USRIDINL
+      fields:
+        USRIDINO: ""
+        FNAMEO: ""
+        LNAMEO: ""
+        USRTYPEO: ""
+      transfer: {via: RETURN-TRANSID, to: CU03}
+      file_effects:
+        - file: USRSEC
+          op: DELETE
+          record: {SEC-USR-ID: USER0004}
+    source:
+      file: app/cbl/COUSR03C.cbl
+      lines: [313, 322]
+
+  - id: COUSR03C-009
+    summary: PF5 on an ID not on file ends with 'Unable to Update User...' because DELETE runs after the failed READ (see notes)
+    given:
+      entry: reenter
+      commarea: {CDEMO-PGM-CONTEXT: 1}
+      files:
+        USRSEC:
+          - {SEC-USR-ID: USER0004, SEC-USR-FNAME: AVERARDO, SEC-USR-LNAME: MAZZI, SEC-USR-PWD: PASSWORD, SEC-USR-TYPE: U}
+    when:
+      aid: PF5
+      fields: {USRIDINI: NOBODY99}
+    then:
+      message: "Unable to Update User..."
+      cursor: USRIDINL
+      transfer: {via: RETURN-TRANSID, to: CU03}
+      file_effects: []
+    source:
+      file: app/cbl/COUSR03C.cbl
+      lines: [187, 192]
+
+  - id: COUSR03C-010
+    summary: PF3 returns to the user list it came from without deleting
+    given:
+      entry: reenter
+      commarea: {CDEMO-FROM-PROGRAM: COUSR00C, CDEMO-FROM-TRANID: CU00, CDEMO-PGM-CONTEXT: 1}
+      files:
+        USRSEC:
+          - {SEC-USR-ID: USER0004, SEC-USR-FNAME: AVERARDO, SEC-USR-LNAME: MAZZI, SEC-USR-PWD: PASSWORD, SEC-USR-TYPE: U}
+    when:
+      aid: PF3
+      fields: {USRIDINI: USER0004}
+    then:
+      message: null
+      transfer: {via: XCTL, to: COUSR00C}
+      commarea:
+        CDEMO-TO-PROGRAM: COUSR00C
+        CDEMO-FROM-TRANID: CU03
+        CDEMO-FROM-PROGRAM: COUSR03C
+        CDEMO-PGM-CONTEXT: 0
+      file_effects: []
+    source:
+      file: app/cbl/COUSR03C.cbl
+      lines: [111, 118]
+
+  - id: COUSR03C-011
+    summary: PF3 with a blank CDEMO-FROM-PROGRAM defaults to the admin menu
+    given:
+      entry: reenter
+      commarea: {CDEMO-FROM-PROGRAM: "", CDEMO-PGM-CONTEXT: 1}
+    when:
+      aid: PF3
+      fields: {}
+    then:
+      message: null
+      transfer: {via: XCTL, to: COADM01C}
+      file_effects: []
+    source:
+      file: app/cbl/COUSR03C.cbl
+      lines: [112, 113]
+
+  - id: COUSR03C-012
+    summary: PF12 returns to the admin menu
+    given:
+      entry: reenter
+      commarea: {CDEMO-FROM-PROGRAM: COUSR00C, CDEMO-PGM-CONTEXT: 1}
+    when:
+      aid: PF12
+      fields: {USRIDINI: USER0004}
+    then:
+      message: null
+      transfer: {via: XCTL, to: COADM01C}
+      commarea: {CDEMO-TO-PROGRAM: COADM01C, CDEMO-FROM-TRANID: CU03, CDEMO-FROM-PROGRAM: COUSR03C, CDEMO-PGM-CONTEXT: 0}
+      file_effects: []
+    source:
+      file: app/cbl/COUSR03C.cbl
+      lines: [123, 125]
+
+  - id: COUSR03C-013
+    summary: PF4 clears all fields and the message, cursor to User ID
+    given:
+      entry: reenter
+      commarea: {CDEMO-PGM-CONTEXT: 1}
+    when:
+      aid: PF4
+      fields: {USRIDINI: USER0004}
+    then:
+      message: null
+      cursor: USRIDINL
+      fields:
+        USRIDINO: ""
+        FNAMEO: ""
+        LNAMEO: ""
+        USRTYPEO: ""
+      transfer: {via: RETURN-TRANSID, to: CU03}
+      file_effects: []
+    source:
+      file: app/cbl/COUSR03C.cbl
+      lines: [341, 356]
+
+  - id: COUSR03C-014
+    summary: any other key shows the invalid-key message
+    given:
+      entry: reenter
+      commarea: {CDEMO-PGM-CONTEXT: 1}
+    when:
+      aid: PF8
+      fields: {}
+    then:
+      message: "Invalid key pressed. Please see below..."
+      transfer: {via: RETURN-TRANSID, to: CU03}
+      file_effects: []
+    source:
+      file: app/cbl/COUSR03C.cbl
+      lines: [126, 129]
