@@ -1,0 +1,14 @@
+<html xmlns:th="http://www.thymeleaf.org" th:replace="~{layout :: screen('Bill Payment', ~{::main}, ~{::nav})}">
+<main>
+    <div class="fields">
+        <th:block th:replace="~{fields :: field('ACTIDIN', 'Enter Acct ID:', 11)}"></th:block>
+        <th:block th:replace="~{fields :: text('CURBAL', 'Your current balance is:')}"></th:block>
+        <th:block th:replace="~{fields :: field('CONFIRM', 'Do you want to pay your balance now. Please confirm (Y/N):', 1)}"></th:block>
+    </div>
+</main>
+<nav class="keys">
+    <button name="aid" value="ENTER">ENTER=Continue</button>
+    <button name="aid" value="PF3">F3=Back</button>
+    <button name="aid" value="PF4">F4=Clear</button>
+</nav>
+</html>
