@@ -61,7 +61,7 @@ notes: ['Value conventions: field and record values are shown without trailing p
     stop. A WRITEQ failure part-way through shows ''Unable to Write TDQ (JOBS)...'' (lines 528-534) after some cards
     were already queued, and they are not removed.', 'Monthly and Yearly ignore the custom date fields. If several
     of Monthly, Yearly and Custom are marked, the first in that order wins (lines 212-256). Any non-blank character
-    marks a type.']
+    marks a type.', 'The Java slice replays this spec with deliberate differences listed, each with its reason, in carddemo-java/src/test/resources/spec-overrides/CORPT00C.yaml.']
 cases:
 - id: CORPT00C-001
   summary: no COMMAREA (EIBCALEN = 0) sends the user to sign-on

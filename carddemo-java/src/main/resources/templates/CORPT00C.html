@@ -1,0 +1,20 @@
+<html xmlns:th="http://www.thymeleaf.org" th:replace="~{layout :: screen('Transaction Reports', ~{::main}, ~{::nav})}">
+<main>
+    <div class="fields">
+        <th:block th:replace="~{fields :: field('MONTHLY', 'Monthly (Current Month)', 1)}"></th:block>
+        <th:block th:replace="~{fields :: field('YEARLY', 'Yearly (Current Year)', 1)}"></th:block>
+        <th:block th:replace="~{fields :: field('CUSTOM', 'Custom (Date Range)', 1)}"></th:block>
+        <th:block th:replace="~{fields :: field('SDTMM', 'Start Date (MM):', 2)}"></th:block>
+        <th:block th:replace="~{fields :: field('SDTDD', 'Start Date (DD):', 2)}"></th:block>
+        <th:block th:replace="~{fields :: field('SDTYYYY', 'Start Date (YYYY):', 4)}"></th:block>
+        <th:block th:replace="~{fields :: field('EDTMM', 'End Date (MM):', 2)}"></th:block>
+        <th:block th:replace="~{fields :: field('EDTDD', 'End Date (DD):', 2)}"></th:block>
+        <th:block th:replace="~{fields :: field('EDTYYYY', 'End Date (YYYY):', 4)}"></th:block>
+        <th:block th:replace="~{fields :: field('CONFIRM', 'The Report will be submitted for printing. Please confirm (Y/N):', 1)}"></th:block>
+    </div>
+</main>
+<nav class="keys">
+    <button name="aid" value="ENTER">ENTER=Continue</button>
+    <button name="aid" value="PF3">F3=Back</button>
+</nav>
+</html>

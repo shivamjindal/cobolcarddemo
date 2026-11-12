@@ -44,10 +44,11 @@ Routes: every installed program is `GET`/`POST /screens/<PROGRAM>` (HTML) and `G
 | `card` | COCRDLIC, COCRDSLC, COCRDUPC | 61 passed, 38 overridden, 1 skipped |
 | `transactions` | COTRN00C, COTRN01C, COTRN02C | 65 passed, 12 overridden, 1 skipped |
 | `billpay` | COBIL00C | 14 passed, 2 overridden, 1 skipped |
+| `report-request` | CORPT00C | 21 passed, 5 overridden |
 | others | none yet | not replayed |
 
 - **Replay.** `cd carddemo-java && ./gradlew test`, then read the `[spec-replay]` lines. Overrides and their reasons are in `carddemo-java/src/test/resources/spec-overrides/<PROGRAM>.yaml`.
-- **HTTP.** `python3 scripts/drive_spring.py --out DIR` covers sign-on, the menus, user add, update, delete, and sign-off, then account view and update (group id lands in `acct_group_id`, zip kept, submitted keys and country ignored) and the card list, update and return-to-list as a regular user (CVV kept), then the transaction list, view and add (the next id, the account's card, impossible dates refused) and bill payment (two simultaneous confirmations pay once).
+- **HTTP.** `python3 scripts/drive_spring.py --out DIR` covers sign-on, the menus, user add, update, delete, and sign-off, then account view and update (group id lands in `acct_group_id`, zip kept, submitted keys and country ignored) and the card list, update and return-to-list as a regular user (CVV kept), then the transaction list, view and add (the next id, the account's card, impossible dates refused) and bill payment (two simultaneous confirmations pay once), then a custom report request (an impossible date refused, the confirmed range runs TRANREPT to COMPLETED).
 - **Browser.** `python3 scripts/browser_drive.py --out DIR` covers the same screens with the keyboard and saves screenshots, through account view, the regular-user card list and card update, the transaction list and view, and the bill payment balance.
 - **Proof.** Cite the case id and say "replayed against Java" with its status (passed as written, or the override's reason). The legacy side stays derived.
 
