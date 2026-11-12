@@ -8,6 +8,7 @@ import java.math.BigInteger;
 import java.time.LocalDate;
 import java.time.LocalDateTime;
 import java.time.format.DateTimeFormatter;
+import java.time.format.DateTimeParseException;
 import java.util.List;
 import java.util.Locale;
 
@@ -104,8 +105,7 @@ public record Column(Field field, ColumnKind kind) {
         for (DateTimeFormatter format : TIMESTAMP_FORMATS) {
             try {
                 return LocalDateTime.parse(raw, format);
-            } catch (java.time.format.DateTimeParseException ignored) {
-                // try the next legacy format
+            } catch (DateTimeParseException ignored) {
             }
         }
         throw new IllegalArgumentException("Unrecognized timestamp '" + raw + "'");

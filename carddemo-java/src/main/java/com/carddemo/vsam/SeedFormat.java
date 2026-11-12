@@ -1,6 +1,7 @@
 package com.carddemo.vsam;
 
 import java.io.IOException;
+import java.io.UncheckedIOException;
 import java.nio.charset.Charset;
 import java.nio.charset.StandardCharsets;
 import java.nio.file.Files;
@@ -66,7 +67,7 @@ public enum SeedFormat {
             try {
                 return split(Files.readAllBytes(path), dataset);
             } catch (IOException e) {
-                throw new java.io.UncheckedIOException(e);
+                throw new UncheckedIOException(e);
             }
         });
     }
