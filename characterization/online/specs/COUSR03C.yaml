@@ -39,6 +39,7 @@ notes:
   - "'Unable to lookup User...' (lines 293-299) shows for other READ errors. On PF5 the DELETE then also fails, ending with 'Unable to Update User...'. No case asserts it because the schema cannot inject a file error."
   - The invalid-key path (lines 126-129) sets no length to -1, so no cursor is asserted. Message colours (DFHNEUTR prompt, DFHGREEN success) are not asserted because the schema has no attribute field.
   - There is no user-type check. Any caller with a COMMAREA can delete any user, including the signed-on admin.
+  - The Java slice replays this spec with deliberate differences listed, each with its reason, in carddemo-java/src/test/resources/spec-overrides/COUSR03C.yaml.
 cases:
   - id: COUSR03C-001
     summary: direct start with no COMMAREA (EIBCALEN = 0) transfers to sign-on

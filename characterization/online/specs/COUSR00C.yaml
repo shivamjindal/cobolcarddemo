@@ -49,6 +49,7 @@ notes:
   - "The DISPLAY of RESP/REAS on unexpected errors (lines 607, 642, 676) goes to the CICS job log, not the screen. Those branches show 'Unable to lookup User...'. The schema cannot inject a file error, so no case asserts it."
   - SEND for the PF7/PF8 boundary messages omits ERASE (lines 537-543), so the existing screen content stays and only the message and cursor update.
   - Neither this program nor COADM01C checks CDEMO-USER-TYPE. Any caller with a COMMAREA can list users.
+  - The Java slice replays this spec with deliberate differences listed, each with its reason, in carddemo-java/src/test/resources/spec-overrides/COUSR00C.yaml.
 cases:
   - id: COUSR00C-001
     summary: direct start with no COMMAREA (EIBCALEN = 0) transfers to sign-on

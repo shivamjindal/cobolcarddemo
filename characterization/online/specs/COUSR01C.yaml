@@ -36,6 +36,7 @@ notes:
   - After a successful add, INITIALIZE-ALL-FIELDS blanks the five input fields and the message and sets the cursor to First Name (lines 286-295). The green success message is then set (lines 253-258).
   - There is no user-type check. Any caller with a COMMAREA can add users, including admins (type 'A').
   - The invalid-key path sets the cursor to First Name (line 100) and redisplays whatever was received, without clearing input.
+  - The Java slice replays this spec with deliberate differences listed, each with its reason, in carddemo-java/src/test/resources/spec-overrides/COUSR01C.yaml.
 cases:
   - id: COUSR01C-001
     summary: direct start with no COMMAREA (EIBCALEN = 0) transfers to sign-on

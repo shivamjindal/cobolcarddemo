@@ -43,6 +43,7 @@ notes:
   - Message colours (DFHNEUTR prompt, DFHRED for no-change, DFHGREEN for success) are not asserted because the schema has no attribute field.
   - The invalid-key path (lines 127-130) sets no length to -1. The cursor falls back to the IC field USRIDIN, so no cursor is asserted.
   - There is no user-type check. Any caller with a COMMAREA can update users, including changing a type to 'A'.
+  - The Java slice replays this spec with deliberate differences listed, each with its reason, in carddemo-java/src/test/resources/spec-overrides/COUSR02C.yaml.
 cases:
   - id: COUSR02C-001
     summary: direct start with no COMMAREA (EIBCALEN = 0) transfers to sign-on

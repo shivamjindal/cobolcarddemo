@@ -42,6 +42,7 @@ notes:
   - Option parsing is identical to COMEN01C (lines 121-129). The input is right-trimmed, right-justified into X(02), and spaces become zeros.
   - SEND MAP has no CURSOR option (lines 182-187), so the cursor sits on the BMS IC field OPTION. No case asserts a cursor.
   - The not-installed message is DFHGREEN (lines 151, 272). There is no colour assertion because the schema has no attribute field.
+  - The Java slice replays this spec with deliberate differences listed, each with its reason, in carddemo-java/src/test/resources/spec-overrides/COADM01C.yaml.
 cases:
   - id: COADM01C-001
     summary: direct start with no COMMAREA (EIBCALEN = 0) transfers to sign-on

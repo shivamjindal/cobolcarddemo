@@ -62,6 +62,7 @@ notes:
   - There is no user-type check on entry. Any caller passing a COMMAREA gets the regular menu. COSGN00C routes only non-'A' users here, and nothing in COADM01C links to this program.
   - SEND MAP has no CURSOR option (lines 215-220), so the cursor always lands on the BMS IC field OPTION (app/bms/COMEN01.bms line 145). No case asserts a cursor.
   - "EIBCALEN = 0 moves 'COSGN00C' to CDEMO-FROM-PROGRAM (line 83), not CDEMO-TO-PROGRAM. RETURN-TO-SIGNON-SCREEN then relies on CDEMO-TO-PROGRAM being LOW-VALUES or SPACES in fresh working storage (line 198) to default to COSGN00C."
+  - The Java slice replays this spec with deliberate differences listed, each with its reason, in carddemo-java/src/test/resources/spec-overrides/COMEN01C.yaml.
 cases:
   - id: COMEN01C-001
     summary: direct start with no COMMAREA (EIBCALEN = 0) transfers to sign-on

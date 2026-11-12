@@ -1,0 +1,17 @@
+# Deliberate differences from characterization/online/specs/COSGN00C.yaml, applied by SignonReplayTest.
+# Each entry replaces whole keys of the case's given, when or then.
+COSGN00C-008:
+  reason: Any stored type other than A signs on as a regular user, and the conversation holds only A or U.
+  then:
+    commarea: {CDEMO-USER-TYPE: U}
+COSGN00C-010:
+  reason: Passwords are stored as bcrypt of the upper-cased value (the case rule), so a lower-case password signs on.
+  then:
+    message: null
+    cursor: OPTIONL
+    transfer: {via: XCTL, to: COMEN01C}
+COSGN00C-013:
+  reason: given.file_conditions injects the READ failure that the spec could only describe in its summary.
+  given:
+    file_conditions:
+      - {file: USRSEC, op: READ, resp: IOERR}

@@ -75,7 +75,14 @@ tasks.register<JavaExec>("generateDdl") {
     args(file(migration).absolutePath)
 }
 
+val specs = rootDir.resolve("../characterization/online/specs")
+
 tasks.test {
     useJUnitPlatform()
     systemProperty("carddemo.legacy-app", legacyApp.absolutePath)
+    systemProperty("carddemo.specs", specs.absolutePath)
+    inputs.dir(specs).withPathSensitivity(PathSensitivity.RELATIVE)
+    addTestOutputListener { _, event ->
+        if (event.message.startsWith("[spec-replay]")) logger.lifecycle(event.message.trimEnd())
+    }
 }

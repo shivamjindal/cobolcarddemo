@@ -41,6 +41,7 @@ notes:
   - "The 'Unable to verify the User ...' branch (lines 252-256) fires for any READ response other than NORMAL (0) or NOTFND (13), e.g. file closed or disabled. The schema has no way to inject a file condition, so case COSGN00C-013 states it in the summary only."
   - First entry sends the map and returns with COMMAREA(CARDDEMO-COMMAREA) (lines 98-102), so every later key press arrives with EIBCALEN > 0 even though the COMMAREA content is uninitialized working storage.
   - Seed users from app/jcl/DUSRSECJ.jcl lines 8-17. ADMIN001-ADMIN005 have type A and USER0001-USER0005 type U; all have password PASSWORD.
+  - The Java slice replays this spec with deliberate differences listed, each with its reason, in carddemo-java/src/test/resources/spec-overrides/COSGN00C.yaml.
 cases:
   - id: COSGN00C-001
     summary: first entry (EIBCALEN = 0) shows a blank sign-on screen with the cursor on User ID

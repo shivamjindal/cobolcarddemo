@@ -1,0 +1,13 @@
+# Deliberate differences from characterization/online/specs/COUSR01C.yaml, applied by OnlineSpecReplayTest.
+# Each entry replaces whole keys of the case's given, when or then.
+COUSR01C-010:
+  reason: User type must be A or U (the case rule upper-cases a typed 'u' or 'a'), so 'x' is rejected and nothing is written.
+  then:
+    message: "User Type must be A or U..."
+    cursor: USRTYPEL
+    file_effects: []
+COUSR01C-015:
+  reason: given.file_conditions injects the WRITE failure that the spec could only describe in its summary.
+  given:
+    file_conditions:
+      - {file: USRSEC, op: WRITE, resp: IOERR}
