@@ -56,7 +56,7 @@ notes: ['Value conventions: field and record values are shown without trailing p
     are at the top of the page...'' without setting the error flag, then PROCESS-PAGE-FORWARD issues ENDBR with
     no active browse and no RESP option (lines 693-695). CICS would raise INVREQ there, which likely abends the
     task.', 'I/O error branches: a STARTBR, READNEXT or READPREV RESP other than NORMAL, NOTFND or ENDFILE shows
-    ''Unable to lookup transaction...'' with the cursor on TRNIDINL (lines 612-618, 646-652, 680-686).']
+    ''Unable to lookup transaction...'' with the cursor on TRNIDINL (lines 612-618, 646-652, 680-686).', 'The Java slice replays this spec with deliberate differences listed, each with its reason, in carddemo-java/src/test/resources/spec-overrides/COTRN00C.yaml.']
 cases:
 - id: COTRN00C-001
   summary: no COMMAREA (EIBCALEN = 0) sends the user to sign-on

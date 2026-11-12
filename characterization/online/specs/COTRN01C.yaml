@@ -45,7 +45,7 @@ notes: ['Value conventions: field and record values are shown without trailing p
     X(50) to 30/25.', 'WS-USR-MODIFIED, CDEMO-CT01-TRNID-FIRST/LAST/PAGE-NUM are declared and never used.', 'The
     OTHER branch sets no cursor field (lines 128-131). The cursor position after that SEND CURSOR depends on BMS
     defaults, so the case does not assert one.', 'I/O error branch: a READ RESP other than NORMAL or NOTFND shows
-    ''Unable to lookup Transaction...'' with the cursor on TRNIDINL (lines 288-295).']
+    ''Unable to lookup Transaction...'' with the cursor on TRNIDINL (lines 288-295).', 'The Java slice replays this spec with deliberate differences listed, each with its reason, in carddemo-java/src/test/resources/spec-overrides/COTRN01C.yaml.']
 cases:
 - id: COTRN01C-001
   summary: no COMMAREA (EIBCALEN = 0) sends the user to sign-on

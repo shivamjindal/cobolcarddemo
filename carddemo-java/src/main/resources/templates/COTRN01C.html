@@ -1,0 +1,28 @@
+<html xmlns:th="http://www.thymeleaf.org" th:replace="~{layout :: screen('View Transaction', ~{::main}, ~{::nav})}">
+<main>
+    <div class="fields">
+        <th:block th:replace="~{fields :: field('TRNIDIN', 'Enter Tran ID:', 16)}"></th:block>
+    </div>
+    <div class="fields">
+        <th:block th:replace="~{fields :: text('TRNID', 'Transaction ID:')}"></th:block>
+        <th:block th:replace="~{fields :: text('CARDNUM', 'Card Number:')}"></th:block>
+        <th:block th:replace="~{fields :: text('TTYPCD', 'Type CD:')}"></th:block>
+        <th:block th:replace="~{fields :: text('TCATCD', 'Category CD:')}"></th:block>
+        <th:block th:replace="~{fields :: text('TRNSRC', 'Source:')}"></th:block>
+        <th:block th:replace="~{fields :: text('TDESC', 'Description:')}"></th:block>
+        <th:block th:replace="~{fields :: text('TRNAMT', 'Amount:')}"></th:block>
+        <th:block th:replace="~{fields :: text('TORIGDT', 'Orig Date:')}"></th:block>
+        <th:block th:replace="~{fields :: text('TPROCDT', 'Proc Date:')}"></th:block>
+        <th:block th:replace="~{fields :: text('MID', 'Merchant ID:')}"></th:block>
+        <th:block th:replace="~{fields :: text('MNAME', 'Merchant Name:')}"></th:block>
+        <th:block th:replace="~{fields :: text('MCITY', 'Merchant City:')}"></th:block>
+        <th:block th:replace="~{fields :: text('MZIP', 'Merchant Zip:')}"></th:block>
+    </div>
+</main>
+<nav class="keys">
+    <button name="aid" value="ENTER">ENTER=Fetch</button>
+    <button name="aid" value="PF3">F3=Back</button>
+    <button name="aid" value="PF4">F4=Clear</button>
+    <button name="aid" value="PF5">F5=Browse Tran.</button>
+</nav>
+</html>
