@@ -30,6 +30,8 @@ case "$cmd" in
       --carddemo.base-url="http://localhost:$port" \
       --spring.datasource.url="jdbc:postgresql://localhost:$db_port/carddemo" \
       --carddemo.seed.dir="$repo/app/data/EBCDIC" \
+      --carddemo.batch.daily-feed="$repo/app/data/EBCDIC/AWS.M2.CARDDEMO.DALYTRAN.PS" \
+      --carddemo.batch.spool-dir="$run/spool" \
       --management.info.env.enabled=true \
       --info.app.revision="$(cat "$run/revision")" \
       > "$run/app.log" 2>&1 &

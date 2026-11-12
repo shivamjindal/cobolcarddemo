@@ -15,6 +15,11 @@ public record Account(long id, String activeStatus, BigDecimal currentBalance, B
                 reissueDate, currentCycleCredit, currentCycleDebit, zip, groupId);
     }
 
+    public Account withBalances(BigDecimal balance, BigDecimal cycleCredit, BigDecimal cycleDebit) {
+        return new Account(id, activeStatus, balance, creditLimit, cashCreditLimit, openDate, expirationDate,
+                reissueDate, cycleCredit, cycleDebit, addressZip, groupId);
+    }
+
     public Account withCurrentBalance(BigDecimal balance) {
         return new Account(id, activeStatus, balance, creditLimit, cashCreditLimit, openDate, expirationDate,
                 reissueDate, currentCycleCredit, currentCycleDebit, addressZip, groupId);

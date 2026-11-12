@@ -1,0 +1,14 @@
+# Deliberate differences from characterization/online/specs/CORPT00C.yaml, applied by OnlineSpecReplayTest.
+# Each entry replaces whole keys of the case's given, when or then.
+CORPT00C-004:
+  reason: OTHER stands for any key the program does not handle and is not a key the web screens can send, so the case presses PF5.
+  when:
+    aid: PF5
+CORPT00C-007:
+  reason: A confirmed Monthly request starts TRANREPT through ReportSubmission instead of writing JCL to TDQ JOBS, and ReportRequestTest checks its dates.
+CORPT00C-011:
+  reason: A confirmed Yearly request starts TRANREPT through ReportSubmission instead of writing JCL to TDQ JOBS, and ReportRequestTest checks its dates.
+CORPT00C-025:
+  reason: A confirmed Custom request starts TRANREPT through ReportSubmission instead of writing JCL to TDQ JOBS, and ReportRequestTest checks its dates.
+CORPT00C-026:
+  reason: A confirmed Custom request starts TRANREPT through ReportSubmission instead of writing JCL to TDQ JOBS, and ReportRequestTest checks its dates.

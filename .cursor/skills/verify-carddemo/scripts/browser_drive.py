@@ -98,9 +98,10 @@ def main():
         expect(testid("PGMNAME")).to_have_text("COMEN01C")
         expect(testid("OPTN005")).to_have_text("05. Credit Card Update")
         expect(testid("OPTN006")).to_have_text("06. Transaction List")
-        expect(testid("OPTN009")).to_have_text("10. Bill Payment")
+        expect(testid("OPTN009")).to_have_text("09. Transaction Reports")
+        expect(testid("OPTN010")).to_have_text("10. Bill Payment")
         shot("main-menu", "a regular user lands on the main menu listing the installed account, card,"
-             " transaction and bill payment options")
+             " transaction, report and bill payment options")
 
         testid("OPTION").fill("1")
         page.keyboard.press("Enter")

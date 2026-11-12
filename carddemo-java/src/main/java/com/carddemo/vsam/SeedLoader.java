@@ -30,7 +30,8 @@ public class SeedLoader {
     @Transactional
     public Map<VsamDataset, Integer> load(Path dir, SeedFormat format) {
         String allTables = Arrays.stream(VsamDataset.values()).map(d -> d.table).collect(Collectors.joining(", "));
-        jdbc.execute("TRUNCATE " + allTables);
+        // A fresh TRANSACT makes the outcomes of any earlier feed meaningless.
+        jdbc.execute("TRUNCATE " + allTables + ", daily_rejects");
         Map<VsamDataset, Integer> loaded = new EnumMap<>(VsamDataset.class);
         for (VsamDataset dataset : VsamDataset.values()) {
             Table table = Table.of(dataset);
@@ -39,9 +40,6 @@ public class SeedLoader {
                             dataset == VsamDataset.USERS ? row -> secure(table, row) : row -> row)),
                     () -> log.info("No {} sample file for {}", format, dataset.table));
         }
-        Table transactions = Table.of(VsamDataset.TRANSACTIONS);
-        loaded.merge(VsamDataset.TRANSACTIONS,
-                insert(transactions, format.dailyTransactions(dir), row -> posted(transactions, row)), Integer::sum);
         return loaded;
     }
 
@@ -54,16 +52,6 @@ public class SeedLoader {
         log.info("Loaded {} rows into {} ({} placeholder records skipped)",
                 rows.size(), table.name(), records.size() - rows.size());
         return rows.size();
-    }
-
-    /**
-     * Stands in for POSTTRAN until the batch slice runs it at seed time, so the transaction screens have data:
-     * every daily feed record goes in as posted, processed when it originated. POSTTRAN would reject some of
-     * them and stamp the run time instead.
-     */
-    private static Object[] posted(Table table, Object[] row) {
-        row[table.columnIndex("tran_proc_ts")] = row[table.columnIndex("tran_orig_ts")];
-        return row;
     }
 
     /** USRSEC holds clear-text passwords; V2 stores bcrypt hashes and upper-case IDs. */

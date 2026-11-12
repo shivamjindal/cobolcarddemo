@@ -76,6 +76,21 @@ public record Column(Field field, ColumnKind kind) {
         };
     }
 
+    /** The inverse of {@link #decode}: this column's bytes of the record, timestamps in the sample data's format. */
+    public String encode(Object value) {
+        int length = field.length();
+        String text = switch (kind) {
+            case TEXT -> (String) value;
+            case DATE -> value == null ? "" : value.toString();
+            case TIMESTAMP -> value == null ? "" : TIMESTAMP_FORMATS.getFirst().format((LocalDateTime) value);
+            case INTEGER, DECIMAL -> zoned(value instanceof BigDecimal d ? d : new BigDecimal(value.toString()), numeric());
+        };
+        if (text.length() > length) {
+            throw new IllegalArgumentException(field.name() + " value '" + text + "' is longer than " + length);
+        }
+        return text + " ".repeat(length - text.length());
+    }
+
     private Pic.Numeric numeric() {
         return (Pic.Numeric) field.pic();
     }
@@ -99,6 +114,20 @@ public record Column(Field field, ColumnKind kind) {
         }
         BigDecimal value = new BigDecimal(new BigInteger(digits), pic.scale());
         return negative ? value.negate() : value;
+    }
+
+    static String zoned(BigDecimal value, Pic.Numeric pic) {
+        String digits = value.setScale(pic.scale()).unscaledValue().abs().toString();
+        if (digits.length() > pic.digits() || (value.signum() < 0 && !pic.signed())) {
+            throw new IllegalArgumentException(value + " does not fit " + pic);
+        }
+        digits = "0".repeat(pic.digits() - digits.length()) + digits;
+        if (!pic.signed()) {
+            return digits;
+        }
+        int last = digits.charAt(digits.length() - 1) - '0';
+        char over = (value.signum() < 0 ? "}JKLMNOPQR" : "{ABCDEFGHI").charAt(last);
+        return digits.substring(0, digits.length() - 1) + over;
     }
 
     private static LocalDateTime timestamp(String raw) {
