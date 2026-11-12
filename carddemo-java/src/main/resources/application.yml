@@ -3,3 +3,13 @@ spring:
     url: ${CARDDEMO_DB_URL:jdbc:postgresql://localhost:5432/carddemo}
     username: ${CARDDEMO_DB_USER:carddemo}
     password: ${CARDDEMO_DB_PASSWORD:carddemo}
+
+management:
+  endpoints:
+    web:
+      exposure:
+        include: health, info
+
+# The identity provider's issuer and the app's OIDC redirect URI; browse the app at this address.
+carddemo:
+  base-url: http://localhost:${server.port:8080}

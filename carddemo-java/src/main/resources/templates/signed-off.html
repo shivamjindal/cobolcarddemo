@@ -1,0 +1,16 @@
+<!DOCTYPE html>
+<html lang="en" xmlns:th="http://www.thymeleaf.org">
+<head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <title>Signed off - CardDemo</title>
+    <link rel="stylesheet" th:href="@{/css/screen.css}">
+</head>
+<body>
+<main class="screen">
+    <p class="message info" data-testid="ERRMSG"
+       th:text="${message?.text} ?: 'Thank you for using CardDemo application...'"></p>
+    <p><a th:href="@{/}">Sign on again</a></p>
+</main>
+</body>
+</html>
