@@ -202,6 +202,6 @@ class AccountUpdate implements ScreenProgram {
             case SAVED -> "Changes committed to database";
             case LOCK_FAILED, SAVE_FAILED -> "Changes unsuccessful. Please try again";
         });
-        return new Outcome.Show(fields, message, cursor);
+        return new Outcome.Show(fields, message, cursor, AccountUpdateForm.readOnly(state.phase()));
     }
 }

@@ -3,7 +3,7 @@
     <label th:for="${name}" th:text="${label}"></label>
     <input th:id="${name}" th:name="${name}" th:data-testid="${name}" th:size="${size}" th:maxlength="${size}"
            th:type="${name == 'PASSWD'} ? 'password' : 'text'" th:value="${screen.fields.get(name)}"
-           th:autofocus="${screen.cursor == name}">
+           th:readonly="${screen.readOnly.contains(name)}" th:autofocus="${screen.cursor == name}">
 </th:block>
 
 <th:block th:fragment="text(name, label)">

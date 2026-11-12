@@ -36,6 +36,14 @@ public final class Conversation implements Serializable {
         this.from = program;
     }
 
+    /** The program whose map was sent last, and the values it showed in the fields it protected. */
+    record Protected(Program program, Map<String, String> values) implements Serializable {
+    }
+
+    Optional<Protected> shown() {
+        return get(Protected.class);
+    }
+
     public <T extends Serializable> Optional<T> get(Class<T> type) {
         return Optional.ofNullable(type.cast(state.get(type)));
     }

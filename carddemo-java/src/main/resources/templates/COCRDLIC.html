@@ -14,7 +14,7 @@
                   th:with="sel=|CRDSEL${row}|, card=${screen.fields.get('CRDNUM' + row)}">
             <tr th:unless="${#strings.isEmpty(card)}">
                 <td><input th:id="${sel}" th:name="${sel}" th:data-testid="${sel}" size="1" maxlength="1"
-                           th:value="${screen.fields.get(sel)}" th:autofocus="${screen.cursor == sel}"></td>
+                           th:value="${screen.fields.get(sel)}" th:readonly="${screen.readOnly.contains(sel)}" th:autofocus="${screen.cursor == sel}"></td>
                 <td th:data-testid="|ACCTNO${row}|" th:text="${screen.fields.get('ACCTNO' + row)}"></td>
                 <td><label th:for="${sel}" th:data-testid="|CRDNUM${row}|" th:text="${card}"></label></td>
                 <td th:data-testid="|CRDSTS${row}|" th:text="${screen.fields.get('CRDSTS' + row)}"></td>

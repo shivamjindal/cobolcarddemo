@@ -16,6 +16,7 @@ import java.util.HashMap;
 import java.util.Locale;
 import java.util.Map;
 import java.util.Optional;
+import java.util.Set;
 
 /**
  * COCRDUPC: fetch a card, edit its name, status and expiry, confirm, and save with F5. The phases are
@@ -46,14 +47,35 @@ class CardUpdate implements ScreenProgram {
 
     @Override
     public Outcome arrive(Conversation conversation) {
-        return conversation.take(CardSelection.class)
+        return protect(conversation, conversation.take(CardSelection.class)
                 .map(selected -> fetch(conversation, selected.accountId(), selected.cardNumber()))
-                .orElseGet(() -> blank(conversation));
+                .orElseGet(() -> blank(conversation)));
+    }
+
+    @Override
+    public Outcome receive(Conversation conversation, Aid aid, Map<String, String> fields) {
+        return protect(conversation, handle(conversation, aid, fields));
+    }
+
+    /**
+     * 3300-SETUP-SCREEN-ATTRS: the keys before a card is fetched or after a failed save, the four edits while
+     * editing, nothing in confirmation or after a save. The expiry day is never editable.
+     */
+    private static Outcome protect(Conversation conversation, Outcome outcome) {
+        if (!(outcome instanceof Outcome.Show show)) {
+            return outcome;
+        }
+        CardUpdatePhase phase = conversation.get(CardUpdateState.class).map(CardUpdateState::phase)
+                .orElse(CardUpdatePhase.NOT_FETCHED);
+        return show.protecting(switch (phase) {
+            case NOT_FETCHED, LOCK_FAILED, SAVE_FAILED -> Set.of("CRDNAME", "CRDSTCD", "EXPMON", "EXPYEAR", "EXPDAY");
+            case SHOWN, INVALID -> Set.of("ACCTSID", "CARDSID", "EXPDAY");
+            case CONFIRM, SAVED -> Set.of("ACCTSID", "CARDSID", "CRDNAME", "CRDSTCD", "EXPMON", "EXPYEAR", "EXPDAY");
+        });
     }
 
     /** F5 counts only in CONFIRM and F12 only once a card is fetched; any other key acts as ENTER. */
-    @Override
-    public Outcome receive(Conversation conversation, Aid aid, Map<String, String> fields) {
+    private Outcome handle(Conversation conversation, Aid aid, Map<String, String> fields) {
         if (aid == Aid.PF3) {
             return exit(conversation);
         }
