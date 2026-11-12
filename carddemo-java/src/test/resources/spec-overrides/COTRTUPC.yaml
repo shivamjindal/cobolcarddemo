@@ -1,0 +1,13 @@
+# Deliberate differences from characterization/online/specs/COTRTUPC.yaml.
+COTRTUPC-001:
+  reason: The REST adapter has no signed-on session for a direct transid start, so that entry is not replayed. Arriving from the admin menu is COTRTUPC-002.
+  skip: true
+COTRTUPC-030:
+  reason: A failed update is reported as unsuccessful. The legacy phase evaluate treats it as saved because the failure text overwrites the 88-level before that evaluate runs.
+  then:
+    message: "Error updating:{} TRANSACTION_TYPE Table. SQLCODE:{detail}"
+    fields:
+      TRTYDSCO: "Card purchase"
+      INFOMSGO: "Changes unsuccessful"
+    transfer: {via: RETURN-TRANSID, to: CTTU}
+    file_effects: []

@@ -12,9 +12,9 @@ python3 characterization/online/validate_specs.py    # online spec grounding, ex
 
 | Programs | Evidence | Where |
 | --- | --- | --- |
-| `CBACT01C`, `CBACT02C`, `CBACT03C`, `CBACT04C`, `CBCUS01C`, `CBTRN01C`, `CBTRN02C`, `CBTRN03C`, `CBSTM03A`, `CBSTM03B` | **Executed** by GnuCOBOL 3.1.2 on `app/data/ASCII` fixtures. Outputs are golden masters | `batch/golden/<JOB>/` |
-| `COSGN00C`, `COMEN01C`, `COADM01C`, `COUSR00C`-`COUSR03C`, `COACTVWC`, `COACTUPC`, `COCRDLIC`, `COCRDSLC`, `COCRDUPC`, `COTRN00C`-`COTRN02C`, `COBIL00C`, `CORPT00C` | **Derived** by reading source. Never executed, because CICS is unavailable. The validator checks only that each claim is grounded in real source | `online/specs/<PROGRAM>.yaml` |
-| `CBEXPORT`, `CBIMPORT`, `COBSWAIT`, `CSUTLDTC` (standalone), `app/app-*` optional modules | Not captured | |
+| `CBACT01C`, `CBACT02C`, `CBACT03C`, `CBACT04C`, `CBCUS01C`, `CBTRN01C`, `CBTRN02C`, `CBTRN03C`, `CBSTM03A`, `CBSTM03B`, `COBTUPDT` | **Executed** by GnuCOBOL 3.1.2. `COBTUPDT` is patched so its three `EXEC SQL` statements call the `TRTYPE` stub over the `TRANTYPE` indexed file | `batch/golden/<JOB>/` |
+| `COSGN00C`, `COMEN01C`, `COADM01C`, `COUSR00C`-`COUSR03C`, `COACTVWC`, `COACTUPC`, `COCRDLIC`, `COCRDSLC`, `COCRDUPC`, `COTRN00C`-`COTRN02C`, `COBIL00C`, `CORPT00C`, `COTRTLIC`, `COTRTUPC` | **Derived** by reading source. Never executed, because CICS is unavailable. The validator checks only that each claim is grounded in real source | `online/specs/<PROGRAM>.yaml` |
+| `CBEXPORT`, `CBIMPORT`, `COBSWAIT`, `CSUTLDTC` (standalone), the authorization and VSAM-MQ optional modules | Not captured | |
 
 ## Batch: how faithful the run is
 

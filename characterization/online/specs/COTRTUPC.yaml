@@ -1,0 +1,787 @@
+program: COTRTUPC
+transaction: CTTU
+module: app/app-transaction-type-db2
+screen:
+  mapset: COTRTUP
+  map: CTRTUPA
+evidence: derived
+sources:
+  - app/app-transaction-type-db2/cbl/COTRTUPC.cbl
+  - app/app-transaction-type-db2/bms/COTRTUP.bms
+  - app/app-transaction-type-db2/ddl/TRNTYPE.ddl
+  - app/app-transaction-type-db2/ddl/TRNTYCAT.ddl
+files:
+  - name: TRANSACTION_TYPE
+    ops: [READ, WRITE, REWRITE, DELETE]
+    key: TR_TYPE
+  - name: TRANSACTION_TYPE_CATEGORY
+    ops: [READ]
+    key: TRC_TYPE_CODE
+navigation:
+  - to: COADM01C
+    via: XCTL
+    when: PF3 and the caller is blank or the admin menu (lines 429-460)
+  - to: COTRTLIC
+    via: XCTL
+    when: PF3 and the caller is the list (lines 429-460)
+  - to: CTTU
+    via: RETURN-TRANSID
+    when: every path that sends the map (lines 559-571)
+notes:
+  - "Derived from source, not executed. TTUP-CHANGE-ACTION is the phase: blank search, S details, X not found, R add, N confirm save, 9 confirm delete, C saved, B backed out, E edit error, 7 deleted, 6 delete failed."
+  - "Showing a found type uses the search prompt. The SHOW-DETAILS when falls through to the search-key message (lines 1221-1225)."
+  - "A blank or asterisk type becomes low-values and fails 'Tran Type code must be supplied.' The 'No input received' 88 is not reached, because that message is set only while the return message is still spaces (lines 720-723)."
+  - "A numeric type is zero-padded to two digits (lines 834-841). Zero is rejected."
+  - "F5 on a missing type asks for a description, then confirms, then inserts because the update finds no row (lines 1558-1559)."
+  - "PF6 is on the map and is never a valid key, so it produces 'Invalid key pressed' (lines 582-607)."
+  - "These 88-level messages are never set, so no case produces them: 'Selected transaction type shown above', 'Looks Good.... so far', 'Name can only contain alphabets and spaces', 'PF03 pressed.Exiting', 'Invalid Key pressed. ', 'No input received', 'Record changed by some one else. Please review'. 'Could not lock record for update' is SQLCODE -911, which this port does not inject."
+  - "A failed update overwrites the failure 88 before the phase evaluate, so the source then marks the action saved and the info line says the change was committed (lines 1567-1588). The Java port keeps the failure message and the unsuccessful info. See carddemo-java/src/test/resources/spec-overrides/COTRTUPC.yaml."
+  - "Info text is centered in the 40-byte INFOMSG (lines 1249-1262). The spec asserts the trimmed sentence."
+cases:
+  - id: COTRTUPC-001
+    summary: direct start prompts for a transaction type
+    given:
+      entry: first-time
+    when:
+      aid: ENTER
+      fields: {}
+    then:
+      message: null
+      cursor: TRTYPCDL
+      fields:
+        TRNNAMEO: CTTU
+        PGMNAMEO: COTRTUPC
+        INFOMSGO: "Enter transaction type to be maintained"
+      transfer: {via: RETURN-TRANSID, to: CTTU}
+      file_effects: []
+    source:
+      file: app/app-transaction-type-db2/cbl/COTRTUPC.cbl
+      lines: [465, 478]
+
+  - id: COTRTUPC-002
+    summary: arriving from the admin menu prompts for a type
+    given:
+      entry: xctl-from
+      commarea: {CDEMO-FROM-PROGRAM: COADM01C, CDEMO-FROM-TRANID: CA00, CDEMO-USER-TYPE: A, CDEMO-PGM-CONTEXT: 0}
+    when:
+      aid: ENTER
+      fields: {}
+    then:
+      message: null
+      cursor: TRTYPCDL
+      fields:
+        TRTYPCDO: ""
+        TRTYDSCO: ""
+        INFOMSGO: "Enter transaction type to be maintained"
+      transfer: {via: RETURN-TRANSID, to: CTTU}
+      file_effects: []
+    source:
+      file: app/app-transaction-type-db2/cbl/COTRTUPC.cbl
+      lines: [465, 478]
+
+  - id: COTRTUPC-003
+    summary: arriving from the list also starts at the search prompt
+    given:
+      entry: xctl-from
+      commarea: {CDEMO-FROM-PROGRAM: COTRTLIC, CDEMO-FROM-TRANID: CTLI, CDEMO-PGM-CONTEXT: 0}
+    when:
+      aid: ENTER
+      fields: {}
+    then:
+      message: null
+      fields:
+        INFOMSGO: "Enter transaction type to be maintained"
+      transfer: {via: RETURN-TRANSID, to: CTTU}
+      file_effects: []
+    source:
+      file: app/app-transaction-type-db2/cbl/COTRTUPC.cbl
+      lines: [465, 470]
+
+  - id: COTRTUPC-004
+    summary: PF3 from the admin menu returns there
+    given:
+      entry: reenter
+      commarea: {CDEMO-FROM-PROGRAM: COADM01C, CDEMO-FROM-TRANID: CA00, CDEMO-PGM-CONTEXT: 1, TTUP-CHANGE-ACTION: ""}
+    when:
+      aid: PF3
+      fields: {}
+    then:
+      message: null
+      transfer: {via: XCTL, to: COADM01C}
+      commarea: {CDEMO-FROM-PROGRAM: COTRTUPC, CDEMO-FROM-TRANID: CTTU}
+      file_effects: []
+    source:
+      file: app/app-transaction-type-db2/cbl/COTRTUPC.cbl
+      lines: [429, 460]
+
+  - id: COTRTUPC-005
+    summary: PF3 from the list returns to the list
+    given:
+      entry: reenter
+      commarea: {CDEMO-FROM-PROGRAM: COTRTLIC, CDEMO-FROM-TRANID: CTLI, CDEMO-PGM-CONTEXT: 1, TTUP-CHANGE-ACTION: S}
+    when:
+      aid: PF3
+      fields: {}
+    then:
+      message: null
+      transfer: {via: XCTL, to: COTRTLIC}
+      commarea: {CDEMO-FROM-PROGRAM: COTRTUPC}
+      file_effects: []
+    source:
+      file: app/app-transaction-type-db2/cbl/COTRTUPC.cbl
+      lines: [429, 460]
+
+  - id: COTRTUPC-006
+    summary: a blank type must be supplied, and the field shows an asterisk
+    given:
+      entry: reenter
+      commarea: {CDEMO-FROM-PROGRAM: COADM01C, CDEMO-PGM-CONTEXT: 1, TTUP-CHANGE-ACTION: ""}
+    when:
+      aid: ENTER
+      fields: {TRTYPCDI: ""}
+    then:
+      message: "Tran Type code{} must be supplied."
+      cursor: TRTYPCDL
+      fields:
+        TRTYPCDO: "*"
+        INFOMSGO: "Enter transaction type to be maintained"
+      transfer: {via: RETURN-TRANSID, to: CTTU}
+      file_effects: []
+    source:
+      file: app/app-transaction-type-db2/cbl/COTRTUPC.cbl
+      lines: [911, 928]
+
+  - id: COTRTUPC-007
+    summary: a non-numeric type is rejected
+    given:
+      entry: reenter
+      commarea: {CDEMO-FROM-PROGRAM: COADM01C, CDEMO-PGM-CONTEXT: 1, TTUP-CHANGE-ACTION: ""}
+    when:
+      aid: ENTER
+      fields: {TRTYPCDI: AB}
+    then:
+      message: "Tran Type code{} must be numeric."
+      cursor: TRTYPCDL
+      fields: {TRTYPCDO: AB}
+      transfer: {via: RETURN-TRANSID, to: CTTU}
+      file_effects: []
+    source:
+      file: app/app-transaction-type-db2/cbl/COTRTUPC.cbl
+      lines: [934, 948]
+
+  - id: COTRTUPC-008
+    summary: a zero type is rejected
+    given:
+      entry: reenter
+      commarea: {CDEMO-FROM-PROGRAM: COADM01C, CDEMO-PGM-CONTEXT: 1, TTUP-CHANGE-ACTION: ""}
+    when:
+      aid: ENTER
+      fields: {TRTYPCDI: "00"}
+    then:
+      message: "Tran Type code{} must not be zero."
+      fields: {TRTYPCDO: "00"}
+      transfer: {via: RETURN-TRANSID, to: CTTU}
+      file_effects: []
+    source:
+      file: app/app-transaction-type-db2/cbl/COTRTUPC.cbl
+      lines: [954, 966]
+
+  - id: COTRTUPC-009
+    summary: a one-digit type is zero-padded and the stored description is shown
+    given:
+      entry: reenter
+      commarea: {CDEMO-FROM-PROGRAM: COADM01C, CDEMO-PGM-CONTEXT: 1, TTUP-CHANGE-ACTION: ""}
+      files:
+        TRANSACTION_TYPE:
+          - {TR_TYPE: "01", TR_DESCRIPTION: Purchase}
+    when:
+      aid: ENTER
+      fields: {TRTYPCDI: "1"}
+    then:
+      message: null
+      cursor: TRTYDSCL
+      fields:
+        TRTYPCDO: "01"
+        TRTYDSCO: Purchase
+        INFOMSGO: "Enter transaction type to be maintained"
+      transfer: {via: RETURN-TRANSID, to: CTTU}
+      file_effects: []
+    source:
+      file: app/app-transaction-type-db2/cbl/COTRTUPC.cbl
+      lines: [834, 841]
+
+  - id: COTRTUPC-010
+    summary: a type that is not on file offers F5 to add it
+    given:
+      entry: reenter
+      commarea: {CDEMO-FROM-PROGRAM: COADM01C, CDEMO-PGM-CONTEXT: 1, TTUP-CHANGE-ACTION: ""}
+      files:
+        TRANSACTION_TYPE: []
+    when:
+      aid: ENTER
+      fields: {TRTYPCDI: "99"}
+    then:
+      message: "No record found for this key in database"
+      cursor: TRTYPCDL
+      fields:
+        TRTYPCDO: "99"
+        INFOMSGO: "Press F05 to add. F12 to cancel"
+      transfer: {via: RETURN-TRANSID, to: CTTU}
+      file_effects: []
+    source:
+      file: app/app-transaction-type-db2/cbl/COTRTUPC.cbl
+      lines: [1489, 1494]
+
+  - id: COTRTUPC-011
+    summary: F5 after a missing type asks for the new description
+    given:
+      entry: reenter
+      commarea:
+        CDEMO-FROM-PROGRAM: COADM01C
+        CDEMO-PGM-CONTEXT: 1
+        TTUP-CHANGE-ACTION: X
+        TTUP-NEW-TTYP-TYPE: "99"
+      files:
+        TRANSACTION_TYPE: []
+    when:
+      aid: PF5
+      fields: {TRTYPCDI: "99"}
+    then:
+      message: null
+      cursor: TRTYDSCL
+      fields:
+        TRTYPCDO: "99"
+        INFOMSGO: "Enter new transaction type details."
+      transfer: {via: RETURN-TRANSID, to: CTTU}
+      file_effects: []
+    source:
+      file: app/app-transaction-type-db2/cbl/COTRTUPC.cbl
+      lines: [503, 508]
+
+  - id: COTRTUPC-012
+    summary: a valid new description is ready to save
+    given:
+      entry: reenter
+      commarea:
+        CDEMO-FROM-PROGRAM: COADM01C
+        CDEMO-PGM-CONTEXT: 1
+        TTUP-CHANGE-ACTION: R
+        TTUP-NEW-TTYP-TYPE: "99"
+      files:
+        TRANSACTION_TYPE: []
+    when:
+      aid: ENTER
+      fields: {TRTYPCDI: "99", TRTYDSCI: "Late fee"}
+    then:
+      message: null
+      fields:
+        TRTYPCDO: "99"
+        TRTYDSCO: "Late fee"
+        INFOMSGO: "Changes validated.Press F5 to save"
+      transfer: {via: RETURN-TRANSID, to: CTTU}
+      file_effects: []
+    source:
+      file: app/app-transaction-type-db2/cbl/COTRTUPC.cbl
+      lines: [772, 776]
+
+  - id: COTRTUPC-013
+    summary: F5 inserts the confirmed new type
+    given:
+      entry: reenter
+      commarea:
+        CDEMO-FROM-PROGRAM: COADM01C
+        CDEMO-PGM-CONTEXT: 1
+        TTUP-CHANGE-ACTION: N
+        TTUP-NEW-TTYP-TYPE: "99"
+        TTUP-NEW-TTYP-TYPE-DESC: "Late fee"
+      files:
+        TRANSACTION_TYPE: []
+    when:
+      aid: PF5
+      fields: {TRTYPCDI: "99", TRTYDSCI: "Late fee"}
+    then:
+      message: null
+      fields:
+        TRTYPCDO: "99"
+        TRTYDSCO: "Late fee"
+        INFOMSGO: "Changes committed to database"
+      transfer: {via: RETURN-TRANSID, to: CTTU}
+      file_effects:
+        - file: TRANSACTION_TYPE
+          op: WRITE
+          record: {TR_TYPE: "99", TR_DESCRIPTION: "Late fee"}
+    source:
+      file: app/app-transaction-type-db2/cbl/COTRTUPC.cbl
+      lines: [1558, 1606]
+
+  - id: COTRTUPC-014
+    summary: ENTER on the shown type with the same description reports no change
+    given:
+      entry: reenter
+      commarea:
+        CDEMO-FROM-PROGRAM: COADM01C
+        CDEMO-PGM-CONTEXT: 1
+        TTUP-CHANGE-ACTION: S
+        TTUP-OLD-TTYP-TYPE: "01"
+        TTUP-OLD-TTYP-TYPE-DESC: Purchase
+      files:
+        TRANSACTION_TYPE:
+          - {TR_TYPE: "01", TR_DESCRIPTION: Purchase}
+    when:
+      aid: ENTER
+      fields: {TRTYPCDI: "01", TRTYDSCI: PURCHASE}
+    then:
+      message: "No change detected with respect to values fetched."
+      cursor: TRTYDSCL
+      fields:
+        TRTYPCDO: "01"
+        TRTYDSCO: Purchase
+        INFOMSGO: "Enter transaction type to be maintained"
+      transfer: {via: RETURN-TRANSID, to: CTTU}
+      file_effects: []
+    source:
+      file: app/app-transaction-type-db2/cbl/COTRTUPC.cbl
+      lines: [786, 803]
+
+  - id: COTRTUPC-015
+    summary: a blank description on an existing type must be supplied
+    given:
+      entry: reenter
+      commarea:
+        CDEMO-FROM-PROGRAM: COADM01C
+        CDEMO-PGM-CONTEXT: 1
+        TTUP-CHANGE-ACTION: S
+        TTUP-OLD-TTYP-TYPE: "01"
+        TTUP-OLD-TTYP-TYPE-DESC: Purchase
+      files:
+        TRANSACTION_TYPE:
+          - {TR_TYPE: "01", TR_DESCRIPTION: Purchase}
+    when:
+      aid: ENTER
+      fields: {TRTYPCDI: "01", TRTYDSCI: ""}
+    then:
+      message: "Transaction Desc{} must be supplied."
+      fields:
+        INFOMSGO: "Update transaction type details shown."
+      transfer: {via: RETURN-TRANSID, to: CTTU}
+      file_effects: []
+    source:
+      file: app/app-transaction-type-db2/cbl/COTRTUPC.cbl
+      lines: [853, 869]
+
+  - id: COTRTUPC-016
+    summary: punctuation in the description is rejected
+    given:
+      entry: reenter
+      commarea:
+        CDEMO-FROM-PROGRAM: COADM01C
+        CDEMO-PGM-CONTEXT: 1
+        TTUP-CHANGE-ACTION: S
+        TTUP-OLD-TTYP-TYPE: "01"
+        TTUP-OLD-TTYP-TYPE-DESC: Purchase
+      files:
+        TRANSACTION_TYPE:
+          - {TR_TYPE: "01", TR_DESCRIPTION: Purchase}
+    when:
+      aid: ENTER
+      fields: {TRTYPCDI: "01", TRTYDSCI: "Bad!"}
+    then:
+      message: "Transaction Desc{} can have numbers or alphabets only."
+      fields:
+        TRTYDSCO: "Bad!"
+        INFOMSGO: "Update transaction type details shown."
+      transfer: {via: RETURN-TRANSID, to: CTTU}
+      file_effects: []
+    source:
+      file: app/app-transaction-type-db2/cbl/COTRTUPC.cbl
+      lines: [887, 898]
+
+  - id: COTRTUPC-017
+    summary: a changed description is validated and waits for F5
+    given:
+      entry: reenter
+      commarea:
+        CDEMO-FROM-PROGRAM: COADM01C
+        CDEMO-PGM-CONTEXT: 1
+        TTUP-CHANGE-ACTION: S
+        TTUP-OLD-TTYP-TYPE: "01"
+        TTUP-OLD-TTYP-TYPE-DESC: Purchase
+      files:
+        TRANSACTION_TYPE:
+          - {TR_TYPE: "01", TR_DESCRIPTION: Purchase}
+    when:
+      aid: ENTER
+      fields: {TRTYPCDI: "01", TRTYDSCI: "Card purchase"}
+    then:
+      message: null
+      fields:
+        TRTYPCDO: "01"
+        TRTYDSCO: "Card purchase"
+        INFOMSGO: "Changes validated.Press F5 to save"
+      transfer: {via: RETURN-TRANSID, to: CTTU}
+      file_effects: []
+    source:
+      file: app/app-transaction-type-db2/cbl/COTRTUPC.cbl
+      lines: [1023, 1030]
+
+  - id: COTRTUPC-018
+    summary: F5 rewrites the confirmed description
+    given:
+      entry: reenter
+      commarea:
+        CDEMO-FROM-PROGRAM: COADM01C
+        CDEMO-PGM-CONTEXT: 1
+        TTUP-CHANGE-ACTION: N
+        TTUP-OLD-TTYP-TYPE: "01"
+        TTUP-OLD-TTYP-TYPE-DESC: Purchase
+        TTUP-NEW-TTYP-TYPE: "01"
+        TTUP-NEW-TTYP-TYPE-DESC: "Card purchase"
+      files:
+        TRANSACTION_TYPE:
+          - {TR_TYPE: "01", TR_DESCRIPTION: Purchase}
+    when:
+      aid: PF5
+      fields: {}
+    then:
+      message: null
+      fields:
+        TRTYPCDO: "01"
+        TRTYDSCO: "Card purchase"
+        INFOMSGO: "Changes committed to database"
+      transfer: {via: RETURN-TRANSID, to: CTTU}
+      file_effects:
+        - file: TRANSACTION_TYPE
+          op: REWRITE
+          record: {TR_TYPE: "01", TR_DESCRIPTION: "Card purchase"}
+    source:
+      file: app/app-transaction-type-db2/cbl/COTRTUPC.cbl
+      lines: [514, 520]
+
+  - id: COTRTUPC-019
+    summary: F12 from a confirmed edit cancels it and restores the fetched description
+    given:
+      entry: reenter
+      commarea:
+        CDEMO-FROM-PROGRAM: COADM01C
+        CDEMO-PGM-CONTEXT: 1
+        TTUP-CHANGE-ACTION: N
+        TTUP-OLD-TTYP-TYPE: "01"
+        TTUP-OLD-TTYP-TYPE-DESC: Purchase
+        TTUP-NEW-TTYP-TYPE-DESC: "Card purchase"
+      files:
+        TRANSACTION_TYPE:
+          - {TR_TYPE: "01", TR_DESCRIPTION: Purchase}
+    when:
+      aid: PF12
+      fields: {}
+    then:
+      message: "Update was cancelled"
+      fields:
+        TRTYPCDO: "01"
+        TRTYDSCO: Purchase
+        INFOMSGO: "Update transaction type details shown."
+      transfer: {via: RETURN-TRANSID, to: CTTU}
+      file_effects: []
+    source:
+      file: app/app-transaction-type-db2/cbl/COTRTUPC.cbl
+      lines: [1000, 1005]
+
+  - id: COTRTUPC-020
+    summary: F4 on a shown type asks for delete confirmation
+    given:
+      entry: reenter
+      commarea:
+        CDEMO-FROM-PROGRAM: COADM01C
+        CDEMO-PGM-CONTEXT: 1
+        TTUP-CHANGE-ACTION: S
+        TTUP-OLD-TTYP-TYPE: "01"
+        TTUP-OLD-TTYP-TYPE-DESC: Purchase
+      files:
+        TRANSACTION_TYPE:
+          - {TR_TYPE: "01", TR_DESCRIPTION: Purchase}
+    when:
+      aid: PF4
+      fields: {}
+    then:
+      message: null
+      fields:
+        TRTYPCDO: "01"
+        TRTYDSCO: Purchase
+        INFOMSGO: "Delete this record ? Press F4 to confirm"
+      transfer: {via: RETURN-TRANSID, to: CTTU}
+      file_effects: []
+    source:
+      file: app/app-transaction-type-db2/cbl/COTRTUPC.cbl
+      lines: [493, 498]
+
+  - id: COTRTUPC-021
+    summary: F4 again deletes the type
+    given:
+      entry: reenter
+      commarea:
+        CDEMO-FROM-PROGRAM: COADM01C
+        CDEMO-PGM-CONTEXT: 1
+        TTUP-CHANGE-ACTION: "9"
+        TTUP-OLD-TTYP-TYPE: "01"
+        TTUP-OLD-TTYP-TYPE-DESC: Purchase
+      files:
+        TRANSACTION_TYPE:
+          - {TR_TYPE: "01", TR_DESCRIPTION: Purchase}
+    when:
+      aid: PF4
+      fields: {}
+    then:
+      message: null
+      fields:
+        TRTYPCDO: "01"
+        TRTYDSCO: Purchase
+        INFOMSGO: "Delete successful."
+      transfer: {via: RETURN-TRANSID, to: CTTU}
+      file_effects:
+        - file: TRANSACTION_TYPE
+          op: DELETE
+          record: {TR_TYPE: "01", TR_DESCRIPTION: Purchase}
+    source:
+      file: app/app-transaction-type-db2/cbl/COTRTUPC.cbl
+      lines: [482, 488]
+
+  - id: COTRTUPC-022
+    summary: F4 cannot delete a type that a category still references
+    given:
+      entry: reenter
+      commarea:
+        CDEMO-FROM-PROGRAM: COADM01C
+        CDEMO-PGM-CONTEXT: 1
+        TTUP-CHANGE-ACTION: "9"
+        TTUP-OLD-TTYP-TYPE: "01"
+        TTUP-OLD-TTYP-TYPE-DESC: Purchase
+      files:
+        TRANSACTION_TYPE:
+          - {TR_TYPE: "01", TR_DESCRIPTION: Purchase}
+        TRANSACTION_TYPE_CATEGORY:
+          - {TRC_TYPE_CODE: "01", TRC_TYPE_CATEGORY: "1", TRC_CAT_DATA: Regular}
+    when:
+      aid: PF4
+      fields: {}
+    then:
+      message: "Please delete associated child records first:{}SQLCODE :{code}"
+      fields:
+        TRTYPCDO: "01"
+        TRTYDSCO: Purchase
+        INFOMSGO: "Enter transaction type to be maintained"
+      transfer: {via: RETURN-TRANSID, to: CTTU}
+      file_effects: []
+    source:
+      file: app/app-transaction-type-db2/cbl/COTRTUPC.cbl
+      lines: [1638, 1648]
+
+  - id: COTRTUPC-023
+    summary: F12 from delete confirmation cancels it
+    given:
+      entry: reenter
+      commarea:
+        CDEMO-FROM-PROGRAM: COADM01C
+        CDEMO-PGM-CONTEXT: 1
+        TTUP-CHANGE-ACTION: "9"
+        TTUP-OLD-TTYP-TYPE: "01"
+        TTUP-OLD-TTYP-TYPE-DESC: Purchase
+      files:
+        TRANSACTION_TYPE:
+          - {TR_TYPE: "01", TR_DESCRIPTION: Purchase}
+    when:
+      aid: PF12
+      fields: {}
+    then:
+      message: "Delete was cancelled"
+      fields:
+        TRTYPCDO: "*"
+        INFOMSGO: "Enter transaction type to be maintained"
+      transfer: {via: RETURN-TRANSID, to: CTTU}
+      file_effects: []
+    source:
+      file: app/app-transaction-type-db2/cbl/COTRTUPC.cbl
+      lines: [1000, 1002]
+
+  - id: COTRTUPC-024
+    summary: F12 from a shown type clears the screen
+    given:
+      entry: reenter
+      commarea:
+        CDEMO-FROM-PROGRAM: COADM01C
+        CDEMO-PGM-CONTEXT: 1
+        TTUP-CHANGE-ACTION: S
+        TTUP-OLD-TTYP-TYPE: "01"
+        TTUP-OLD-TTYP-TYPE-DESC: Purchase
+      files:
+        TRANSACTION_TYPE:
+          - {TR_TYPE: "01", TR_DESCRIPTION: Purchase}
+    when:
+      aid: PF12
+      fields: {}
+    then:
+      message: null
+      fields:
+        TRTYPCDO: ""
+        INFOMSGO: "Enter transaction type to be maintained"
+      transfer: {via: RETURN-TRANSID, to: CTTU}
+      file_effects: []
+    source:
+      file: app/app-transaction-type-db2/cbl/COTRTUPC.cbl
+      lines: [1006, 1007]
+
+  - id: COTRTUPC-025
+    summary: PF6 is drawn on the map and is not a valid key
+    given:
+      entry: reenter
+      commarea: {CDEMO-FROM-PROGRAM: COADM01C, CDEMO-PGM-CONTEXT: 1, TTUP-CHANGE-ACTION: ""}
+    when:
+      aid: PF6
+      fields: {}
+    then:
+      message: "Invalid key pressed"
+      fields:
+        INFOMSGO: "Enter transaction type to be maintained"
+      transfer: {via: RETURN-TRANSID, to: CTTU}
+      file_effects: []
+    source:
+      file: app/app-transaction-type-db2/cbl/COTRTUPC.cbl
+      lines: [603, 607]
+
+  - id: COTRTUPC-026
+    summary: F5 before a change has been confirmed is an invalid key
+    given:
+      entry: reenter
+      commarea:
+        CDEMO-FROM-PROGRAM: COADM01C
+        CDEMO-PGM-CONTEXT: 1
+        TTUP-CHANGE-ACTION: S
+        TTUP-OLD-TTYP-TYPE: "01"
+        TTUP-OLD-TTYP-TYPE-DESC: Purchase
+      files:
+        TRANSACTION_TYPE:
+          - {TR_TYPE: "01", TR_DESCRIPTION: Purchase}
+    when:
+      aid: PF5
+      fields: {}
+    then:
+      message: "Invalid key pressed"
+      fields:
+        TRTYPCDO: "01"
+        TRTYDSCO: Purchase
+        INFOMSGO: "Enter transaction type to be maintained"
+      transfer: {via: RETURN-TRANSID, to: CTTU}
+      file_effects: []
+    source:
+      file: app/app-transaction-type-db2/cbl/COTRTUPC.cbl
+      lines: [582, 607]
+
+  - id: COTRTUPC-027
+    summary: ENTER during delete confirmation is an invalid key
+    given:
+      entry: reenter
+      commarea:
+        CDEMO-FROM-PROGRAM: COADM01C
+        CDEMO-PGM-CONTEXT: 1
+        TTUP-CHANGE-ACTION: "9"
+        TTUP-OLD-TTYP-TYPE: "01"
+        TTUP-OLD-TTYP-TYPE-DESC: Purchase
+      files:
+        TRANSACTION_TYPE:
+          - {TR_TYPE: "01", TR_DESCRIPTION: Purchase}
+    when:
+      aid: ENTER
+      fields: {}
+    then:
+      message: "Invalid key pressed"
+      fields:
+        INFOMSGO: "Delete this record ? Press F4 to confirm"
+      transfer: {via: RETURN-TRANSID, to: CTTU}
+      file_effects: []
+    source:
+      file: app/app-transaction-type-db2/cbl/COTRTUPC.cbl
+      lines: [582, 607]
+
+  - id: COTRTUPC-028
+    summary: after a successful save, ENTER starts a new search
+    given:
+      entry: reenter
+      commarea:
+        CDEMO-FROM-PROGRAM: COADM01C
+        CDEMO-PGM-CONTEXT: 1
+        TTUP-CHANGE-ACTION: C
+        TTUP-OLD-TTYP-TYPE: "01"
+        TTUP-OLD-TTYP-TYPE-DESC: "Card purchase"
+      files:
+        TRANSACTION_TYPE:
+          - {TR_TYPE: "01", TR_DESCRIPTION: "Card purchase"}
+    when:
+      aid: ENTER
+      fields: {}
+    then:
+      message: null
+      fields:
+        TRTYPCDO: ""
+        INFOMSGO: "Enter transaction type to be maintained"
+      transfer: {via: RETURN-TRANSID, to: CTTU}
+      file_effects: []
+    source:
+      file: app/app-transaction-type-db2/cbl/COTRTUPC.cbl
+      lines: [405, 418]
+
+  - id: COTRTUPC-029
+    summary: a delete that fails for a reason other than a child row reports the failure
+    given:
+      entry: reenter
+      commarea:
+        CDEMO-FROM-PROGRAM: COADM01C
+        CDEMO-PGM-CONTEXT: 1
+        TTUP-CHANGE-ACTION: "9"
+        TTUP-OLD-TTYP-TYPE: "01"
+        TTUP-OLD-TTYP-TYPE-DESC: Purchase
+      files:
+        TRANSACTION_TYPE:
+          - {TR_TYPE: "01", TR_DESCRIPTION: Purchase}
+      file_conditions:
+        - {file: TRANSACTION_TYPE, op: DELETE, resp: IOERR}
+    when:
+      aid: PF4
+      fields: {}
+    then:
+      message: "Delete failed with message:{}SQLCODE :{detail}"
+      fields:
+        INFOMSGO: "Changes unsuccessful"
+      transfer: {via: RETURN-TRANSID, to: CTTU}
+      file_effects: []
+    source:
+      file: app/app-transaction-type-db2/cbl/COTRTUPC.cbl
+      lines: [1650, 1661]
+
+  - id: COTRTUPC-030
+    summary: an update that the database rejects keeps the unsuccessful info
+    given:
+      entry: reenter
+      commarea:
+        CDEMO-FROM-PROGRAM: COADM01C
+        CDEMO-PGM-CONTEXT: 1
+        TTUP-CHANGE-ACTION: N
+        TTUP-OLD-TTYP-TYPE: "01"
+        TTUP-OLD-TTYP-TYPE-DESC: Purchase
+        TTUP-NEW-TTYP-TYPE-DESC: "Card purchase"
+      files:
+        TRANSACTION_TYPE:
+          - {TR_TYPE: "01", TR_DESCRIPTION: Purchase}
+      file_conditions:
+        - {file: TRANSACTION_TYPE, op: REWRITE, resp: IOERR}
+    when:
+      aid: PF5
+      fields: {}
+    then:
+      message: "Error updating:{} TRANSACTION_TYPE Table. SQLCODE:{detail}"
+      fields:
+        TRTYDSCO: "Card purchase"
+        INFOMSGO: "Changes committed to database"
+      transfer: {via: RETURN-TRANSID, to: CTTU}
+      file_effects: []
+    source:
+      file: app/app-transaction-type-db2/cbl/COTRTUPC.cbl
+      lines: [1567, 1588]

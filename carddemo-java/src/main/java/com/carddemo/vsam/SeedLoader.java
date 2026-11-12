@@ -8,6 +8,7 @@ import org.springframework.stereotype.Component;
 import org.springframework.transaction.annotation.Transactional;
 
 import java.nio.file.Path;
+import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.EnumMap;
 import java.util.List;
@@ -33,7 +34,7 @@ public class SeedLoader {
         // A fresh TRANSACT makes the outcomes of any earlier feed meaningless.
         jdbc.execute("TRUNCATE " + allTables + ", daily_rejects");
         Map<VsamDataset, Integer> loaded = new EnumMap<>(VsamDataset.class);
-        for (VsamDataset dataset : VsamDataset.values()) {
+        for (VsamDataset dataset : loadOrder()) {
             Table table = Table.of(dataset);
             format.records(dir, dataset).ifPresentOrElse(
                     records -> loaded.put(dataset, insert(table, records,
@@ -41,6 +42,18 @@ public class SeedLoader {
                     () -> log.info("No {} sample file for {}", format, dataset.table));
         }
         return loaded;
+    }
+
+    /** Categories reference types. Load the parent table first so the foreign key can be checked per insert. */
+    private static List<VsamDataset> loadOrder() {
+        List<VsamDataset> order = new ArrayList<>(List.of(VsamDataset.values()));
+        int types = order.indexOf(VsamDataset.TRAN_TYPES);
+        int categories = order.indexOf(VsamDataset.TRAN_CATEGORIES);
+        if (types > categories) {
+            order.remove(types);
+            order.add(categories, VsamDataset.TRAN_TYPES);
+        }
+        return order;
     }
 
     private int insert(Table table, List<String> records, UnaryOperator<Object[]> transform) {

@@ -1,0 +1,832 @@
+program: COTRTLIC
+transaction: CTLI
+module: app/app-transaction-type-db2
+screen:
+  mapset: COTRTLI
+  map: CTRTLIA
+evidence: derived
+sources:
+  - app/app-transaction-type-db2/cbl/COTRTLIC.cbl
+  - app/app-transaction-type-db2/cpy/CSDB2RPY.cpy
+  - app/app-transaction-type-db2/bms/COTRTLI.bms
+  - app/app-transaction-type-db2/ddl/TRNTYPE.ddl
+  - app/app-transaction-type-db2/ddl/TRNTYCAT.ddl
+files:
+  - name: TRANSACTION_TYPE
+    ops: [READ, REWRITE, DELETE]
+    key: TR_TYPE
+  - name: TRANSACTION_TYPE_CATEGORY
+    ops: [READ]
+    key: TRC_TYPE_CODE
+navigation:
+  - to: COADM01C
+    via: XCTL
+    when: PF3, or the from program is blank or this program (lines 591-623)
+  - to: COTRTUPC
+    via: XCTL
+    when: PF2 after this program has displayed the list (lines 630-651)
+  - to: CTLI
+    via: RETURN-TRANSID
+    when: every path that sends the list (lines 899-914)
+notes:
+  - "Derived from source, not executed. TRANSACTION_TYPE is the Db2 table. The Java port stores it in tran_types."
+  - "Seven rows (WS-MAX-SCREEN-LINES). A full page fetches one extra row and keeps that row's type as the PF8 anchor (lines 1657-1673)."
+  - "PF7, PF8, PF2, PF3 and F10 (only while a delete or update is pending and the filters and selection are unchanged) are distinct. Every other AID is treated as ENTER (lines 574-586 and 666-675)."
+  - "A type filter of spaces or zeros is no filter. Anything else that is not numeric is rejected (lines 1101-1118). A description filter is a LIKE '%text%' match (lines 1155-1162)."
+  - "Info text is centered in the 45-byte INFOMSG (lines 1562-1577). The spec asserts the trimmed sentence."
+  - "PF2 sets CDEMO-USRTYP-USER before the XCTL (line 634). The signed-on user is unchanged, otherwise the add screen would reject the admin."
+  - "Selecting a row in the same request that changes a filter is ignored. The source tests the changed-flag before it is set (lines 991-994 run before 1220), so the legacy program can still see the selection. The Java port applies the new filter."
+  - "A backward read that finds fewer than 7 predecessors treats SQLCODE +100 as a cursor error (lines 1777-1787)."
+  - "The Java slice replays this spec with deliberate differences listed in carddemo-java/src/test/resources/spec-overrides/COTRTLIC.yaml."
+cases:
+  - id: COTRTLIC-001
+    summary: direct start with no COMMAREA shows the first page rather than signing on
+    given:
+      entry: first-time
+      files:
+        TRANSACTION_TYPE: &one
+          - {TR_TYPE: "01", TR_DESCRIPTION: Purchase}
+    when:
+      aid: ENTER
+      fields: {}
+    then:
+      message: null
+      cursor: TRTYPEL
+      fields:
+        TRNNAMEO: CTLI
+        PGMNAMEO: COTRTLIC
+        PAGENOO: "1"
+        TRTTYP1O: "01"
+        TRTYPD1O: Purchase
+        INFOMSGO: "Type U to update, D to delete any record"
+      transfer: {via: RETURN-TRANSID, to: CTLI}
+      file_effects: []
+    source:
+      file: app/app-transaction-type-db2/cbl/COTRTLIC.cbl
+      lines: [515, 525]
+
+  - id: COTRTLIC-002
+    summary: arriving from the admin menu lists the first page and offers update or delete
+    given:
+      entry: xctl-from
+      commarea: {CDEMO-FROM-PROGRAM: COADM01C, CDEMO-FROM-TRANID: CA00, CDEMO-USER-TYPE: A, CDEMO-PGM-CONTEXT: 0}
+      files:
+        TRANSACTION_TYPE: &seven
+          - {TR_TYPE: "01", TR_DESCRIPTION: Purchase}
+          - {TR_TYPE: "02", TR_DESCRIPTION: Payment}
+          - {TR_TYPE: "03", TR_DESCRIPTION: Credit}
+          - {TR_TYPE: "04", TR_DESCRIPTION: Authorization}
+          - {TR_TYPE: "05", TR_DESCRIPTION: Refund}
+          - {TR_TYPE: "06", TR_DESCRIPTION: Reversal}
+          - {TR_TYPE: "07", TR_DESCRIPTION: Adjustment}
+    when:
+      aid: ENTER
+      fields: {}
+    then:
+      message: null
+      cursor: TRTYPEL
+      fields:
+        PAGENOO: "1"
+        TRTTYP1O: "01"
+        TRTYPD1O: Purchase
+        TRTTYP7O: "07"
+        TRTYPD7O: Adjustment
+        INFOMSGO: "Type U to update, D to delete any record"
+      transfer: {via: RETURN-TRANSID, to: CTLI}
+      file_effects: []
+    source:
+      file: app/app-transaction-type-db2/cbl/COTRTLIC.cbl
+      lines: [870, 878]
+
+  - id: COTRTLIC-003
+    summary: eight types fill the page and leave a next page, anchored on the extra row
+    given:
+      entry: xctl-from
+      commarea: {CDEMO-FROM-PROGRAM: COADM01C, CDEMO-PGM-CONTEXT: 0}
+      files:
+        TRANSACTION_TYPE: &eight
+          - {TR_TYPE: "01", TR_DESCRIPTION: Purchase}
+          - {TR_TYPE: "02", TR_DESCRIPTION: Payment}
+          - {TR_TYPE: "03", TR_DESCRIPTION: Credit}
+          - {TR_TYPE: "04", TR_DESCRIPTION: Authorization}
+          - {TR_TYPE: "05", TR_DESCRIPTION: Refund}
+          - {TR_TYPE: "06", TR_DESCRIPTION: Reversal}
+          - {TR_TYPE: "07", TR_DESCRIPTION: Adjustment}
+          - {TR_TYPE: "08", TR_DESCRIPTION: Fee}
+    when:
+      aid: ENTER
+      fields: {}
+    then:
+      message: null
+      fields:
+        PAGENOO: "1"
+        TRTTYP1O: "01"
+        TRTTYP7O: "07"
+        TRTYPD7O: Adjustment
+        INFOMSGO: "Type U to update, D to delete any record"
+      commarea:
+        WS-CA-NEXT-PAGE-IND: "Y"
+        WS-CA-LAST-TR-CODE: "08"
+        WS-CA-FIRST-TR-CODE: "01"
+      transfer: {via: RETURN-TRANSID, to: CTLI}
+      file_effects: []
+    source:
+      file: app/app-transaction-type-db2/cbl/COTRTLIC.cbl
+      lines: [1657, 1673]
+
+  - id: COTRTLIC-004
+    summary: PF8 from a full page shows the remaining type and says there are no more pages
+    given:
+      entry: reenter
+      commarea: &page1
+        CDEMO-FROM-PROGRAM: COTRTLIC
+        CDEMO-PGM-CONTEXT: 1
+        WS-CA-SCREEN-NUM: "1"
+        WS-CA-FIRST-TR-CODE: "01"
+        WS-CA-LAST-TR-CODE: "08"
+        WS-CA-NEXT-PAGE-IND: "Y"
+      files:
+        TRANSACTION_TYPE: *eight
+    when:
+      aid: PF8
+      fields: {}
+    then:
+      message: "No more pages for these search conditions"
+      cursor: TRTYPEL
+      fields:
+        PAGENOO: "2"
+        TRTTYP1O: "08"
+        TRTYPD1O: Fee
+        INFOMSGO: "Type U to update, D to delete any record"
+      transfer: {via: RETURN-TRANSID, to: CTLI}
+      file_effects: []
+    source:
+      file: app/app-transaction-type-db2/cbl/COTRTLIC.cbl
+      lines: [766, 776]
+
+  - id: COTRTLIC-005
+    summary: PF8 again, once the last page has been shown, says there is nothing further to display
+    given:
+      entry: reenter
+      commarea:
+        CDEMO-FROM-PROGRAM: COTRTLIC
+        CDEMO-PGM-CONTEXT: 1
+        WS-CA-SCREEN-NUM: "2"
+        WS-CA-FIRST-TR-CODE: "08"
+        WS-CA-LAST-TR-CODE: "08"
+        WS-CA-LAST-PAGE-DISPLAYED: "0"
+      files:
+        TRANSACTION_TYPE: *eight
+    when:
+      aid: PF8
+      fields: {}
+    then:
+      message: "No more pages to display"
+      fields:
+        PAGENOO: "2"
+        TRTTYP1O: "08"
+        INFOMSGO: "Type U to update, D to delete any record"
+      transfer: {via: RETURN-TRANSID, to: CTLI}
+      file_effects: []
+    source:
+      file: app/app-transaction-type-db2/cbl/COTRTLIC.cbl
+      lines: [1536, 1540]
+
+  - id: COTRTLIC-006
+    summary: PF7 from the second page returns the first seven types
+    given:
+      entry: reenter
+      commarea:
+        CDEMO-FROM-PROGRAM: COTRTLIC
+        CDEMO-PGM-CONTEXT: 1
+        WS-CA-SCREEN-NUM: "2"
+        WS-CA-FIRST-TR-CODE: "08"
+        WS-CA-NEXT-PAGE-IND: "Y"
+      files:
+        TRANSACTION_TYPE: *eight
+    when:
+      aid: PF7
+      fields: {}
+    then:
+      message: null
+      fields:
+        PAGENOO: "1"
+        TRTTYP1O: "01"
+        TRTYPD1O: Purchase
+        TRTTYP7O: "07"
+        INFOMSGO: "Type U to update, D to delete any record"
+      transfer: {via: RETURN-TRANSID, to: CTLI}
+      file_effects: []
+    source:
+      file: app/app-transaction-type-db2/cbl/COTRTLIC.cbl
+      lines: [780, 790]
+
+  - id: COTRTLIC-007
+    summary: PF7 on the first page says there is no previous page
+    given:
+      entry: reenter
+      commarea:
+        CDEMO-FROM-PROGRAM: COTRTLIC
+        CDEMO-PGM-CONTEXT: 1
+        WS-CA-SCREEN-NUM: "1"
+        WS-CA-FIRST-TR-CODE: "01"
+      files:
+        TRANSACTION_TYPE: *seven
+    when:
+      aid: PF7
+      fields: {}
+    then:
+      message: "No previous pages to display"
+      fields:
+        PAGENOO: "1"
+        TRTTYP1O: "01"
+        INFOMSGO: "Type U to update, D to delete any record"
+      transfer: {via: RETURN-TRANSID, to: CTLI}
+      file_effects: []
+    source:
+      file: app/app-transaction-type-db2/cbl/COTRTLIC.cbl
+      lines: [721, 734]
+
+  - id: COTRTLIC-008
+    summary: PF7 when fewer than seven types precede the anchor reports the backward cursor error
+    given:
+      entry: reenter
+      commarea:
+        CDEMO-FROM-PROGRAM: COTRTLIC
+        CDEMO-PGM-CONTEXT: 1
+        WS-CA-SCREEN-NUM: "2"
+        WS-CA-FIRST-TR-CODE: "03"
+        WS-CA-NEXT-PAGE-IND: "Y"
+      files:
+        TRANSACTION_TYPE:
+          - {TR_TYPE: "01", TR_DESCRIPTION: Purchase}
+          - {TR_TYPE: "02", TR_DESCRIPTION: Payment}
+          - {TR_TYPE: "03", TR_DESCRIPTION: Credit}
+    when:
+      aid: PF7
+      fields: {}
+    then:
+      message: "Error on fetch Cursor C-TR-TYPE-BACKWARD{} SQLCODE:{code}"
+      fields:
+        TRTTYP6O: "01"
+        TRTYPD6O: Purchase
+        TRTTYP7O: "02"
+        TRTYPD7O: Payment
+      transfer: {via: RETURN-TRANSID, to: CTLI}
+      file_effects: []
+    source:
+      file: app/app-transaction-type-db2/cbl/COTRTLIC.cbl
+      lines: [1777, 1787]
+
+  - id: COTRTLIC-009
+    summary: PF3 returns to the admin menu
+    given:
+      entry: reenter
+      commarea: {CDEMO-FROM-PROGRAM: COADM01C, CDEMO-FROM-TRANID: CA00, CDEMO-PGM-CONTEXT: 1}
+      files:
+        TRANSACTION_TYPE: *one
+    when:
+      aid: PF3
+      fields: {}
+    then:
+      message: null
+      transfer: {via: XCTL, to: COADM01C}
+      commarea: {CDEMO-FROM-PROGRAM: COTRTLIC, CDEMO-FROM-TRANID: CTLI}
+      file_effects: []
+    source:
+      file: app/app-transaction-type-db2/cbl/COTRTLIC.cbl
+      lines: [591, 623]
+
+  - id: COTRTLIC-010
+    summary: PF2 transfers to the add and edit screen
+    given:
+      entry: reenter
+      commarea: {CDEMO-FROM-PROGRAM: COTRTLIC, CDEMO-PGM-CONTEXT: 1}
+      files:
+        TRANSACTION_TYPE: *one
+    when:
+      aid: PF2
+      fields: {}
+    then:
+      message: null
+      transfer: {via: XCTL, to: COTRTUPC}
+      commarea: {CDEMO-FROM-PROGRAM: COTRTLIC, CDEMO-FROM-TRANID: CTLI}
+      file_effects: []
+    source:
+      file: app/app-transaction-type-db2/cbl/COTRTLIC.cbl
+      lines: [630, 651]
+
+  - id: COTRTLIC-011
+    summary: PF1 is not a list key, so it is handled as ENTER and redisplays the page
+    given:
+      entry: reenter
+      commarea: {CDEMO-FROM-PROGRAM: COTRTLIC, CDEMO-PGM-CONTEXT: 1, WS-CA-SCREEN-NUM: "1", WS-CA-FIRST-TR-CODE: "01"}
+      files:
+        TRANSACTION_TYPE: *one
+    when:
+      aid: PF1
+      fields: {}
+    then:
+      message: null
+      fields:
+        PAGENOO: "1"
+        TRTTYP1O: "01"
+        INFOMSGO: "Type U to update, D to delete any record"
+      transfer: {via: RETURN-TRANSID, to: CTLI}
+      file_effects: []
+    source:
+      file: app/app-transaction-type-db2/cbl/COTRTLIC.cbl
+      lines: [574, 586]
+
+  - id: COTRTLIC-012
+    summary: a numeric type filter lists only that type
+    given:
+      entry: reenter
+      commarea: {CDEMO-FROM-PROGRAM: COTRTLIC, CDEMO-PGM-CONTEXT: 1}
+      files:
+        TRANSACTION_TYPE: *seven
+    when:
+      aid: ENTER
+      fields: {TRTYPEI: "02"}
+    then:
+      message: null
+      fields:
+        TRTYPEO: "02"
+        TRTTYP1O: "02"
+        TRTYPD1O: Payment
+        INFOMSGO: "Type U to update, D to delete any record"
+      transfer: {via: RETURN-TRANSID, to: CTLI}
+      file_effects: []
+    source:
+      file: app/app-transaction-type-db2/cbl/COTRTLIC.cbl
+      lines: [1096, 1122]
+
+  - id: COTRTLIC-013
+    summary: a non-numeric type filter is rejected and the rows are protected
+    given:
+      entry: reenter
+      commarea: {CDEMO-FROM-PROGRAM: COTRTLIC, CDEMO-PGM-CONTEXT: 1}
+      files:
+        TRANSACTION_TYPE: *one
+    when:
+      aid: ENTER
+      fields: {TRTYPEI: AB}
+    then:
+      message: "TYPE CODE FILTER,IF SUPPLIED MUST BE A 2 DIGIT NUMBER"
+      cursor: TRTYPEL
+      fields: {TRTYPEO: AB}
+      transfer: {via: RETURN-TRANSID, to: CTLI}
+      file_effects: []
+    source:
+      file: app/app-transaction-type-db2/cbl/COTRTLIC.cbl
+      lines: [1111, 1118]
+
+  - id: COTRTLIC-014
+    summary: a type filter that matches nothing reports no records
+    given:
+      entry: reenter
+      commarea: {CDEMO-FROM-PROGRAM: COTRTLIC, CDEMO-PGM-CONTEXT: 1}
+      files:
+        TRANSACTION_TYPE: *one
+    when:
+      aid: ENTER
+      fields: {TRTYPEI: "99"}
+    then:
+      message: "No Records found for these filter conditions"
+      cursor: TRTYPEL
+      fields: {TRTYPEO: "99"}
+      transfer: {via: RETURN-TRANSID, to: CTLI}
+      file_effects: []
+    source:
+      file: app/app-transaction-type-db2/cbl/COTRTLIC.cbl
+      lines: [1251, 1266]
+
+  - id: COTRTLIC-015
+    summary: a description filter matches with LIKE
+    given:
+      entry: reenter
+      commarea: {CDEMO-FROM-PROGRAM: COTRTLIC, CDEMO-PGM-CONTEXT: 1}
+      files:
+        TRANSACTION_TYPE: *seven
+    when:
+      aid: ENTER
+      fields: {TRDESCI: Pay}
+    then:
+      message: null
+      fields:
+        TRDESCO: Pay
+        TRTTYP1O: "02"
+        TRTYPD1O: Payment
+        INFOMSGO: "Type U to update, D to delete any record"
+      transfer: {via: RETURN-TRANSID, to: CTLI}
+      file_effects: []
+    source:
+      file: app/app-transaction-type-db2/cbl/COTRTLIC.cbl
+      lines: [1142, 1163]
+
+  - id: COTRTLIC-016
+    summary: a description filter that matches nothing reports no records
+    given:
+      entry: reenter
+      commarea: {CDEMO-FROM-PROGRAM: COTRTLIC, CDEMO-PGM-CONTEXT: 1}
+      files:
+        TRANSACTION_TYPE: *one
+    when:
+      aid: ENTER
+      fields: {TRDESCI: Zzz}
+    then:
+      message: "No Records found for these filter conditions"
+      cursor: TRDESCL
+      fields: {TRDESCO: Zzz}
+      transfer: {via: RETURN-TRANSID, to: CTLI}
+      file_effects: []
+    source:
+      file: app/app-transaction-type-db2/cbl/COTRTLIC.cbl
+      lines: [1251, 1266]
+
+  - id: COTRTLIC-017
+    summary: zeros in the type filter mean no type filter
+    given:
+      entry: reenter
+      commarea: {CDEMO-FROM-PROGRAM: COTRTLIC, CDEMO-PGM-CONTEXT: 1}
+      files:
+        TRANSACTION_TYPE: *one
+    when:
+      aid: ENTER
+      fields: {TRTYPEI: "00"}
+    then:
+      message: null
+      fields:
+        TRTYPEO: ""
+        TRTTYP1O: "01"
+        INFOMSGO: "Type U to update, D to delete any record"
+      transfer: {via: RETURN-TRANSID, to: CTLI}
+      file_effects: []
+    source:
+      file: app/app-transaction-type-db2/cbl/COTRTLIC.cbl
+      lines: [1101, 1106]
+
+  - id: COTRTLIC-018
+    summary: an empty table says no records were found for the search
+    given:
+      entry: xctl-from
+      commarea: {CDEMO-FROM-PROGRAM: COADM01C, CDEMO-PGM-CONTEXT: 0}
+      files:
+        TRANSACTION_TYPE: []
+    when:
+      aid: ENTER
+      fields: {}
+    then:
+      message: "No records found for this search condition."
+      fields:
+        PAGENOO: "1"
+        INFOMSGO: ""
+      transfer: {via: RETURN-TRANSID, to: CTLI}
+      file_effects: []
+    source:
+      file: app/app-transaction-type-db2/cbl/COTRTLIC.cbl
+      lines: [1694, 1704]
+
+  - id: COTRTLIC-019
+    summary: a selection other than U or D is rejected
+    given:
+      entry: reenter
+      commarea: &rows
+        CDEMO-FROM-PROGRAM: COTRTLIC
+        CDEMO-PGM-CONTEXT: 1
+        WS-CA-SCREEN-NUM: "1"
+        WS-CA-FIRST-TR-CODE: "01"
+        WS-CA-ROWS:
+          - {CODE: "01", DESC: Purchase}
+          - {CODE: "02", DESC: Payment}
+      files:
+        TRANSACTION_TYPE:
+          - {TR_TYPE: "01", TR_DESCRIPTION: Purchase}
+          - {TR_TYPE: "02", TR_DESCRIPTION: Payment}
+    when:
+      aid: ENTER
+      fields: {TRTSEL1I: X, TRTTYP1I: "01", TRTYPD1I: Purchase}
+    then:
+      message: "Action code selected is invalid"
+      fields:
+        TRTSEL1O: X
+        TRTTYP1O: "01"
+        INFOMSGO: "Type U to update, D to delete any record"
+      transfer: {via: RETURN-TRANSID, to: CTLI}
+      file_effects: []
+    source:
+      file: app/app-transaction-type-db2/cbl/COTRTLIC.cbl
+      lines: [1034, 1038]
+
+  - id: COTRTLIC-020
+    summary: two selections ask for a single action
+    given:
+      entry: reenter
+      commarea: *rows
+      files:
+        TRANSACTION_TYPE:
+          - {TR_TYPE: "01", TR_DESCRIPTION: Purchase}
+          - {TR_TYPE: "02", TR_DESCRIPTION: Payment}
+    when:
+      aid: ENTER
+      fields: {TRTSEL1I: D, TRTTYP1I: "01", TRTSEL2I: U, TRTTYP2I: "02"}
+    then:
+      message: "Please select only 1 action"
+      fields:
+        INFOMSGO: "Type U to update, D to delete any record"
+      transfer: {via: RETURN-TRANSID, to: CTLI}
+      file_effects: []
+    source:
+      file: app/app-transaction-type-db2/cbl/COTRTLIC.cbl
+      lines: [1049, 1052]
+
+  - id: COTRTLIC-021
+    summary: D and ENTER asks for F10 before deleting
+    given:
+      entry: reenter
+      commarea: *rows
+      files:
+        TRANSACTION_TYPE:
+          - {TR_TYPE: "01", TR_DESCRIPTION: Purchase}
+          - {TR_TYPE: "02", TR_DESCRIPTION: Payment}
+    when:
+      aid: ENTER
+      fields: {TRTSEL1I: D, TRTTYP1I: "01", TRTYPD1I: Purchase}
+    then:
+      message: null
+      cursor: TRTSEL1L
+      fields:
+        TRTSEL1O: D
+        TRTTYP1O: "01"
+        INFOMSGO: "Delete HIGHLIGHTED row ? Press F10 to confirm"
+      transfer: {via: RETURN-TRANSID, to: CTLI}
+      file_effects: []
+    source:
+      file: app/app-transaction-type-db2/cbl/COTRTLIC.cbl
+      lines: [794, 806]
+
+  - id: COTRTLIC-022
+    summary: F10 after a delete confirmation removes the type
+    given:
+      entry: reenter
+      commarea:
+        CDEMO-FROM-PROGRAM: COTRTLIC
+        CDEMO-PGM-CONTEXT: 1
+        WS-CA-SCREEN-NUM: "1"
+        WS-CA-DELETE-FLAG: "Y"
+        WS-CA-ROW-SELECTED: "1"
+        WS-CA-ROWS:
+          - {CODE: "01", DESC: Purchase}
+          - {CODE: "02", DESC: Payment}
+      files:
+        TRANSACTION_TYPE:
+          - {TR_TYPE: "01", TR_DESCRIPTION: Purchase}
+          - {TR_TYPE: "02", TR_DESCRIPTION: Payment}
+    when:
+      aid: PF10
+      fields: {TRTSEL1I: D, TRTTYP1I: "01", TRTYPD1I: Purchase}
+    then:
+      message: null
+      fields:
+        TRTTYP1O: "02"
+        TRTYPD1O: Payment
+        INFOMSGO: "HIGHLIGHTED row deleted.Hit Enter to continue"
+      transfer: {via: RETURN-TRANSID, to: CTLI}
+      file_effects:
+        - file: TRANSACTION_TYPE
+          op: DELETE
+          record: {TR_TYPE: "01", TR_DESCRIPTION: Purchase}
+    source:
+      file: app/app-transaction-type-db2/cbl/COTRTLIC.cbl
+      lines: [810, 823]
+
+  - id: COTRTLIC-023
+    summary: F10 cannot delete a type that a category still references
+    given:
+      entry: reenter
+      commarea:
+        CDEMO-FROM-PROGRAM: COTRTLIC
+        CDEMO-PGM-CONTEXT: 1
+        WS-CA-DELETE-FLAG: "Y"
+        WS-CA-ROW-SELECTED: "1"
+        WS-CA-ROWS:
+          - {CODE: "01", DESC: Purchase}
+      files:
+        TRANSACTION_TYPE:
+          - {TR_TYPE: "01", TR_DESCRIPTION: Purchase}
+        TRANSACTION_TYPE_CATEGORY:
+          - {TRC_TYPE_CODE: "01", TRC_TYPE_CATEGORY: "1", TRC_CAT_DATA: Regular}
+    when:
+      aid: PF10
+      fields: {TRTSEL1I: D, TRTTYP1I: "01", TRTYPD1I: Purchase}
+    then:
+      message: "Please delete associated child records first:{} SQLCODE:{code}"
+      fields:
+        TRTTYP1O: "01"
+        INFOMSGO: "Type U to update, D to delete any record"
+      transfer: {via: RETURN-TRANSID, to: CTLI}
+      file_effects: []
+    source:
+      file: app/app-transaction-type-db2/cbl/COTRTLIC.cbl
+      lines: [1914, 1926]
+
+  - id: COTRTLIC-024
+    summary: U with the same description reports that nothing changed
+    given:
+      entry: reenter
+      commarea: *rows
+      files:
+        TRANSACTION_TYPE:
+          - {TR_TYPE: "01", TR_DESCRIPTION: Purchase}
+          - {TR_TYPE: "02", TR_DESCRIPTION: Payment}
+    when:
+      aid: ENTER
+      fields: {TRTSEL1I: U, TRTTYP1I: "01", TRTYPD1I: purchase}
+    then:
+      message: "No change detected with respect to database values."
+      fields:
+        TRTSEL1O: U
+        TRTYPD1O: Purchase
+        INFOMSGO: "Type U to update, D to delete any record"
+      transfer: {via: RETURN-TRANSID, to: CTLI}
+      file_effects: []
+    source:
+      file: app/app-transaction-type-db2/cbl/COTRTLIC.cbl
+      lines: [1064, 1073]
+
+  - id: COTRTLIC-025
+    summary: U with a blank description must supply one
+    given:
+      entry: reenter
+      commarea: *rows
+      files:
+        TRANSACTION_TYPE:
+          - {TR_TYPE: "01", TR_DESCRIPTION: Purchase}
+          - {TR_TYPE: "02", TR_DESCRIPTION: Payment}
+    when:
+      aid: ENTER
+      fields: {TRTSEL1I: U, TRTTYP1I: "01", TRTYPD1I: ""}
+    then:
+      message: "Transaction Desc{} must be supplied."
+      cursor: TRTYPD1L
+      fields:
+        TRTSEL1O: U
+        INFOMSGO: "Type U to update, D to delete any record"
+      transfer: {via: RETURN-TRANSID, to: CTLI}
+      file_effects: []
+    source:
+      file: app/app-transaction-type-db2/cbl/COTRTLIC.cbl
+      lines: [1193, 1201]
+
+  - id: COTRTLIC-026
+    summary: U rejects punctuation in the description
+    given:
+      entry: reenter
+      commarea: *rows
+      files:
+        TRANSACTION_TYPE:
+          - {TR_TYPE: "01", TR_DESCRIPTION: Purchase}
+          - {TR_TYPE: "02", TR_DESCRIPTION: Payment}
+    when:
+      aid: ENTER
+      fields: {TRTSEL1I: U, TRTTYP1I: "01", TRTYPD1I: "Bad!"}
+    then:
+      message: "Transaction Desc{} can have numbers or alphabets only."
+      cursor: TRTYPD1L
+      fields: {TRTSEL1O: U}
+      transfer: {via: RETURN-TRANSID, to: CTLI}
+      file_effects: []
+    source:
+      file: app/app-transaction-type-db2/cbl/COTRTLIC.cbl
+      lines: [1220, 1228]
+
+  - id: COTRTLIC-027
+    summary: U with a new description asks for F10 before saving
+    given:
+      entry: reenter
+      commarea: *rows
+      files:
+        TRANSACTION_TYPE:
+          - {TR_TYPE: "01", TR_DESCRIPTION: Purchase}
+          - {TR_TYPE: "02", TR_DESCRIPTION: Payment}
+    when:
+      aid: ENTER
+      fields: {TRTSEL1I: U, TRTTYP1I: "01", TRTYPD1I: "Card purchase"}
+    then:
+      message: null
+      cursor: TRTYPD1L
+      fields:
+        TRTSEL1O: U
+        TRTYPD1O: "Card purchase"
+        INFOMSGO: "Update HIGHLIGHTED row. Press F10 to save"
+      transfer: {via: RETURN-TRANSID, to: CTLI}
+      file_effects: []
+    source:
+      file: app/app-transaction-type-db2/cbl/COTRTLIC.cbl
+      lines: [838, 850]
+
+  - id: COTRTLIC-028
+    summary: F10 after an update confirmation rewrites the description
+    given:
+      entry: reenter
+      commarea:
+        CDEMO-FROM-PROGRAM: COTRTLIC
+        CDEMO-PGM-CONTEXT: 1
+        WS-CA-SCREEN-NUM: "1"
+        WS-CA-UPDATE-FLAG: "Y"
+        WS-CA-ROW-SELECTED: "1"
+        WS-CA-FIRST-TR-CODE: "01"
+        WS-CA-ROWS:
+          - {CODE: "01", DESC: Purchase}
+      files:
+        TRANSACTION_TYPE:
+          - {TR_TYPE: "01", TR_DESCRIPTION: Purchase}
+    when:
+      aid: PF10
+      fields: {TRTSEL1I: U, TRTTYP1I: "01", TRTYPD1I: "Card purchase"}
+    then:
+      message: null
+      fields:
+        TRTTYP1O: "01"
+        TRTYPD1O: "Card purchase"
+        INFOMSGO: "HIGHLIGHTED row was updated"
+      transfer: {via: RETURN-TRANSID, to: CTLI}
+      file_effects:
+        - file: TRANSACTION_TYPE
+          op: REWRITE
+          record: {TR_TYPE: "01", TR_DESCRIPTION: "Card purchase"}
+    source:
+      file: app/app-transaction-type-db2/cbl/COTRTLIC.cbl
+      lines: [854, 868]
+
+  - id: COTRTLIC-029
+    summary: F10 to update a type that is no longer on file reports it missing
+    given:
+      entry: reenter
+      commarea:
+        CDEMO-FROM-PROGRAM: COTRTLIC
+        CDEMO-PGM-CONTEXT: 1
+        WS-CA-UPDATE-FLAG: "Y"
+        WS-CA-ROW-SELECTED: "1"
+        WS-CA-ROWS:
+          - {CODE: "99", DESC: Missing}
+      files:
+        TRANSACTION_TYPE: []
+    when:
+      aid: PF10
+      fields: {TRTSEL1I: U, TRTTYP1I: "99", TRTYPD1I: "Still missing"}
+    then:
+      message: "Record not found. Deleted by others ?{} SQLCODE:{code}"
+      fields:
+        TRTTYP1O: "99"
+      transfer: {via: RETURN-TRANSID, to: CTLI}
+      file_effects: []
+    source:
+      file: app/app-transaction-type-db2/cbl/COTRTLIC.cbl
+      lines: [1865, 1871]
+
+  - id: COTRTLIC-030
+    summary: a read failure while opening the forward cursor is reported as a Db2 error
+    given:
+      entry: xctl-from
+      commarea: {CDEMO-FROM-PROGRAM: COADM01C, CDEMO-PGM-CONTEXT: 0}
+      files:
+        TRANSACTION_TYPE: *one
+      file_conditions:
+        - {file: TRANSACTION_TYPE, op: READ, resp: IOERR}
+    when:
+      aid: ENTER
+      fields: {}
+    then:
+      message: "C-TR-TYPE-FORWARD Open{} SQLCODE:{detail}"
+      transfer: {via: RETURN-TRANSID, to: CTLI}
+      file_effects: []
+    source:
+      file: app/app-transaction-type-db2/cbl/COTRTLIC.cbl
+      lines: [1956, 1966]
+
+  - id: COTRTLIC-031
+    summary: a delete that fails for a reason other than a child row reports the failure
+    given:
+      entry: reenter
+      commarea:
+        CDEMO-FROM-PROGRAM: COTRTLIC
+        CDEMO-PGM-CONTEXT: 1
+        WS-CA-DELETE-FLAG: "Y"
+        WS-CA-ROW-SELECTED: "1"
+        WS-CA-ROWS:
+          - {CODE: "01", DESC: Purchase}
+      files:
+        TRANSACTION_TYPE: *one
+      file_conditions:
+        - {file: TRANSACTION_TYPE, op: DELETE, resp: IOERR}
+    when:
+      aid: PF10
+      fields: {TRTSEL1I: D, TRTTYP1I: "01", TRTYPD1I: Purchase}
+    then:
+      message: "Delete failed with message:{} SQLCODE:{detail}"
+      transfer: {via: RETURN-TRANSID, to: CTLI}
+      file_effects: []
+    source:
+      file: app/app-transaction-type-db2/cbl/COTRTLIC.cbl
+      lines: [1930, 1936]
