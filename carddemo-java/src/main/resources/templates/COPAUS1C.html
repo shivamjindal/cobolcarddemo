@@ -1,0 +1,35 @@
+<html xmlns:th="http://www.thymeleaf.org" th:replace="~{layout :: screen('View Authorization Details', ~{::main}, ~{::nav})}">
+<main>
+    <div class="fields">
+        <th:block th:replace="~{fields :: text('CARDNUM', 'Card #:')}"></th:block>
+        <th:block th:replace="~{fields :: text('AUTHDT', 'Auth Date:')}"></th:block>
+        <th:block th:replace="~{fields :: text('AUTHTM', 'Auth Time:')}"></th:block>
+        <th:block th:replace="~{fields :: text('AUTHRSP', 'Auth Resp:')}"></th:block>
+        <th:block th:replace="~{fields :: text('AUTHRSN', 'Resp Reason:')}"></th:block>
+        <th:block th:replace="~{fields :: text('AUTHCD', 'Auth Code:')}"></th:block>
+        <th:block th:replace="~{fields :: text('AUTHAMT', 'Amount:')}"></th:block>
+        <th:block th:replace="~{fields :: text('POSEMD', 'POS Entry Mode:')}"></th:block>
+        <th:block th:replace="~{fields :: text('AUTHSRC', 'Source:')}"></th:block>
+        <th:block th:replace="~{fields :: text('MCCCD', 'MCC Code:')}"></th:block>
+        <th:block th:replace="~{fields :: text('CRDEXP', 'Card Exp. Date:')}"></th:block>
+        <th:block th:replace="~{fields :: text('AUTHTYP', 'Auth Type:')}"></th:block>
+        <th:block th:replace="~{fields :: text('TRNID', 'Tran Id:')}"></th:block>
+        <th:block th:replace="~{fields :: text('AUTHMTC', 'Match Status:')}"></th:block>
+        <th:block th:replace="~{fields :: text('AUTHFRD', 'Fraud Status:')}"></th:block>
+    </div>
+    <p class="intro">Merchant Details</p>
+    <div class="fields">
+        <th:block th:replace="~{fields :: text('MERNAME', 'Name:')}"></th:block>
+        <th:block th:replace="~{fields :: text('MERID', 'Merchant ID:')}"></th:block>
+        <th:block th:replace="~{fields :: text('MERCITY', 'City:')}"></th:block>
+        <th:block th:replace="~{fields :: text('MERST', 'State:')}"></th:block>
+        <th:block th:replace="~{fields :: text('MERZIP', 'Zip:')}"></th:block>
+    </div>
+</main>
+<nav class="keys">
+    <button name="aid" value="ENTER">ENTER=Continue</button>
+    <button name="aid" value="PF3">F3=Back</button>
+    <button name="aid" value="PF5">F5=Mark/Remove Fraud</button>
+    <button name="aid" value="PF8">F8=Next Auth</button>
+</nav>
+</html>

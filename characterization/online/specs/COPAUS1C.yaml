@@ -345,7 +345,6 @@ cases:
       cursor: CARDNUML
       fields:
         TRNIDO: TXN000000000001
-        AUTHFRDO: "F-{MM/DD/YY}"
       transfer: {via: RETURN-TRANSID, to: CPVD}
       commarea:
         CDEMO-CPVD-PAU-SELECTED: 73984/896984876
@@ -416,7 +415,6 @@ cases:
       cursor: CARDNUML
       fields:
         TRNIDO: TXN000000000003
-        AUTHFRDO: "R-{MM/DD/YY}"
       transfer: {via: RETURN-TRANSID, to: CPVD}
       file_effects:
         - file: PAUTDTL1
