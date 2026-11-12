@@ -136,6 +136,7 @@ notes:
     message is never displayed. The SEND-PLAIN-TEXT / SEND-LONG-TEXT paragraphs (lines 1422-1454) are unreachable.
     LIT-CARD-FILE-ACCT-PATH (CARDAIX) is declared but never used. INFOMSGO is shown only when WS-INFO-MSG is set
     and WS-NO-RECORDS-FOUND is false (lines 926-930).
+  - The Java slice replays this spec with deliberate differences listed, each with its reason, in carddemo-java/src/test/resources/spec-overrides/COCRDLIC.yaml.
 cases:
   - id: COCRDLIC-001
     summary: first entry (no COMMAREA) lists the first 7 cards of CARDDAT unfiltered, page 1, cursor on account filter
