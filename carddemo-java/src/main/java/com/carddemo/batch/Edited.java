@@ -1,6 +1,7 @@
 package com.carddemo.batch;
 
 import java.math.BigDecimal;
+import java.math.BigInteger;
 import java.math.RoundingMode;
 import java.util.Locale;
 
@@ -24,6 +25,23 @@ final class Edited {
     static String display(BigDecimal value) {
         BigDecimal v = value.setScale(2, RoundingMode.DOWN);
         return (v.signum() < 0 ? "-" : "+") + String.format(Locale.ROOT, "%012.2f", v.abs());
+    }
+
+    /** {@code Z(9).99-}: zero-suppressed integer, point, two decimals, then a minus or a space. */
+    static String trailingMinus(BigDecimal value) {
+        BigDecimal v = value.setScale(2, RoundingMode.DOWN);
+        long units = v.abs().longValue() % 1_000_000_000L;
+        return "%9s.%02d%s".formatted(units == 0 ? "" : units, cents(v), v.signum() < 0 ? "-" : " ");
+    }
+
+    /** {@code 9(9).99-}: zero-filled integer, point, two decimals, then a minus or a space. */
+    static String zeroFilledTrailingMinus(BigDecimal value) {
+        BigDecimal v = value.setScale(2, RoundingMode.DOWN);
+        return "%09d.%02d%s".formatted(v.abs().longValue() % 1_000_000_000L, cents(v), v.signum() < 0 ? "-" : " ");
+    }
+
+    private static int cents(BigDecimal scale2) {
+        return scale2.abs().unscaledValue().mod(BigInteger.valueOf(100)).intValue();
     }
 
     private static String edited(BigDecimal value, char sign) {

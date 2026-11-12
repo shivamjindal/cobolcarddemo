@@ -64,6 +64,11 @@ public class TransactionRepository {
                 + " ORDER BY tran_card_num COLLATE \"C\", " + ID, ROW, start.atStartOfDay(), end.plusDays(1).atStartOfDay());
     }
 
+    /** Every record, by card number, then key (CREASTMT's sort into TRXFL). */
+    public List<Transaction> byCard() {
+        return jdbc.query("SELECT " + COLUMNS + " FROM transactions ORDER BY tran_card_num COLLATE \"C\", " + ID, ROW);
+    }
+
     /** STARTBR HIGH-VALUES and one READPREV: the highest key on file. */
     public Optional<Transaction> last() {
         return jdbc.query("SELECT " + COLUMNS + " FROM transactions ORDER BY " + ID + " DESC LIMIT 1", ROW)

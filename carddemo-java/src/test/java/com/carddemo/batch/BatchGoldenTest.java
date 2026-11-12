@@ -143,6 +143,11 @@ class BatchGoldenTest {
                 .addString(TransactionReport.END, "2022-07-06"));
         sysout("TRANREPT", report, "CBTRN03C");
         dataset("TRANREPT", report, "TRANREPT");
+
+        JobExecution statements = run("CREASTMT", params());
+        sysout("CREASTMT", statements, "CBSTM03A");
+        dataset("CREASTMT", statements, "STMTFILE");
+        dataset("CREASTMT", statements, "HTMLFILE");
     }
 
     /** harness.py's POSTTRAN-EDGES scenario: fresh fixtures plus crafted records at each validation boundary. */

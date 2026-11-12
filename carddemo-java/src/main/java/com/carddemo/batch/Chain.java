@@ -12,7 +12,7 @@ import java.util.List;
 public enum Chain {
 
     /** CA-7 SCHID 030: CBPAUP0J, then POSTTRAN, then the master-file listings and the statements. */
-    DAILY("CBPAUP0J", "POSTTRAN", "READACCT", "READCARD", "READCUST", "READXREF"),
+    DAILY("CBPAUP0J", "POSTTRAN", "READACCT", "READCARD", "READCUST", "READXREF", "CREASTMT"),
 
     /** Control-M MONTHLY-InterestCalculation: INTCALC, then COMBTRAN, which INTCALC now does as it posts. */
     MONTHLY("INTCALC");
