@@ -25,6 +25,9 @@ interface CommareaMapping {
         if (program.startsWith("COCRD")) {
             return new CardCommarea();
         }
+        if (program.equals("COTRN00C") || program.equals("COTRN01C")) {
+            return new TransactionCommarea();
+        }
         return new CommareaMapping() {
             @Override
             public void load(String p, Map<String, Object> commarea, Conversation conversation) {

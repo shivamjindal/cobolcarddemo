@@ -1,0 +1,33 @@
+<html xmlns:th="http://www.thymeleaf.org" th:replace="~{layout :: screen('List Transactions', ~{::main}, ~{::nav})}">
+<main>
+    <p class="intro">Page: <span class="value" data-testid="PAGENUM" th:text="${screen.fields.get('PAGENUM')}"></span></p>
+    <div class="fields">
+        <th:block th:replace="~{fields :: field('TRNIDIN', 'Search Tran ID:', 16)}"></th:block>
+    </div>
+    <table>
+        <thead>
+        <tr><th>Sel</th><th>Transaction ID</th><th>Date</th><th>Description</th><th>Amount</th></tr>
+        </thead>
+        <tbody>
+        <th:block th:each="i : ${#numbers.sequence(1, 10)}"
+                  th:with="row=${#numbers.formatInteger(i, 2)}, amt=${#numbers.formatInteger(i, 3)}, sel=|SEL00${row}|, id=${screen.fields.get('TRNID' + row)}">
+            <tr th:unless="${#strings.isEmpty(id)}">
+                <td><input th:id="${sel}" th:name="${sel}" th:data-testid="${sel}" size="1" maxlength="1"
+                           th:value="${screen.fields.get(sel)}" th:autofocus="${screen.cursor == sel}"></td>
+                <td><label th:for="${sel}" th:data-testid="|TRNID${row}|" th:text="${id}"></label></td>
+                <td th:data-testid="|TDATE${row}|" th:text="${screen.fields.get('TDATE' + row)}"></td>
+                <td th:data-testid="|TDESC${row}|" th:text="${screen.fields.get('TDESC' + row)}"></td>
+                <td th:data-testid="|TAMT${amt}|" th:text="${screen.fields.get('TAMT' + amt)}"></td>
+            </tr>
+        </th:block>
+        </tbody>
+    </table>
+    <p class="intro">Type 'S' to View Transaction details from the list</p>
+</main>
+<nav class="keys">
+    <button name="aid" value="ENTER">ENTER=Continue</button>
+    <button name="aid" value="PF3">F3=Back</button>
+    <button name="aid" value="PF7">F7=Backward</button>
+    <button name="aid" value="PF8">F8=Forward</button>
+</nav>
+</html>

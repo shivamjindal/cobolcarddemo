@@ -10,6 +10,7 @@ import org.springframework.jdbc.core.JdbcTemplate;
 import java.math.BigDecimal;
 import java.sql.Timestamp;
 import java.time.LocalDate;
+import java.time.format.DateTimeFormatter;
 import java.util.ArrayList;
 import java.util.HashSet;
 import java.util.LinkedHashMap;
@@ -25,7 +26,8 @@ import java.util.stream.Collectors;
 /**
  * The tables the online programs use, seen as the CICS files of a spec: loaded from given.files, diffed
  * into file_effects, and failed on purpose for given.file_conditions. Records are keyed by copybook name
- * and compared as text: integers zero-padded to their PIC width, decimals at their scale, dates ISO.
+ * and compared as text: integers zero-padded to their PIC width, decimals at their scale, dates ISO, timestamps
+ * as {@code yyyy-MM-dd HH:mm:ss.SSSSSS}.
  */
 class Datasets {
 
@@ -35,10 +37,11 @@ class Datasets {
     /** CSD file name to table; CXACAIX is the account-id alternate index over CCXREF. */
     static final Map<String, VsamDataset> FILES = Map.of("USRSEC", VsamDataset.USERS, "ACCTDAT", VsamDataset.ACCOUNTS,
             "CUSTDAT", VsamDataset.CUSTOMERS, "CARDDAT", VsamDataset.CARDS, "CCXREF", VsamDataset.CARD_XREF,
-            "CXACAIX", VsamDataset.CARD_XREF);
+            "CXACAIX", VsamDataset.CARD_XREF, "TRANSACT", VsamDataset.TRANSACTIONS);
 
     private static final List<VsamDataset> TABLES = List.of(VsamDataset.USERS, VsamDataset.ACCOUNTS,
-            VsamDataset.CUSTOMERS, VsamDataset.CARDS, VsamDataset.CARD_XREF);
+            VsamDataset.CUSTOMERS, VsamDataset.CARDS, VsamDataset.CARD_XREF, VsamDataset.TRANSACTIONS);
+    private static final DateTimeFormatter TIMESTAMP = DateTimeFormatter.ofPattern("yyyy-MM-dd HH:mm:ss.SSSSSS");
     private static final Set<String> WRITE_OPS = Set.of("WRITE", "REWRITE", "DELETE");
 
     /** bcrypt is slow on purpose; the specs reuse a handful of passwords. */
@@ -52,9 +55,13 @@ class Datasets {
         TABLES.forEach(d -> tables.put(d, Table.of(d)));
     }
 
-    /** Every table holds exactly the records given for it; a table the case does not name is empty. */
+    /**
+     * Every table holds exactly the records given for it; a table the case does not name is empty. A record given
+     * under both CCXREF and CXACAIX is one record.
+     */
     void reset(Map<String, List<Map<String, Object>>> files) {
         jdbc.execute("TRUNCATE " + TABLES.stream().map(d -> d.table).collect(Collectors.joining(", ")));
+        Set<List<Object>> inserted = new HashSet<>();
         files.forEach((file, records) -> {
             Table table = tables.get(dataset(file));
             for (Map<String, Object> record : records) {
@@ -63,7 +70,11 @@ class Datasets {
                 if (!unknown.isEmpty()) {
                     throw new IllegalArgumentException(file + " has no fields " + unknown);
                 }
-                jdbc.update(table.insertSql(), table.columns().stream().map(c -> value(c, record.get(c.field().name()))).toArray());
+                List<Object> row = new ArrayList<>(List.of(table.name()));
+                table.columns().forEach(c -> row.add(value(c, record.get(c.field().name()))));
+                if (inserted.add(row)) {
+                    jdbc.update(table.insertSql(), row.subList(1, row.size()).toArray());
+                }
             }
         });
     }
@@ -156,6 +167,7 @@ class Datasets {
             case CUSTOMERS -> "CUSTDAT";
             case CARDS -> "CARDDAT";
             case CARD_XREF -> "CCXREF";
+            case TRANSACTIONS -> "TRANSACT";
             default -> throw new IllegalArgumentException(dataset.name());
         };
     }
@@ -185,6 +197,7 @@ class Datasets {
                 yield (n < 0 ? "-" : "") + ("%0" + digits + "d").formatted(Math.abs(n));
             }
             case DECIMAL -> ((BigDecimal) value).toPlainString();
+            case TIMESTAMP -> TIMESTAMP.format(((Timestamp) value).toLocalDateTime());
             default -> value.toString();
         };
     }

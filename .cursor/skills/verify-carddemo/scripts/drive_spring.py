@@ -1,8 +1,9 @@
 #!/usr/bin/env python3
-"""Drive a running CardDemo Spring instance through slice 1 over real HTTP and record every exchange.
+"""Drive a running CardDemo Spring instance through the migrated slices over real HTTP and record every exchange.
 
-Signs on through the OIDC flow (sign-on page, authorization server, code exchange), then walks the
-admin menu and user admin screens through /api/screens. Exits non-zero on the first failed check.
+Signs on through the OIDC flow (sign-on page, authorization server, code exchange), then walks user admin,
+account and card update, the transaction list, view and add, and a bill payment confirmed by two sessions at
+once, through /api/screens. Exits non-zero on the first failed check.
 
 Usage: drive_spring.py [--base http://localhost:8080] [--out DIR]
 """
@@ -15,6 +16,7 @@ import sys
 import urllib.error
 import urllib.parse
 import urllib.request
+from concurrent.futures import ThreadPoolExecutor
 from pathlib import Path
 
 
@@ -174,6 +176,67 @@ def drive_cards(base, transcript):
     check(all(s["fields"].get(f"CRDNUM{i}") for i in range(1, 8)), "an admin lists all cards, seven a page", s["fields"])
 
 
+def drive_transactions(base, transcript):
+    first, last = "0000000000683580", "0000000996722787"
+    user = Client(base, transcript, "transactions")
+    user.sign_on("USER0001", "PASSWORD")
+    s = user.send("COMEN01C", "ENTER", OPTION="6")
+    check(s["program"] == "COTRN00C" and s["fields"].get("TRNID01") == first and s["fields"].get("PAGENUM") == "00000001",
+          "option 6 lists the seeded daily feed from the lowest id", s["fields"])
+    s = user.send("COTRN00C", "PF8")
+    check(s["fields"].get("PAGENUM") == "00000002" and s["fields"].get("TRNID01") > first, "PF8 pages forward", s["fields"])
+    s = user.send("COTRN00C", "ENTER", TRNIDIN=last)
+    check(s["fields"].get("TRNID01") == last and not s["fields"].get("TRNID02"), "a search id starts the list at it", s["fields"])
+    s = user.send("COTRN00C", "ENTER", SEL0001="S", TRNID01=last)
+    check(s["program"] == "COTRN01C" and s["fields"].get("TRNID") == last, "S opens the transaction view", s["fields"])
+    s = user.send("COTRN01C", "PF3")
+    check(s["program"] == "COTRN00C", "PF3 on the view returns to the list", s["program"])
+    user.send("COTRN00C", "PF3")
+
+    form = {"ACTIDIN": "00000000002", "CARDNIN": "", "TTYPCD": "01", "TCATCD": "0001", "TRNSRC": "POS TERM",
+            "TDESC": "DRIVE PURCHASE", "TRNAMT": "+00000012.50", "TORIGDT": "2026-11-01", "TPROCDT": "2026-11-02",
+            "MID": "000012345", "MNAME": "DRIVE SHOP", "MCITY": "SEATTLE", "MZIP": "98101"}
+    s = user.send("COMEN01C", "ENTER", OPTION="8")
+    check(s["program"] == "COTRN02C", "option 8 opens transaction add", s["program"])
+    s = user.send("COTRN02C", "ENTER", **{**form, "TORIGDT": "2026-02-29"})
+    check(message(s) == "Orig Date - Not a valid date...", "a date that is not a calendar day is refused", message(s))
+    s = user.send("COTRN02C", "ENTER", **{**form, "TORIGDT": "1500-01-01"})
+    check(message(s) == "Orig Date - Not a valid date...", "a date before 1582-10-15 is refused", message(s))
+    s = user.send("COTRN02C", "ENTER", **form)
+    check(message(s) == "Confirm to add this transaction...", "a valid screen asks for confirmation", message(s))
+    s = user.send("COTRN02C", "ENTER", **form, CONFIRM="Y")
+    added = "0000000996722788"
+    check(message(s) == f"Transaction added successfully.  Your Tran ID is {added}.", "Y adds under the next id", message(s))
+    check(sql(base, f"SELECT tran_card_num || '|' || tran_orig_ts || '|' || tran_proc_ts FROM transactions WHERE tran_id = '{added}'")
+          == "0923877193247330|2026-11-01 00:00:00|2026-11-02 00:00:00",
+          "the record carries the account's card and the dates as midnight timestamps")
+
+
+def drive_bill_payment(base, transcript):
+    account, card = "00000000002", "0923877193247330"
+    balance = sql(base, f"SELECT acct_curr_bal FROM accounts WHERE acct_id = {int(account)}")
+    before = int(sql(base, "SELECT count(*) FROM transactions"))
+    payers = [Client(base, transcript, f"billpay-{i}") for i in (1, 2)]
+    for payer in payers:
+        payer.sign_on("USER0001", "PASSWORD")
+        s = payer.send("COMEN01C", "ENTER", OPTION="10")
+        check(s["program"] == "COBIL00C", "option 10 opens bill payment", s["program"])
+    s = payers[0].send("COBIL00C", "ENTER", ACTIDIN=account)
+    check(message(s) == "Confirm to make a bill payment..." and s["fields"].get("CURBAL"),
+          f"the balance of {account} is shown before confirming", s)
+
+    with ThreadPoolExecutor(2) as pool:
+        replies = list(pool.map(lambda p: message(p.send("COBIL00C", "ENTER", ACTIDIN=account, CONFIRM="Y")), payers))
+    paid = [r for r in replies if r and r.startswith("Payment successful.")]
+    check(len(paid) == 1, "two simultaneous confirmations pay once", replies)
+    check(int(sql(base, "SELECT count(*) FROM transactions")) == before + 1, "exactly one payment record is written")
+    check(sql(base, f"SELECT tran_type_cd || '|' || tran_amt || '|' || tran_card_num FROM transactions"
+                    f" WHERE tran_id = '{paid[0].split()[-1].rstrip('.')}'") == f"02|{balance}|{card}",
+          "the payment is type 02 for the full balance on the account's card", balance)
+    check(sql(base, f"SELECT acct_curr_bal FROM accounts WHERE acct_id = {int(account)}") == "0.00",
+          "the account balance is zero after the payment")
+
+
 def drive(base, transcript):
     admin = Client(base, transcript, "admin")
     status, _, url = admin.sign_on("admin001", "password")
@@ -248,6 +311,8 @@ def main():
         drive(args.base, transcript)
         drive_accounts(args.base, transcript)
         drive_cards(args.base, transcript)
+        drive_transactions(args.base, transcript)
+        drive_bill_payment(args.base, transcript)
     finally:
         if args.out:
             args.out.mkdir(parents=True, exist_ok=True)

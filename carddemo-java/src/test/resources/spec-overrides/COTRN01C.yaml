@@ -1,0 +1,6 @@
+# Deliberate differences from characterization/online/specs/COTRN01C.yaml, applied by OnlineSpecReplayTest.
+# Each entry replaces whole keys of the case's given, when or then.
+COTRN01C-013:
+  reason: The web adapter names each attention key, so this case is sent as PF1, which the view rejects.
+  when:
+    aid: PF1

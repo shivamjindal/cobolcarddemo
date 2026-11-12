@@ -1,0 +1,26 @@
+<html xmlns:th="http://www.thymeleaf.org" th:replace="~{layout :: screen('Add Transaction', ~{::main}, ~{::nav})}">
+<main>
+    <div class="fields">
+        <th:block th:replace="~{fields :: field('ACTIDIN', 'Enter Acct #:', 11)}"></th:block>
+        <th:block th:replace="~{fields :: field('CARDNIN', 'Card #:', 16)}"></th:block>
+        <th:block th:replace="~{fields :: field('TTYPCD', 'Type CD:', 2)}"></th:block>
+        <th:block th:replace="~{fields :: field('TCATCD', 'Category CD:', 4)}"></th:block>
+        <th:block th:replace="~{fields :: field('TRNSRC', 'Source:', 10)}"></th:block>
+        <th:block th:replace="~{fields :: field('TDESC', 'Description:', 60)}"></th:block>
+        <th:block th:replace="~{fields :: field('TRNAMT', 'Amount:', 12)}"></th:block>
+        <th:block th:replace="~{fields :: field('TORIGDT', 'Orig Date:', 10)}"></th:block>
+        <th:block th:replace="~{fields :: field('TPROCDT', 'Proc Date:', 10)}"></th:block>
+        <th:block th:replace="~{fields :: field('MID', 'Merchant ID:', 9)}"></th:block>
+        <th:block th:replace="~{fields :: field('MNAME', 'Merchant Name:', 30)}"></th:block>
+        <th:block th:replace="~{fields :: field('MCITY', 'Merchant City:', 25)}"></th:block>
+        <th:block th:replace="~{fields :: field('MZIP', 'Merchant Zip:', 10)}"></th:block>
+        <th:block th:replace="~{fields :: field('CONFIRM', 'Confirm (Y/N):', 1)}"></th:block>
+    </div>
+</main>
+<nav class="keys">
+    <button name="aid" value="ENTER">ENTER=Continue</button>
+    <button name="aid" value="PF3">F3=Back</button>
+    <button name="aid" value="PF4">F4=Clear</button>
+    <button name="aid" value="PF5">F5=Copy Last Tran</button>
+</nav>
+</html>

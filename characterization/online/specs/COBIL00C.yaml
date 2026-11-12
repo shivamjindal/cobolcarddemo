@@ -69,7 +69,8 @@ notes: ['Value conventions: field and record values are shown without trailing p
     ''Account ID NOT found...'', other ''Unable to Update Account...'' (390-402); CXACAIX other ''Unable to lookup
     XREF AIX file...'' (429-436); STARTBR NOTFND ''Transaction ID NOT found...'', other ''Unable to lookup Transaction...''
     (454-466, 488-495); WRITE DUPKEY/DUPREC ''Tran ID already exist...'', other ''Unable to Add Bill pay Transaction...''
-    (533-546). All put the cursor on ACTIDINL. None of them stops the rest of the payment path.']
+    (533-546). All put the cursor on ACTIDINL. None of them stops the rest of the payment path.', 'The Java slice
+    replays this spec with deliberate differences listed, each with its reason, in carddemo-java/src/test/resources/spec-overrides/COBIL00C.yaml.']
 cases:
 - id: COBIL00C-001
   summary: no COMMAREA (EIBCALEN = 0) sends the user to sign-on
