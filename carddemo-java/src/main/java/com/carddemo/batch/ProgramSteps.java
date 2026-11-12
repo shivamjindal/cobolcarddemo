@@ -41,6 +41,7 @@ public class ProgramSteps {
         return new StepBuilder(program, repository).tasklet((contribution, chunk) -> {
             JobExecution job = chunk.getStepContext().getStepExecution().getJobExecution();
             StepOutput out = new StepOutput(dir(job));
+            out.clear();
             try {
                 body.run(job.getJobParameters(), out);
             } catch (Exception e) {

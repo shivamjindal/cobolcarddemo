@@ -10,6 +10,7 @@ import com.carddemo.transactions.Transaction;
 import com.carddemo.transactions.TransactionRepository;
 import com.carddemo.vsam.SeedFormat;
 import org.springframework.batch.core.JobParameters;
+import org.springframework.jdbc.core.JdbcTemplate;
 import org.springframework.stereotype.Component;
 import org.springframework.transaction.support.TransactionTemplate;
 
@@ -24,8 +25,9 @@ import java.util.Optional;
 /**
  * POSTTRAN (CBTRN02C): validates each daily feed record against CCXREF and ACCTDAT, posts the good ones to
  * TRANSACT, TCATBALF and the account, and writes the rest to DALYREJS with a reason. Each record posts in its
- * own transaction under the account lock, so it interleaves safely with online bill payments, and a rerun of
- * the same feed skips the records it already posted instead of failing on their keys.
+ * own transaction under the account lock, so it interleaves safely with online bill payments. The outcome of
+ * every record is kept (TRANSACT, or daily_rejects), so a rerun of the same feed after a failure repeats each
+ * earlier outcome instead of failing on duplicate keys or re-judging a rejected record against newer balances.
  */
 @Component
 public class DailyPosting implements JclJob {
@@ -47,9 +49,8 @@ public class DailyPosting implements JclJob {
             this.description = description;
         }
 
-        /** WS-VALIDATION-TRAILER, appended to the feed record in DALYREJS. */
         String trailer() {
-            return "%04d%-76s".formatted(code, description);
+            return DailyPosting.trailer(code, description);
         }
     }
 
@@ -57,15 +58,17 @@ public class DailyPosting implements JclJob {
     private final AccountRepository accounts;
     private final TranCatBalanceRepository balances;
     private final TransactionRepository transactions;
+    private final JdbcTemplate jdbc;
     private final TransactionTemplate tx;
     private final Clock clock;
 
     public DailyPosting(CardXrefRepository xrefs, AccountRepository accounts, TranCatBalanceRepository balances,
-                        TransactionRepository transactions, TransactionTemplate tx, Clock clock) {
+                        TransactionRepository transactions, JdbcTemplate jdbc, TransactionTemplate tx, Clock clock) {
         this.xrefs = xrefs;
         this.accounts = accounts;
         this.balances = balances;
         this.transactions = transactions;
+        this.jdbc = jdbc;
         this.tx = tx;
         this.clock = clock;
     }
@@ -87,8 +90,8 @@ public class DailyPosting implements JclJob {
         List<String> feed = format.transactionRecords(Path.of(parameters.getString(FEED)));
         List<String> rejects = new ArrayList<>();
         for (String record : feed) {
-            Optional<Reject> reject = tx.execute(status -> post(Transaction.decode(record), out));
-            reject.ifPresent(r -> rejects.add(record + r.trailer()));
+            Optional<String> trailer = tx.execute(status -> post(record, out));
+            trailer.ifPresent(t -> rejects.add(record + t));
         }
         out.dataset("DALYREJS", rejects);
         out.display("TRANSACTIONS PROCESSED :%09d".formatted(feed.size()));
@@ -99,7 +102,14 @@ public class DailyPosting implements JclJob {
         out.display("END OF EXECUTION OF PROGRAM CBTRN02C");
     }
 
-    private Optional<Reject> post(Transaction daily, StepOutput out) {
+    /** WS-VALIDATION-TRAILER, appended to the feed record in DALYREJS. */
+    static String trailer(int code, String description) {
+        return "%04d%-76s".formatted(code, description);
+    }
+
+    /** The DALYREJS trailer when the record is rejected. */
+    private Optional<String> post(String record, StepOutput out) {
+        Transaction daily = Transaction.decode(record);
         Optional<Transaction> existing = transactions.find(daily.id());
         if (existing.isPresent()) {
             if (!existing.get().processedAt(null).equals(daily.processedAt(null))) {
@@ -108,19 +118,27 @@ public class DailyPosting implements JclJob {
             out.display("ALREADY POSTED : " + daily.id());
             return Optional.empty();
         }
+        Optional<String> rejected = jdbc.query("SELECT reason_code, reason_desc FROM daily_rejects WHERE tran_id = ? AND record = ?",
+                (rs, n) -> trailer(rs.getInt(1), rs.getString(2)), daily.id(), record).stream().findFirst();
+        if (rejected.isPresent()) {
+            out.display("ALREADY REJECTED : " + daily.id());
+            return rejected;
+        }
         Optional<CardXref> xref = xrefs.find(daily.cardNumber());
-        if (xref.isEmpty()) {
-            return Optional.of(Reject.INVALID_CARD);
-        }
-        Optional<Account> locked = accounts.lock(xref.get().accountId());
-        if (locked.isEmpty()) {
-            return Optional.of(Reject.ACCOUNT_NOT_FOUND);
-        }
-        Account account = locked.get();
-        Optional<Reject> reject = validate(account, daily);
+        Optional<Account> locked = xref.flatMap(x -> accounts.lock(x.accountId()));
+        Optional<Reject> reject = xref.isEmpty() ? Optional.of(Reject.INVALID_CARD)
+                : locked.isEmpty() ? Optional.of(Reject.ACCOUNT_NOT_FOUND)
+                : validate(locked.get(), daily);
         if (reject.isPresent()) {
-            return reject;
+            jdbc.update("""
+                    INSERT INTO daily_rejects VALUES (?, ?, ?, ?)
+                    ON CONFLICT (tran_id) DO UPDATE SET record = excluded.record, reason_code = excluded.reason_code,
+                        reason_desc = excluded.reason_desc""",
+                    daily.id(), record, reject.get().code, reject.get().description);
+            return reject.map(Reject::trailer);
         }
+        jdbc.update("DELETE FROM daily_rejects WHERE tran_id = ?", daily.id());
+        Account account = locked.get();
         BigDecimal amount = daily.amount();
         balances.lock(account.id(), daily.typeCode(), daily.categoryCode()).ifPresentOrElse(
                 b -> balances.rewrite(b.plus(amount)),

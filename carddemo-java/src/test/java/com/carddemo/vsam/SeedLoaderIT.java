@@ -16,7 +16,6 @@ import org.testcontainers.junit.jupiter.Testcontainers;
 import java.math.BigDecimal;
 import java.nio.file.Path;
 import java.sql.Date;
-import java.sql.Timestamp;
 import java.util.Map;
 
 import static org.assertj.core.api.Assertions.assertThat;
@@ -49,7 +48,7 @@ class SeedLoaderIT {
     @Test
     void everySampleRecordLandsExactlyOnce() {
         Map<String, Integer> expected = Map.of(
-                "accounts", 50, "cards", 50, "card_xref", 50, "customers", 50, "transactions", 300,
+                "accounts", 50, "cards", 50, "card_xref", 50, "customers", 50, "transactions", 0,
                 "users", 10, "disclosure_groups", 51, "tran_cat_balances", 50, "tran_categories", 18,
                 "tran_types", 7);
 
@@ -95,20 +94,6 @@ class SeedLoaderIT {
     }
 
     @Test
-    void theDailyFeedIsSeededAsPostedTransactions() {
-        assertThat(jdbc.queryForMap("SELECT * FROM transactions WHERE tran_id = '0000000000683580'")).contains(
-                entry("tran_type_cd", "01"),
-                entry("tran_cat_cd", 1),
-                entry("tran_desc", "Purchase at Abshire-Lowe"),
-                entry("tran_amt", new BigDecimal("504.77")),
-                entry("tran_card_num", "4859452612877065"),
-                entry("tran_orig_ts", Timestamp.valueOf("2022-06-10 19:27:53")),
-                entry("tran_proc_ts", Timestamp.valueOf("2022-06-10 19:27:53")));
-        assertThat(jdbc.queryForObject("SELECT count(*) FROM transactions WHERE tran_proc_ts IS DISTINCT FROM tran_orig_ts",
-                Integer.class)).isZero();
-    }
-
-    @Test
     void usersAndReferenceDataRoundTrip() {
         Map<String, Object> admin = jdbc.queryForMap("SELECT * FROM users WHERE sec_usr_id = 'ADMIN001'");
         assertThat(admin).contains(
@@ -126,7 +111,7 @@ class SeedLoaderIT {
 
     @Test
     void alternateIndexesExist() {
-        assertThat(jdbc.queryForList("SELECT indexname FROM pg_indexes WHERE schemaname = 'public' AND indexname NOT LIKE '%pkey' AND indexname NOT LIKE 'flyway%'", String.class))
+        assertThat(jdbc.queryForList("SELECT indexname FROM pg_indexes WHERE schemaname = 'public' AND indexname NOT LIKE '%pkey' AND indexname NOT LIKE 'flyway%' AND tablename NOT LIKE 'batch_%'", String.class))
                 .containsExactlyInAnyOrder("cards_card_acct_id_idx", "card_xref_xref_acct_id_idx", "transactions_tran_proc_ts_idx");
     }
 

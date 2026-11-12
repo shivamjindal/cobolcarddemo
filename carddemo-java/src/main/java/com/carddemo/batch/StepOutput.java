@@ -7,6 +7,7 @@ import java.nio.file.Files;
 import java.nio.file.Path;
 import java.util.ArrayList;
 import java.util.List;
+import java.util.stream.Stream;
 
 /**
  * What one legacy program step leaves in the spool: its DISPLAY lines (SYSOUT), the sequential datasets it
@@ -20,6 +21,20 @@ public final class StepOutput {
 
     StepOutput(Path dir) {
         this.dir = dir;
+    }
+
+    /** Execution ids restart at 1 on a fresh database, so a spool directory can hold an earlier run's files. */
+    void clear() {
+        if (!Files.isDirectory(dir)) {
+            return;
+        }
+        try (Stream<Path> files = Files.list(dir)) {
+            for (Path file : files.toList()) {
+                Files.delete(file);
+            }
+        } catch (IOException e) {
+            throw new UncheckedIOException(e);
+        }
     }
 
     public void display(String line) {

@@ -30,7 +30,8 @@ public class SeedLoader {
     @Transactional
     public Map<VsamDataset, Integer> load(Path dir, SeedFormat format) {
         String allTables = Arrays.stream(VsamDataset.values()).map(d -> d.table).collect(Collectors.joining(", "));
-        jdbc.execute("TRUNCATE " + allTables);
+        // A fresh TRANSACT makes the outcomes of any earlier feed meaningless.
+        jdbc.execute("TRUNCATE " + allTables + ", daily_rejects");
         Map<VsamDataset, Integer> loaded = new EnumMap<>(VsamDataset.class);
         for (VsamDataset dataset : VsamDataset.values()) {
             Table table = Table.of(dataset);
