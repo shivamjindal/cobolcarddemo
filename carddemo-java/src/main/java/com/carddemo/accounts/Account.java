@@ -9,4 +9,9 @@ public record Account(long id, String activeStatus, BigDecimal currentBalance, B
                       BigDecimal cashCreditLimit, LocalDate openDate, LocalDate expirationDate,
                       LocalDate reissueDate, BigDecimal currentCycleCredit, BigDecimal currentCycleDebit,
                       String addressZip, String groupId) implements Serializable {
+
+    public Account withAddressZip(String zip) {
+        return new Account(id, activeStatus, currentBalance, creditLimit, cashCreditLimit, openDate, expirationDate,
+                reissueDate, currentCycleCredit, currentCycleDebit, zip, groupId);
+    }
 }
