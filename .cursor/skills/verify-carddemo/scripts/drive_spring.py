@@ -92,11 +92,50 @@ def message(screen):
     return (screen.get("message") or {}).get("text")
 
 
-def stored_password(base, user):
+def sql(base, query):
     port = urllib.parse.urlparse(base).port
     return subprocess.run(["docker", "exec", f"carddemo-pg-{port}", "psql", "-U", "carddemo", "-d", "carddemo",
-                           "-tAc", f"SELECT sec_usr_pwd FROM users WHERE sec_usr_id = '{user}'"],
-                          capture_output=True, text=True).stdout.strip()
+                           "-tAc", query], capture_output=True, text=True).stdout.strip()
+
+
+def stored_password(base, user):
+    return sql(base, f"SELECT sec_usr_pwd FROM users WHERE sec_usr_id = '{user}'")
+
+
+def drive_cards(base, transcript):
+    card, account = "0500024453765740", "00000000050"
+    user = Client(base, transcript, "cards")
+    user.sign_on("USER0001", "PASSWORD")
+    menu = user.screen("COMEN01C")
+    check("03. Credit Card List" in menu["fields"].values(), "main menu shows the card options", menu["fields"])
+
+    s = user.send("COMEN01C", "ENTER", OPTION="3")
+    check(s["program"] == "COCRDLIC" and not s["fields"].get("CRDNUM1")
+          and message(s) == "ENTER AN ACCOUNT NUMBER TO LIST ITS CARDS",
+          "a regular user's card list is empty until an account is typed", s)
+    s = user.send("COCRDLIC", "ENTER", ACCTSID=account)
+    check(s["fields"].get("CRDNUM1") == card and not s["fields"].get("CRDNUM2"),
+          f"filtering by account {account} lists only its card", s["fields"])
+
+    cvv = sql(base, f"SELECT card_cvv_cd FROM cards WHERE card_num = '{card}'")
+    s = user.send("COCRDLIC", "ENTER", ACCTSID=account, CRDSEL1="U")
+    check(s["program"] == "COCRDUPC" and s["fields"].get("CARDSID") == card, "U opens card update with the card", s)
+    fields = {k: s["fields"].get(k, "") for k in ("ACCTSID", "CARDSID", "CRDNAME", "CRDSTCD", "EXPMON", "EXPYEAR", "EXPDAY")}
+    s = user.send("COCRDUPC", "ENTER", **{**fields, "CRDNAME": "Drive Renamed"})
+    check(s["fields"].get("INFOMSG") == "Changes validated.Press F5 to save", "a valid change asks for F5", s["fields"])
+    s = user.send("COCRDUPC", "PF5", **{**fields, "CRDNAME": "Drive Renamed"})
+    check(s["fields"].get("INFOMSG") == "Changes committed to database", "F5 saves the card", s)
+    check(sql(base, f"SELECT card_embossed_name || '|' || card_cvv_cd FROM cards WHERE card_num = '{card}'")
+          == f"Drive Renamed|{cvv}", "the new name is stored and the CVV is kept", cvv)
+
+    s = user.send("COCRDUPC", "ENTER")
+    check(s["program"] == "COCRDLIC" and s["fields"].get("ACCTSID") == account and s["fields"].get("CRDNUM1") == card,
+          "after the save any key returns to the list with its filter kept", s["fields"])
+
+    admin = Client(base, transcript, "cards-admin")
+    admin.sign_on("ADMIN001", "PASSWORD")
+    s = admin.screen("COCRDLIC")
+    check(all(s["fields"].get(f"CRDNUM{i}") for i in range(1, 8)), "an admin lists all cards, seven a page", s["fields"])
 
 
 def drive(base, transcript):
@@ -171,6 +210,7 @@ def main():
     transcript = []
     try:
         drive(args.base, transcript)
+        drive_cards(args.base, transcript)
     finally:
         if args.out:
             args.out.mkdir(parents=True, exist_ok=True)
