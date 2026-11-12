@@ -80,6 +80,7 @@ class BatchGoldenTest {
     void theBatchCycleMatchesTheLegacyGoldenMasters() throws IOException {
         cycle();
         edges();
+        maintenance();
 
         Golden golden = new Golden();
         Map<String, Golden.Master> masters = Golden.load();
@@ -166,6 +167,15 @@ class BatchGoldenTest {
         unload("POSTTRAN-EDGES", VsamDataset.TRANSACTIONS, "TRANSACT");
         artifacts.put("POSTTRAN-EDGES/ACCTDATA.ksds",
                 Golden.render(Table.of(VsamDataset.ACCOUNTS).unload(jdbc).subList(0, 4)));
+    }
+
+    /** harness.py's MNTTRDB2 scenario: the transaction-type fixture plus the maintenance requests. */
+    private void maintenance() throws IOException {
+        loader.load(FIXTURES, SeedFormat.ASCII);
+        JobExecution job = run("MNTTRDB2", params().addString(TransactionTypeMaintenance.INPUT,
+                Golden.ROOT.resolve("fixtures/mnttrdb2-inpfile.txt").toString()));
+        sysout("MNTTRDB2", job, "COBTUPDT");
+        dataset("MNTTRDB2", job, "TRANTYPE");
     }
 
     /** Every launch is a new job instance, so the cycle can rerun in a context another test already used. */

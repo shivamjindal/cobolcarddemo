@@ -1,0 +1,28 @@
+OPEN FILE OK
+PROCESSING   * weekly refresh comment                             
+IGNORING COMMENTED LINE
+PROCESSING   A08Brand new type                                    
+ADDING RECORD
+RECORD INSERTED SUCCESSFULLY
+PROCESSING   U01Updated purchase                                  
+UPDATING RECORD
+RECORD UPDATED SUCCESSFULLY
+PROCESSING   D08                                                  
+DELETING RECORD
+RECORD DELETED SUCCESSFULLY
+PROCESSING   A01Duplicate of purchase                             
+ADDING RECORD
+Error accessing: TRANSACTION_TYPE table. SQLCODE: -803                          
+PROCESSING   U99Missing update                                    
+UPDATING RECORD
+No records found.TRANSACTION_TYPE table. SQLCODE: -803                          
+PROCESSING   D98Missing delete                                    
+DELETING RECORD
+No records found.TRANSACTION_TYPE table. SQLCODE: -803                          
+PROCESSING   Xbad code                                            
+ERROR: TYPE NOT VALIDSACTION_TYPE table. SQLCODE: -803                          
+PROCESSING   D07                                                  
+DELETING RECORD
+Error accessing: TRANSACTION_TYPE table. SQLCODE: -532                          
+
+[return code 4]

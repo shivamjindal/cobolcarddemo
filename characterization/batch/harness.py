@@ -192,10 +192,58 @@ def cobc(args, cwd):
         raise RuntimeError(f"cobc {' '.join(args)} failed:\n{msgs}")
 
 
+COBTUPDT = REPO / "app/app-transaction-type-db2/cbl/COBTUPDT.cbl"
+
+
+def patch_cobtupdt(text):
+    """EXEC SQL cannot be precompiled here. The three statements become CALLs to TRTYPE."""
+    text = text.replace(
+        "            EXEC SQL                                                    00410032\n"
+        "                INCLUDE SQLCA                                           00420032\n"
+        "            END-EXEC                                                    00430032",
+        "       01 SQLCODE PIC S9(9) COMP VALUE ZERO.")
+    text = text.replace(
+        "            EXEC SQL INCLUDE DCLTRTYP END-EXEC                          00450046",
+        "      * DCLTRTYP omitted: host variables are INPUT-REC-NUMBER and INPUT-REC-DESC")
+    text = text.replace(
+        "           EXEC SQL                                                     01140032\n"
+        "                INSERT INTO CARDDEMO.TRANSACTION_TYPE                   01150032\n"
+        "                (                                                       01160032\n"
+        "                TR_TYPE,                                                01170032\n"
+        "                TR_DESCRIPTION                                          01180032\n"
+        "                )                                                       01190032\n"
+        "                VALUES                                                  01200032\n"
+        "                (                                                       01210032\n"
+        "                :INPUT-REC-NUMBER,                                      01220033\n"
+        "                :INPUT-REC-DESC                                         01230033\n"
+        "                )                                                       01240032\n"
+        "           END-EXEC.                                                    01250034",
+        '           CALL "TRTYPE" USING "I"\n'
+        "                INPUT-REC-NUMBER INPUT-REC-DESC SQLCODE.")
+    text = text.replace(
+        "           EXEC SQL                                                     01522037\n"
+        "                UPDATE CARDDEMO.TRANSACTION_TYPE                        01523040\n"
+        "                   SET TR_DESCRIPTION = :INPUT-REC-DESC                 01524041\n"
+        "                 WHERE TR_TYPE = :INPUT-REC-NUMBER                      01525041\n"
+        "           END-EXEC                                                     01526037",
+        '           CALL "TRTYPE" USING "U"\n'
+        "                INPUT-REC-NUMBER INPUT-REC-DESC SQLCODE")
+    text = text.replace(
+        "           EXEC SQL                                                     01900032\n"
+        "                DELETE FROM CARDDEMO.TRANSACTION_TYPE                   01910032\n"
+        "                 WHERE TR_TYPE = :INPUT-REC-NUMBER                      01920033\n"
+        "           END-EXEC.                                                    01930034",
+        '           CALL "TRTYPE" USING "D"\n'
+        "                INPUT-REC-NUMBER INPUT-REC-DESC SQLCODE.")
+    if "EXEC SQL" in text:
+        raise RuntimeError("COBTUPDT still has an EXEC SQL after the harness patch")
+    return text
+
+
 def build_inputs_hash():
     h = hashlib.sha256()
     inputs = [*sorted((APP / "cbl").iterdir()), *sorted((APP / "cpy").iterdir()),
-              *sorted((HERE / "stubs").glob("*.cbl")), Path(__file__)]
+              *sorted((HERE / "stubs").glob("*.cbl")), COBTUPDT, Path(__file__)]
     for p in inputs:
         h.update(p.name.encode() + p.read_bytes())
     return h.hexdigest()
@@ -219,6 +267,9 @@ def build():
             src = gen / f"{prog}.cbl"
             src.write_text(text)
         cobc(["-m", *common, "-o", str(BUILD / f"{prog}.so"), str(src)], BUILD)
+    patched_update = gen / "COBTUPDT.cbl"
+    patched_update.write_text(patch_cobtupdt(COBTUPDT.read_text()))
+    cobc(["-m", "-o", str(BUILD / "COBTUPDT.so"), str(patched_update)], BUILD)
     BUILD_FIXED.mkdir()
     for prog in sorted({f.program for f in FIXES}):
         src = next(APP.glob(f"cbl/{prog}.[cC][bB][lL]"))
@@ -414,6 +465,28 @@ EDGES = HERE / "fixtures" / "posttran-edges"
 #   9 purchase of 50.01 after that credit  10 purchase of 50.00 after that credit (102: the credit did not free limit)
 
 
+def logical_type_records(path):
+    """One maintenance request a line: action, two-character type, description. Padded to COBTUPDT's 53 bytes."""
+    records = []
+    for line in path.read_text(encoding="latin-1").splitlines():
+        op = line[:1].ljust(1)
+        number = line[1:3].ljust(2)[:2]
+        description = line[3:].ljust(50)[:50]
+        records.append((op + number + description).encode("latin-1"))
+    return records
+
+
+def scenario_mnttrdb2(run):
+    """MNTTRDB2 (COBTUPDT) against the transaction-type fixture. Not part of the daily or monthly chains."""
+    run.load_ksds("TRANTYPE", fixture_records("trantype.txt", 60))
+    codes = sorted({record[:2] for record in fixture_records("trancatg.txt", 60)})
+    run.write_seq("CATTYPES.dat", codes)
+    run.write_seq("INPFILE.dat", logical_type_records(HERE / "fixtures" / "mnttrdb2-inpfile.txt"))
+    run.exec_pgm("MNTTRDB2", "COBTUPDT",
+                 {"INPFILE": "INPFILE.dat", "KSFILE": "TRANTYPE.ksds", "CATFILE": "CATTYPES.dat"})
+    run.capture("MNTTRDB2", "TRANTYPE", [record[:52] for record in run.unload_ksds("TRANTYPE")])
+
+
 def scenario_posttran_edges(run):
     """POSTTRAN against fresh fixtures plus crafted daily transactions at each validation boundary."""
     job_load(run)
@@ -469,13 +542,17 @@ def cycle(work, library):
     edges = Run(work / "posttran-edges", library)
     edges.work.mkdir()
     scenario_posttran_edges(edges)
-    return {**run.artifacts, **edges.artifacts}
+    types = Run(work / "mnttrdb2", library)
+    types.work.mkdir()
+    scenario_mnttrdb2(types)
+    return {**run.artifacts, **edges.artifacts, **types.artifacts}
 
 
 def main():
     ap = argparse.ArgumentParser(description=__doc__, formatter_class=argparse.RawDescriptionHelpFormatter)
     ap.add_argument("--update", action="store_true", help="rewrite golden/ and golden-fixed/ from this run")
-    ap.add_argument("--job", action="append", choices=[*JOBS, "POSTTRAN-EDGES"], help="only compare these jobs (all jobs still run, in order)")
+    ap.add_argument("--job", action="append", choices=[*JOBS, "POSTTRAN-EDGES", "MNTTRDB2"],
+                    help="only compare these jobs (all jobs still run, in order)")
     ap.add_argument("--keep", action="store_true", help="keep the scratch directory and print its path")
     ap.add_argument("--out", type=Path, help="also write this run's artifacts here, in the golden/ layout")
     args = ap.parse_args()
