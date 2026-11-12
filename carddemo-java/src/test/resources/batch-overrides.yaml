@@ -14,5 +14,9 @@ rewrites:
     pattern: '(?m)^(\d{17}\d{10}[{}A-R])0{22}$'
     replacement: '$1                      '
     reason: The tcatbal.txt sample fills the record's FILLER with zeros, which the tran_cat_balances table does not store, so those records come back with a blank FILLER.
+  - artifacts: "READACCT/CBACT01C.sysout"
+    pattern: '(?m)^libcob: warning: implicit CLOSE of .*\n'
+    replacement: ''
+    reason: CBACT01C never closes its three output files, so GnuCOBOL warns as it closes them at exit, and the Java job has no runtime to warn.
 
 overrides: []

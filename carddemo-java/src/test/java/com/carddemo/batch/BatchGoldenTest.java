@@ -114,6 +114,15 @@ class BatchGoldenTest {
     private void cycle() throws IOException {
         loader.load(FIXTURES, SeedFormat.ASCII);
 
+        JobExecution accounts = run("READACCT", params());
+        sysout("READACCT", accounts, "CBACT01C");
+        dataset("READACCT", accounts, "OUTFILE");
+        dataset("READACCT", accounts, "ARRYFILE");
+        dataset("READACCT", accounts, "VBRCFILE");
+        sysout("READCARD", run("READCARD", params()), "CBACT02C");
+        sysout("READXREF", run("READXREF", params()), "CBACT03C");
+        sysout("READCUST", run("READCUST", params()), "CBCUS01C");
+
         JobExecution post = run("POSTTRAN", params()
                 .addString(DailyPosting.FEED, FIXTURES.resolve("dailytran.txt").toString())
                 .addString(DailyPosting.FORMAT, SeedFormat.ASCII.name()));
