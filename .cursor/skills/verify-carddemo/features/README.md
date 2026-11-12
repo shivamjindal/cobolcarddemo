@@ -30,4 +30,5 @@ Each feature file has an H1, one paragraph on the user-visible behavior, and fou
 - [Interest and transaction merge](./interest-and-combine.md) covers INTCALC interest transactions and the COMBTRAN merge.
 - [Reports and statements](./reports-and-statements.md) covers the TRANREPT daily report and CREASTMT text and HTML statements.
 - [Master file extracts](./master-file-extracts.md) covers READACCT, READCARD, READXREF, and READCUST.
-- [Online screens](./online-screens.md) covers sign-on, user admin, account, card, transaction, bill-pay, and report screens through derived specs.
+- [Online screens](./online-screens.md) covers sign-on, user admin, account, card, transaction, bill-pay, report, and transaction-type screens through derived specs.
+- [Transaction types](./transaction-types.md) covers the admin list and the add/edit screen, plus the on-demand `MNTTRDB2` batch job.

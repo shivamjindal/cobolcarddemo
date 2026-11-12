@@ -1,6 +1,6 @@
 # carddemo-java
 
-Spring Boot 3 / Java 21 port of CardDemo. It holds the data layer (Postgres tables for the VSAM KSDS clusters, derived from the copybooks in `../app/cpy`, and a loader for the sample data in `../app/data`) and the online screens migrated so far, which are sign-on, both menus and user admin (COSGN00C, COMEN01C, COADM01C, COUSR00C-03C).
+Spring Boot 3 / Java 21 port of CardDemo. It holds the data layer (Postgres tables for the VSAM KSDS clusters, derived from the copybooks in `../app/cpy`, and a loader for the sample data in `../app/data`) and the online screens migrated so far: sign-on, both menus, user admin, accounts, cards, transactions, bill payment, report requests, and transaction-type maintenance (`COTRTLIC`, `COTRTUPC`).
 
 ## Commands
 
@@ -52,7 +52,13 @@ Two adapters serve every program, so a new screen adds only its `ScreenProgram` 
 - HTML: `GET /screens/{program}` and `POST /screens/{program}` (form fields plus `aid` from the pressed button). Every POST answers 303; a redisplay travels as a flash attribute.
 - REST: `GET /api/screens/{program}` returns `{program, transid, fields, message: {text, kind}, cursor}`. `POST` takes `{aid, fields}` and returns the same, a 303 to `/api/screens/{to}` for a transfer, or `{signedOff: true, message}`. Send the `XSRF-TOKEN` cookie back as `X-XSRF-TOKEN`.
 
-The template is `templates/<PROGRAM>.html` and uses the `layout :: screen(title, body, keys)` fragment, the `fields :: field(name, label, size)` input, and one `<button name="aid" value="PFn">` per key, ENTER first. Each input carries a `<label>` and `data-testid` equal to its BMS name, the message line is `data-testid="ERRMSG"`, and the cursor field gets `autofocus`. `static/js/screen.js` maps F3, F4, F5, F7, F8 and F12 to those buttons.
+The template is `templates/<PROGRAM>.html` and uses the `layout :: screen(title, body, keys)` fragment, the `fields :: field(name, label, size)` input, and one `<button name="aid" value="PFn">` per key, ENTER first. Each input carries a `<label>` and `data-testid` equal to its BMS name, the message line is `data-testid="ERRMSG"`, and the cursor field gets `autofocus`. `static/js/screen.js` maps F2, F3, F4, F5, F6, F7, F8, F10, and F12 to those buttons.
+
+## Transaction types
+
+`trantypes/` is `COTRTLIC` (admin option 5) and `COTRTUPC` (admin option 6) on `tran_types`. `V6__tran_type_category_fk.sql` makes `tran_categories.tran_type_cd` reference `tran_types`, which is the Db2 `ON DELETE RESTRICT`. The seed loads types before categories so that check can run per insert.
+
+`MNTTRDB2` (`TransactionTypeMaintenance`) reads the file in job parameter `input`. A line is an action, a two-character type, and a description: `A` insert, `U` update, `D` delete, `*` comment. It is not part of the daily or monthly schedule. Call `BatchJobs.run("MNTTRDB2", parameters)`.
 
 ## Spec replay
 
@@ -65,7 +71,7 @@ The template is `templates/<PROGRAM>.html` and uses the `layout :: screen(title,
 - `vsam/Table` and `vsam/Column` turn a dataset into DDL and decode records into row values.
 - `vsam/SeedLoader` truncates the tables and reloads them in one transaction.
 - `online/` is the screen engine (`Screens`), both adapters, `Conversation` and the two menus.
-- `signon/` holds both security chains and COSGN00C; `users/` holds the users table and COUSR00C-03C.
+- `signon/` holds both security chains and COSGN00C; `users/` holds the users table and COUSR00C-03C; `trantypes/` holds COTRTLIC, COTRTUPC, and the repository `MNTTRDB2` uses.
 
 ## Mapping rules
 
