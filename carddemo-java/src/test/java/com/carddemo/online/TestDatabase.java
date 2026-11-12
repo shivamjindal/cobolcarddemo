@@ -7,7 +7,7 @@ import org.springframework.jdbc.core.JdbcTemplate;
 import org.testcontainers.containers.PostgreSQLContainer;
 
 @TestConfiguration(proxyBeanMethods = false)
-class TestDatabase {
+public class TestDatabase {
 
     @Bean
     @ServiceConnection
@@ -16,7 +16,7 @@ class TestDatabase {
     }
 
     @Bean
-    UsersTable usersTable(JdbcTemplate jdbc) {
-        return new UsersTable(jdbc);
+    Datasets datasets(JdbcTemplate jdbc) {
+        return new Datasets(jdbc);
     }
 }
