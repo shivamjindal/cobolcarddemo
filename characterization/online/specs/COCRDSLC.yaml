@@ -81,6 +81,7 @@ notes:
     file-error branch only sets FLG-ACCTFILTER-NOT-OK IF WS-RETURN-MSG-OFF (lines 764-766), which is always true at
     that point. EXEC CICS HANDLE ABEND (lines 250-252) routes abends to ABEND-ROUTINE, which sends ABEND-DATA and
     abends with code 9999 (lines 857-877); no case covers abends.
+  - The Java slice replays this spec with deliberate differences listed, each with its reason, in carddemo-java/src/test/resources/spec-overrides/COCRDSLC.yaml.
 cases:
   - id: COCRDSLC-001
     summary: first entry (no COMMAREA) shows an empty search screen with the input prompt

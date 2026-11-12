@@ -1,0 +1,31 @@
+# Deliberate differences from characterization/online/specs/COCRDSLC.yaml, applied by OnlineSpecReplayTest.
+# Each entry replaces whole keys of the case's given, when or then.
+COCRDSLC-001:
+  reason: A first entry with no signed-on user goes to sign-on.
+  then:
+    message: null
+    cursor: null
+    fields: {}
+    transfer: {via: XCTL, to: COSGN00C}
+    commarea: {}
+COCRDSLC-002:
+  reason: No arrival INITIALIZEs the conversation, so the user id and type survive and the origin is kept.
+  then:
+    commarea: {CDEMO-USER-ID: USER0001, CDEMO-USER-TYPE: U, CDEMO-FROM-PROGRAM: COMEN01C}
+COCRDSLC-014:
+  reason: A card is found only under the account that owns it, so a valid account paired with another account's card is not found.
+  then:
+    message: "Did not find cards for this search condition"
+    cursor: ACCTSIDL
+    fields: {ACCTSIDO: "00000000002", CARDSIDO: "4000000000000002", CRDNAMEO: "", INFOMSGO: "Please enter Account and Card Number"}
+COCRDSLC-017:
+  reason: The user type is never reset to 'U', so an admin stays an admin across programs.
+  then:
+    commarea: {CDEMO-FROM-PROGRAM: COCRDSLC, CDEMO-FROM-TRANID: CCDL, CDEMO-USER-ID: ADMIN001, CDEMO-USER-TYPE: A}
+COCRDSLC-018:
+  reason: The user type is never reset to 'U', so an admin stays an admin across programs.
+  then:
+    commarea: {CDEMO-FROM-PROGRAM: COCRDSLC, CDEMO-FROM-TRANID: CCDL, CDEMO-USER-TYPE: A}
+COCRDSLC-020:
+  reason: PGM-CONTEXT is implicit in GET versus POST, so a context other than 0 or 1 cannot arise.
+  skip: true
