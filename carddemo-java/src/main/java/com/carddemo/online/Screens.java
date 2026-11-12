@@ -12,6 +12,7 @@ import java.util.EnumMap;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.TreeMap;
 import java.util.stream.Collectors;
 
 /** The installed programs and the rules every screen shares; both HTTP adapters go through here. */
@@ -67,7 +68,7 @@ public class Screens {
         fields.put("TITLE02", "CardDemo");
         fields.put("CURDATE", CURDATE.format(now));
         fields.put("CURTIME", CURTIME.format(now));
-        fields.putAll(show.fields());
+        fields.putAll(new TreeMap<>(show.fields()));
         return new Screen(program, program.transid, fields, show.message(), show.cursor());
     }
 
