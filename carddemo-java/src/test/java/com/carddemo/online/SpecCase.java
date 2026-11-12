@@ -147,7 +147,7 @@ record SpecCase(String program, String id, String summary, Map<String, Object> g
             Map<String, Object> record = map(effect.get("record"));
             List<String> key = datasets.keyFields(file);
             Optional<Datasets.Effect> match = actual.stream().filter(a -> a.op().equals(effect.get("op"))
-                    && Datasets.FILES.get(a.file()) == Datasets.FILES.get(file)
+                    && Datasets.same(a.file(), file)
                     && key.stream().allMatch(k -> a.record().get(k).equals(text(record.get(k))))).findFirst();
             soft.assertThat(match).as("%s %s %s", effect.get("op"), file, key.stream().map(record::get).toList()).isPresent();
             match.ifPresent(a -> record.forEach((name, value) -> {

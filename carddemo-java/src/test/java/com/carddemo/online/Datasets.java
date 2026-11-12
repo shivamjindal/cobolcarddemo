@@ -12,6 +12,7 @@ import java.sql.Timestamp;
 import java.time.LocalDate;
 import java.time.format.DateTimeFormatter;
 import java.util.ArrayList;
+import java.util.HashMap;
 import java.util.HashSet;
 import java.util.LinkedHashMap;
 import java.util.List;
@@ -21,6 +22,7 @@ import java.util.TreeMap;
 import java.util.concurrent.Callable;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.stream.Collectors;
+import java.util.stream.Stream;
 
 
 /**
@@ -34,6 +36,16 @@ class Datasets {
     record Effect(String file, String op, Map<String, String> record) {
     }
 
+    /**
+     * A table whose spec records do not follow a VSAM copybook layout: an IMS segment or a Db2 table. Fields map
+     * to columns by name and travel as Postgres text in both directions; a blank non-text field is NULL.
+     */
+    record Relation(String table, Map<String, String> columns, List<String> key) {
+    }
+
+    /** IMS segment and Db2 table names, as specs use them, to their tables. */
+    static final Map<String, Relation> RELATIONS = Map.of();
+
     /** CSD file name to table; CXACAIX is the account-id alternate index over CCXREF. */
     static final Map<String, VsamDataset> FILES = Map.of("USRSEC", VsamDataset.USERS, "ACCTDAT", VsamDataset.ACCOUNTS,
             "CUSTDAT", VsamDataset.CUSTOMERS, "CARDDAT", VsamDataset.CARDS, "CCXREF", VsamDataset.CARD_XREF,
@@ -43,12 +55,14 @@ class Datasets {
             VsamDataset.CUSTOMERS, VsamDataset.CARDS, VsamDataset.CARD_XREF, VsamDataset.TRANSACTIONS);
     private static final DateTimeFormatter TIMESTAMP = DateTimeFormatter.ofPattern("yyyy-MM-dd HH:mm:ss.SSSSSS");
     private static final Set<String> WRITE_OPS = Set.of("WRITE", "REWRITE", "DELETE");
+    private static final Set<String> TEXT_TYPES = Set.of("bpchar", "varchar", "text");
 
     /** bcrypt is slow on purpose; the specs reuse a handful of passwords. */
     private static final Map<String, String> HASHES = new ConcurrentHashMap<>();
 
     private final JdbcTemplate jdbc;
     private final Map<VsamDataset, Table> tables = new LinkedHashMap<>();
+    private final Map<String, Map<String, String>> columnTypes = new ConcurrentHashMap<>();
 
     Datasets(JdbcTemplate jdbc) {
         this.jdbc = jdbc;
@@ -60,9 +74,15 @@ class Datasets {
      * under both CCXREF and CXACAIX is one record.
      */
     void reset(Map<String, List<Map<String, Object>>> files) {
-        jdbc.execute("TRUNCATE " + TABLES.stream().map(d -> d.table).collect(Collectors.joining(", ")));
+        jdbc.execute("TRUNCATE " + Stream.concat(TABLES.stream().map(d -> d.table),
+                RELATIONS.values().stream().map(Relation::table)).distinct().collect(Collectors.joining(", ")));
         Set<List<Object>> inserted = new HashSet<>();
         files.forEach((file, records) -> {
+            Relation relation = RELATIONS.get(file);
+            if (relation != null) {
+                records.forEach(record -> insert(file, relation, record));
+                return;
+            }
             Table table = tables.get(dataset(file));
             for (Map<String, Object> record : records) {
                 Set<String> unknown = new HashSet<>(record.keySet());
@@ -92,7 +112,49 @@ class Datasets {
             });
             all.put(file(dataset), rows);
         });
+        RELATIONS.forEach((file, relation) -> {
+            Map<String, Map<String, String>> rows = new TreeMap<>();
+            String select = relation.columns().values().stream().map(c -> c + "::text").collect(Collectors.joining(", "));
+            jdbc.query("SELECT " + select + " FROM " + relation.table(), rs -> {
+                Map<String, String> row = new LinkedHashMap<>();
+                int i = 1;
+                for (String field : relation.columns().keySet()) {
+                    String value = rs.getString(i++);
+                    row.put(field, value == null ? "" : value);
+                }
+                rows.put(relation.key().stream().map(row::get).collect(Collectors.joining("|")), row);
+            });
+            all.put(file, rows);
+        });
         return all;
+    }
+
+    private void insert(String file, Relation relation, Map<String, Object> record) {
+        Set<String> unknown = new HashSet<>(record.keySet());
+        unknown.removeAll(relation.columns().keySet());
+        if (!unknown.isEmpty()) {
+            throw new IllegalArgumentException(file + " has no fields " + unknown);
+        }
+        Map<String, String> types = columnTypes.computeIfAbsent(relation.table(), t -> {
+            Map<String, String> byColumn = new HashMap<>();
+            jdbc.query("SELECT column_name, udt_name FROM information_schema.columns WHERE table_name = ?",
+                    rs -> { byColumn.put(rs.getString(1), rs.getString(2)); }, t);
+            return byColumn;
+        });
+        List<String> columns = new ArrayList<>();
+        List<Object> values = new ArrayList<>();
+        relation.columns().forEach((field, column) -> {
+            if (!record.containsKey(field)) {
+                return;
+            }
+            String type = types.get(column);
+            String value = SpecCase.text(record.get(field));
+            columns.add(column);
+            values.add(value.isBlank() && !TEXT_TYPES.contains(type) ? null : value);
+        });
+        jdbc.update("INSERT INTO " + relation.table() + " (" + String.join(", ", columns) + ") VALUES ("
+                + columns.stream().map(c -> "CAST(? AS " + types.get(c) + ")").collect(Collectors.joining(", ")) + ")",
+                values.toArray());
     }
 
     List<Effect> effectsSince(Map<String, Map<String, Map<String, String>>> before) {
@@ -117,7 +179,15 @@ class Datasets {
 
     /** Copybook names of the file's primary key, which identify an effect. */
     List<String> keyFields(String file) {
-        return tables.get(dataset(file)).primaryKey().stream().map(c -> c.field().name()).toList();
+        Relation relation = RELATIONS.get(file);
+        return relation != null ? relation.key()
+                : tables.get(dataset(file)).primaryKey().stream().map(c -> c.field().name()).toList();
+    }
+
+    /** Whether two spec file names are one table, as CCXREF and its CXACAIX path are. */
+    static boolean same(String file, String other) {
+        return RELATIONS.containsKey(file) || RELATIONS.containsKey(other) ? file.equals(other)
+                : FILES.get(file) == FILES.get(other);
     }
 
     /**
@@ -131,7 +201,8 @@ class Datasets {
                 if ("NOTFND".equals(c.get("resp"))) {
                     throw new IllegalArgumentException("NOTFND is a missing record, not an injected fault: " + c);
                 }
-                String table = dataset((String) c.get("file")).table;
+                String file = (String) c.get("file");
+                String table = RELATIONS.containsKey(file) ? RELATIONS.get(file).table() : dataset(file).table;
                 String op = (String) c.get("op");
                 if (WRITE_OPS.contains(op)) {
                     String event = switch (op) { case "WRITE" -> "INSERT"; case "REWRITE" -> "UPDATE"; default -> "DELETE"; };

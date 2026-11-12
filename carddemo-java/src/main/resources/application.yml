@@ -8,6 +8,11 @@ spring:
       enabled: false
     jdbc:
       initialize-schema: never
+  # The queue manager: an in-process Artemis broker; mode native with spring.artemis.broker-url uses an external one.
+  artemis:
+    mode: embedded
+    embedded:
+      persistent: false
 
 management:
   endpoints:

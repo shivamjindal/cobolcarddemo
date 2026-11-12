@@ -13,7 +13,7 @@ FILE_OPS = {"READ", "READ-UPDATE", "WRITE", "REWRITE", "DELETE", "STARTBR", "REA
 VIAS = {"XCTL", "LINK", "RETURN-TRANSID", "SEND-TEXT"}
 AIDS = {"ENTER", "CLEAR", "OTHER", "PA1", "PA2", "PA3"} | {f"PF{n}" for n in range(1, 25)}
 RESPS = {"NOTFND", "DUPREC", "DUPKEY", "IOERR", "NOTOPEN", "DISABLED", "LENGERR", "INVREQ", "OTHER"}
-ENTRIES = {"first-time", "reenter", "xctl-from"}
+ENTRIES = {"first-time", "reenter", "xctl-from", "trigger"}
 
 
 def cobol_text(path):
@@ -32,22 +32,43 @@ def cobol_text(path):
     return re.sub(r"\s+", " ", " ".join(out))
 
 
-def csd_names():
-    text = (REPO / "app/csd/CARDDEMO.CSD").read_text(errors="replace")
+def module_files(module, subdir):
+    """Files in app/<subdir>, or in <module>/<subdir> too for an optional module, any extension case."""
+    dirs = [REPO / "app" / subdir] + ([REPO / module / subdir] if module else [])
+    return [f for d in dirs if d.is_dir() for f in sorted(d.iterdir()) if f.is_file()]
+
+
+def csd_names(module=None):
+    csds = [REPO / "app/csd/CARDDEMO.CSD"] + [f for f in module_files(module, "csd") if f.parent != REPO / "app/csd"]
+    text = " ".join(f.read_text(errors="replace") for f in csds)
     find = lambda kind: set(re.findall(rf"DEFINE {kind}\((\w+)\)", text))
     return find("FILE"), find("TRANSACTION")
 
 
-def bms_fields(mapset):
-    cpy = REPO / "app/cpy-bms" / f"{mapset}.CPY"
-    return set(re.findall(r"^\s+\d+\s+([A-Z0-9-]+)\s", cpy.read_text(errors="replace"), re.M)) if cpy.exists() else None
+def resource_names(module):
+    """An optional module's IMS segments (SEGM NAME= in its DBDs) and Db2 tables (CREATE TABLE in its DDL)."""
+    if not module:
+        return set()
+    names = set()
+    for f in module_files(module, "ims"):
+        names |= set(re.findall(r"SEGM\s+NAME=(\w+)", f.read_text(errors="replace")))
+    for f in module_files(module, "ddl"):
+        names |= set(re.findall(r"CREATE TABLE\s+(?:[\w<>-]+\.)?(\w+)", f.read_text(errors="replace"), re.I))
+    return names
+
+
+def bms_fields(mapset, module=None):
+    for cpy in module_files(module, "cpy-bms"):
+        if cpy.stem.upper() == mapset.upper():
+            return set(re.findall(r"^\s+\d+\s+([A-Z0-9-]+)\s", cpy.read_text(errors="replace"), re.M))
+    return None
 
 
 def fragments(message):
     return [f.strip() for f in re.split(r"\{[^}]*\}", message) if len(f.strip()) >= 3]
 
 
-def validate(path, csd_files, csd_trans, programs):
+def validate(path):
     errors = []
     err = lambda msg: errors.append(f"{path.name}: {msg}")
     spec = yaml.safe_load(path.read_text())
@@ -59,6 +80,13 @@ def validate(path, csd_files, csd_trans, programs):
     if errors:
         return errors
     prog = spec["program"]
+    module = spec.get("module")
+    if module and not (REPO / module).is_dir():
+        err(f"module {module} does not exist")
+        module = None
+    csd_files, csd_trans = csd_names(module)
+    csd_files |= resource_names(module)
+    programs = {p.stem.upper() for p in module_files(module, "cbl")}
     if path.stem != prog:
         err(f"file name does not match program {prog}")
     if spec["evidence"] != "derived":
@@ -76,7 +104,7 @@ def validate(path, csd_files, csd_trans, programs):
     corpus = " ".join(cobol_text(p) for p in sources.values())
     fields = None
     if spec.get("screen"):
-        fields = bms_fields(spec["screen"]["mapset"])
+        fields = bms_fields(spec["screen"]["mapset"], module)
         if fields is None:
             err(f"no BMS copybook for mapset {spec['screen']['mapset']}")
 
@@ -121,7 +149,7 @@ def validate(path, csd_files, csd_trans, programs):
                 err(f"{where}: file_conditions op {cond.get('op')} unknown")
             if cond.get("resp") not in RESPS:
                 err(f"{where}: file_conditions resp {cond.get('resp')} not one of {sorted(RESPS)}")
-        if when.get("aid") not in AIDS:
+        if given.get("entry") != "trigger" and when.get("aid") not in AIDS:
             err(f"{where}: when.aid {when.get('aid')} unknown")
 
         sfile = source.get("file")
@@ -131,12 +159,16 @@ def validate(path, csd_files, csd_trans, programs):
         elif len(lines) != 2 or not (1 <= lines[0] <= lines[1] <= len(sources[sfile].read_text(errors='replace').splitlines())):
             err(f"{where}: source.lines {lines} outside {sfile}")
 
-        msg = then.get("message")
-        if msg is not None:
-            norm = lambda s: re.sub(r"\s+", " ", s)
-            for frag in fragments(str(msg)):
+        norm = lambda s: re.sub(r"\s+", " ", s)
+        texts = [("message", then.get("message"))]
+        for reply in then.get("replies") or []:
+            texts += [("reply queue", reply.get("queue")), ("reply", reply.get("message"))]
+        for kind, text in texts:
+            for frag in fragments(str(text)) if text is not None else []:
                 if norm(frag) not in corpus:
-                    err(f"{where}: message fragment {frag!r} not found in sources")
+                    err(f"{where}: {kind} fragment {frag!r} not found in sources")
+        if (given.get("entry") == "trigger") != ("message" in when):
+            err(f"{where}: a trigger case, and only a trigger case, has when.message")
 
         if fields is not None:
             names = list((when.get("fields") or {}).keys()) + list((then.get("fields") or {}).keys())
@@ -160,15 +192,13 @@ def validate(path, csd_files, csd_trans, programs):
 
 
 def main(argv):
-    csd_files, csd_trans = csd_names()
-    programs = {p.stem.upper() for p in (REPO / "app/cbl").iterdir()}
     paths = [Path(a) for a in argv] or sorted(SPECS.glob("*.yaml"))
     if not paths:
         print("no specs found")
         return 1
     errors, cases = [], 0
     for p in paths:
-        errors += validate(p, csd_files, csd_trans, programs)
+        errors += validate(p)
         cases += len((yaml.safe_load(p.read_text()) or {}).get("cases") or [])
     for e in errors:
         print(e)
