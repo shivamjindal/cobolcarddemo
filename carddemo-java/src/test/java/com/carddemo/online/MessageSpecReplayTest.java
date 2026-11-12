@@ -28,6 +28,7 @@ import static org.junit.jupiter.api.DynamicTest.dynamicTest;
  * Replays the trigger cases of every MQ-triggered program through the embedded broker: the request goes to the
  * program's input queue with this test's reply queue as MQMD-REPLYTOQ, and each expected reply is taken from its
  * queue. A reply is put only after the database commits, so file effects are read once the replies are in.
+ * A file condition stays in force until those replies are taken, because the listener runs on another thread.
  */
 @SpringBootTest
 @Import(TestDatabase.class)
@@ -71,32 +72,35 @@ class MessageSpecReplayTest {
         datasets.reset(c.files());
         var before = datasets.snapshot();
 
-        String correlationId = SpecCase.text(c.when().getOrDefault("correlation_id", UUID.randomUUID().toString()));
-        jms.send(program.requestQueue(), session -> {
-            TextMessage request = session.createTextMessage(SpecCase.text(c.when().get("message")));
-            request.setJMSCorrelationID(correlationId);
-            request.setJMSReplyTo(session.createQueue(REPLY_TO));
-            return request;
-        });
+        datasets.with(c.fileConditions(), () -> {
+            String correlationId = SpecCase.text(c.when().getOrDefault("correlation_id", UUID.randomUUID().toString()));
+            jms.send(program.requestQueue(), session -> {
+                TextMessage request = session.createTextMessage(SpecCase.text(c.when().get("message")));
+                request.setJMSCorrelationID(correlationId);
+                request.setJMSReplyTo(session.createQueue(REPLY_TO));
+                return request;
+            });
 
-        SoftAssertions soft = new SoftAssertions();
-        jms.setReceiveTimeout(WAIT_MILLIS);
-        for (Map<String, Object> reply : expected) {
-            Message got = jms.receive(queue((String) reply.get("queue")));
-            soft.assertThat(got).as("reply on %s", reply.get("queue")).isNotNull();
-            if (got == null) {
-                continue;
+            SoftAssertions soft = new SoftAssertions();
+            jms.setReceiveTimeout(WAIT_MILLIS);
+            for (Map<String, Object> reply : expected) {
+                Message got = jms.receive(queue((String) reply.get("queue")));
+                soft.assertThat(got).as("reply on %s", reply.get("queue")).isNotNull();
+                if (got == null) {
+                    continue;
+                }
+                soft.assertThat(((TextMessage) got).getText().stripTrailing()).as("reply on %s", reply.get("queue"))
+                        .matches(SpecCase.pattern(SpecCase.text(reply.get("message")).stripTrailing()));
+                if (reply.containsKey("correlation_id")) {
+                    soft.assertThat(got.getJMSCorrelationID()).as("correlation id")
+                            .isEqualTo(SpecCase.text(reply.get("correlation_id")));
+                }
             }
-            soft.assertThat(((TextMessage) got).getText().stripTrailing()).as("reply on %s", reply.get("queue"))
-                    .matches(SpecCase.pattern(SpecCase.text(reply.get("message")).stripTrailing()));
-            if (reply.containsKey("correlation_id")) {
-                soft.assertThat(got.getJMSCorrelationID()).as("correlation id")
-                        .isEqualTo(SpecCase.text(reply.get("correlation_id")));
-            }
-        }
-        jms.setReceiveTimeout(JmsTemplate.RECEIVE_TIMEOUT_NO_WAIT);
-        queues.forEach(q -> soft.assertThat(jms.receive(q)).as("extra message on %s", q).isNull());
-        soft.assertAll();
+            jms.setReceiveTimeout(JmsTemplate.RECEIVE_TIMEOUT_NO_WAIT);
+            queues.forEach(q -> soft.assertThat(jms.receive(q)).as("extra message on %s", q).isNull());
+            soft.assertAll();
+            return null;
+        });
 
         c.verify(new Observed(200, null, null, null, Map.of(), null, datasets.effectsSince(before)), datasets);
         TALLY.record(c);
