@@ -8,5 +8,5 @@ import java.util.Map;
  * "RETURN-TRANSID CU00" or "SEND-TEXT null"; a sign-off or a 401 reads as "XCTL COSGN00C".
  */
 record Observed(int status, String transfer, String message, String cursor, Map<String, String> fields,
-                Conversation conversation, List<UsersTable.Effect> fileEffects) {
+                Conversation conversation, List<Datasets.Effect> fileEffects) {
 }

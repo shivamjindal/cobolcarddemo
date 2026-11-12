@@ -48,7 +48,7 @@ class OnlineSpecReplayTest {
     Screens screens;
 
     @Autowired
-    UsersTable users;
+    Datasets datasets;
 
     @Autowired
     ObjectMapper json;
@@ -70,12 +70,12 @@ class OnlineSpecReplayTest {
             TALLY.record(c);
             abort(c.reason());
         }
-        users.reset(c.users());
-        var before = users.snapshot();
+        datasets.reset(c.files());
+        var before = datasets.snapshot();
         MockHttpSession session = new MockHttpSession();
         MockHttpServletRequestBuilder request = request(c, session);
-        MockHttpServletResponse response = users.with(c.fileConditions(), () -> mvc.perform(request).andReturn()).getResponse();
-        c.verify(observe(response, session, users.effectsSince(before)));
+        MockHttpServletResponse response = datasets.with(c.fileConditions(), () -> mvc.perform(request).andReturn()).getResponse();
+        c.verify(observe(response, session, datasets.effectsSince(before)), datasets);
         TALLY.record(c);
     }
 
@@ -93,7 +93,7 @@ class OnlineSpecReplayTest {
     }
 
     private Observed observe(MockHttpServletResponse response, MockHttpSession session,
-                             List<UsersTable.Effect> effects) throws Exception {
+                             List<Datasets.Effect> effects) throws Exception {
         Conversation conversation = session.isInvalid() ? null : (Conversation) session.getAttribute(Conversation.KEY);
         int status = response.getStatus();
         if (status == 303) {
