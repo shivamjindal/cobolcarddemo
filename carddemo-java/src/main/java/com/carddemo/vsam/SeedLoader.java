@@ -1,0 +1,49 @@
+package com.carddemo.vsam;
+
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
+import org.springframework.jdbc.core.JdbcTemplate;
+import org.springframework.stereotype.Component;
+import org.springframework.transaction.annotation.Transactional;
+
+import java.nio.file.Path;
+import java.util.Arrays;
+import java.util.EnumMap;
+import java.util.List;
+import java.util.Map;
+import java.util.stream.Collectors;
+
+/** Replaces the VSAM tables' contents with the sample files, like the REPRO steps in app/jcl. */
+@Component
+public class SeedLoader {
+
+    private static final Logger log = LoggerFactory.getLogger(SeedLoader.class);
+
+    private final JdbcTemplate jdbc;
+
+    public SeedLoader(JdbcTemplate jdbc) {
+        this.jdbc = jdbc;
+    }
+
+    @Transactional
+    public Map<VsamDataset, Integer> load(Path dir, SeedFormat format) {
+        String allTables = Arrays.stream(VsamDataset.values()).map(d -> d.table).collect(Collectors.joining(", "));
+        jdbc.execute("TRUNCATE " + allTables);
+        Map<VsamDataset, Integer> loaded = new EnumMap<>(VsamDataset.class);
+        for (VsamDataset dataset : VsamDataset.values()) {
+            format.records(dir, dataset).ifPresentOrElse(
+                    records -> loaded.put(dataset, insert(Table.of(dataset), records)),
+                    () -> log.info("No {} sample file for {}", format, dataset.table));
+        }
+        return loaded;
+    }
+
+    private int insert(Table table, List<String> records) {
+        // TRANSACT is seeded from a single LOW-VALUES record (DALYTRAN.PS.INIT); it is not a transaction.
+        List<Object[]> rows = records.stream().filter(r -> !table.isPlaceholder(r)).map(table::decode).toList();
+        jdbc.batchUpdate(table.insertSql(), rows);
+        log.info("Loaded {} rows into {} ({} placeholder records skipped)",
+                rows.size(), table.name(), records.size() - rows.size());
+        return rows.size();
+    }
+}
