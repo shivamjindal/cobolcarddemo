@@ -18,6 +18,7 @@ online_rc=$?
 (cd "$repo/carddemo-java" && ./gradlew --no-daemon test --rerun-tasks) > "$evidence/spring-test.log" 2>&1
 spring_rc=$?
 grep '\[spec-replay\] CO[A-Z0-9]*:' "$evidence/spring-test.log" > "$evidence/spec-replay.txt"
+grep '\[batch-golden\]' "$evidence/spring-test.log" > "$evidence/batch-golden.txt"
 
 drive="skipped (no spring.sh instance on :$port)"
 drive_rc=0
@@ -34,6 +35,7 @@ fi
   echo "batch   rc=$batch_rc  $(tail -1 "$evidence/batch.log")"
   echo "online  rc=$online_rc  $(tail -1 "$evidence/online.log")"
   echo "spring  rc=$spring_rc  $(grep -c . "$evidence/spec-replay.txt") programs replayed, see spec-replay.txt"
+  echo "javabat $(grep -o '[0-9]* artifacts: .*' "$evidence/batch-golden.txt" || echo 'no [batch-golden] tally'), see batch-golden.txt"
   echo "drive   $drive"
 } | tee "$evidence/summary.txt"
 echo "evidence: $evidence"

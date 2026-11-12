@@ -30,7 +30,9 @@ The COBOL compiles from `app/cbl` and `app/cpy` with `-fsign=EBCDIC` (the fixtur
 
 Golden format: one record per line, bytes outside printable ASCII (and `\`) written as `\xNN`, trailing spaces dropped. SYSOUT is captured verbatim, followed by `[return code N]`.
 
-Coverage is only as wide as the fixtures. The fixture day rejects 38 of 300 transactions, all for reason 102. The `POSTTRAN-EDGES` scenario adds crafted records for reasons 100, 101, and 103, the credit-limit and expiry boundaries, and the credit-handling quirk. Without that scenario, a `>=` changed to `>` in the limit check went undetected.
+Coverage is only as wide as the fixtures. The fixture day rejects 38 of 300 transactions, all for reason 102. The `POSTTRAN-EDGES` scenario (inputs in `batch/fixtures/posttran-edges/`) adds crafted records for reasons 100, 101, and 103, the credit-limit and expiry boundaries, and the credit-handling quirk. Without that scenario, a `>=` changed to `>` in the limit check went undetected.
+
+**Deliberate fixes.** The Java port fixes some legacy bugs on purpose. Each is listed in `FIXES` in `harness.py` as the smallest edit to the COBOL source, with a one-sentence reason, and the harness runs the cycle a second time with those edits compiled in. `batch/golden-fixed/` holds each artifact that run writes differently, so the expected effect of a fix is computed by the legacy programs, not edited by hand. The Java golden test (`carddemo-java`, `BatchGoldenTest`) compares against `golden-fixed/` where a file exists there and `golden/` otherwise.
 
 ## Online: what a spec is
 
