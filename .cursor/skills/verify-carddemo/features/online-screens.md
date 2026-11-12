@@ -38,15 +38,17 @@ Routes: every installed program is `GET`/`POST /screens/<PROGRAM>` (HTML) and `G
 | Sub-feature | Programs installed | Replay (`./gradlew test`) |
 | --- | --- | --- |
 | `signon` | COSGN00C | 12 passed, 3 overridden |
-| `menus` | COMEN01C, COADM01C | 20 passed, 8 overridden (4 of them wait for slices 3 and 5) |
+| `menus` | COMEN01C, COADM01C | 23 passed, 5 overridden |
 | `user-admin` | COUSR00C-03C | 58 passed, 12 overridden |
 | `account` | COACTVWC, COACTUPC | 131 passed, 17 overridden, 3 skipped |
 | `card` | COCRDLIC, COCRDSLC, COCRDUPC | 61 passed, 38 overridden, 1 skipped |
+| `transactions` | COTRN00C, COTRN01C, COTRN02C | 65 passed, 12 overridden, 1 skipped |
+| `billpay` | COBIL00C | 14 passed, 2 overridden, 1 skipped |
 | others | none yet | not replayed |
 
 - **Replay.** `cd carddemo-java && ./gradlew test`, then read the `[spec-replay]` lines. Overrides and their reasons are in `carddemo-java/src/test/resources/spec-overrides/<PROGRAM>.yaml`.
-- **HTTP.** `python3 scripts/drive_spring.py --out DIR` covers sign-on, the menus, user add, update, delete, and sign-off, then account view and update (group id lands in `acct_group_id`, zip kept, submitted keys and country ignored) and the card list, update and return-to-list as a regular user (CVV kept).
-- **Browser.** `python3 scripts/browser_drive.py --out DIR` covers the same screens with the keyboard and saves screenshots, through account view, the regular-user card list and card update.
+- **HTTP.** `python3 scripts/drive_spring.py --out DIR` covers sign-on, the menus, user add, update, delete, and sign-off, then account view and update (group id lands in `acct_group_id`, zip kept, submitted keys and country ignored) and the card list, update and return-to-list as a regular user (CVV kept), then the transaction list, view and add (the next id, the account's card, impossible dates refused) and bill payment (two simultaneous confirmations pay once).
+- **Browser.** `python3 scripts/browser_drive.py --out DIR` covers the same screens with the keyboard and saves screenshots, through account view, the regular-user card list and card update, the transaction list and view, and the bill payment balance.
 - **Proof.** Cite the case id and say "replayed against Java" with its status (passed as written, or the override's reason). The legacy side stays derived.
 
 ## Gotchas
@@ -58,6 +60,8 @@ Routes: every installed program is `GET`/`POST /screens/<PROGRAM>` (HTML) and `G
 - `SEC-USR-PWD` holds a bcrypt hash in Postgres. The replay hashes `given.files` passwords and compares `file_effects` passwords by matching, never by equality.
 - No seeded customer passes every COACTUPC field edit (FICO range, North American area codes, SSN, state and zip). To drive a save, type valid customer values; `drive_spring.py` shows a set.
 - Field protection follows each program's SETUP-SCREEN-ATTRS paragraph, phase by phase. `Outcome.Show.readOnly` names the protected fields; they render read-only, the JSON screen lists them in `readOnly`, and the engine resubmits the value shown in place of whatever the client sends (DFHBMPRF comes back as sent).
+- The `transactions` table is seeded from the daily feed (`dailytran.txt`, 300 records) as if POSTTRAN had posted every one, with the processed time equal to the original time. It stands in until the batch slice ports POSTTRAN, which must replace it.
+- Bill payment and transaction add number new records under a Postgres advisory lock (highest numeric id + 1); the bill payment locks the account row with `RecordLock` in the same transaction.
 - COCRDLIC's selection takes uppercase `S` or `U` only, as in legacy.
 - A regular user's card list needs an account filter; COCRDSLC and COCRDUPC do not restrict regular users yet.
 - Specs cover the base CardDemo programs only. The optional Db2, IMS, and MQ modules under `app/app-*` are not captured.

@@ -11,7 +11,7 @@ CardDemo has two legacy surfaces and one future one.
 | --- | --- | --- |
 | Batch jobs (`app/jcl`, `app/cbl/CB*`) | The real COBOL, compiled by GnuCOBOL, against `app/data/ASCII` fixtures | **Executed.** Golden files in `characterization/batch/golden/` |
 | CICS screens (`app/cbl/CO*`, `app/bms`) | Nothing. CICS is not available | **Derived from source.** YAML specs in `characterization/online/specs/`, checked for grounding only |
-| Java/Spring app (`carddemo-java/`) | Slice 1 and 2 screens (sign-on, menus, user admin, account and card view/update) on Postgres, OIDC sign-on | **Executed.** Spec replay in `./gradlew test`, plus live HTTP and browser drives. See [Spring app](#spring-app-filled-in-by-slices) |
+| Java/Spring app (`carddemo-java/`) | Slice 1-3 screens (sign-on, menus, user admin, account and card view/update, transaction list/view/add, bill payment) on Postgres, OIDC sign-on | **Executed.** Spec replay in `./gradlew test`, plus live HTTP and browser drives. See [Spring app](#spring-app-filled-in-by-slices) |
 
 Never describe a derived spec as observed behavior. When you report results, say which kind of evidence backs each claim.
 
@@ -89,7 +89,7 @@ Two instances can run side by side on different ports, because each has its own 
 ### Drive
 
 - **Spec replay (executed).** `cd carddemo-java && ./gradlew test`. `OnlineSpecReplayTest` replays every case of each installed program's spec through `/api/screens` against Testcontainers Postgres. `SignonReplayTest` replays COSGN00C over real HTTP through the OIDC flow. The output has one `[spec-replay] <PROGRAM>: N passed, M overridden, K skipped` line per program, with the case ids. A deliberate difference lives in `carddemo-java/src/test/resources/spec-overrides/<PROGRAM>.yaml` with a one-sentence `reason`, and the spec's `notes` point there.
-- **HTTP drive (executed).** `python3 scripts/drive_spring.py --base http://localhost:8080 --out DIR` signs on through the OIDC flow with a cookie jar, then walks the admin menu, user add, sign-on as the new user, update, delete, and sign-off through `/api/screens`. It also checks the bcrypt column in the instance's database. It prints one PASS line per check and exits non-zero on the first FAIL. For curl, follow the dance in `carddemo-java/README.md`.
+- **HTTP drive (executed).** `python3 scripts/drive_spring.py --base http://localhost:8080 --out DIR` signs on through the OIDC flow with a cookie jar, then walks the admin menu, user add, sign-on as the new user, update, delete, sign-off, the account and card screens, transactions, and a concurrent bill payment through `/api/screens`. It also checks the bcrypt column in the instance's database. It prints one PASS line per check and exits non-zero on the first FAIL. For curl, follow the dance in `carddemo-java/README.md`.
 - **Browser drive (executed).** `python3 scripts/browser_drive.py --base http://localhost:8080 --out DIR` drives Chrome with ENTER and the F-keys, finding elements by `data-testid` named after BMS fields (`USERID`, `PASSWD`, `OPTION`, `USRID01`, `ERRMSG`). It saves one screenshot per screen. It needs `pip install --user --break-system-packages playwright` and Chrome at `$CHROME` (default `/usr/local/bin/google-chrome`). No Playwright browser download is needed.
 
 ### Evidence
