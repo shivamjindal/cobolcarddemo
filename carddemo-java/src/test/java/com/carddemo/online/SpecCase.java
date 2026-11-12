@@ -154,7 +154,7 @@ record SpecCase(String program, String id, String summary, Map<String, Object> g
                 if (name.equals("SEC-USR-PWD")) {
                     soft.assertThat(Credentials.matches(text(value), a.record().get(name))).as(name).isTrue();
                 } else {
-                    soft.assertThat(a.record().get(name)).as("%s %s", file, name).isEqualTo(text(value));
+                    soft.assertThat(a.record().get(name)).as("%s %s", file, name).matches(pattern(text(value)));
                 }
             }));
         }

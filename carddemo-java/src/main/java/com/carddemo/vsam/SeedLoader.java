@@ -12,6 +12,7 @@ import java.util.Arrays;
 import java.util.EnumMap;
 import java.util.List;
 import java.util.Map;
+import java.util.function.UnaryOperator;
 import java.util.stream.Collectors;
 
 /** Replaces the VSAM tables' contents with the sample files, like the REPRO steps in app/jcl. */
@@ -32,22 +33,37 @@ public class SeedLoader {
         jdbc.execute("TRUNCATE " + allTables);
         Map<VsamDataset, Integer> loaded = new EnumMap<>(VsamDataset.class);
         for (VsamDataset dataset : VsamDataset.values()) {
+            Table table = Table.of(dataset);
             format.records(dir, dataset).ifPresentOrElse(
-                    records -> loaded.put(dataset, insert(Table.of(dataset), records)),
+                    records -> loaded.put(dataset, insert(table, records,
+                            dataset == VsamDataset.USERS ? row -> secure(table, row) : row -> row)),
                     () -> log.info("No {} sample file for {}", format, dataset.table));
         }
+        Table transactions = Table.of(VsamDataset.TRANSACTIONS);
+        loaded.merge(VsamDataset.TRANSACTIONS,
+                insert(transactions, format.dailyTransactions(dir), row -> posted(transactions, row)), Integer::sum);
         return loaded;
     }
 
-    private int insert(Table table, List<String> records) {
+    private int insert(Table table, List<String> records, UnaryOperator<Object[]> transform) {
         // TRANSACT is seeded from a single LOW-VALUES record (DALYTRAN.PS.INIT); it is not a transaction.
         List<Object[]> rows = records.stream().filter(r -> !table.isPlaceholder(r)).map(table::decode)
-                .map(row -> table.dataset() == VsamDataset.USERS ? secure(table, row) : row)
+                .map(transform)
                 .toList();
         jdbc.batchUpdate(table.insertSql(), rows);
         log.info("Loaded {} rows into {} ({} placeholder records skipped)",
                 rows.size(), table.name(), records.size() - rows.size());
         return rows.size();
+    }
+
+    /**
+     * Stands in for POSTTRAN until the batch slice runs it at seed time, so the transaction screens have data:
+     * every daily feed record goes in as posted, processed when it originated. POSTTRAN would reject some of
+     * them and stamp the run time instead.
+     */
+    private static Object[] posted(Table table, Object[] row) {
+        row[table.columnIndex("tran_proc_ts")] = row[table.columnIndex("tran_orig_ts")];
+        return row;
     }
 
     /** USRSEC holds clear-text passwords; V2 stores bcrypt hashes and upper-case IDs. */
