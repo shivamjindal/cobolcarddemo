@@ -1,0 +1,148 @@
+# Deliberate differences from characterization/online/specs/COCRDLIC.yaml, applied by OnlineSpecReplayTest.
+# Each entry replaces whole keys of the case's given, when or then.
+COCRDLIC-001:
+  reason: A first entry with no signed-on user goes to sign-on.
+  then: &signon
+    message: null
+    cursor: null
+    fields: {}
+    transfer: {via: XCTL, to: COSGN00C}
+    commarea: {}
+COCRDLIC-002:
+  reason: A first entry with no signed-on user goes to sign-on.
+  then: *signon
+COCRDLIC-003:
+  reason: Arrival from another program does not pre-fill the filters, and a regular user with no account filter sees a prompt and no cards.
+  then:
+    message: "ENTER AN ACCOUNT NUMBER TO LIST ITS CARDS"
+    cursor: ACCTSIDL
+    fields: {PAGENOO: "1", ACCTSIDO: "", CARDSIDO: "", CRDNUM1O: "", INFOMSGO: ""}
+    transfer: {via: RETURN-TRANSID, to: CCLI}
+    commarea: {CDEMO-ACCT-ID: 0, CDEMO-CARD-NUM: 0}
+COCRDLIC-004:
+  reason: A regular user lists only the cards of the account typed in the filter, so with none typed the list is empty with a prompt.
+  then:
+    message: "ENTER AN ACCOUNT NUMBER TO LIST ITS CARDS"
+    cursor: ACCTSIDL
+    fields: {PAGENOO: "1", ACCTSIDO: "", ACCTNO1O: "", CRDNUM1O: "", INFOMSGO: ""}
+    transfer: {via: RETURN-TRANSID, to: CCLI}
+    commarea: {CDEMO-USER-ID: USER0001, CDEMO-USER-TYPE: U, CDEMO-ACCT-ID: 0, CDEMO-FROM-PROGRAM: COMEN01C, WS-CA-SCREEN-NUM: 1}
+COCRDLIC-005:
+  reason: The conversation keeps the program the user came from, which the list uses to tell a return from detail or update from a new visit.
+  then:
+    commarea: {CDEMO-USER-TYPE: A, CDEMO-FROM-PROGRAM: COMEN01C, WS-CA-SCREEN-NUM: 1}
+COCRDLIC-006:
+  reason: Returning from card detail keeps the signed-on user and the program it came from instead of wiping the COMMAREA.
+  then:
+    commarea: {CDEMO-USER-ID: ADMIN001, CDEMO-USER-TYPE: A, CDEMO-ACCT-ID: 0, CDEMO-CARD-NUM: 0, CDEMO-FROM-PROGRAM: COCRDSLC}
+COCRDLIC-007:
+  reason: No arrival wipes the conversation, so the user id and type survive and the origin is kept.
+  then:
+    commarea: {CDEMO-USER-ID: ADMIN001, CDEMO-USER-TYPE: A, CDEMO-ACCT-ID: 0, CDEMO-FROM-PROGRAM: COACTVWC, WS-CA-SCREEN-NUM: 1}
+COCRDLIC-008:
+  reason: A regular user now lists only one account's cards, so the case runs as an admin to keep checking the paging it was written for.
+  given:
+    commarea:
+      CDEMO-FROM-PROGRAM: COCRDLIC
+      CDEMO-PGM-CONTEXT: 0
+      CDEMO-USER-TYPE: A
+      WS-CA-SCREEN-NUM: 2
+      WS-CA-FIRST-CARD-NUM: "4000000000000008"
+      WS-CA-LAST-CARD-NUM: "4000000000000015"
+      WS-CA-NEXT-PAGE-IND: "Y"
+      WS-CA-LAST-PAGE-DISPLAYED: 9
+COCRDLIC-012:
+  reason: A regular user now lists only one account's cards, so the case runs as an admin to keep checking the blank-filter rule it was written for.
+  given:
+    commarea: &adminPage1
+      CDEMO-FROM-PROGRAM: COCRDLIC
+      CDEMO-PGM-CONTEXT: 0
+      CDEMO-USER-TYPE: A
+      WS-CA-SCREEN-NUM: 1
+      WS-CA-FIRST-CARD-NUM: "4000000000000001"
+      WS-CA-LAST-CARD-NUM: "4000000000000008"
+      WS-CA-NEXT-PAGE-IND: "Y"
+      WS-CA-LAST-PAGE-DISPLAYED: 9
+      WS-SCREEN-ROWS:
+        - {WS-ROW-ACCTNO: "00000000001", WS-ROW-CARD-NUM: "4000000000000001", WS-ROW-CARD-STATUS: "Y"}
+        - {WS-ROW-ACCTNO: "00000000001", WS-ROW-CARD-NUM: "4000000000000002", WS-ROW-CARD-STATUS: "Y"}
+        - {WS-ROW-ACCTNO: "00000000001", WS-ROW-CARD-NUM: "4000000000000003", WS-ROW-CARD-STATUS: "Y"}
+        - {WS-ROW-ACCTNO: "00000000002", WS-ROW-CARD-NUM: "4000000000000004", WS-ROW-CARD-STATUS: "Y"}
+        - {WS-ROW-ACCTNO: "00000000002", WS-ROW-CARD-NUM: "4000000000000005", WS-ROW-CARD-STATUS: "N"}
+        - {WS-ROW-ACCTNO: "00000000002", WS-ROW-CARD-NUM: "4000000000000006", WS-ROW-CARD-STATUS: "Y"}
+        - {WS-ROW-ACCTNO: "00000000003", WS-ROW-CARD-NUM: "4000000000000007", WS-ROW-CARD-STATUS: "Y"}
+COCRDLIC-016:
+  reason: A regular user may not filter by card alone, so the case runs as an admin to keep checking the card filter it was written for.
+  given:
+    commarea: *adminPage1
+COCRDLIC-018:
+  reason: A changed filter starts a new search at page 1, so matches before the current page are no longer missed.
+  then:
+    message: "NO MORE RECORDS TO SHOW"
+    cursor: ACCTSIDL
+    fields: {PAGENOO: "1", CRDNUM1O: "4000000000000001"}
+    transfer: {via: RETURN-TRANSID, to: CCLI}
+    commarea: {CDEMO-ACCT-ID: "00000000001", WS-CA-SCREEN-NUM: 1}
+COCRDLIC-019:
+  reason: The user type is never reset to 'U', so an admin stays an admin across programs.
+  then:
+    message: null
+    transfer: {via: XCTL, to: COCRDSLC}
+    commarea: {CDEMO-FROM-TRANID: CCLI, CDEMO-FROM-PROGRAM: COCRDLIC, CDEMO-USER-ID: ADMIN001, CDEMO-USER-TYPE: A, CDEMO-ACCT-ID: "00000000001", CDEMO-CARD-NUM: "4000000000000002"}
+COCRDLIC-022:
+  reason: The cursor goes to the first flagged row, row 1 included.
+  then:
+    cursor: CRDSEL1L
+COCRDLIC-023:
+  reason: A selection error re-shows the page the user was on instead of re-reading from the top, so the given carries page 2's rows, which the spec's anchor left out.
+  given:
+    commarea:
+      CDEMO-FROM-PROGRAM: COCRDLIC
+      CDEMO-PGM-CONTEXT: 0
+      WS-CA-SCREEN-NUM: 2
+      WS-CA-FIRST-CARD-NUM: "4000000000000008"
+      WS-CA-LAST-CARD-NUM: "4000000000000015"
+      WS-CA-NEXT-PAGE-IND: "Y"
+      WS-SCREEN-ROWS:
+        - {WS-ROW-ACCTNO: "00000000003", WS-ROW-CARD-NUM: "4000000000000008", WS-ROW-CARD-STATUS: "Y"}
+        - {WS-ROW-ACCTNO: "00000000003", WS-ROW-CARD-NUM: "4000000000000009", WS-ROW-CARD-STATUS: "Y"}
+        - {WS-ROW-ACCTNO: "00000000003", WS-ROW-CARD-NUM: "4000000000000010", WS-ROW-CARD-STATUS: "Y"}
+        - {WS-ROW-ACCTNO: "00000000003", WS-ROW-CARD-NUM: "4000000000000011", WS-ROW-CARD-STATUS: "Y"}
+        - {WS-ROW-ACCTNO: "00000000003", WS-ROW-CARD-NUM: "4000000000000012", WS-ROW-CARD-STATUS: "Y"}
+        - {WS-ROW-ACCTNO: "00000000003", WS-ROW-CARD-NUM: "4000000000000013", WS-ROW-CARD-STATUS: "Y"}
+        - {WS-ROW-ACCTNO: "00000000003", WS-ROW-CARD-NUM: "4000000000000014", WS-ROW-CARD-STATUS: "Y"}
+  then:
+    message: "INVALID ACTION CODE"
+    cursor: CRDSEL2L
+    fields: {PAGENOO: "2", CRDNUM1O: "4000000000000008", CRDNUM2O: "4000000000000009", CRDSEL2O: "X"}
+    transfer: {via: RETURN-TRANSID, to: CCLI}
+    commarea: {WS-CA-SCREEN-NUM: 2, WS-CA-FIRST-CARD-NUM: "4000000000000008"}
+COCRDLIC-024:
+  reason: The cursor goes to the first flagged row rather than the last.
+  then:
+    cursor: CRDSEL1L
+COCRDLIC-025:
+  reason: The user type is never reset to 'U', so an admin stays an admin across programs.
+  then:
+    message: null
+    transfer: {via: XCTL, to: COMEN01C}
+    commarea: {CDEMO-FROM-TRANID: CCLI, CDEMO-FROM-PROGRAM: COCRDLIC, CDEMO-USER-ID: ADMIN001, CDEMO-USER-TYPE: A}
+COCRDLIC-026:
+  reason: A first entry with no signed-on user goes to sign-on.
+  then: *signon
+COCRDLIC-027:
+  reason: A regular user now lists only one account's cards, so the case runs as an admin to keep checking the paging it was written for.
+  given:
+    commarea: *adminPage1
+COCRDLIC-028:
+  reason: A regular user now lists only one account's cards, so the case runs as an admin to keep checking the paging it was written for.
+  given:
+    commarea: *adminPage1
+COCRDLIC-034:
+  reason: A regular user now lists only one account's cards, so the case runs as an admin to keep checking the unmapped-key rule it was written for.
+  given:
+    commarea: *adminPage1
+COCRDLIC-035:
+  reason: A regular user now lists only one account's cards, so the case runs as an admin to keep checking the browse failure it was written for.
+  given:
+    commarea: *adminPage1

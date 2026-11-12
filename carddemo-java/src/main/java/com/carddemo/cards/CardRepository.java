@@ -8,9 +8,14 @@ import org.springframework.transaction.annotation.Propagation;
 import org.springframework.transaction.annotation.Transactional;
 
 import java.time.LocalDate;
+import java.util.ArrayList;
+import java.util.List;
 import java.util.Optional;
 
-/** CARDDAT over the cards table; locks per {@link RecordLock}, after the account and customer. */
+/**
+ * CARDDAT over the cards table; locks per {@link RecordLock}, after the account and customer. Browses are
+ * keyset pages in byte order (COLLATE "C"), the order of the KSDS key.
+ */
 @Repository
 public class CardRepository {
 
@@ -19,6 +24,8 @@ public class CardRepository {
 
     static final RowMapper<Card> ROW = (rs, n) -> new Card(rs.getString(1), rs.getLong(2), rs.getInt(3),
             rs.getString(4), rs.getObject(5, LocalDate.class), rs.getString(6));
+
+    private static final String NUMBER = "card_num COLLATE \"C\"";
 
     private final JdbcTemplate jdbc;
 
@@ -33,6 +40,32 @@ public class CardRepository {
     @Transactional(propagation = Propagation.MANDATORY)
     public Optional<Card> lock(String number) {
         return RecordLock.read(jdbc, "SELECT " + COLUMNS + " FROM cards WHERE card_num = ? FOR UPDATE", ROW, number);
+    }
+
+    /** STARTBR GTEQ and READNEXT: up to {@code limit} cards from {@code startKey} on, in key order. */
+    public List<Card> pageFrom(String startKey, CardFilter filter, int limit) {
+        return browse(">=", "", startKey, filter, limit);
+    }
+
+    /** READPREV: up to {@code limit} cards before {@code key}, nearest first. */
+    public List<Card> pageBefore(String key, CardFilter filter, int limit) {
+        return browse("<", " DESC", key, filter, limit);
+    }
+
+    private List<Card> browse(String comparison, String order, String key, CardFilter filter, int limit) {
+        StringBuilder sql = new StringBuilder("SELECT " + COLUMNS + " FROM cards WHERE " + NUMBER + " " + comparison + " ?");
+        List<Object> args = new ArrayList<>(List.of(key));
+        if (filter.accountId() != null) {
+            sql.append(" AND card_acct_id = ?");
+            args.add(filter.accountId());
+        }
+        if (filter.cardNumber() != null) {
+            sql.append(" AND card_num = ?");
+            args.add(filter.cardNumber());
+        }
+        sql.append(" ORDER BY ").append(NUMBER).append(order).append(" LIMIT ?");
+        args.add(limit);
+        return jdbc.query(sql.toString(), ROW, args.toArray());
     }
 
     /** The card number and account are the key and the owner; neither changes on REWRITE. */
