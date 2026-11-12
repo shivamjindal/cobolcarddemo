@@ -1,0 +1,346 @@
+program: COSGN00C
+transaction: CC00
+screen:
+  mapset: COSGN00
+  map: COSGN0A
+evidence: derived
+sources:
+  - app/cbl/COSGN00C.cbl
+  - app/cpy/CSUSR01Y.cpy
+  - app/cpy/COCOM01Y.cpy
+  - app/cpy/CSMSG01Y.cpy
+  - app/bms/COSGN00.bms
+  - app/jcl/DUSRSECJ.jcl
+files:
+  - name: USRSEC
+    ops: [READ]
+    key: SEC-USR-ID
+navigation:
+  - to: COADM01C
+    via: XCTL
+    when: password matches and SEC-USR-TYPE is 'A' (CDEMO-USRTYP-ADMIN), COMMAREA passed (lines 230-234)
+  - to: COMEN01C
+    via: XCTL
+    when: password matches and SEC-USR-TYPE is anything other than 'A', COMMAREA passed (lines 235-239)
+  - to: CC00
+    via: RETURN-TRANSID
+    when: every path that redisplays the sign-on screen, COMMAREA(CARDDEMO-COMMAREA) passed (lines 98-102)
+  - to: null
+    via: SEND-TEXT
+    when: PF3 sends the thank-you text and issues a bare EXEC CICS RETURN with no TRANSID, ending the conversation (lines 162-172)
+notes:
+  - Field and record values in this spec are written right-trimmed. COBOL pads them with spaces to their PIC length (SEC-USR-ID/SEC-USR-PWD X(08), USERIDI/PASSWDI X(08)).
+  - User ID and password are both upper-cased with FUNCTION UPPER-CASE before the READ and the compare (lines 132-136). Sign-on is case-insensitive on input, but the stored SEC-USR-PWD is compared as-is (line 223), so a record whose password holds any lower-case letter can never sign on. COUSR01C/COUSR02C store passwords exactly as typed, so this is reachable.
+  - The password compare is a plain X(08) equality (line 223). Trailing spaces are significant only as padding; 'PASS' typed matches a stored 'PASS    '. No hashing.
+  - The USRSEC READ uses the upper-cased WS-USER-ID as key (lines 211-219). Keys stored in lower case (possible via COUSR01C) can never be found from this screen.
+  - Any SEC-USR-TYPE other than 'A' routes to COMEN01C (line 230 tests only CDEMO-USRTYP-ADMIN). A record with type 'U', 'X', space, or lower-case 'a' all land on the regular user menu.
+  - The upper-cased user ID is copied into CDEMO-USER-ID before validation completes (line 132-134), so the COMMAREA returned on a failed sign-on still carries the attempted ID. COSGN00C never reads its own COMMAREA back, so this has no visible effect.
+  - Blank checks use 'SPACES OR LOW-VALUES' (lines 118, 123). User ID is checked before password, so a fully blank screen reports the user ID message.
+  - "'Wrong Password' (lines 241-245) does not set WS-ERR-FLG, unlike the other error branches. No observable effect because nothing runs after it."
+  - The invalid-key path (lines 91-94) sends the map without setting any length to -1, so the cursor goes to the BMS IC field (USERID, app/bms/COSGN00.bms line 156). The schema's cursor key expresses only a -1 length, so those cases omit it.
+  - "The 'Unable to verify the User ...' branch (lines 252-256) fires for any READ response other than NORMAL (0) or NOTFND (13), e.g. file closed or disabled. The schema has no way to inject a file condition, so case COSGN00C-013 states it in the summary only."
+  - First entry sends the map and returns with COMMAREA(CARDDEMO-COMMAREA) (lines 98-102), so every later key press arrives with EIBCALEN > 0 even though the COMMAREA content is uninitialized working storage.
+  - Seed users from app/jcl/DUSRSECJ.jcl lines 8-17. ADMIN001-ADMIN005 have type A and USER0001-USER0005 type U; all have password PASSWORD.
+cases:
+  - id: COSGN00C-001
+    summary: first entry (EIBCALEN = 0) shows a blank sign-on screen with the cursor on User ID
+    given:
+      entry: first-time
+      commarea: {}
+    when:
+      aid: ENTER
+      fields: {}
+    then:
+      message: null
+      cursor: USERIDL
+      fields:
+        TRNNAMEO: CC00
+        PGMNAMEO: COSGN00C
+      transfer: {via: RETURN-TRANSID, to: CC00}
+      file_effects: []
+    source:
+      file: app/cbl/COSGN00C.cbl
+      lines: [80, 83]
+
+  - id: COSGN00C-002
+    summary: blank User ID is rejected before any file read
+    given:
+      entry: reenter
+      files:
+        USRSEC:
+          - {SEC-USR-ID: ADMIN001, SEC-USR-PWD: PASSWORD, SEC-USR-TYPE: A}
+    when:
+      aid: ENTER
+      fields:
+        USERIDI: ""
+        PASSWDI: PASSWORD
+    then:
+      message: "Please enter User ID ..."
+      cursor: USERIDL
+      transfer: {via: RETURN-TRANSID, to: CC00}
+      file_effects: []
+    source:
+      file: app/cbl/COSGN00C.cbl
+      lines: [118, 122]
+
+  - id: COSGN00C-003
+    summary: blank Password is rejected with the cursor on Password
+    given:
+      entry: reenter
+      files:
+        USRSEC:
+          - {SEC-USR-ID: ADMIN001, SEC-USR-PWD: PASSWORD, SEC-USR-TYPE: A}
+    when:
+      aid: ENTER
+      fields:
+        USERIDI: ADMIN001
+        PASSWDI: ""
+    then:
+      message: "Please enter Password ..."
+      cursor: PASSWDL
+      transfer: {via: RETURN-TRANSID, to: CC00}
+      file_effects: []
+    source:
+      file: app/cbl/COSGN00C.cbl
+      lines: [123, 127]
+
+  - id: COSGN00C-004
+    summary: both fields blank reports the User ID message first
+    given:
+      entry: reenter
+    when:
+      aid: ENTER
+      fields:
+        USERIDI: ""
+        PASSWDI: ""
+    then:
+      message: "Please enter User ID ..."
+      cursor: USERIDL
+      transfer: {via: RETURN-TRANSID, to: CC00}
+      file_effects: []
+    source:
+      file: app/cbl/COSGN00C.cbl
+      lines: [117, 130]
+
+  - id: COSGN00C-005
+    summary: admin user with correct password transfers to the admin menu with the COMMAREA filled in
+    given:
+      entry: reenter
+      files:
+        USRSEC:
+          - {SEC-USR-ID: ADMIN001, SEC-USR-FNAME: MARGARET, SEC-USR-LNAME: GOLD, SEC-USR-PWD: PASSWORD, SEC-USR-TYPE: A}
+    when:
+      aid: ENTER
+      fields:
+        USERIDI: ADMIN001
+        PASSWDI: PASSWORD
+    then:
+      message: null
+      transfer: {via: XCTL, to: COADM01C}
+      commarea:
+        CDEMO-FROM-TRANID: CC00
+        CDEMO-FROM-PROGRAM: COSGN00C
+        CDEMO-USER-ID: ADMIN001
+        CDEMO-USER-TYPE: A
+        CDEMO-PGM-CONTEXT: 0
+      file_effects: []
+    source:
+      file: app/cbl/COSGN00C.cbl
+      lines: [221, 234]
+
+  - id: COSGN00C-006
+    summary: regular user with correct password transfers to the main menu
+    given:
+      entry: reenter
+      files:
+        USRSEC:
+          - {SEC-USR-ID: USER0001, SEC-USR-FNAME: LAWRENCE, SEC-USR-LNAME: THOMAS, SEC-USR-PWD: PASSWORD, SEC-USR-TYPE: U}
+    when:
+      aid: ENTER
+      fields:
+        USERIDI: USER0001
+        PASSWDI: PASSWORD
+    then:
+      message: null
+      transfer: {via: XCTL, to: COMEN01C}
+      commarea:
+        CDEMO-FROM-TRANID: CC00
+        CDEMO-FROM-PROGRAM: COSGN00C
+        CDEMO-USER-ID: USER0001
+        CDEMO-USER-TYPE: U
+        CDEMO-PGM-CONTEXT: 0
+      file_effects: []
+    source:
+      file: app/cbl/COSGN00C.cbl
+      lines: [221, 240]
+
+  - id: COSGN00C-007
+    summary: lower-case user ID and password are upper-cased before lookup, so they sign on
+    given:
+      entry: reenter
+      files:
+        USRSEC:
+          - {SEC-USR-ID: ADMIN001, SEC-USR-PWD: PASSWORD, SEC-USR-TYPE: A}
+    when:
+      aid: ENTER
+      fields:
+        USERIDI: admin001
+        PASSWDI: password
+    then:
+      message: null
+      transfer: {via: XCTL, to: COADM01C}
+      commarea:
+        CDEMO-USER-ID: ADMIN001
+        CDEMO-USER-TYPE: A
+      file_effects: []
+    source:
+      file: app/cbl/COSGN00C.cbl
+      lines: [132, 136]
+
+  - id: COSGN00C-008
+    summary: any user type other than 'A' routes to the regular menu
+    given:
+      entry: reenter
+      files:
+        USRSEC:
+          - {SEC-USR-ID: ODDTYPE1, SEC-USR-PWD: PASSWORD, SEC-USR-TYPE: X}
+    when:
+      aid: ENTER
+      fields:
+        USERIDI: ODDTYPE1
+        PASSWDI: PASSWORD
+    then:
+      message: null
+      transfer: {via: XCTL, to: COMEN01C}
+      commarea:
+        CDEMO-USER-TYPE: X
+      file_effects: []
+    source:
+      file: app/cbl/COSGN00C.cbl
+      lines: [230, 240]
+
+  - id: COSGN00C-009
+    summary: wrong password is rejected with the cursor on Password
+    given:
+      entry: reenter
+      files:
+        USRSEC:
+          - {SEC-USR-ID: ADMIN001, SEC-USR-PWD: PASSWORD, SEC-USR-TYPE: A}
+    when:
+      aid: ENTER
+      fields:
+        USERIDI: ADMIN001
+        PASSWDI: WRONGPWD
+    then:
+      message: "Wrong Password. Try again ..."
+      cursor: PASSWDL
+      transfer: {via: RETURN-TRANSID, to: CC00}
+      file_effects: []
+    source:
+      file: app/cbl/COSGN00C.cbl
+      lines: [241, 246]
+
+  - id: COSGN00C-010
+    summary: a stored lower-case password never matches because only the typed value is upper-cased
+    given:
+      entry: reenter
+      files:
+        USRSEC:
+          - {SEC-USR-ID: USER0009, SEC-USR-PWD: secret, SEC-USR-TYPE: U}
+    when:
+      aid: ENTER
+      fields:
+        USERIDI: USER0009
+        PASSWDI: secret
+    then:
+      message: "Wrong Password. Try again ..."
+      cursor: PASSWDL
+      transfer: {via: RETURN-TRANSID, to: CC00}
+      file_effects: []
+    source:
+      file: app/cbl/COSGN00C.cbl
+      lines: [135, 136]
+
+  - id: COSGN00C-011
+    summary: unknown user ID (READ NOTFND, RESP 13) is rejected with the cursor on User ID
+    given:
+      entry: reenter
+      files:
+        USRSEC:
+          - {SEC-USR-ID: ADMIN001, SEC-USR-PWD: PASSWORD, SEC-USR-TYPE: A}
+    when:
+      aid: ENTER
+      fields:
+        USERIDI: NOBODY99
+        PASSWDI: PASSWORD
+    then:
+      message: "User not found. Try again ..."
+      cursor: USERIDL
+      transfer: {via: RETURN-TRANSID, to: CC00}
+      file_effects: []
+    source:
+      file: app/cbl/COSGN00C.cbl
+      lines: [247, 251]
+
+  - id: COSGN00C-012
+    summary: PF3 sends the thank-you text and ends the conversation without a TRANSID
+    given:
+      entry: reenter
+    when:
+      aid: PF3
+      fields: {}
+    then:
+      message: "Thank you for using CardDemo application..."
+      transfer: {via: SEND-TEXT, to: null}
+      file_effects: []
+    source:
+      file: app/cbl/COSGN00C.cbl
+      lines: [88, 90]
+
+  - id: COSGN00C-013
+    summary: "I/O error: USRSEC READ returns a response other than NORMAL or NOTFND (e.g. file closed), so verification fails"
+    given:
+      entry: reenter
+    when:
+      aid: ENTER
+      fields:
+        USERIDI: ADMIN001
+        PASSWDI: PASSWORD
+    then:
+      message: "Unable to verify the User ..."
+      cursor: USERIDL
+      transfer: {via: RETURN-TRANSID, to: CC00}
+      file_effects: []
+    source:
+      file: app/cbl/COSGN00C.cbl
+      lines: [252, 256]
+
+  - id: COSGN00C-014
+    summary: any other key (PF5) redisplays the screen with the invalid-key message
+    given:
+      entry: reenter
+    when:
+      aid: PF5
+      fields: {}
+    then:
+      message: "Invalid key pressed. Please see below..."
+      transfer: {via: RETURN-TRANSID, to: CC00}
+      file_effects: []
+    source:
+      file: app/cbl/COSGN00C.cbl
+      lines: [91, 94]
+
+  - id: COSGN00C-015
+    summary: CLEAR is not handled specially and falls into the invalid-key branch
+    given:
+      entry: reenter
+    when:
+      aid: CLEAR
+      fields: {}
+    then:
+      message: "Invalid key pressed. Please see below..."
+      transfer: {via: RETURN-TRANSID, to: CC00}
+      file_effects: []
+    source:
+      file: app/cbl/COSGN00C.cbl
+      lines: [91, 94]

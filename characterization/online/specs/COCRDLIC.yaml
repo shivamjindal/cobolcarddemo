@@ -1,0 +1,1192 @@
+program: COCRDLIC
+transaction: CCLI
+screen:
+  mapset: COCRDLI
+  map: CCRDLIA
+evidence: derived
+sources:
+  - app/cbl/COCRDLIC.cbl
+  - app/bms/COCRDLI.bms
+  - app/cpy-bms/COCRDLI.CPY
+  - app/cpy/COCOM01Y.cpy
+  - app/cpy/CVCRD01Y.cpy
+  - app/cpy/CVACT02Y.cpy
+  - app/cpy/CSSTRPFY.cpy
+files:
+  - name: CARDDAT
+    ops: [STARTBR, READNEXT, READPREV, ENDBR]
+    key: CARD-NUM
+navigation:
+  - to: COMEN01C
+    via: XCTL
+    when: PF3 pressed while CDEMO-FROM-PROGRAM = COCRDLIC (lines 384-406)
+  - to: COCRDSLC
+    via: XCTL
+    when: ENTER (or any unmapped key) with exactly one row marked 'S' (lines 517-541)
+  - to: COCRDUPC
+    via: XCTL
+    when: ENTER (or any unmapped key) with exactly one row marked 'U' (lines 545-569)
+  - to: CCLI
+    via: RETURN-TRANSID
+    when: every path that sends the list screen (COMMON-RETURN, lines 604-619)
+notes:
+  - >-
+    Value conventions used in this spec. "" means the field is all spaces. "LOW-VALUES" means the field is
+    binary zeros (nothing written to the screen). WS-SCREEN-ROWS in a commarea is the 7-row array
+    WS-SCREEN-ROWS(1..7) of WS-THIS-PROGCOMMAREA (lines 252-260), listed in row order; rows not listed are
+    LOW-VALUES. given.file_conditions (see SCHEMA.md) injects a CICS RESP to reach an error branch
+    (case COCRDLIC-035).
+  - >-
+    COMMAREA layout. CARDDEMO-COMMAREA (COCOM01Y) followed by WS-THIS-PROGCOMMAREA (lines 229-260):
+    WS-CA-LAST-CARD-NUM/ACCT-ID, WS-CA-FIRST-CARD-NUM/ACCT-ID, WS-CA-SCREEN-NUM (page number, 1 = first page),
+    WS-CA-LAST-PAGE-DISPLAYED (0 = last page shown, 9 = not shown), WS-CA-NEXT-PAGE-IND ('Y' or LOW-VALUES),
+    WS-RETURN-FLAG, and WS-SCREEN-DATA (the rows last displayed). Level 05 WS-SCREEN-DATA follows level-10
+    items under the same 01, so it is part of the program commarea and the rows persist across pseudo-conversational
+    turns; selection XCTLs read the row values from the commarea, not from the screen.
+  - >-
+    Paging state machine. Entry (EIBCALEN = 0, lines 315-325) or arrival with CDEMO-PGM-ENTER from another
+    program (lines 336-343) resets to page 1. ENTER re-reads forward from WS-CA-FIRST-CARD-NUM (the first card on
+    the current page) applying any filter (lines 572-582). PF8 when WS-CA-NEXT-PAGE-IND = 'Y' reads forward from
+    WS-CA-LAST-CARD-NUM (the look-ahead record after the 7th row) and adds 1 to the page (lines 485-496). PF8 when
+    no next page re-reads the current page; the first time it says 'NO MORE RECORDS TO SHOW' and sets
+    WS-CA-LAST-PAGE-DISPLAYED to 0, the second time 'NO MORE PAGES TO DISPLAY' (lines 905-916). Any key other than
+    PF8 resets WS-CA-LAST-PAGE-DISPLAYED to 9 (lines 410-414). PF7 on page 1 re-reads page 1 (lines 444-454);
+    PF7 on a later page subtracts 1 and browses backwards with READPREV from WS-CA-FIRST-CARD-NUM (lines 501-513,
+    1264-1380). Page size is 7 (WS-MAX-SCREEN-LINES, line 177).
+  - >-
+    Admin vs regular user. The header comment (lines 4-7) says non-admin users see only cards of the account in
+    the COMMAREA. The code does not do this. 9500-FILTER-RECORDS (lines 1381-1407) filters only on
+    FLG-ACCTFILTER-ISVALID / FLG-CARDFILTER-ISVALID, which are set only by editing the screen filter fields
+    (2210/2220, lines 1003-1067). CDEMO-USER-TYPE and CDEMO-ACCT-ID on arrival are never consulted for filtering.
+    Admin and regular users see the same unfiltered list (cases 004, 005).
+  - >-
+    CDEMO-USER-TYPE is overwritten with 'U' on first entry (line 320), on PF3 exit (line 387), on the
+    reenter-from-other-program reset (line 466) and on both selection XCTLs (lines 522, 550). An admin who opens
+    a card from the list arrives at COCRDSLC/COCRDUPC, and returns to the menu, as a regular user.
+  - >-
+    The EVALUATE branch at lines 458-482 (WHEN CCARD-AID-PFK03 / WHEN CDEMO-PGM-REENTER AND FROM-PROGRAM NOT
+    COCRDLIC) INITIALIZEs the whole CARDDEMO-COMMAREA, wiping CDEMO-USER-ID, CDEMO-ACCT-ID, CDEMO-CARD-NUM and the
+    customer context. XCTL does not change EIBAID, so returning from COCRDSLC or COCRDUPC with PF3 arrives here with
+    PF3 and takes this branch (case 006); so does any arrival with CDEMO-PGM-REENTER from another program (case 007).
+    Only an arrival with PGM-ENTER and a non-PF3 key keeps the COMMAREA and pre-fills ACCTSIDO/CARDSIDO from
+    CDEMO-ACCT-ID/CDEMO-CARD-NUM (lines 838-868, case 003); the pre-filled values are not applied as filters until
+    the user presses ENTER again.
+  - >-
+    Empty CARDDAT is not specified as a case. STARTBR on an empty KSDS returns NOTFND, which the code ignores
+    (lines 1129-1136); the following READNEXT would then fail with INVREQ and take the file-error branch
+    (lines 1247-1254), and the unconditional ENDBR without RESP (lines 1258-1259) would raise INVREQ under default
+    condition handling. That outcome depends on CICS condition semantics rather than on this source alone.
+    'NO RECORDS FOUND FOR THIS SEARCH CONDITION.' is reached when a non-empty browse excludes every record on page 1
+    (case 017).
+  - >-
+    Account/card filters (2210/2220). Blank, spaces, or all zeros mean no filter (lines 1007-1013, 1042-1048).
+    Otherwise only IS NOT NUMERIC is tested. The 11/16-digit length rule in the message is enforced only because
+    BMS pads a short input with trailing spaces (default JUSTIFY=(LEFT,BLANK); the BMS fields ACCTSID LENGTH=11,
+    CARDSID LENGTH=16 declare no JUSTIFY), which makes the field non-numeric. That padding behavior is a CICS
+    assumption, not something this source states.
+  - >-
+    When an account or card filter is invalid the program skips the browse (lines 431-435), so the rows left in
+    the COMMAREA from the previous turn are re-displayed, with every selection field protected
+    (FLG-PROTECT-SELECT-ROWS-YES, lines 1020/1055, 750-831). If both filters are invalid the account message wins
+    (card message is only set IF WS-ERROR-MSG-OFF, line 1056) and both fields get length -1; CICS puts the cursor
+    on the first -1 field in map order, ACCTSID.
+  - >-
+    Selection edits (2250, lines 1073-1117). Only upper-case 'S' and 'U' are valid; any other non-blank value
+    (including lower-case 's'/'u') is 'INVALID ACTION CODE'. More than one S/U is 'PLEASE SELECT ONLY ONE RECORD TO
+    VIEW OR UPDATE', which takes precedence over an invalid code. Selection edits are skipped when a filter is
+    invalid (line 1075).
+  - >-
+    Quirk: on a selection error the INPUT-ERROR branch (lines 419-438) calls 9000-READ-FORWARD without setting
+    WS-CARD-RID-CARDNUM, which INITIALIZE (line 300) left as spaces. The browse therefore restarts at the top of
+    the file: page-1 cards are shown while PAGENOO keeps the old page number, and the user's selection codes are
+    painted onto whichever rows now occupy those positions (case 023).
+  - >-
+    Quirk: a filter typed on page N only searches cards whose key is >= the first card of page N, because ENTER
+    re-reads from WS-CA-FIRST-CARD-NUM (lines 572-582). Cards before the current page are never found, and the
+    'NO RECORDS FOUND...' message only appears when WS-CA-SCREEN-NUM = 1 (lines 1241-1246); otherwise the user
+    sees an empty list with 'NO MORE RECORDS TO SHOW' (case 018).
+  - >-
+    Quirk: with a filter, the look-ahead READNEXT after the 7th displayed row (lines 1196-1215) sets
+    WS-CA-NEXT-PAGE-IND = 'Y' for any next record in key order, even one the filter would exclude. PF8 can then
+    show an empty page with 'NO MORE RECORDS TO SHOW'.
+  - >-
+    Quirk: moving from page 2 to page 1 with PF7 shows 'NO PREVIOUS PAGES TO DISPLAY', because the page number is
+    decremented (line 508) before 1400-SETUP-MESSAGE tests CA-FIRST-PAGE (lines 901-904) (case 032).
+  - >-
+    Quirk: 9100-READ-BACKWARDS treats ENDFILE from READPREV as a file error (WHEN OTHER, lines 1361-1369). If
+    fewer than 7 qualifying records precede the current page (possible after the selection-error restart or with a
+    filter), PF7 shows 'File Error:READ ... returned RESP ...'.
+  - >-
+    Quirk: I-SELECTED is 0 whenever no row is selected, and the EVALUATE at lines 517-519/545-547 still evaluates
+    VIEW-REQUESTED-ON(I-SELECTED) / UPDATE-REQUESTED-ON(I-SELECTED) with subscript 0, which addresses the byte
+    before WS-EDIT-SELECT-FLAGS (the last byte of COMP-3 WS-EDIT-SELECT-COUNTER). It is never 'S'/'U', so the
+    branch is not taken; a compile with SSRANGE would abend instead.
+  - >-
+    Quirk: row 1 selection is handled differently from rows 2-7 in 1250-SETUP-ARRAY-ATTRIBS. Row 1 uses
+    DFHBMPRF instead of DFHBMPRO when protected (line 753) and, on error, never sets CRDSEL1L to -1 (lines 755-760),
+    so an error on row 1 leaves no cursor position set by the program. Line 790 has a stray receiver: MOVE DFHBMPRO
+    TO CRDSEL4A OF CCRDLIAI I also moves the attribute byte into subscript I (harmless, I is not used afterwards).
+  - >-
+    Unmapped keys (anything except ENTER, PF3, PF7, PF8; PF13-24 fold onto PF1-12 in CSSTRPFY) are silently
+    treated as ENTER (lines 370-380), including any selection codes on the screen. CLEAR and PA keys are mapped to
+    ENTER too, but RECEIVE MAP after CLEAR/PA returns MAPFAIL (RESP ignored, line 966), so the input fields are
+    whatever the fresh symbolic map holds; that outcome depends on the CICS region and is not specified here.
+  - >-
+    STARTBR RESP is never checked (lines 1129-1136, 1273-1280). PF3 sets WS-EXIT-MESSAGE (line 395) but the
+    message is never displayed. The SEND-PLAIN-TEXT / SEND-LONG-TEXT paragraphs (lines 1422-1454) are unreachable.
+    LIT-CARD-FILE-ACCT-PATH (CARDAIX) is declared but never used. INFOMSGO is shown only when WS-INFO-MSG is set
+    and WS-NO-RECORDS-FOUND is false (lines 926-930).
+cases:
+  - id: COCRDLIC-001
+    summary: first entry (no COMMAREA) lists the first 7 cards of CARDDAT unfiltered, page 1, cursor on account filter
+    given:
+      entry: first-time
+      commarea: {}
+      files:
+        CARDDAT: &cards16
+          - {CARD-NUM: "4000000000000001", CARD-ACCT-ID: "00000000001", CARD-ACTIVE-STATUS: "Y"}
+          - {CARD-NUM: "4000000000000002", CARD-ACCT-ID: "00000000001", CARD-ACTIVE-STATUS: "Y"}
+          - {CARD-NUM: "4000000000000003", CARD-ACCT-ID: "00000000001", CARD-ACTIVE-STATUS: "Y"}
+          - {CARD-NUM: "4000000000000004", CARD-ACCT-ID: "00000000002", CARD-ACTIVE-STATUS: "Y"}
+          - {CARD-NUM: "4000000000000005", CARD-ACCT-ID: "00000000002", CARD-ACTIVE-STATUS: "N"}
+          - {CARD-NUM: "4000000000000006", CARD-ACCT-ID: "00000000002", CARD-ACTIVE-STATUS: "Y"}
+          - {CARD-NUM: "4000000000000007", CARD-ACCT-ID: "00000000003", CARD-ACTIVE-STATUS: "Y"}
+          - {CARD-NUM: "4000000000000008", CARD-ACCT-ID: "00000000003", CARD-ACTIVE-STATUS: "Y"}
+          - {CARD-NUM: "4000000000000009", CARD-ACCT-ID: "00000000003", CARD-ACTIVE-STATUS: "Y"}
+          - {CARD-NUM: "4000000000000010", CARD-ACCT-ID: "00000000003", CARD-ACTIVE-STATUS: "Y"}
+          - {CARD-NUM: "4000000000000011", CARD-ACCT-ID: "00000000003", CARD-ACTIVE-STATUS: "Y"}
+          - {CARD-NUM: "4000000000000012", CARD-ACCT-ID: "00000000003", CARD-ACTIVE-STATUS: "Y"}
+          - {CARD-NUM: "4000000000000013", CARD-ACCT-ID: "00000000003", CARD-ACTIVE-STATUS: "Y"}
+          - {CARD-NUM: "4000000000000014", CARD-ACCT-ID: "00000000003", CARD-ACTIVE-STATUS: "Y"}
+          - {CARD-NUM: "4000000000000015", CARD-ACCT-ID: "00000000003", CARD-ACTIVE-STATUS: "Y"}
+          - {CARD-NUM: "4000000000000016", CARD-ACCT-ID: "00000000003", CARD-ACTIVE-STATUS: "Y"}
+    when:
+      aid: ENTER
+      fields: {}
+    then:
+      message: null
+      cursor: ACCTSIDL
+      fields:
+        PAGENOO: "1"
+        INFOMSGO: "TYPE S FOR DETAIL, U TO UPDATE ANY RECORD"
+        ACCTNO1O: "00000000001"
+        CRDNUM1O: "4000000000000001"
+        CRDSTS1O: "Y"
+        ACCTNO2O: "00000000001"
+        CRDNUM2O: "4000000000000002"
+        CRDSTS2O: "Y"
+        ACCTNO3O: "00000000001"
+        CRDNUM3O: "4000000000000003"
+        CRDSTS3O: "Y"
+        ACCTNO4O: "00000000002"
+        CRDNUM4O: "4000000000000004"
+        CRDSTS4O: "Y"
+        ACCTNO5O: "00000000002"
+        CRDNUM5O: "4000000000000005"
+        CRDSTS5O: "N"
+        ACCTNO6O: "00000000002"
+        CRDNUM6O: "4000000000000006"
+        CRDSTS6O: "Y"
+        ACCTNO7O: "00000000003"
+        CRDNUM7O: "4000000000000007"
+        CRDSTS7O: "Y"
+      transfer: {via: RETURN-TRANSID, to: CCLI}
+      commarea:
+        CDEMO-FROM-TRANID: CCLI
+        CDEMO-FROM-PROGRAM: COCRDLIC
+        CDEMO-USER-TYPE: U
+        CDEMO-PGM-CONTEXT: 0
+        CDEMO-LAST-MAPSET: COCRDLI
+        CDEMO-LAST-MAP: CCRDLIA
+        WS-CA-SCREEN-NUM: 1
+        WS-CA-FIRST-CARD-NUM: "4000000000000001"
+        WS-CA-LAST-CARD-NUM: "4000000000000008"
+        WS-CA-NEXT-PAGE-IND: "Y"
+      file_effects: []
+    source:
+      file: app/cbl/COCRDLIC.cbl
+      lines: [572, 582]
+
+  - id: COCRDLIC-002
+    summary: first entry with fewer than 7 cards shows them all and says there are no more records
+    given:
+      entry: first-time
+      commarea: {}
+      files:
+        CARDDAT:
+          - {CARD-NUM: "4000000000000001", CARD-ACCT-ID: "00000000001", CARD-ACTIVE-STATUS: "Y"}
+          - {CARD-NUM: "4000000000000002", CARD-ACCT-ID: "00000000001", CARD-ACTIVE-STATUS: "Y"}
+          - {CARD-NUM: "4000000000000003", CARD-ACCT-ID: "00000000002", CARD-ACTIVE-STATUS: "N"}
+    when:
+      aid: ENTER
+      fields: {}
+    then:
+      message: "NO MORE RECORDS TO SHOW"
+      cursor: ACCTSIDL
+      fields:
+        PAGENOO: "1"
+        INFOMSGO: "TYPE S FOR DETAIL, U TO UPDATE ANY RECORD"
+        CRDNUM1O: "4000000000000001"
+        CRDNUM3O: "4000000000000003"
+        CRDSTS3O: "N"
+        CRDNUM4O: LOW-VALUES
+      transfer: {via: RETURN-TRANSID, to: CCLI}
+      commarea:
+        WS-CA-SCREEN-NUM: 1
+        WS-CA-NEXT-PAGE-IND: LOW-VALUES
+      file_effects: []
+    source:
+      file: app/cbl/COCRDLIC.cbl
+      lines: [1233, 1240]
+
+  - id: COCRDLIC-003
+    summary: ENTER-arrival with PGM-ENTER from a non-menu program pre-fills the filter fields from COMMAREA but lists all cards
+    given:
+      entry: xctl-from
+      commarea:
+        CDEMO-FROM-PROGRAM: COACTVWC
+        CDEMO-FROM-TRANID: CAVW
+        CDEMO-PGM-CONTEXT: 0
+        CDEMO-USER-TYPE: U
+        CDEMO-ACCT-ID: "00000000002"
+        CDEMO-CARD-NUM: "4000000000000005"
+      files:
+        CARDDAT: *cards16
+    when:
+      aid: ENTER
+      fields: {}
+    then:
+      message: null
+      cursor: ACCTSIDL
+      fields:
+        PAGENOO: "1"
+        ACCTSIDO: "00000000002"
+        CARDSIDO: "4000000000000005"
+        CRDNUM1O: "4000000000000001"
+        CRDNUM7O: "4000000000000007"
+      transfer: {via: RETURN-TRANSID, to: CCLI}
+      commarea:
+        CDEMO-ACCT-ID: "00000000002"
+        CDEMO-CARD-NUM: "4000000000000005"
+      file_effects: []
+    source:
+      file: app/cbl/COCRDLIC.cbl
+      lines: [838, 868]
+
+  - id: COCRDLIC-004
+    summary: regular user arriving from the menu with an account in COMMAREA still sees all cards (no account filtering)
+    given:
+      entry: xctl-from
+      commarea:
+        CDEMO-FROM-PROGRAM: COMEN01C
+        CDEMO-FROM-TRANID: CM00
+        CDEMO-PGM-CONTEXT: 0
+        CDEMO-USER-ID: USER0001
+        CDEMO-USER-TYPE: U
+        CDEMO-ACCT-ID: "00000000002"
+      files:
+        CARDDAT: *cards16
+    when:
+      aid: ENTER
+      fields: {}
+    then:
+      message: null
+      cursor: ACCTSIDL
+      fields:
+        PAGENOO: "1"
+        ACCTSIDO: LOW-VALUES
+        ACCTNO1O: "00000000001"
+        CRDNUM1O: "4000000000000001"
+        ACCTNO7O: "00000000003"
+        CRDNUM7O: "4000000000000007"
+      transfer: {via: RETURN-TRANSID, to: CCLI}
+      commarea:
+        CDEMO-USER-ID: USER0001
+        CDEMO-USER-TYPE: U
+        CDEMO-ACCT-ID: "00000000002"
+        CDEMO-FROM-PROGRAM: COCRDLIC
+        WS-CA-SCREEN-NUM: 1
+      file_effects: []
+    source:
+      file: app/cbl/COCRDLIC.cbl
+      lines: [1381, 1407]
+
+  - id: COCRDLIC-005
+    summary: admin user arriving from the menu sees the same unfiltered list and keeps user type 'A'
+    given:
+      entry: xctl-from
+      commarea:
+        CDEMO-FROM-PROGRAM: COMEN01C
+        CDEMO-FROM-TRANID: CM00
+        CDEMO-PGM-CONTEXT: 0
+        CDEMO-USER-ID: ADMIN001
+        CDEMO-USER-TYPE: A
+        CDEMO-ACCT-ID: "00000000000"
+      files:
+        CARDDAT: *cards16
+    when:
+      aid: ENTER
+      fields: {}
+    then:
+      message: null
+      cursor: ACCTSIDL
+      fields:
+        PAGENOO: "1"
+        INFOMSGO: "TYPE S FOR DETAIL, U TO UPDATE ANY RECORD"
+        CRDNUM1O: "4000000000000001"
+        CRDNUM7O: "4000000000000007"
+      transfer: {via: RETURN-TRANSID, to: CCLI}
+      commarea:
+        CDEMO-USER-TYPE: A
+        CDEMO-FROM-PROGRAM: COCRDLIC
+        WS-CA-SCREEN-NUM: 1
+      file_effects: []
+    source:
+      file: app/cbl/COCRDLIC.cbl
+      lines: [334, 343]
+
+  - id: COCRDLIC-006
+    summary: PF3 back from card detail arrives with EIBAID = PF3 and wipes the whole CARDDEMO-COMMAREA (user id lost), then shows page 1
+    given:
+      entry: xctl-from
+      commarea:
+        CDEMO-FROM-PROGRAM: COCRDSLC
+        CDEMO-FROM-TRANID: CCDL
+        CDEMO-PGM-CONTEXT: 0
+        CDEMO-USER-ID: ADMIN001
+        CDEMO-USER-TYPE: A
+        CDEMO-ACCT-ID: "00000000002"
+        CDEMO-CARD-NUM: "4000000000000005"
+        CDEMO-LAST-MAPSET: COCRDSL
+      files:
+        CARDDAT: *cards16
+    when:
+      aid: PF3
+      fields: {}
+    then:
+      message: null
+      cursor: ACCTSIDL
+      fields:
+        PAGENOO: "1"
+        ACCTSIDO: LOW-VALUES
+        CARDSIDO: LOW-VALUES
+        CRDNUM1O: "4000000000000001"
+        CRDNUM7O: "4000000000000007"
+      transfer: {via: RETURN-TRANSID, to: CCLI}
+      commarea:
+        CDEMO-USER-ID: ""
+        CDEMO-USER-TYPE: U
+        CDEMO-ACCT-ID: 0
+        CDEMO-CARD-NUM: 0
+        CDEMO-FROM-PROGRAM: COCRDLIC
+      file_effects: []
+    source:
+      file: app/cbl/COCRDLIC.cbl
+      lines: [458, 482]
+
+  - id: COCRDLIC-007
+    summary: arrival with PGM-REENTER from another program wipes the whole CARDDEMO-COMMAREA and shows page 1
+    given:
+      entry: xctl-from
+      commarea:
+        CDEMO-FROM-PROGRAM: COACTVWC
+        CDEMO-FROM-TRANID: CAVW
+        CDEMO-PGM-CONTEXT: 1
+        CDEMO-USER-ID: ADMIN001
+        CDEMO-USER-TYPE: A
+        CDEMO-ACCT-ID: "00000000002"
+      files:
+        CARDDAT: *cards16
+    when:
+      aid: ENTER
+      fields: {}
+    then:
+      message: null
+      cursor: ACCTSIDL
+      fields:
+        PAGENOO: "1"
+        CRDNUM1O: "4000000000000001"
+      transfer: {via: RETURN-TRANSID, to: CCLI}
+      commarea:
+        CDEMO-USER-ID: ""
+        CDEMO-USER-TYPE: U
+        CDEMO-ACCT-ID: 0
+        CDEMO-PGM-CONTEXT: 0
+        CDEMO-FROM-PROGRAM: COCRDLIC
+        WS-CA-SCREEN-NUM: 1
+      file_effects: []
+    source:
+      file: app/cbl/COCRDLIC.cbl
+      lines: [458, 482]
+
+  - id: COCRDLIC-008
+    summary: ENTER with no filter and no selection re-reads the current page from its first card
+    given:
+      entry: reenter
+      commarea:
+        CDEMO-FROM-PROGRAM: COCRDLIC
+        CDEMO-PGM-CONTEXT: 0
+        CDEMO-USER-TYPE: U
+        WS-CA-SCREEN-NUM: 2
+        WS-CA-FIRST-CARD-NUM: "4000000000000008"
+        WS-CA-LAST-CARD-NUM: "4000000000000015"
+        WS-CA-NEXT-PAGE-IND: "Y"
+        WS-CA-LAST-PAGE-DISPLAYED: 9
+      files:
+        CARDDAT: *cards16
+    when:
+      aid: ENTER
+      fields: {ACCTSIDI: "", CARDSIDI: ""}
+    then:
+      message: null
+      cursor: ACCTSIDL
+      fields:
+        PAGENOO: "2"
+        INFOMSGO: "TYPE S FOR DETAIL, U TO UPDATE ANY RECORD"
+        CRDNUM1O: "4000000000000008"
+        CRDNUM7O: "4000000000000014"
+      transfer: {via: RETURN-TRANSID, to: CCLI}
+      commarea:
+        WS-CA-SCREEN-NUM: 2
+        WS-CA-FIRST-CARD-NUM: "4000000000000008"
+        WS-CA-LAST-CARD-NUM: "4000000000000015"
+        WS-CA-NEXT-PAGE-IND: "Y"
+      file_effects: []
+    source:
+      file: app/cbl/COCRDLIC.cbl
+      lines: [572, 582]
+
+  - id: COCRDLIC-009
+    summary: valid 11-digit account filter shows only that account's cards
+    given:
+      entry: reenter
+      commarea: &p1
+        CDEMO-FROM-PROGRAM: COCRDLIC
+        CDEMO-PGM-CONTEXT: 0
+        CDEMO-USER-TYPE: U
+        WS-CA-SCREEN-NUM: 1
+        WS-CA-FIRST-CARD-NUM: "4000000000000001"
+        WS-CA-LAST-CARD-NUM: "4000000000000008"
+        WS-CA-NEXT-PAGE-IND: "Y"
+        WS-CA-LAST-PAGE-DISPLAYED: 9
+        WS-SCREEN-ROWS: &rows1
+          - {WS-ROW-ACCTNO: "00000000001", WS-ROW-CARD-NUM: "4000000000000001", WS-ROW-CARD-STATUS: "Y"}
+          - {WS-ROW-ACCTNO: "00000000001", WS-ROW-CARD-NUM: "4000000000000002", WS-ROW-CARD-STATUS: "Y"}
+          - {WS-ROW-ACCTNO: "00000000001", WS-ROW-CARD-NUM: "4000000000000003", WS-ROW-CARD-STATUS: "Y"}
+          - {WS-ROW-ACCTNO: "00000000002", WS-ROW-CARD-NUM: "4000000000000004", WS-ROW-CARD-STATUS: "Y"}
+          - {WS-ROW-ACCTNO: "00000000002", WS-ROW-CARD-NUM: "4000000000000005", WS-ROW-CARD-STATUS: "N"}
+          - {WS-ROW-ACCTNO: "00000000002", WS-ROW-CARD-NUM: "4000000000000006", WS-ROW-CARD-STATUS: "Y"}
+          - {WS-ROW-ACCTNO: "00000000003", WS-ROW-CARD-NUM: "4000000000000007", WS-ROW-CARD-STATUS: "Y"}
+      files:
+        CARDDAT: *cards16
+    when:
+      aid: ENTER
+      fields: {ACCTSIDI: "00000000002", CARDSIDI: ""}
+    then:
+      message: "NO MORE RECORDS TO SHOW"
+      cursor: ACCTSIDL
+      fields:
+        ACCTSIDO: "00000000002"
+        INFOMSGO: "TYPE S FOR DETAIL, U TO UPDATE ANY RECORD"
+        ACCTNO1O: "00000000002"
+        CRDNUM1O: "4000000000000004"
+        CRDNUM2O: "4000000000000005"
+        CRDNUM3O: "4000000000000006"
+        CRDNUM4O: LOW-VALUES
+      transfer: {via: RETURN-TRANSID, to: CCLI}
+      commarea:
+        CDEMO-ACCT-ID: "00000000002"
+        WS-CA-NEXT-PAGE-IND: LOW-VALUES
+      file_effects: []
+    source:
+      file: app/cbl/COCRDLIC.cbl
+      lines: [1384, 1394]
+
+  - id: COCRDLIC-010
+    summary: non-numeric account filter is rejected, the previous rows are re-shown with selection protected and no browse runs
+    given:
+      entry: reenter
+      commarea: *p1
+      files:
+        CARDDAT: *cards16
+    when:
+      aid: ENTER
+      fields: {ACCTSIDI: "ABC", CARDSIDI: ""}
+    then:
+      message: "ACCOUNT FILTER,IF SUPPLIED MUST BE A 11 DIGIT NUMBER"
+      cursor: ACCTSIDL
+      fields:
+        ACCTSIDO: "ABC"
+        CRDNUM1O: "4000000000000001"
+        CRDNUM7O: "4000000000000007"
+      transfer: {via: RETURN-TRANSID, to: CCLI}
+      commarea:
+        CDEMO-ACCT-ID: 0
+      file_effects: []
+    source:
+      file: app/cbl/COCRDLIC.cbl
+      lines: [1017, 1025]
+
+  - id: COCRDLIC-011
+    summary: account filter shorter than 11 digits is rejected with the same message (BMS pads with spaces, so it is not numeric)
+    given:
+      entry: reenter
+      commarea: *p1
+      files:
+        CARDDAT: *cards16
+    when:
+      aid: ENTER
+      fields: {ACCTSIDI: "12345", CARDSIDI: ""}
+    then:
+      message: "ACCOUNT FILTER,IF SUPPLIED MUST BE A 11 DIGIT NUMBER"
+      cursor: ACCTSIDL
+      transfer: {via: RETURN-TRANSID, to: CCLI}
+      commarea:
+        CDEMO-ACCT-ID: 0
+      file_effects: []
+    source:
+      file: app/cbl/COCRDLIC.cbl
+      lines: [1017, 1025]
+
+  - id: COCRDLIC-012
+    summary: account filter of all zeros is treated as blank (no filter, no error)
+    given:
+      entry: reenter
+      commarea: *p1
+      files:
+        CARDDAT: *cards16
+    when:
+      aid: ENTER
+      fields: {ACCTSIDI: "00000000000", CARDSIDI: ""}
+    then:
+      message: null
+      cursor: ACCTSIDL
+      fields:
+        CRDNUM1O: "4000000000000001"
+        CRDNUM7O: "4000000000000007"
+      transfer: {via: RETURN-TRANSID, to: CCLI}
+      commarea:
+        CDEMO-ACCT-ID: 0
+      file_effects: []
+    source:
+      file: app/cbl/COCRDLIC.cbl
+      lines: [1007, 1013]
+
+  - id: COCRDLIC-013
+    summary: non-numeric card filter is rejected with cursor on the card filter
+    given:
+      entry: reenter
+      commarea: *p1
+      files:
+        CARDDAT: *cards16
+    when:
+      aid: ENTER
+      fields: {ACCTSIDI: "", CARDSIDI: "40000000000000AB"}
+    then:
+      message: "CARD ID FILTER,IF SUPPLIED MUST BE A 16 DIGIT NUMBER"
+      cursor: CARDSIDL
+      fields:
+        CARDSIDO: "40000000000000AB"
+        CRDNUM1O: "4000000000000001"
+      transfer: {via: RETURN-TRANSID, to: CCLI}
+      commarea:
+        CDEMO-CARD-NUM: 0
+      file_effects: []
+    source:
+      file: app/cbl/COCRDLIC.cbl
+      lines: [1052, 1062]
+
+  - id: COCRDLIC-014
+    summary: card filter shorter than 16 digits is rejected with the same message
+    given:
+      entry: reenter
+      commarea: *p1
+      files:
+        CARDDAT: *cards16
+    when:
+      aid: ENTER
+      fields: {ACCTSIDI: "", CARDSIDI: "4000"}
+    then:
+      message: "CARD ID FILTER,IF SUPPLIED MUST BE A 16 DIGIT NUMBER"
+      cursor: CARDSIDL
+      transfer: {via: RETURN-TRANSID, to: CCLI}
+      file_effects: []
+    source:
+      file: app/cbl/COCRDLIC.cbl
+      lines: [1052, 1062]
+
+  - id: COCRDLIC-015
+    summary: both filters invalid shows only the account message and puts the cursor on the account filter
+    given:
+      entry: reenter
+      commarea: *p1
+      files:
+        CARDDAT: *cards16
+    when:
+      aid: ENTER
+      fields: {ACCTSIDI: "ABC", CARDSIDI: "XYZ"}
+    then:
+      message: "ACCOUNT FILTER,IF SUPPLIED MUST BE A 11 DIGIT NUMBER"
+      cursor: ACCTSIDL
+      fields:
+        ACCTSIDO: "ABC"
+        CARDSIDO: "XYZ"
+      transfer: {via: RETURN-TRANSID, to: CCLI}
+      file_effects: []
+    source:
+      file: app/cbl/COCRDLIC.cbl
+      lines: [1017, 1062]
+
+  - id: COCRDLIC-016
+    summary: valid card filter shows only the matching card
+    given:
+      entry: reenter
+      commarea: *p1
+      files:
+        CARDDAT: *cards16
+    when:
+      aid: ENTER
+      fields: {ACCTSIDI: "", CARDSIDI: "4000000000000005"}
+    then:
+      message: "NO MORE RECORDS TO SHOW"
+      cursor: ACCTSIDL
+      fields:
+        CARDSIDO: "4000000000000005"
+        ACCTNO1O: "00000000002"
+        CRDNUM1O: "4000000000000005"
+        CRDSTS1O: "N"
+        CRDNUM2O: LOW-VALUES
+      transfer: {via: RETURN-TRANSID, to: CCLI}
+      commarea:
+        CDEMO-CARD-NUM: "4000000000000005"
+      file_effects: []
+    source:
+      file: app/cbl/COCRDLIC.cbl
+      lines: [1396, 1405]
+
+  - id: COCRDLIC-017
+    summary: a filter that matches nothing on page 1 reports no records found
+    given:
+      entry: reenter
+      commarea: *p1
+      files:
+        CARDDAT: *cards16
+    when:
+      aid: ENTER
+      fields: {ACCTSIDI: "00000000009", CARDSIDI: ""}
+    then:
+      message: "NO RECORDS FOUND FOR THIS SEARCH CONDITION."
+      cursor: ACCTSIDL
+      fields:
+        INFOMSGO: ""
+        CRDNUM1O: LOW-VALUES
+      transfer: {via: RETURN-TRANSID, to: CCLI}
+      file_effects: []
+    source:
+      file: app/cbl/COCRDLIC.cbl
+      lines: [1241, 1246]
+
+  - id: COCRDLIC-018
+    summary: a filter typed on page 2 only searches from that page's first card, so earlier matches are missed
+    given:
+      entry: reenter
+      commarea:
+        CDEMO-FROM-PROGRAM: COCRDLIC
+        CDEMO-PGM-CONTEXT: 0
+        WS-CA-SCREEN-NUM: 2
+        WS-CA-FIRST-CARD-NUM: "4000000000000008"
+        WS-CA-LAST-CARD-NUM: "4000000000000015"
+        WS-CA-NEXT-PAGE-IND: "Y"
+      files:
+        CARDDAT: *cards16
+    when:
+      aid: ENTER
+      fields: {ACCTSIDI: "00000000001", CARDSIDI: ""}
+    then:
+      message: "NO MORE RECORDS TO SHOW"
+      cursor: ACCTSIDL
+      fields:
+        PAGENOO: "2"
+        CRDNUM1O: LOW-VALUES
+      transfer: {via: RETURN-TRANSID, to: CCLI}
+      commarea:
+        CDEMO-ACCT-ID: "00000000001"
+        WS-CA-SCREEN-NUM: 2
+      file_effects: []
+    source:
+      file: app/cbl/COCRDLIC.cbl
+      lines: [1233, 1246]
+
+  - id: COCRDLIC-019
+    summary: "'S' on one row transfers to card detail with that row's account and card; admin user type is reset to 'U'"
+    given:
+      entry: reenter
+      commarea:
+        CDEMO-FROM-PROGRAM: COCRDLIC
+        CDEMO-PGM-CONTEXT: 0
+        CDEMO-USER-ID: ADMIN001
+        CDEMO-USER-TYPE: A
+        WS-CA-SCREEN-NUM: 1
+        WS-CA-FIRST-CARD-NUM: "4000000000000001"
+        WS-SCREEN-ROWS: *rows1
+      files:
+        CARDDAT: *cards16
+    when:
+      aid: ENTER
+      fields: {ACCTSIDI: "", CARDSIDI: "", CRDSEL2I: "S"}
+    then:
+      message: null
+      transfer: {via: XCTL, to: COCRDSLC}
+      commarea:
+        CDEMO-FROM-TRANID: CCLI
+        CDEMO-FROM-PROGRAM: COCRDLIC
+        CDEMO-USER-ID: ADMIN001
+        CDEMO-USER-TYPE: U
+        CDEMO-PGM-CONTEXT: 0
+        CDEMO-LAST-MAPSET: COCRDLI
+        CDEMO-LAST-MAP: CCRDLIA
+        CDEMO-ACCT-ID: "00000000001"
+        CDEMO-CARD-NUM: "4000000000000002"
+      file_effects: []
+    source:
+      file: app/cbl/COCRDLIC.cbl
+      lines: [517, 541]
+
+  - id: COCRDLIC-020
+    summary: "'U' on one row transfers to card update with that row's account and card"
+    given:
+      entry: reenter
+      commarea: *p1
+      files:
+        CARDDAT: *cards16
+    when:
+      aid: ENTER
+      fields: {ACCTSIDI: "", CARDSIDI: "", CRDSEL5I: "U"}
+    then:
+      message: null
+      transfer: {via: XCTL, to: COCRDUPC}
+      commarea:
+        CDEMO-FROM-TRANID: CCLI
+        CDEMO-FROM-PROGRAM: COCRDLIC
+        CDEMO-USER-TYPE: U
+        CDEMO-PGM-CONTEXT: 0
+        CDEMO-LAST-MAPSET: COCRDLI
+        CDEMO-ACCT-ID: "00000000002"
+        CDEMO-CARD-NUM: "4000000000000005"
+      file_effects: []
+    source:
+      file: app/cbl/COCRDLIC.cbl
+      lines: [545, 569]
+
+  - id: COCRDLIC-021
+    summary: lower-case 's' is not a valid action code
+    given:
+      entry: reenter
+      commarea: *p1
+      files:
+        CARDDAT: *cards16
+    when:
+      aid: ENTER
+      fields: {ACCTSIDI: "", CARDSIDI: "", CRDSEL2I: "s"}
+    then:
+      message: "INVALID ACTION CODE"
+      cursor: CRDSEL2L
+      fields:
+        CRDSEL2O: "s"
+        CRDNUM2O: "4000000000000002"
+      transfer: {via: RETURN-TRANSID, to: CCLI}
+      file_effects: []
+    source:
+      file: app/cbl/COCRDLIC.cbl
+      lines: [1108, 1113]
+
+  - id: COCRDLIC-022
+    summary: invalid action code on row 1 is flagged but no cursor position is set for it (row 1 lacks the -1 move)
+    given:
+      entry: reenter
+      commarea: *p1
+      files:
+        CARDDAT: *cards16
+    when:
+      aid: ENTER
+      fields: {ACCTSIDI: "", CARDSIDI: "", CRDSEL1I: "X"}
+    then:
+      message: "INVALID ACTION CODE"
+      cursor: null
+      fields:
+        CRDSEL1O: "X"
+      transfer: {via: RETURN-TRANSID, to: CCLI}
+      file_effects: []
+    source:
+      file: app/cbl/COCRDLIC.cbl
+      lines: [751, 762]
+
+  - id: COCRDLIC-023
+    summary: a selection error on page 2 re-reads from the top of the file, showing page-1 cards under page number 2
+    given:
+      entry: reenter
+      commarea:
+        CDEMO-FROM-PROGRAM: COCRDLIC
+        CDEMO-PGM-CONTEXT: 0
+        WS-CA-SCREEN-NUM: 2
+        WS-CA-FIRST-CARD-NUM: "4000000000000008"
+        WS-CA-LAST-CARD-NUM: "4000000000000015"
+        WS-CA-NEXT-PAGE-IND: "Y"
+      files:
+        CARDDAT: *cards16
+    when:
+      aid: ENTER
+      fields: {ACCTSIDI: "", CARDSIDI: "", CRDSEL2I: "X"}
+    then:
+      message: "INVALID ACTION CODE"
+      cursor: CRDSEL2L
+      fields:
+        PAGENOO: "2"
+        CRDNUM1O: "4000000000000001"
+        CRDNUM2O: "4000000000000002"
+        CRDSEL2O: "X"
+      transfer: {via: RETURN-TRANSID, to: CCLI}
+      commarea:
+        WS-CA-SCREEN-NUM: 2
+        WS-CA-FIRST-CARD-NUM: "4000000000000001"
+      file_effects: []
+    source:
+      file: app/cbl/COCRDLIC.cbl
+      lines: [419, 438]
+
+  - id: COCRDLIC-024
+    summary: more than one row selected is rejected and every selected row is flagged
+    given:
+      entry: reenter
+      commarea: *p1
+      files:
+        CARDDAT: *cards16
+    when:
+      aid: ENTER
+      fields: {ACCTSIDI: "", CARDSIDI: "", CRDSEL1I: "S", CRDSEL3I: "U"}
+    then:
+      message: "PLEASE SELECT ONLY ONE RECORD TO VIEW OR UPDATE"
+      cursor: CRDSEL3L
+      fields:
+        CRDSEL1O: "S"
+        CRDSEL3O: "U"
+      transfer: {via: RETURN-TRANSID, to: CCLI}
+      file_effects: []
+    source:
+      file: app/cbl/COCRDLIC.cbl
+      lines: [1083, 1094]
+
+  - id: COCRDLIC-025
+    summary: PF3 from the list returns to the main menu and resets user type to 'U'
+    given:
+      entry: reenter
+      commarea:
+        CDEMO-FROM-PROGRAM: COCRDLIC
+        CDEMO-PGM-CONTEXT: 0
+        CDEMO-USER-ID: ADMIN001
+        CDEMO-USER-TYPE: A
+        WS-CA-SCREEN-NUM: 1
+      files:
+        CARDDAT: *cards16
+    when:
+      aid: PF3
+      fields: {ACCTSIDI: "", CARDSIDI: ""}
+    then:
+      message: null
+      transfer: {via: XCTL, to: COMEN01C}
+      commarea:
+        CDEMO-FROM-TRANID: CCLI
+        CDEMO-FROM-PROGRAM: COCRDLIC
+        CDEMO-TO-PROGRAM: COMEN01C
+        CDEMO-USER-ID: ADMIN001
+        CDEMO-USER-TYPE: U
+        CDEMO-PGM-CONTEXT: 0
+        CDEMO-LAST-MAPSET: COCRDLI
+        CDEMO-LAST-MAP: CCRDLIA
+      file_effects: []
+    source:
+      file: app/cbl/COCRDLIC.cbl
+      lines: [384, 406]
+
+  - id: COCRDLIC-026
+    summary: PF3 on a first entry (no COMMAREA) goes straight to the menu, because first entry sets FROM-PROGRAM to COCRDLIC
+    given:
+      entry: first-time
+      commarea: {}
+      files:
+        CARDDAT: *cards16
+    when:
+      aid: PF3
+      fields: {}
+    then:
+      message: null
+      transfer: {via: XCTL, to: COMEN01C}
+      commarea:
+        CDEMO-FROM-PROGRAM: COCRDLIC
+        CDEMO-TO-PROGRAM: COMEN01C
+        CDEMO-USER-ID: ""
+        CDEMO-USER-TYPE: U
+      file_effects: []
+    source:
+      file: app/cbl/COCRDLIC.cbl
+      lines: [384, 406]
+
+  - id: COCRDLIC-027
+    summary: PF7 on page 1 re-shows page 1 with a no-previous-pages message
+    given:
+      entry: reenter
+      commarea: *p1
+      files:
+        CARDDAT: *cards16
+    when:
+      aid: PF7
+      fields: {ACCTSIDI: "", CARDSIDI: ""}
+    then:
+      message: "NO PREVIOUS PAGES TO DISPLAY"
+      cursor: ACCTSIDL
+      fields:
+        PAGENOO: "1"
+        INFOMSGO: ""
+        CRDNUM1O: "4000000000000001"
+        CRDNUM7O: "4000000000000007"
+      transfer: {via: RETURN-TRANSID, to: CCLI}
+      file_effects: []
+    source:
+      file: app/cbl/COCRDLIC.cbl
+      lines: [899, 904]
+
+  - id: COCRDLIC-028
+    summary: PF8 with a next page shows the next 7 cards and increments the page number
+    given:
+      entry: reenter
+      commarea: *p1
+      files:
+        CARDDAT: *cards16
+    when:
+      aid: PF8
+      fields: {ACCTSIDI: "", CARDSIDI: ""}
+    then:
+      message: null
+      cursor: ACCTSIDL
+      fields:
+        PAGENOO: "2"
+        INFOMSGO: "TYPE S FOR DETAIL, U TO UPDATE ANY RECORD"
+        CRDNUM1O: "4000000000000008"
+        CRDNUM7O: "4000000000000014"
+      transfer: {via: RETURN-TRANSID, to: CCLI}
+      commarea:
+        WS-CA-SCREEN-NUM: 2
+        WS-CA-FIRST-CARD-NUM: "4000000000000008"
+        WS-CA-LAST-CARD-NUM: "4000000000000015"
+        WS-CA-NEXT-PAGE-IND: "Y"
+      file_effects: []
+    source:
+      file: app/cbl/COCRDLIC.cbl
+      lines: [485, 496]
+
+  - id: COCRDLIC-029
+    summary: PF8 into the last (partial) page says no more records and marks the last page as shown
+    given:
+      entry: reenter
+      commarea:
+        CDEMO-FROM-PROGRAM: COCRDLIC
+        CDEMO-PGM-CONTEXT: 0
+        WS-CA-SCREEN-NUM: 2
+        WS-CA-FIRST-CARD-NUM: "4000000000000008"
+        WS-CA-LAST-CARD-NUM: "4000000000000015"
+        WS-CA-NEXT-PAGE-IND: "Y"
+        WS-CA-LAST-PAGE-DISPLAYED: 9
+      files:
+        CARDDAT: *cards16
+    when:
+      aid: PF8
+      fields: {ACCTSIDI: "", CARDSIDI: ""}
+    then:
+      message: "NO MORE RECORDS TO SHOW"
+      cursor: ACCTSIDL
+      fields:
+        PAGENOO: "3"
+        INFOMSGO: "TYPE S FOR DETAIL, U TO UPDATE ANY RECORD"
+        CRDNUM1O: "4000000000000015"
+        CRDNUM2O: "4000000000000016"
+        CRDNUM3O: LOW-VALUES
+      transfer: {via: RETURN-TRANSID, to: CCLI}
+      commarea:
+        WS-CA-SCREEN-NUM: 3
+        WS-CA-FIRST-CARD-NUM: "4000000000000015"
+        WS-CA-NEXT-PAGE-IND: LOW-VALUES
+        WS-CA-LAST-PAGE-DISPLAYED: 0
+      file_effects: []
+    source:
+      file: app/cbl/COCRDLIC.cbl
+      lines: [910, 916]
+
+  - id: COCRDLIC-030
+    summary: PF8 again on the last page re-shows it with a no-more-pages message
+    given:
+      entry: reenter
+      commarea:
+        CDEMO-FROM-PROGRAM: COCRDLIC
+        CDEMO-PGM-CONTEXT: 0
+        WS-CA-SCREEN-NUM: 3
+        WS-CA-FIRST-CARD-NUM: "4000000000000015"
+        WS-CA-LAST-CARD-NUM: "4000000000000016"
+        WS-CA-NEXT-PAGE-IND: LOW-VALUES
+        WS-CA-LAST-PAGE-DISPLAYED: 0
+      files:
+        CARDDAT: *cards16
+    when:
+      aid: PF8
+      fields: {ACCTSIDI: "", CARDSIDI: ""}
+    then:
+      message: "NO MORE PAGES TO DISPLAY"
+      cursor: ACCTSIDL
+      fields:
+        PAGENOO: "3"
+        INFOMSGO: ""
+        CRDNUM1O: "4000000000000015"
+        CRDNUM2O: "4000000000000016"
+      transfer: {via: RETURN-TRANSID, to: CCLI}
+      commarea:
+        WS-CA-SCREEN-NUM: 3
+        WS-CA-LAST-PAGE-DISPLAYED: 0
+      file_effects: []
+    source:
+      file: app/cbl/COCRDLIC.cbl
+      lines: [905, 909]
+
+  - id: COCRDLIC-031
+    summary: PF7 from page 3 browses backwards and shows page 2
+    given:
+      entry: reenter
+      commarea:
+        CDEMO-FROM-PROGRAM: COCRDLIC
+        CDEMO-PGM-CONTEXT: 0
+        WS-CA-SCREEN-NUM: 3
+        WS-CA-FIRST-CARD-NUM: "4000000000000015"
+        WS-CA-LAST-CARD-NUM: "4000000000000016"
+        WS-CA-NEXT-PAGE-IND: LOW-VALUES
+        WS-CA-LAST-PAGE-DISPLAYED: 0
+      files:
+        CARDDAT: *cards16
+    when:
+      aid: PF7
+      fields: {ACCTSIDI: "", CARDSIDI: ""}
+    then:
+      message: null
+      cursor: ACCTSIDL
+      fields:
+        PAGENOO: "2"
+        INFOMSGO: "TYPE S FOR DETAIL, U TO UPDATE ANY RECORD"
+        CRDNUM1O: "4000000000000008"
+        CRDNUM7O: "4000000000000014"
+      transfer: {via: RETURN-TRANSID, to: CCLI}
+      commarea:
+        WS-CA-SCREEN-NUM: 2
+        WS-CA-FIRST-CARD-NUM: "4000000000000008"
+        WS-CA-LAST-CARD-NUM: "4000000000000015"
+        WS-CA-NEXT-PAGE-IND: "Y"
+        WS-CA-LAST-PAGE-DISPLAYED: 9
+      file_effects: []
+    source:
+      file: app/cbl/COCRDLIC.cbl
+      lines: [501, 513]
+
+  - id: COCRDLIC-032
+    summary: PF7 from page 2 shows page 1 but also says there are no previous pages
+    given:
+      entry: reenter
+      commarea:
+        CDEMO-FROM-PROGRAM: COCRDLIC
+        CDEMO-PGM-CONTEXT: 0
+        WS-CA-SCREEN-NUM: 2
+        WS-CA-FIRST-CARD-NUM: "4000000000000008"
+        WS-CA-LAST-CARD-NUM: "4000000000000015"
+        WS-CA-NEXT-PAGE-IND: "Y"
+      files:
+        CARDDAT: *cards16
+    when:
+      aid: PF7
+      fields: {ACCTSIDI: "", CARDSIDI: ""}
+    then:
+      message: "NO PREVIOUS PAGES TO DISPLAY"
+      cursor: ACCTSIDL
+      fields:
+        PAGENOO: "1"
+        INFOMSGO: ""
+        CRDNUM1O: "4000000000000001"
+        CRDNUM7O: "4000000000000007"
+      transfer: {via: RETURN-TRANSID, to: CCLI}
+      commarea:
+        WS-CA-SCREEN-NUM: 1
+        WS-CA-FIRST-CARD-NUM: "4000000000000001"
+      file_effects: []
+    source:
+      file: app/cbl/COCRDLIC.cbl
+      lines: [899, 904]
+
+  - id: COCRDLIC-033
+    summary: an unmapped key (PF10) is treated as ENTER, so a pending 'S' still opens card detail
+    given:
+      entry: reenter
+      commarea: *p1
+      files:
+        CARDDAT: *cards16
+    when:
+      aid: PF10
+      fields: {ACCTSIDI: "", CARDSIDI: "", CRDSEL1I: "S"}
+    then:
+      message: null
+      transfer: {via: XCTL, to: COCRDSLC}
+      commarea:
+        CDEMO-ACCT-ID: "00000000001"
+        CDEMO-CARD-NUM: "4000000000000001"
+      file_effects: []
+    source:
+      file: app/cbl/COCRDLIC.cbl
+      lines: [370, 380]
+
+  - id: COCRDLIC-034
+    summary: an unmapped key (PF5) with no selection re-shows the current page like ENTER
+    given:
+      entry: reenter
+      commarea: *p1
+      files:
+        CARDDAT: *cards16
+    when:
+      aid: PF5
+      fields: {ACCTSIDI: "", CARDSIDI: ""}
+    then:
+      message: null
+      cursor: ACCTSIDL
+      fields:
+        PAGENOO: "1"
+        CRDNUM1O: "4000000000000001"
+      transfer: {via: RETURN-TRANSID, to: CCLI}
+      file_effects: []
+    source:
+      file: app/cbl/COCRDLIC.cbl
+      lines: [370, 380]
+
+  - id: COCRDLIC-035
+    summary: a READNEXT failure during the browse stops the list and shows the formatted file error
+    given:
+      entry: reenter
+      commarea: *p1
+      files:
+        CARDDAT: *cards16
+      file_conditions:
+        - {file: CARDDAT, op: READNEXT, resp: IOERR}
+    when:
+      aid: ENTER
+      fields: {ACCTSIDI: "", CARDSIDI: ""}
+    then:
+      message: "File Error: {ERROR-OPNAME} on {ERROR-FILE} returned RESP {ERROR-RESP},RESP2 {ERROR-RESP2}"
+      cursor: ACCTSIDL
+      fields:
+        CRDNUM1O: LOW-VALUES
+      transfer: {via: RETURN-TRANSID, to: CCLI}
+      file_effects: []
+    source:
+      file: app/cbl/COCRDLIC.cbl
+      lines: [1247, 1254]

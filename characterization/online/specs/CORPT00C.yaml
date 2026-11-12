@@ -1,0 +1,839 @@
+# CORPT00C characterization spec. Derived from reading source, not executed.
+# See ../SCHEMA.md. Conventions for values are in `notes`.
+program: CORPT00C
+transaction: CR00
+screen:
+  mapset: CORPT00
+  map: CORPT0A
+evidence: derived
+sources: [app/cbl/CORPT00C.cbl, app/cbl/CSUTLDTC.cbl, app/bms/CORPT00.bms, app/cpy-bms/CORPT00.CPY, app/cpy/COCOM01Y.cpy,
+  app/cpy/CSDAT01Y.cpy, app/cpy/CSMSG01Y.cpy, app/csd/CARDDEMO.CSD]
+files: []
+navigation:
+- to: COSGN00C
+  via: XCTL
+  when: started without a COMMAREA (EIBCALEN = 0), lines 172-174
+- to: COMEN01C
+  via: XCTL
+  when: PF3, lines 186-188
+- to: CR00
+  via: RETURN-TRANSID
+  when: every screen send (GO TO RETURN-TO-CICS), lines 580-591
+notes: ['Value conventions: field and record values are shown without trailing pad spaces; "" means the field is
+    all spaces or LOW-VALUES. Numeric record fields are written as decimal strings (e.g. TRAN-AMT "12.50"). Input
+    values are the full field content as BMS delivers it: default JUSTIFY=(LEFT,BLANK) pads short input with trailing
+    spaces, which is why several IS NUMERIC checks reject short entries.', 'A {NAME} placeholder inside a message
+    or a record value is a runtime value. {} marks the seam between two adjacent STRING literals and renders as
+    the empty string, because the schema''s fragment check cannot match two literals that the COBOL concatenates
+    with no variable between them. A runner should treat {NAME} and {} as wildcards. This is the same convention
+    COACTVWC.yaml uses.', 'CICS RESP branches other than NORMAL/NOTFND/ENDFILE/DUPKEY (I/O errors, DISABLED files)
+    cannot be set up through `given.files`, so they are listed here instead of as cases.', 'No CSD FILE is touched.
+    WS-TRANSACT-FILE and COPY CVTRA05Y are declared and never used. The only external effect is EXEC CICS WRITEQ
+    TD QUEUE(''JOBS'') (lines 517-523). JOBS is a CSD TDQUEUE, not a FILE: TYPE(EXTRA) DDNAME(INREADER) RECORDSIZE(80)
+    (app/csd/CARDDEMO.CSD lines 499-502). It is the JES internal reader, so each record is one 80-byte JCL card,
+    and the job is submitted when the queue is closed or flushed. The schema''s file_effects cannot name a TDQ,
+    so the queue writes are described here and in each case summary.', 'JCL written to JOBS on a confirmed submit,
+    one WRITEQ per line in this order (JOB-DATA, lines 81-125; loop lines 497-508). The loop writes the ''/*EOF''
+    card too, then stops. 1 "//TRNRPT00 JOB ''TRAN REPORT'',CLASS=A,MSGCLASS=0," | 2 "// NOTIFY=&SYSUID" | 3 "//*"
+    | 4 "//JOBLIB JCLLIB ORDER=(''AWS.M2.CARDDEMO.PROC'')" | 5 "//*" | 6 "//STEP10 EXEC PROC=TRANREPT" | 7 "//*"
+    | 8 "//STEP05R.SYMNAMES DD *" | 9 "TRAN-CARD-NUM,263,16,ZD" | 10 "TRAN-PROC-DT,305,10,CH" | 11 "PARM-START-DATE,C''{START-DATE}''"
+    | 12 "PARM-END-DATE,C''{END-DATE}''" | 13 "/*" | 14 "//STEP10R.DATEPARM DD *" | 15 "{START-DATE} {END-DATE}"
+    | 16 "/*" | 17 "/*EOF". Dates are YYYY-MM-DD and every card is space-padded to 80 bytes.', 'Date ranges. Monthly
+    (lines 213-238): start = current YYYY-MM-01. End = the day before the 1st of next month, computed with INTEGER-OF-DATE/DATE-OF-INTEGER,
+    which rolls December into January of the next year. Yearly (lines 239-254): current YYYY-01-01 to YYYY-12-31.
+    Custom (lines 256-436): the six screen fields. ''Current'' means FUNCTION CURRENT-DATE on the CICS region''s
+    clock.', 'Every SEND-TRNRPT-SCREEN ends with GO TO RETURN-TO-CICS (line 580), so the first failing check is
+    the only message, and nothing after it runs. Confirmation is checked only after the dates pass (lines 464-494).',
+  'Custom date checks run in this order: empty checks (start month, day, year, then end month, day, year; lines
+    258-303). Each field is then normalised by NUMVAL-C into PIC 99 / 9999 and moved back to the screen (lines 305-327).
+    After that come the range checks: month > ''12'', day > ''31'', and year IS NOT NUMERIC (lines 329-378). Last
+    is CSUTLDTC on the assembled start and end dates (lines 386-426). The date checks use a COBOL CALL, not EXEC
+    CICS LINK. Feedback 2513 (CEEDAYS ''Unsupp. Range'', app/cbl/CSUTLDTC.cbl lines 66, 136-137) is ignored as in
+    COTRN02C. The not-a-valid-date messages are CORPT00C literals, and both put the cursor on the month field.',
+  'Because of the NUMVAL-C normalisation, the ''Not a valid Year...'' checks (lines 347-353, 373-379) and the IS
+    NOT NUMERIC half of the month/day checks cannot fail for ordinary input. Month ''00'' and day ''00'' pass the
+    range checks and are left to CSUTLDTC. NUMVAL-C on non-numeric text such as ''AB'' has undefined results in
+    Enterprise COBOL, so no case asserts it.', No check that the start date is on or before the end date (case CORPT00C-026).,
+  'Confirmation: blank asks to confirm, ''Y''/''y'' submits, ''N''/''n'' clears the screen with no message, and
+    anything else is echoed as ''"<value>" is not a valid value to confirm...'' (lines 464-494). The success message
+    is green (ERRMSGC = DFHGREEN, line 448). WS-REPORT-NAME is ''Monthly'', ''Yearly'' or ''Custom''.', 'Latent
+    bug: JOB-LINES OCCURS 1000 (line 127) redefines a 17-card group, so the loop relies on finding ''/*EOF'' to
+    stop. A WRITEQ failure part-way through shows ''Unable to Write TDQ (JOBS)...'' (lines 528-534) after some cards
+    were already queued, and they are not removed.', 'Monthly and Yearly ignore the custom date fields. If several
+    of Monthly, Yearly and Custom are marked, the first in that order wins (lines 212-256). Any non-blank character
+    marks a type.']
+cases:
+- id: CORPT00C-001
+  summary: no COMMAREA (EIBCALEN = 0) sends the user to sign-on
+  given:
+    entry: first-time
+  when:
+    aid: ENTER
+  then:
+    message: null
+    transfer:
+      via: XCTL
+      to: COSGN00C
+    file_effects: []
+  source:
+    file: app/cbl/CORPT00C.cbl
+    lines: [172, 174]
+- id: CORPT00C-002
+  summary: arrival from the menu shows the report screen with the cursor on Monthly
+  given:
+    entry: xctl-from
+    commarea:
+      CDEMO-PGM-CONTEXT: 0
+      CDEMO-FROM-PROGRAM: COMEN01C
+      CDEMO-FROM-TRANID: CM00
+  when:
+    aid: ENTER
+  then:
+    message: null
+    cursor: MONTHLYL
+    fields:
+      MONTHLYO: ''
+      YEARLYO: ''
+      CUSTOMO: ''
+      SDTMMO: ''
+      SDTDDO: ''
+      SDTYYYYO: ''
+      EDTMMO: ''
+      EDTDDO: ''
+      EDTYYYYO: ''
+      CONFIRMO: ''
+    transfer:
+      via: RETURN-TRANSID
+      to: CR00
+    commarea:
+      CDEMO-PGM-CONTEXT: 1
+    file_effects: []
+  source:
+    file: app/cbl/CORPT00C.cbl
+    lines: [177, 181]
+- id: CORPT00C-003
+  summary: PF3 returns to the main menu
+  given:
+    entry: reenter
+    commarea:
+      CDEMO-PGM-CONTEXT: 1
+      CDEMO-FROM-PROGRAM: COMEN01C
+  when:
+    aid: PF3
+  then:
+    message: null
+    transfer:
+      via: XCTL
+      to: COMEN01C
+    commarea:
+      CDEMO-FROM-PROGRAM: CORPT00C
+      CDEMO-FROM-TRANID: CR00
+      CDEMO-PGM-CONTEXT: 0
+    file_effects: []
+  source:
+    file: app/cbl/CORPT00C.cbl
+    lines: [186, 188]
+- id: CORPT00C-004
+  summary: any other attention key shows the invalid-key message
+  given:
+    entry: reenter
+    commarea:
+      CDEMO-PGM-CONTEXT: 1
+      CDEMO-FROM-PROGRAM: COMEN01C
+  when:
+    aid: OTHER
+  then:
+    message: Invalid key pressed. Please see below...
+    cursor: MONTHLYL
+    transfer:
+      via: RETURN-TRANSID
+      to: CR00
+    file_effects: []
+  source:
+    file: app/cbl/CORPT00C.cbl
+    lines: [190, 194]
+- id: CORPT00C-005
+  summary: ENTER with no report type selected
+  given:
+    entry: reenter
+    commarea:
+      CDEMO-PGM-CONTEXT: 1
+      CDEMO-FROM-PROGRAM: COMEN01C
+  when:
+    aid: ENTER
+    fields:
+      MONTHLYI: ''
+      YEARLYI: ''
+      CUSTOMI: ''
+      CONFIRMI: 'Y'
+  then:
+    message: Select a report type to print report...
+    cursor: MONTHLYL
+    transfer:
+      via: RETURN-TRANSID
+      to: CR00
+    file_effects: []
+  source:
+    file: app/cbl/CORPT00C.cbl
+    lines: [437, 442]
+- id: CORPT00C-006
+  summary: Monthly with confirmation blank asks to confirm (WS-REPORT-NAME = 'Monthly'); nothing is written to TDQ
+    JOBS
+  given:
+    entry: reenter
+    commarea:
+      CDEMO-PGM-CONTEXT: 1
+      CDEMO-FROM-PROGRAM: COMEN01C
+  when:
+    aid: ENTER
+    fields:
+      MONTHLYI: X
+      YEARLYI: ''
+      CUSTOMI: ''
+      CONFIRMI: ''
+  then:
+    message: Please confirm to print the {WS-REPORT-NAME} report...
+    cursor: CONFIRML
+    transfer:
+      via: RETURN-TRANSID
+      to: CR00
+    file_effects: []
+  source:
+    file: app/cbl/CORPT00C.cbl
+    lines: [464, 474]
+- id: CORPT00C-007
+  summary: 'Monthly confirmed with ''Y'': the 17-line TRNRPT00 job goes to TDQ JOBS with start = first day and end
+    = last day of the current month; screen cleared; ''Monthly report submitted ...'''
+  given:
+    entry: reenter
+    commarea:
+      CDEMO-PGM-CONTEXT: 1
+      CDEMO-FROM-PROGRAM: COMEN01C
+  when:
+    aid: ENTER
+    fields:
+      MONTHLYI: X
+      YEARLYI: ''
+      CUSTOMI: ''
+      CONFIRMI: 'Y'
+  then:
+    message: '{WS-REPORT-NAME} report submitted for printing ...'
+    cursor: MONTHLYL
+    fields:
+      MONTHLYO: ''
+      YEARLYO: ''
+      CUSTOMO: ''
+      SDTMMO: ''
+      SDTDDO: ''
+      SDTYYYYO: ''
+      EDTMMO: ''
+      EDTDDO: ''
+      EDTYYYYO: ''
+      CONFIRMO: ''
+    transfer:
+      via: RETURN-TRANSID
+      to: CR00
+    file_effects: []
+  source:
+    file: app/cbl/CORPT00C.cbl
+    lines: [212, 238]
+- id: CORPT00C-008
+  summary: Monthly with confirmation 'N' clears the screen, no message, nothing written
+  given:
+    entry: reenter
+    commarea:
+      CDEMO-PGM-CONTEXT: 1
+      CDEMO-FROM-PROGRAM: COMEN01C
+  when:
+    aid: ENTER
+    fields:
+      MONTHLYI: X
+      YEARLYI: ''
+      CUSTOMI: ''
+      CONFIRMI: 'N'
+  then:
+    message: null
+    cursor: MONTHLYL
+    fields:
+      MONTHLYO: ''
+      YEARLYO: ''
+      CUSTOMO: ''
+      SDTMMO: ''
+      SDTDDO: ''
+      SDTYYYYO: ''
+      EDTMMO: ''
+      EDTDDO: ''
+      EDTYYYYO: ''
+      CONFIRMO: ''
+    transfer:
+      via: RETURN-TRANSID
+      to: CR00
+    file_effects: []
+  source:
+    file: app/cbl/CORPT00C.cbl
+    lines: [480, 482]
+- id: CORPT00C-009
+  summary: confirmation other than Y/N echoes the value back
+  given:
+    entry: reenter
+    commarea:
+      CDEMO-PGM-CONTEXT: 1
+      CDEMO-FROM-PROGRAM: COMEN01C
+  when:
+    aid: ENTER
+    fields:
+      MONTHLYI: X
+      YEARLYI: ''
+      CUSTOMI: ''
+      CONFIRMI: Q
+  then:
+    message: '"{CONFIRMI}" is not a valid value to confirm...'
+    cursor: CONFIRML
+    transfer:
+      via: RETURN-TRANSID
+      to: CR00
+    file_effects: []
+  source:
+    file: app/cbl/CORPT00C.cbl
+    lines: [483, 492]
+- id: CORPT00C-010
+  summary: Monthly wins when several report types are marked (EVALUATE order)
+  given:
+    entry: reenter
+    commarea:
+      CDEMO-PGM-CONTEXT: 1
+      CDEMO-FROM-PROGRAM: COMEN01C
+  when:
+    aid: ENTER
+    fields:
+      MONTHLYI: X
+      YEARLYI: X
+      CUSTOMI: X
+      CONFIRMI: ''
+  then:
+    message: Please confirm to print the {WS-REPORT-NAME} report...
+    cursor: CONFIRML
+    transfer:
+      via: RETURN-TRANSID
+      to: CR00
+    file_effects: []
+  source:
+    file: app/cbl/CORPT00C.cbl
+    lines: [212, 214]
+- id: CORPT00C-011
+  summary: 'Yearly confirmed with ''Y'': job to TDQ JOBS with {YYYY}-01-01 to {YYYY}-12-31 of the current year;
+    ''Yearly report submitted ...'''
+  given:
+    entry: reenter
+    commarea:
+      CDEMO-PGM-CONTEXT: 1
+      CDEMO-FROM-PROGRAM: COMEN01C
+  when:
+    aid: ENTER
+    fields:
+      MONTHLYI: ''
+      YEARLYI: X
+      CUSTOMI: ''
+      CONFIRMI: 'Y'
+  then:
+    message: '{WS-REPORT-NAME} report submitted for printing ...'
+    cursor: MONTHLYL
+    fields:
+      MONTHLYO: ''
+      YEARLYO: ''
+      CUSTOMO: ''
+      SDTMMO: ''
+      SDTDDO: ''
+      SDTYYYYO: ''
+      EDTMMO: ''
+      EDTDDO: ''
+      EDTYYYYO: ''
+      CONFIRMO: ''
+    transfer:
+      via: RETURN-TRANSID
+      to: CR00
+    file_effects: []
+  source:
+    file: app/cbl/CORPT00C.cbl
+    lines: [239, 254]
+- id: CORPT00C-012
+  summary: Custom with SDTMMI empty (checked in the order start month, day, year, then end)
+  given:
+    entry: reenter
+    commarea:
+      CDEMO-PGM-CONTEXT: 1
+      CDEMO-FROM-PROGRAM: COMEN01C
+  when:
+    aid: ENTER
+    fields:
+      MONTHLYI: ''
+      YEARLYI: ''
+      CUSTOMI: X
+      SDTMMI: ''
+      SDTDDI: '15'
+      SDTYYYYI: '2026'
+      EDTMMI: '03'
+      EDTDDI: '31'
+      EDTYYYYI: '2026'
+      CONFIRMI: ''
+  then:
+    message: Start Date - Month can NOT be empty...
+    cursor: SDTMML
+    transfer:
+      via: RETURN-TRANSID
+      to: CR00
+    file_effects: []
+  source:
+    file: app/cbl/CORPT00C.cbl
+    lines: [259, 265]
+- id: CORPT00C-013
+  summary: Custom with SDTDDI empty (checked in the order start month, day, year, then end)
+  given:
+    entry: reenter
+    commarea:
+      CDEMO-PGM-CONTEXT: 1
+      CDEMO-FROM-PROGRAM: COMEN01C
+  when:
+    aid: ENTER
+    fields:
+      MONTHLYI: ''
+      YEARLYI: ''
+      CUSTOMI: X
+      SDTMMI: '01'
+      SDTDDI: ''
+      SDTYYYYI: '2026'
+      EDTMMI: '03'
+      EDTDDI: '31'
+      EDTYYYYI: '2026'
+      CONFIRMI: ''
+  then:
+    message: Start Date - Day can NOT be empty...
+    cursor: SDTDDL
+    transfer:
+      via: RETURN-TRANSID
+      to: CR00
+    file_effects: []
+  source:
+    file: app/cbl/CORPT00C.cbl
+    lines: [266, 272]
+- id: CORPT00C-014
+  summary: Custom with SDTYYYYI empty (checked in the order start month, day, year, then end)
+  given:
+    entry: reenter
+    commarea:
+      CDEMO-PGM-CONTEXT: 1
+      CDEMO-FROM-PROGRAM: COMEN01C
+  when:
+    aid: ENTER
+    fields:
+      MONTHLYI: ''
+      YEARLYI: ''
+      CUSTOMI: X
+      SDTMMI: '01'
+      SDTDDI: '15'
+      SDTYYYYI: ''
+      EDTMMI: '03'
+      EDTDDI: '31'
+      EDTYYYYI: '2026'
+      CONFIRMI: ''
+  then:
+    message: Start Date - Year can NOT be empty...
+    cursor: SDTYYYYL
+    transfer:
+      via: RETURN-TRANSID
+      to: CR00
+    file_effects: []
+  source:
+    file: app/cbl/CORPT00C.cbl
+    lines: [273, 279]
+- id: CORPT00C-015
+  summary: Custom with EDTMMI empty (checked in the order start month, day, year, then end)
+  given:
+    entry: reenter
+    commarea:
+      CDEMO-PGM-CONTEXT: 1
+      CDEMO-FROM-PROGRAM: COMEN01C
+  when:
+    aid: ENTER
+    fields:
+      MONTHLYI: ''
+      YEARLYI: ''
+      CUSTOMI: X
+      SDTMMI: '01'
+      SDTDDI: '15'
+      SDTYYYYI: '2026'
+      EDTMMI: ''
+      EDTDDI: '31'
+      EDTYYYYI: '2026'
+      CONFIRMI: ''
+  then:
+    message: End Date - Month can NOT be empty...
+    cursor: EDTMML
+    transfer:
+      via: RETURN-TRANSID
+      to: CR00
+    file_effects: []
+  source:
+    file: app/cbl/CORPT00C.cbl
+    lines: [280, 286]
+- id: CORPT00C-016
+  summary: Custom with EDTDDI empty (checked in the order start month, day, year, then end)
+  given:
+    entry: reenter
+    commarea:
+      CDEMO-PGM-CONTEXT: 1
+      CDEMO-FROM-PROGRAM: COMEN01C
+  when:
+    aid: ENTER
+    fields:
+      MONTHLYI: ''
+      YEARLYI: ''
+      CUSTOMI: X
+      SDTMMI: '01'
+      SDTDDI: '15'
+      SDTYYYYI: '2026'
+      EDTMMI: '03'
+      EDTDDI: ''
+      EDTYYYYI: '2026'
+      CONFIRMI: ''
+  then:
+    message: End Date - Day can NOT be empty...
+    cursor: EDTDDL
+    transfer:
+      via: RETURN-TRANSID
+      to: CR00
+    file_effects: []
+  source:
+    file: app/cbl/CORPT00C.cbl
+    lines: [287, 293]
+- id: CORPT00C-017
+  summary: Custom with EDTYYYYI empty (checked in the order start month, day, year, then end)
+  given:
+    entry: reenter
+    commarea:
+      CDEMO-PGM-CONTEXT: 1
+      CDEMO-FROM-PROGRAM: COMEN01C
+  when:
+    aid: ENTER
+    fields:
+      MONTHLYI: ''
+      YEARLYI: ''
+      CUSTOMI: X
+      SDTMMI: '01'
+      SDTDDI: '15'
+      SDTYYYYI: '2026'
+      EDTMMI: '03'
+      EDTDDI: '31'
+      EDTYYYYI: ''
+      CONFIRMI: ''
+  then:
+    message: End Date - Year can NOT be empty...
+    cursor: EDTYYYYL
+    transfer:
+      via: RETURN-TRANSID
+      to: CR00
+    file_effects: []
+  source:
+    file: app/cbl/CORPT00C.cbl
+    lines: [294, 300]
+- id: CORPT00C-018
+  summary: Custom with SDTMMI = '13' fails the range check
+  given:
+    entry: reenter
+    commarea:
+      CDEMO-PGM-CONTEXT: 1
+      CDEMO-FROM-PROGRAM: COMEN01C
+  when:
+    aid: ENTER
+    fields:
+      MONTHLYI: ''
+      YEARLYI: ''
+      CUSTOMI: X
+      SDTMMI: '13'
+      SDTDDI: '15'
+      SDTYYYYI: '2026'
+      EDTMMI: '03'
+      EDTDDI: '31'
+      EDTYYYYI: '2026'
+      CONFIRMI: ''
+  then:
+    message: Start Date - Not a valid Month...
+    cursor: SDTMML
+    transfer:
+      via: RETURN-TRANSID
+      to: CR00
+    file_effects: []
+  source:
+    file: app/cbl/CORPT00C.cbl
+    lines: [329, 336]
+- id: CORPT00C-019
+  summary: Custom with SDTDDI = '32' fails the range check
+  given:
+    entry: reenter
+    commarea:
+      CDEMO-PGM-CONTEXT: 1
+      CDEMO-FROM-PROGRAM: COMEN01C
+  when:
+    aid: ENTER
+    fields:
+      MONTHLYI: ''
+      YEARLYI: ''
+      CUSTOMI: X
+      SDTMMI: '01'
+      SDTDDI: '32'
+      SDTYYYYI: '2026'
+      EDTMMI: '03'
+      EDTDDI: '31'
+      EDTYYYYI: '2026'
+      CONFIRMI: ''
+  then:
+    message: Start Date - Not a valid Day...
+    cursor: SDTDDL
+    transfer:
+      via: RETURN-TRANSID
+      to: CR00
+    file_effects: []
+  source:
+    file: app/cbl/CORPT00C.cbl
+    lines: [338, 345]
+- id: CORPT00C-020
+  summary: Custom with EDTMMI = '13' fails the range check
+  given:
+    entry: reenter
+    commarea:
+      CDEMO-PGM-CONTEXT: 1
+      CDEMO-FROM-PROGRAM: COMEN01C
+  when:
+    aid: ENTER
+    fields:
+      MONTHLYI: ''
+      YEARLYI: ''
+      CUSTOMI: X
+      SDTMMI: '01'
+      SDTDDI: '15'
+      SDTYYYYI: '2026'
+      EDTMMI: '13'
+      EDTDDI: '31'
+      EDTYYYYI: '2026'
+      CONFIRMI: ''
+  then:
+    message: End Date - Not a valid Month...
+    cursor: EDTMML
+    transfer:
+      via: RETURN-TRANSID
+      to: CR00
+    file_effects: []
+  source:
+    file: app/cbl/CORPT00C.cbl
+    lines: [355, 362]
+- id: CORPT00C-021
+  summary: Custom with EDTDDI = '32' fails the range check
+  given:
+    entry: reenter
+    commarea:
+      CDEMO-PGM-CONTEXT: 1
+      CDEMO-FROM-PROGRAM: COMEN01C
+  when:
+    aid: ENTER
+    fields:
+      MONTHLYI: ''
+      YEARLYI: ''
+      CUSTOMI: X
+      SDTMMI: '01'
+      SDTDDI: '15'
+      SDTYYYYI: '2026'
+      EDTMMI: '03'
+      EDTDDI: '32'
+      EDTYYYYI: '2026'
+      CONFIRMI: ''
+  then:
+    message: End Date - Not a valid Day...
+    cursor: EDTDDL
+    transfer:
+      via: RETURN-TRANSID
+      to: CR00
+    file_effects: []
+  source:
+    file: app/cbl/CORPT00C.cbl
+    lines: [364, 371]
+- id: CORPT00C-022
+  summary: Custom start date with no such calendar day (CSUTLDTC/CEEDAYS rejects 2026-02-30); cursor goes to the
+    start month
+  given:
+    entry: reenter
+    commarea:
+      CDEMO-PGM-CONTEXT: 1
+      CDEMO-FROM-PROGRAM: COMEN01C
+  when:
+    aid: ENTER
+    fields:
+      MONTHLYI: ''
+      YEARLYI: ''
+      CUSTOMI: X
+      SDTMMI: '02'
+      SDTDDI: '30'
+      SDTYYYYI: '2026'
+      EDTMMI: '03'
+      EDTDDI: '31'
+      EDTYYYYI: '2026'
+      CONFIRMI: ''
+  then:
+    message: Start Date - Not a valid date...
+    cursor: SDTMML
+    transfer:
+      via: RETURN-TRANSID
+      to: CR00
+    file_effects: []
+  source:
+    file: app/cbl/CORPT00C.cbl
+    lines: [395, 405]
+- id: CORPT00C-023
+  summary: Custom end date 2026-04-31 passes the day <= 31 check but CSUTLDTC/CEEDAYS rejects it
+  given:
+    entry: reenter
+    commarea:
+      CDEMO-PGM-CONTEXT: 1
+      CDEMO-FROM-PROGRAM: COMEN01C
+  when:
+    aid: ENTER
+    fields:
+      MONTHLYI: ''
+      YEARLYI: ''
+      CUSTOMI: X
+      SDTMMI: '01'
+      SDTDDI: '15'
+      SDTYYYYI: '2026'
+      EDTMMI: '04'
+      EDTDDI: '31'
+      EDTYYYYI: '2026'
+      CONFIRMI: ''
+  then:
+    message: End Date - Not a valid date...
+    cursor: EDTMML
+    transfer:
+      via: RETURN-TRANSID
+      to: CR00
+    file_effects: []
+  source:
+    file: app/cbl/CORPT00C.cbl
+    lines: [415, 425]
+- id: CORPT00C-024
+  summary: 'Custom valid dates with confirmation blank: single-digit month/day input is zero-padded by NUMVAL-C
+    and shown back; asks to confirm (WS-REPORT-NAME = ''Custom'')'
+  given:
+    entry: reenter
+    commarea:
+      CDEMO-PGM-CONTEXT: 1
+      CDEMO-FROM-PROGRAM: COMEN01C
+  when:
+    aid: ENTER
+    fields:
+      MONTHLYI: ''
+      YEARLYI: ''
+      CUSTOMI: X
+      SDTMMI: '1'
+      SDTDDI: '5'
+      SDTYYYYI: '2026'
+      EDTMMI: '03'
+      EDTDDI: '31'
+      EDTYYYYI: '2026'
+      CONFIRMI: ''
+  then:
+    message: Please confirm to print the {WS-REPORT-NAME} report...
+    cursor: CONFIRML
+    fields:
+      SDTMMO: '01'
+      SDTDDO: '05'
+      SDTYYYYO: '2026'
+      EDTMMO: '03'
+      EDTDDO: '31'
+    transfer:
+      via: RETURN-TRANSID
+      to: CR00
+    file_effects: []
+  source:
+    file: app/cbl/CORPT00C.cbl
+    lines: [304, 326]
+- id: CORPT00C-025
+  summary: 'Custom confirmed with ''Y'': job to TDQ JOBS with PARM dates 2026-01-15 and 2026-03-31; ''Custom report
+    submitted ...'''
+  given:
+    entry: reenter
+    commarea:
+      CDEMO-PGM-CONTEXT: 1
+      CDEMO-FROM-PROGRAM: COMEN01C
+  when:
+    aid: ENTER
+    fields:
+      MONTHLYI: ''
+      YEARLYI: ''
+      CUSTOMI: X
+      SDTMMI: '01'
+      SDTDDI: '15'
+      SDTYYYYI: '2026'
+      EDTMMI: '03'
+      EDTDDI: '31'
+      EDTYYYYI: '2026'
+      CONFIRMI: 'Y'
+  then:
+    message: '{WS-REPORT-NAME} report submitted for printing ...'
+    cursor: MONTHLYL
+    fields:
+      MONTHLYO: ''
+      YEARLYO: ''
+      CUSTOMO: ''
+      SDTMMO: ''
+      SDTDDO: ''
+      SDTYYYYO: ''
+      EDTMMO: ''
+      EDTDDO: ''
+      EDTYYYYO: ''
+      CONFIRMO: ''
+    transfer:
+      via: RETURN-TRANSID
+      to: CR00
+    file_effects: []
+  source:
+    file: app/cbl/CORPT00C.cbl
+    lines: [428, 436]
+- id: CORPT00C-026
+  summary: Custom start date after end date is not checked and is submitted as is
+  given:
+    entry: reenter
+    commarea:
+      CDEMO-PGM-CONTEXT: 1
+      CDEMO-FROM-PROGRAM: COMEN01C
+  when:
+    aid: ENTER
+    fields:
+      MONTHLYI: ''
+      YEARLYI: ''
+      CUSTOMI: X
+      SDTMMI: '12'
+      SDTDDI: '31'
+      SDTYYYYI: '2026'
+      EDTMMI: '01'
+      EDTDDI: '01'
+      EDTYYYYI: '2026'
+      CONFIRMI: 'Y'
+  then:
+    message: '{WS-REPORT-NAME} report submitted for printing ...'
+    cursor: MONTHLYL
+    fields:
+      MONTHLYO: ''
+      YEARLYO: ''
+      CUSTOMO: ''
+      SDTMMO: ''
+      SDTDDO: ''
+      SDTYYYYO: ''
+      EDTMMO: ''
+      EDTDDO: ''
+      EDTYYYYO: ''
+      CONFIRMO: ''
+    transfer:
+      via: RETURN-TRANSID
+      to: CR00
+    file_effects: []
+  source:
+    file: app/cbl/CORPT00C.cbl
+    lines: [428, 436]
