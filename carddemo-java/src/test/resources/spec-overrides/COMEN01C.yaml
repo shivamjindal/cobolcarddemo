@@ -1,19 +1,8 @@
 # Deliberate differences from characterization/online/specs/COMEN01C.yaml, applied by OnlineSpecReplayTest.
-# Each entry replaces whole keys of the case's given, when or then. Drop an entry once its target program is installed.
-COMEN01C-002:
-  reason: The menu lists only installed options, and option 11 is not installed.
+# Each entry replaces whole keys of the case's given, when or then.
+COMEN01C-009:
+  reason: COPAUS0C is installed, so option 11 takes the installed path (lines 152-159) that the spec cannot express.
   then:
-    fields:
-      TRNNAMEO: CM00
-      PGMNAMEO: COMEN01C
-      OPTN001O: "01. Account View"
-      OPTN002O: "02. Account Update"
-      OPTN003O: "03. Credit Card List"
-      OPTN004O: "04. Credit Card View"
-      OPTN005O: "05. Credit Card Update"
-      OPTN006O: "06. Transaction List"
-      OPTN007O: "07. Transaction View"
-      OPTN008O: "08. Transaction Add"
-      OPTN009O: "09. Transaction Reports"
-      OPTN010O: "10. Bill Payment"
-      OPTN011O: ""
+    message: null
+    fields: {}
+    transfer: {via: XCTL, to: COPAUS0C}

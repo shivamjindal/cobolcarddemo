@@ -79,6 +79,15 @@ An account request is `INQA` plus an 11-digit account id. Bytes after the first 
 
 A date request may contain any text. The reply is `SYSTEM DATE : ` then `MM-DD-YYYY`, then `SYSTEM TIME : ` then `HH:MM:SS`, taken from the injected `java.time.Clock`.
 
+## Authorizations
+
+`authorizations/` ports the optional module `../app/app-authorization-ims-db2-mq`. `V5__pending_authorizations.sql` turns the IMS database DBPAUTP0 into two tables. `pending_auth_summaries` holds PAUTSUM0, one row per account. `pending_auth_details` holds PAUTDTL1, keyed by account and the date and time subtracted from all nines, with `ON DELETE CASCADE` standing in for a parent's DLET. The Db2 table AUTHFRDS becomes `authfrds`. `PendingAuthorizations` holds the DL/I calls the programs make.
+
+- `AuthorizationRequests` is COPAUA0C, a `MessageProgram` on `carddemo.authorizations.request-queue` (default `AWS.M2.CARDDEMO.PAUTH.REQUEST`). It replies to each request's reply-to queue, in the request's unit of work.
+- `AuthorizationList` and `AuthorizationDetail` are COPAUS0C and COPAUS1C (main menu option 11). `FraudReports` is COPAUS2C, called inside COPAUS1C's PF5 transaction.
+- `ExpiredAuthorizationPurge` is CBPAUP0C, the `PendingAuthorizationPurge.Purge` that the CBPAUP0J step runs. Its SYSIN is the `sysin` job parameter, defaulting to the JCL's `00,00001,00001,Y`.
+- With `carddemo.seed.dir` set, `PendingAuthorizationSeed` replaces both tables with the module's IMS unload (`carddemo.seed.pending-authorizations` overrides its path). It stands in for PAUDBUNL, DBUNLDGS and PAUDBLOD, which are not ported.
+
 ## Layout
 
 - `copybook/` parses a single-record copybook into fields with byte offsets.
@@ -88,6 +97,7 @@ A date request may contain any text. The reply is `SYSTEM DATE : ` then `MM-DD-Y
 - `online/` is the screen engine (`Screens`), both adapters, `Conversation` and the two menus.
 - `inquiries/` holds the MQ account and date inquiries, COACCT01 and CODATE01.
 - `signon/` holds both security chains and COSGN00C; `users/` holds the users table and COUSR00C-03C; `trantypes/` holds COTRTLIC, COTRTUPC, and the repository `MNTTRDB2` uses.
+- `authorizations/` holds the pending authorization tables, COPAUA0C, COPAUS0C-2C and CBPAUP0C.
 
 ## Mapping rules
 

@@ -1,0 +1,51 @@
+<html xmlns:th="http://www.thymeleaf.org" th:replace="~{layout :: screen('View Authorizations', ~{::main}, ~{::nav})}">
+<main>
+    <div class="fields">
+        <th:block th:replace="~{fields :: field('ACCTID', 'Search Acct Id:', 11)}"></th:block>
+    </div>
+    <div class="fields">
+        <th:block th:replace="~{fields :: text('CNAME', 'Name:')}"></th:block>
+        <th:block th:replace="~{fields :: text('CUSTID', 'Customer Id:')}"></th:block>
+        <th:block th:replace="~{fields :: text('ADDR001', 'Address:')}"></th:block>
+        <th:block th:replace="~{fields :: text('ADDR002', '')}"></th:block>
+        <th:block th:replace="~{fields :: text('ACCSTAT', 'Acct Status:')}"></th:block>
+        <th:block th:replace="~{fields :: text('PHONE1', 'PH:')}"></th:block>
+        <th:block th:replace="~{fields :: text('APPRCNT', 'Approval #:')}"></th:block>
+        <th:block th:replace="~{fields :: text('DECLCNT', 'Decline #:')}"></th:block>
+        <th:block th:replace="~{fields :: text('CREDLIM', 'Credit Lim:')}"></th:block>
+        <th:block th:replace="~{fields :: text('CASHLIM', 'Cash Lim:')}"></th:block>
+        <th:block th:replace="~{fields :: text('APPRAMT', 'Appr Amt:')}"></th:block>
+        <th:block th:replace="~{fields :: text('CREDBAL', 'Credit Bal:')}"></th:block>
+        <th:block th:replace="~{fields :: text('CASHBAL', 'Cash Bal:')}"></th:block>
+        <th:block th:replace="~{fields :: text('DECLAMT', 'Decl Amt:')}"></th:block>
+    </div>
+    <table>
+        <thead>
+        <tr><th>Sel</th><th>Transaction ID</th><th>Date</th><th>Time</th><th>Type</th><th>A/D</th><th>STS</th><th>Amount</th></tr>
+        </thead>
+        <tbody>
+        <th:block th:each="i : ${#numbers.sequence(1, 5)}"
+                  th:with="row=${#numbers.formatInteger(i, 2)}, sel=|SEL000${i}|, id=${screen.fields.get('TRNID' + row)}">
+            <tr th:unless="${#strings.isEmpty(id)}">
+                <td><input th:id="${sel}" th:name="${sel}" th:data-testid="${sel}" size="1" maxlength="1"
+                           th:value="${screen.fields.get(sel)}" th:autofocus="${screen.cursor == sel}"></td>
+                <td><label th:for="${sel}" th:data-testid="|TRNID${row}|" th:text="${id}"></label></td>
+                <td th:data-testid="|PDATE${row}|" th:text="${screen.fields.get('PDATE' + row)}"></td>
+                <td th:data-testid="|PTIME${row}|" th:text="${screen.fields.get('PTIME' + row)}"></td>
+                <td th:data-testid="|PTYPE${row}|" th:text="${screen.fields.get('PTYPE' + row)}"></td>
+                <td th:data-testid="|PAPRV${row}|" th:text="${screen.fields.get('PAPRV' + row)}"></td>
+                <td th:data-testid="|PSTAT${row}|" th:text="${screen.fields.get('PSTAT' + row)}"></td>
+                <td th:data-testid="|PAMT00${i}|" th:text="${screen.fields.get('PAMT00' + i)}"></td>
+            </tr>
+        </th:block>
+        </tbody>
+    </table>
+    <p class="intro">Type 'S' to View Authorization details from the list</p>
+</main>
+<nav class="keys">
+    <button name="aid" value="ENTER">ENTER=Continue</button>
+    <button name="aid" value="PF3">F3=Back</button>
+    <button name="aid" value="PF7">F7=Backward</button>
+    <button name="aid" value="PF8">F8=Forward</button>
+</nav>
+</html>

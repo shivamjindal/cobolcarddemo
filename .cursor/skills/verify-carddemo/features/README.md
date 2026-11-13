@@ -32,4 +32,5 @@ Each feature file has an H1, one paragraph on the user-visible behavior, and fou
 - [Master file extracts](./master-file-extracts.md) covers READACCT, READCARD, READXREF, and READCUST.
 - [Online screens](./online-screens.md) covers sign-on, user admin, account, card, transaction, bill-pay, report, and transaction-type screens through derived specs.
 - [Transaction types](./transaction-types.md) covers the admin list and the add/edit screen, plus the on-demand `MNTTRDB2` batch job.
+- [Pending authorizations](./pending-authorizations.md) covers the authorization module's COPAUA0C on MQ, its COPAUS0C and COPAUS1C screens with the COPAUS2C fraud report, and its CBPAUP0J purge under a DL/I stub.
 - [MQ inquiries](./mq-inquiries.md) covers the account and system-date requests answered by COACCT01 and CODATE01.

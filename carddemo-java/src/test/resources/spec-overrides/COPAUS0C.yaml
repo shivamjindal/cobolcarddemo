@@ -1,0 +1,41 @@
+# Deliberate differences from characterization/online/specs/COPAUS0C.yaml, applied by OnlineSpecReplayTest.
+# Each entry replaces whole keys of the case's given, when or then.
+COPAUS0C-001:
+  reason: A first entry with no signed-on user goes to sign-on.
+  then:
+    message: null
+    cursor: null
+    fields: {}
+    transfer: {via: XCTL, to: COSGN00C}
+COPAUS0C-015:
+  reason: A page that holds the account's last authorizations says there is no next page, where the legacy program left the flag at Y after a short page.
+  then:
+    commarea:
+      CDEMO-CPVS-PAGE-NUM: 2
+      CDEMO-CPVS-NEXT-PAGE-FLG: "N"
+      CDEMO-CPVS-PAUKEY-PREV-PG(1): 73984/896984999
+      CDEMO-CPVS-PAUKEY-PREV-PG(2): 73987/798989999
+      CDEMO-CPVS-AUTH-KEYS(1): 73987/798989999
+      CDEMO-CPVS-AUTH-KEYS(2): 73987/929998999
+      CDEMO-CPVS-PAUKEY-LAST: 73987/929998999
+COPAUS0C-017:
+  reason: PF8 with no next page keeps the current page under the bottom message, where the legacy program blanked the list.
+  then:
+    message: You are already at the bottom of the page...
+    fields:
+      TRNID01O: TXN000000000006
+      TRNID02O: TXN000000000007
+    commarea:
+      CDEMO-CPVS-PAGE-NUM: 2
+      CDEMO-CPVS-NEXT-PAGE-FLG: "N"
+      CDEMO-CPVS-PAUKEY-LAST: 73987/929998999
+COPAUS0C-019:
+  reason: PF7 counts the page back to 1, where the legacy program left the page number at 2 and stored page 1's key as page 2's.
+  then:
+    commarea:
+      CDEMO-CPVS-PAGE-NUM: 1
+      CDEMO-CPVS-NEXT-PAGE-FLG: "Y"
+      CDEMO-CPVS-PAUKEY-PREV-PG(1): 73984/896984999
+      CDEMO-CPVS-PAUKEY-PREV-PG(2): ""
+      CDEMO-CPVS-AUTH-KEYS(1): 73984/896984999
+      CDEMO-CPVS-PAUKEY-LAST: 73986/915469999

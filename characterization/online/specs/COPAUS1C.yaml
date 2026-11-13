@@ -1,0 +1,533 @@
+program: COPAUS1C
+module: app/app-authorization-ims-db2-mq
+transaction: CPVD
+screen:
+  mapset: COPAU01
+  map: COPAU1A
+evidence: derived
+sources:
+  - app/app-authorization-ims-db2-mq/cbl/COPAUS1C.cbl
+  - app/app-authorization-ims-db2-mq/cbl/COPAUS2C.cbl
+  - app/app-authorization-ims-db2-mq/cpy/CIPAUSMY.cpy
+  - app/app-authorization-ims-db2-mq/cpy/CIPAUDTY.cpy
+  - app/app-authorization-ims-db2-mq/bms/COPAU01.bms
+  - app/app-authorization-ims-db2-mq/ims/DBPAUTP0.dbd
+  - app/app-authorization-ims-db2-mq/ddl/AUTHFRDS.ddl
+  - app/app-authorization-ims-db2-mq/csd/CRDDEMO2.csd
+  - app/cpy/COCOM01Y.cpy
+  - app/cpy/CSMSG01Y.cpy
+  - app/cpy/CSDAT01Y.cpy
+files:
+  - name: PAUTSUM0
+    ops: [READ]
+    key: PA-ACCT-ID
+  - name: PAUTDTL1
+    ops: [READ, REWRITE]
+    key: PA-AUTHORIZATION-KEY
+  - name: AUTHFRDS
+    ops: [WRITE, REWRITE]
+    key: CARD_NUM
+navigation:
+  - to: COPAUS0C
+    via: XCTL
+    when: EIBCALEN = 0 (lines 164-169) and PF3 (lines 184-186), through RETURN-TO-PREV-SCREEN (lines 360-370)
+  - to: CPVD
+    via: RETURN-TRANSID
+    when: every path that displays the detail, COMMAREA passed (lines 202-205)
+notes:
+  - "Field and record values are right-trimmed, a blank field is \"\". PAUTDTL1 records follow CIPAUDTY and carry their parent's PA-ACCT-ID. AUTHFRDS rows use the AUTHFRDS.ddl column names. Numbers and timestamps in segment and table records are written as Postgres prints them."
+  - "CDEMO-CPVD-INFO has the layout of COPAUS0C's CDEMO-CPVS-INFO (lines 110-120), which is how CDEMO-CPVD-PAU-SELECTED receives the selected row's key. Keys are written as <PA-AUTH-DATE-9C>/<PA-AUTH-TIME-9C>, the two packed halves of PA-AUTHORIZATION-KEY."
+  - "READ-AUTH-RECORD (lines 431-490) GUs the summary by CDEMO-ACCT-ID and GNPs the detail by key. A missing summary or detail sets AUTHS-EOF and leaves PENDING-AUTH-DETAILS as working storage held it, which POPULATE-AUTH-DETAILS then displays (case COPAUS1C-015). With CDEMO-ACCT-ID not numeric or no selected key, ERR-FLG skips the display and the fields stay LOW-VALUES (lines 210-227)."
+  - "Display (lines 291-358). AUTHDTO is PA-AUTH-ORIG-DATE as MM/DD/YY, AUTHTMO PA-AUTH-ORIG-TIME as HH:MM:SS, AUTHAMTO the approved amount in PIC -zzzzzzz9.99. AUTHRSPO is 'A' for response code '00' and 'D' otherwise. AUTHRSNO is the reason code, '-', and its description from WS-DECLINE-REASON-TABLE (lines 56-73), or '9999-ERROR' for a code not in the table. AUTHCDO is the processing code and POSEMDO the POS entry mode, zero-padded. CRDEXPO is the expiry MMYY as MM/YY. AUTHFRDO is the fraud flag, '-' and PA-FRAUD-RPT-DATE when the flag is F or R, otherwise '-'."
+  - "PF5 (MARK-AUTH-FRAUD, lines 230-265) re-reads the detail and toggles the flag: F becomes R (remove), anything else becomes F (report). It LINKs to COPAUS2C with the account id, CDEMO-CUST-ID, the toggled detail and the action. COPAUS2C sets PA-FRAUD-RPT-DATE to today as MM/DD/YY in the LINK COMMAREA (lines 91-101) and inserts an AUTHFRDS row (lines 141-198)."
+  - "COPAUS2C's AUTH_TS is PA-AUTH-ORIG-DATE as YY-MM-DD with the time 999999999 - PA-AUTH-TIME-9C as HH.MI.SS and milliseconds, through TIMESTAMP_FORMAT 'YY-MM-DD HH24.MI.SSNNNNNN' (lines 103-111, 171-172). The century is the current one. FRAUD_RPT_DATE is CURRENT DATE. ACCT_ID and CUST_ID come from the COMMAREA. A duplicate key (SQLCODE -803) updates only AUTH_FRAUD and FRAUD_RPT_DATE of the existing row (lines 221-244)."
+  - "On success COPAUS1C REPLaces the detail with the record COPAUS2C changed, so the segment gets the toggled flag and the report date (lines 520-551), takes a SYNCPOINT and shows 'AUTH MARKED FRAUD...' or 'AUTH FRAUD REMOVED...'. On an SQL failure it shows COPAUS2C's message, rolls back and displays its own copy of the detail, which has the toggled flag but not the new date (case COPAUS1C-012). A failed LINK rolls back with no message."
+  - "COPAUS2C's messages begin with a space. WS-SQLCODE is PIC +9(06) and WS-SQLSTATE PIC +9(09), filled from SQLCODE and the five-character SQLSTATE (lines 205-213)."
+  - "PF8 (lines 268-288) re-reads the shown detail and GNPs the next one under the summary, which is the next older authorization. At the end it shows 'Already at the last Authorization...' and SENDs without ERASE, so the terminal keeps the detail it showed."
+  - "Any other key re-reads and displays the detail with the invalid key message (lines 193-196)."
+  - "IMS failures other than not-found build ' System error while ...' messages (lines 452-461, 478-486, 508-517, 538-550, 592-601). The schema cannot inject IMS failures, so no case asserts them."
+  - The Java slice replays this spec with deliberate differences listed, each with its reason, in carddemo-java/src/test/resources/spec-overrides/COPAUS1C.yaml.
+cases:
+  - id: COPAUS1C-001
+    summary: direct start with no COMMAREA (EIBCALEN = 0) transfers to the authorization list
+    given:
+      entry: first-time
+    when:
+      aid: ENTER
+      fields: {}
+    then:
+      message: null
+      transfer: {via: XCTL, to: COPAUS0C}
+      commarea:
+        CDEMO-TO-PROGRAM: COPAUS0C
+        CDEMO-FROM-PROGRAM: COPAUS1C
+        CDEMO-FROM-TRANID: CPVD
+        CDEMO-PGM-CONTEXT: 0
+      file_effects: []
+    source:
+      file: app/app-authorization-ims-db2-mq/cbl/COPAUS1C.cbl
+      lines: [164, 169]
+
+  - id: COPAUS1C-002
+    summary: arriving from the list shows the selected authorization
+    given:
+      entry: xctl-from
+      commarea: &selected-first
+        CDEMO-FROM-PROGRAM: COPAUS0C
+        CDEMO-FROM-TRANID: CPVS
+        CDEMO-USER-TYPE: U
+        CDEMO-PGM-CONTEXT: 0
+        CDEMO-ACCT-ID: "00000000001"
+        CDEMO-CUST-ID: "000000001"
+        CDEMO-CPVD-PAU-SELECTED: 73984/896984876
+      files:
+        PAUTSUM0: &summary
+          - {PA-ACCT-ID: "1", PA-CUST-ID: "1", PA-CREDIT-LIMIT: "2000.00", PA-CASH-LIMIT: "500.00", PA-CREDIT-BALANCE: "125.50", PA-APPROVED-AUTH-CNT: "1", PA-DECLINED-AUTH-CNT: "2", PA-APPROVED-AUTH-AMT: "125.50", PA-DECLINED-AUTH-AMT: "2600.00"}
+        PAUTDTL1: &details
+          - {PA-ACCT-ID: "1", PA-AUTH-DATE-9C: "73984", PA-AUTH-TIME-9C: "896984876", PA-AUTH-ORIG-DATE: "260115", PA-AUTH-ORIG-TIME: "103015", PA-CARD-NUM: "4111000011112222", PA-AUTH-TYPE: "0100", PA-CARD-EXPIRY-DATE: "1228", PA-MESSAGE-TYPE: "0200", PA-MESSAGE-SOURCE: POS, PA-AUTH-ID-CODE: "103015", PA-AUTH-RESP-CODE: "00", PA-AUTH-RESP-REASON: "0000", PA-PROCESSING-CODE: "0", PA-TRANSACTION-AMT: "125.50", PA-APPROVED-AMT: "125.50", PA-MERCHANT-CATAGORY-CODE: "5411", PA-ACQR-COUNTRY-CODE: USA, PA-POS-ENTRY-MODE: "1", PA-MERCHANT-ID: "123501000675423", PA-MERCHANT-NAME: CORNER GROCERY, PA-MERCHANT-CITY: SEATTLE, PA-MERCHANT-STATE: WA, PA-MERCHANT-ZIP: "98101", PA-TRANSACTION-ID: TXN000000000001, PA-MATCH-STATUS: P}
+          - {PA-ACCT-ID: "1", PA-AUTH-DATE-9C: "73984", PA-AUTH-TIME-9C: "908755999", PA-AUTH-ORIG-DATE: "260115", PA-AUTH-ORIG-TIME: "091244", PA-CARD-NUM: "4111000011112222", PA-AUTH-TYPE: "0100", PA-CARD-EXPIRY-DATE: "1228", PA-MESSAGE-TYPE: "0200", PA-MESSAGE-SOURCE: POS, PA-AUTH-ID-CODE: "091244", PA-AUTH-RESP-CODE: "05", PA-AUTH-RESP-REASON: "4100", PA-PROCESSING-CODE: "0", PA-TRANSACTION-AMT: "2500.00", PA-APPROVED-AMT: "0.00", PA-MERCHANT-CATAGORY-CODE: "5732", PA-ACQR-COUNTRY-CODE: USA, PA-POS-ENTRY-MODE: "5", PA-MERCHANT-ID: "123501000999001", PA-MERCHANT-NAME: TECH WORLD, PA-MERCHANT-CITY: TACOMA, PA-MERCHANT-STATE: WA, PA-MERCHANT-ZIP: "98402", PA-TRANSACTION-ID: TXN000000000002, PA-MATCH-STATUS: D}
+          - {PA-ACCT-ID: "1", PA-AUTH-DATE-9C: "73985", PA-AUTH-TIME-9C: "819490999", PA-AUTH-ORIG-DATE: "260114", PA-AUTH-ORIG-TIME: "180509", PA-CARD-NUM: "4111000011112222", PA-AUTH-TYPE: "0100", PA-CARD-EXPIRY-DATE: "1228", PA-MESSAGE-TYPE: "0200", PA-MESSAGE-SOURCE: POS, PA-AUTH-ID-CODE: "180509", PA-AUTH-RESP-CODE: "00", PA-AUTH-RESP-REASON: "0000", PA-PROCESSING-CODE: "0", PA-TRANSACTION-AMT: "60.00", PA-APPROVED-AMT: "60.00", PA-MERCHANT-CATAGORY-CODE: "5812", PA-ACQR-COUNTRY-CODE: USA, PA-POS-ENTRY-MODE: "1", PA-MERCHANT-ID: "123501000555002", PA-MERCHANT-NAME: HARBOR DINER, PA-MERCHANT-CITY: SEATTLE, PA-MERCHANT-STATE: WA, PA-MERCHANT-ZIP: "98104", PA-TRANSACTION-ID: TXN000000000003, PA-MATCH-STATUS: P, PA-AUTH-FRAUD: F, PA-FRAUD-RPT-DATE: 01/16/26}
+          - {PA-ACCT-ID: "1", PA-AUTH-DATE-9C: "73985", PA-AUTH-TIME-9C: "879999999", PA-AUTH-ORIG-DATE: "260114", PA-AUTH-ORIG-TIME: "120000", PA-CARD-NUM: "4111000011112222", PA-AUTH-TYPE: "0100", PA-CARD-EXPIRY-DATE: "1228", PA-MESSAGE-TYPE: "0200", PA-MESSAGE-SOURCE: POS, PA-AUTH-ID-CODE: "120000", PA-AUTH-RESP-CODE: "05", PA-AUTH-RESP-REASON: "1234", PA-PROCESSING-CODE: "0", PA-TRANSACTION-AMT: "100.00", PA-APPROVED-AMT: "0.00", PA-MERCHANT-CATAGORY-CODE: "5411", PA-ACQR-COUNTRY-CODE: USA, PA-POS-ENTRY-MODE: "1", PA-MERCHANT-ID: "123501000675423", PA-MERCHANT-NAME: CORNER GROCERY, PA-MERCHANT-CITY: SEATTLE, PA-MERCHANT-STATE: WA, PA-MERCHANT-ZIP: "98101", PA-TRANSACTION-ID: TXN000000000004, PA-MATCH-STATUS: D}
+    when:
+      aid: ENTER
+      fields: {}
+    then:
+      message: null
+      cursor: CARDNUML
+      fields: &first-shown
+        TRNNAMEO: CPVD
+        PGMNAMEO: COPAUS1C
+        CARDNUMO: "4111000011112222"
+        AUTHDTO: 01/15/26
+        AUTHTMO: "10:30:15"
+        AUTHAMTO: "      125.50"
+        AUTHRSPO: A
+        AUTHRSNO: 0000-APPROVED
+        AUTHCDO: "000000"
+        POSEMDO: "01"
+        AUTHSRCO: POS
+        MCCCDO: "5411"
+        CRDEXPO: 12/28
+        AUTHTYPO: "0100"
+        TRNIDO: TXN000000000001
+        AUTHMTCO: P
+        AUTHFRDO: "-"
+        MERNAMEO: CORNER GROCERY
+        MERIDO: "123501000675423"
+        MERCITYO: SEATTLE
+        MERSTO: WA
+        MERZIPO: "98101"
+      transfer: {via: RETURN-TRANSID, to: CPVD}
+      commarea:
+        CDEMO-CPVD-PAU-SELECTED: 73984/896984876
+      file_effects: []
+    source:
+      file: app/app-authorization-ims-db2-mq/cbl/COPAUS1C.cbl
+      lines: [291, 358]
+
+  - id: COPAUS1C-003
+    summary: a declined authorization shows D and its reason description
+    given:
+      entry: xctl-from
+      commarea:
+        CDEMO-FROM-PROGRAM: COPAUS0C
+        CDEMO-USER-TYPE: U
+        CDEMO-PGM-CONTEXT: 0
+        CDEMO-ACCT-ID: "00000000001"
+        CDEMO-CUST-ID: "000000001"
+        CDEMO-CPVD-PAU-SELECTED: 73984/908755999
+      files:
+        PAUTSUM0: *summary
+        PAUTDTL1: *details
+    when:
+      aid: ENTER
+      fields: {}
+    then:
+      message: null
+      fields:
+        AUTHAMTO: "        0.00"
+        AUTHRSPO: D
+        AUTHRSNO: 4100-INSUFFICNT FUND
+        POSEMDO: "05"
+        MCCCDO: "5732"
+        TRNIDO: TXN000000000002
+        AUTHMTCO: D
+        MERNAMEO: TECH WORLD
+      transfer: {via: RETURN-TRANSID, to: CPVD}
+      file_effects: []
+    source:
+      file: app/app-authorization-ims-db2-mq/cbl/COPAUS1C.cbl
+      lines: [311, 328]
+
+  - id: COPAUS1C-004
+    summary: a reason code missing from the decline reason table shows 9999-ERROR
+    given:
+      entry: xctl-from
+      commarea:
+        CDEMO-FROM-PROGRAM: COPAUS0C
+        CDEMO-USER-TYPE: U
+        CDEMO-PGM-CONTEXT: 0
+        CDEMO-ACCT-ID: "00000000001"
+        CDEMO-CUST-ID: "000000001"
+        CDEMO-CPVD-PAU-SELECTED: 73985/879999999
+      files:
+        PAUTSUM0: *summary
+        PAUTDTL1: *details
+    when:
+      aid: ENTER
+      fields: {}
+    then:
+      message: null
+      fields:
+        AUTHRSPO: D
+        AUTHRSNO: 9999-ERROR
+        TRNIDO: TXN000000000004
+      transfer: {via: RETURN-TRANSID, to: CPVD}
+      file_effects: []
+    source:
+      file: app/app-authorization-ims-db2-mq/cbl/COPAUS1C.cbl
+      lines: [319, 328]
+
+  - id: COPAUS1C-005
+    summary: an authorization reported as fraud shows F and the report date
+    given:
+      entry: xctl-from
+      commarea:
+        CDEMO-FROM-PROGRAM: COPAUS0C
+        CDEMO-USER-TYPE: U
+        CDEMO-PGM-CONTEXT: 0
+        CDEMO-ACCT-ID: "00000000001"
+        CDEMO-CUST-ID: "000000001"
+        CDEMO-CPVD-PAU-SELECTED: 73985/819490999
+      files:
+        PAUTSUM0: *summary
+        PAUTDTL1: *details
+    when:
+      aid: ENTER
+      fields: {}
+    then:
+      message: null
+      fields:
+        AUTHDTO: 01/14/26
+        AUTHTMO: "18:05:09"
+        AUTHFRDO: F-01/16/26
+        MERNAMEO: HARBOR DINER
+      transfer: {via: RETURN-TRANSID, to: CPVD}
+      file_effects: []
+    source:
+      file: app/app-authorization-ims-db2-mq/cbl/COPAUS1C.cbl
+      lines: [343, 350]
+
+  - id: COPAUS1C-006
+    summary: without a selected authorization the detail fields stay blank
+    given:
+      entry: xctl-from
+      commarea:
+        CDEMO-FROM-PROGRAM: COPAUS0C
+        CDEMO-USER-TYPE: U
+        CDEMO-PGM-CONTEXT: 0
+        CDEMO-ACCT-ID: "00000000001"
+        CDEMO-CPVD-PAU-SELECTED: LOW-VALUES
+      files:
+        PAUTSUM0: *summary
+        PAUTDTL1: *details
+    when:
+      aid: ENTER
+      fields: {}
+    then:
+      message: null
+      cursor: CARDNUML
+      fields:
+        TRNNAMEO: CPVD
+        CARDNUMO: ""
+        AUTHRSNO: ""
+        AUTHFRDO: ""
+      transfer: {via: RETURN-TRANSID, to: CPVD}
+      file_effects: []
+    source:
+      file: app/app-authorization-ims-db2-mq/cbl/COPAUS1C.cbl
+      lines: [209, 227]
+
+  - id: COPAUS1C-007
+    summary: PF3 returns to the authorization list
+    given:
+      entry: reenter
+      commarea: &shown-first
+        CDEMO-USER-TYPE: U
+        CDEMO-PGM-CONTEXT: 1
+        CDEMO-ACCT-ID: "00000000001"
+        CDEMO-CUST-ID: "000000001"
+        CDEMO-CPVD-PAU-SELECTED: 73984/896984876
+    when:
+      aid: PF3
+      fields: {}
+    then:
+      transfer: {via: XCTL, to: COPAUS0C}
+      commarea:
+        CDEMO-TO-PROGRAM: COPAUS0C
+        CDEMO-FROM-PROGRAM: COPAUS1C
+        CDEMO-FROM-TRANID: CPVD
+        CDEMO-PGM-CONTEXT: 0
+        CDEMO-ACCT-ID: "00000000001"
+      file_effects: []
+    source:
+      file: app/app-authorization-ims-db2-mq/cbl/COPAUS1C.cbl
+      lines: [184, 186]
+
+  - id: COPAUS1C-008
+    summary: PF8 shows the next older authorization of the account
+    given:
+      entry: reenter
+      commarea: *shown-first
+      files:
+        PAUTSUM0: *summary
+        PAUTDTL1: *details
+    when:
+      aid: PF8
+      fields: {}
+    then:
+      message: null
+      cursor: CARDNUML
+      fields:
+        CARDNUMO: "4111000011112222"
+        AUTHDTO: 01/15/26
+        AUTHTMO: "09:12:44"
+        AUTHRSPO: D
+        TRNIDO: TXN000000000002
+      transfer: {via: RETURN-TRANSID, to: CPVD}
+      commarea:
+        CDEMO-CPVD-PAU-SELECTED: 73984/908755999
+      file_effects: []
+    source:
+      file: app/app-authorization-ims-db2-mq/cbl/COPAUS1C.cbl
+      lines: [268, 288]
+
+  - id: COPAUS1C-009
+    summary: PF8 on the oldest authorization says it is the last one
+    given:
+      entry: reenter
+      commarea:
+        CDEMO-USER-TYPE: U
+        CDEMO-PGM-CONTEXT: 1
+        CDEMO-ACCT-ID: "00000000001"
+        CDEMO-CUST-ID: "000000001"
+        CDEMO-CPVD-PAU-SELECTED: 73985/879999999
+      files:
+        PAUTSUM0: *summary
+        PAUTDTL1: *details
+    when:
+      aid: PF8
+      fields: {}
+    then:
+      message: Already at the last Authorization...
+      cursor: CARDNUML
+      transfer: {via: RETURN-TRANSID, to: CPVD}
+      commarea:
+        CDEMO-CPVD-PAU-SELECTED: 73985/879999999
+      file_effects: []
+    source:
+      file: app/app-authorization-ims-db2-mq/cbl/COPAUS1C.cbl
+      lines: [280, 283]
+
+  - id: COPAUS1C-010
+    summary: PF5 on an authorization not reported as fraud reports it, inserting AUTHFRDS and flagging the segment F
+    given:
+      entry: reenter
+      commarea: *shown-first
+      files:
+        PAUTSUM0: *summary
+        PAUTDTL1: *details
+    when:
+      aid: PF5
+      fields: {}
+    then:
+      message: AUTH MARKED FRAUD...
+      cursor: CARDNUML
+      fields:
+        TRNIDO: TXN000000000001
+      transfer: {via: RETURN-TRANSID, to: CPVD}
+      commarea:
+        CDEMO-CPVD-PAU-SELECTED: 73984/896984876
+      file_effects:
+        - file: PAUTDTL1
+          op: REWRITE
+          record:
+            PA-ACCT-ID: "1"
+            PA-TRANSACTION-ID: TXN000000000001
+            PA-AUTH-DATE-9C: "73984"
+            PA-AUTH-TIME-9C: "896984876"
+            PA-AUTH-FRAUD: F
+            PA-FRAUD-RPT-DATE: "{MM/DD/YY}"
+            PA-MATCH-STATUS: P
+        - file: AUTHFRDS
+          op: WRITE
+          record:
+            CARD_NUM: "4111000011112222"
+            AUTH_TS: "2026-01-15 10:30:15.123"
+            AUTH_TYPE: "0100"
+            CARD_EXPIRY_DATE: "1228"
+            MESSAGE_TYPE: "0200"
+            MESSAGE_SOURCE: POS
+            AUTH_ID_CODE: "103015"
+            AUTH_RESP_CODE: "00"
+            AUTH_RESP_REASON: "0000"
+            PROCESSING_CODE: "000000"
+            TRANSACTION_AMT: "125.50"
+            APPROVED_AMT: "125.50"
+            MERCHANT_CATAGORY_CODE: "5411"
+            ACQR_COUNTRY_CODE: USA
+            POS_ENTRY_MODE: "1"
+            MERCHANT_ID: "123501000675423"
+            MERCHANT_NAME: CORNER GROCERY
+            MERCHANT_CITY: SEATTLE
+            MERCHANT_STATE: WA
+            MERCHANT_ZIP: "98101"
+            TRANSACTION_ID: TXN000000000001
+            MATCH_STATUS: P
+            AUTH_FRAUD: F
+            FRAUD_RPT_DATE: "{CURRENT DATE}"
+            ACCT_ID: "1"
+            CUST_ID: "1"
+    source:
+      file: app/app-authorization-ims-db2-mq/cbl/COPAUS1C.cbl
+      lines: [230, 265]
+
+  - id: COPAUS1C-011
+    summary: PF5 on an authorization reported as fraud removes the report, updating the existing AUTHFRDS row and flagging the segment R
+    given:
+      entry: reenter
+      commarea:
+        CDEMO-USER-TYPE: U
+        CDEMO-PGM-CONTEXT: 1
+        CDEMO-ACCT-ID: "00000000001"
+        CDEMO-CUST-ID: "000000001"
+        CDEMO-CPVD-PAU-SELECTED: 73985/819490999
+      files:
+        PAUTSUM0: *summary
+        PAUTDTL1: *details
+        AUTHFRDS:
+          - {CARD_NUM: "4111000011112222", AUTH_TS: "2026-01-14 18:05:09", AUTH_FRAUD: F, FRAUD_RPT_DATE: "2026-01-16", TRANSACTION_ID: TXN000000000003, ACCT_ID: "1", CUST_ID: "1"}
+    when:
+      aid: PF5
+      fields: {}
+    then:
+      message: AUTH FRAUD REMOVED...
+      cursor: CARDNUML
+      fields:
+        TRNIDO: TXN000000000003
+      transfer: {via: RETURN-TRANSID, to: CPVD}
+      file_effects:
+        - file: PAUTDTL1
+          op: REWRITE
+          record:
+            PA-ACCT-ID: "1"
+            PA-TRANSACTION-ID: TXN000000000003
+            PA-AUTH-FRAUD: R
+            PA-FRAUD-RPT-DATE: "{MM/DD/YY}"
+        - file: AUTHFRDS
+          op: REWRITE
+          record:
+            CARD_NUM: "4111000011112222"
+            AUTH_TS: "2026-01-14 18:05:09"
+            AUTH_FRAUD: R
+            FRAUD_RPT_DATE: "{CURRENT DATE}"
+            TRANSACTION_ID: TXN000000000003
+            ACCT_ID: "1"
+    source:
+      file: app/app-authorization-ims-db2-mq/cbl/COPAUS2C.cbl
+      lines: [199, 244]
+
+  - id: COPAUS1C-012
+    summary: PF5 when the AUTHFRDS insert fails shows the Db2 error, rolls back and displays the toggled flag
+    given:
+      entry: reenter
+      commarea: *shown-first
+      files:
+        PAUTSUM0: *summary
+        PAUTDTL1: *details
+      file_conditions:
+        - {file: AUTHFRDS, op: WRITE, resp: IOERR}
+    when:
+      aid: PF5
+      fields: {}
+    then:
+      message: " SYSTEM ERROR DB2: CODE:{WS-SQLCODE}, STATE: {WS-SQLSTATE}"
+      cursor: CARDNUML
+      fields:
+        TRNIDO: TXN000000000001
+        AUTHFRDO: F-
+      transfer: {via: RETURN-TRANSID, to: CPVD}
+      file_effects: []
+    source:
+      file: app/app-authorization-ims-db2-mq/cbl/COPAUS2C.cbl
+      lines: [205, 214]
+
+  - id: COPAUS1C-013
+    summary: ENTER shows the selected authorization again
+    given:
+      entry: reenter
+      commarea: *shown-first
+      files:
+        PAUTSUM0: *summary
+        PAUTDTL1: *details
+    when:
+      aid: ENTER
+      fields: {}
+    then:
+      message: null
+      cursor: CARDNUML
+      fields: *first-shown
+      transfer: {via: RETURN-TRANSID, to: CPVD}
+      file_effects: []
+    source:
+      file: app/app-authorization-ims-db2-mq/cbl/COPAUS1C.cbl
+      lines: [181, 183]
+
+  - id: COPAUS1C-014
+    summary: any other key shows the selected authorization with the invalid key message
+    given:
+      entry: reenter
+      commarea: *shown-first
+      files:
+        PAUTSUM0: *summary
+        PAUTDTL1: *details
+    when:
+      aid: PF7
+      fields: {}
+    then:
+      message: Invalid key pressed. Please see below...
+      cursor: CARDNUML
+      fields:
+        CARDNUMO: "4111000011112222"
+        TRNIDO: TXN000000000001
+      transfer: {via: RETURN-TRANSID, to: CPVD}
+      file_effects: []
+    source:
+      file: app/app-authorization-ims-db2-mq/cbl/COPAUS1C.cbl
+      lines: [193, 196]
+
+  - id: COPAUS1C-015
+    summary: a selected authorization that no longer exists displays whatever the detail area held
+    given:
+      entry: xctl-from
+      commarea:
+        CDEMO-FROM-PROGRAM: COPAUS0C
+        CDEMO-USER-TYPE: U
+        CDEMO-PGM-CONTEXT: 0
+        CDEMO-ACCT-ID: "00000000001"
+        CDEMO-CUST-ID: "000000001"
+        CDEMO-CPVD-PAU-SELECTED: 73999/999999998
+      files:
+        PAUTSUM0: *summary
+        PAUTDTL1: *details
+    when:
+      aid: ENTER
+      fields: {}
+    then:
+      message: null
+      cursor: CARDNUML
+      transfer: {via: RETURN-TRANSID, to: CPVD}
+      file_effects: []
+    source:
+      file: app/app-authorization-ims-db2-mq/cbl/COPAUS1C.cbl
+      lines: [464, 477]

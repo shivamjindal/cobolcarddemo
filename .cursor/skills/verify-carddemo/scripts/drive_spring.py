@@ -3,7 +3,8 @@
 
 Signs on through the OIDC flow (sign-on page, authorization server, code exchange), then walks user admin,
 account and card update, the transaction list, view and add, a bill payment confirmed by two sessions at
-once, and a custom transaction report request that runs TRANREPT, through /api/screens. Exits non-zero on the first failed check.
+once, a custom transaction report request that runs TRANREPT, and the pending authorization list, detail and
+fraud toggle, through /api/screens. Exits non-zero on the first failed check.
 
 Usage: drive_spring.py [--base http://localhost:8080] [--out DIR]
 """
@@ -268,6 +269,42 @@ def drive_report_request(base, transcript):
           "the submission ran TRANREPT for 2022-01-05 to 2022-12-31", sql(base, query))
 
 
+def drive_authorizations(base, transcript):
+    user = Client(base, transcript, "authorizations")
+    user.sign_on("USER0001", "PASSWORD")
+    s = user.send("COMEN01C", "ENTER", OPTION="11")
+    check(s["program"] == "COPAUS0C" and s["cursor"] == "ACCTID", "option 11 opens the pending authorization list", s)
+    first = user.send("COPAUS0C", "ENTER", ACCTID="00000000007")
+    rows = [(first["fields"].get(f"PDATE{n:02d}", "")[-2:] + first["fields"].get(f"PDATE{n:02d}", "")[:5],
+             first["fields"].get(f"PTIME{n:02d}")) for n in range(1, 6)]
+    check(first["fields"].get("CNAME") and first["fields"].get("APPRCNT") == sql(
+              base, "SELECT lpad(pa_approved_auth_cnt::text, 3, '0') FROM pending_auth_summaries WHERE pa_acct_id = 7")
+          and all(r[1] for r in rows) and rows == sorted(rows, reverse=True),
+          "account 7 shows its customer, the seeded summary and five authorizations newest first", first["fields"])
+    s = user.send("COPAUS0C", "PF8", ACCTID="00000000007")
+    check(s["fields"].get("TRNID01") not in ("", None, first["fields"]["TRNID01"]), "PF8 pages forward", s["fields"])
+    s = user.send("COPAUS0C", "PF7", ACCTID="00000000007")
+    check(s["fields"].get("TRNID01") == first["fields"]["TRNID01"], "PF7 pages back to the first page", s["fields"])
+
+    tran_id = first["fields"]["TRNID01"]
+    s = user.send("COPAUS0C", "ENTER", ACCTID="00000000007", SEL0001="S")
+    check(s["program"] == "COPAUS1C" and s["fields"].get("TRNID") == tran_id,
+          "S on row 1 opens that authorization's detail", s)
+    fraud = f"SELECT auth_fraud FROM authfrds WHERE transaction_id = '{tran_id}' AND acct_id = 7"
+    segment = f"SELECT pa_auth_fraud FROM pending_auth_details WHERE pa_transaction_id = '{tran_id}' AND pa_acct_id = 7"
+    for _ in range(2):
+        before = sql(base, segment)
+        expected, text = ("R", "AUTH FRAUD REMOVED...") if before == "F" else ("F", "AUTH MARKED FRAUD...")
+        s = user.send("COPAUS1C", "PF5")
+        check(message(s) == text and s["fields"].get("AUTHFRD", "").startswith(expected + "-")
+              and sql(base, fraud) == expected and sql(base, segment) == expected,
+              f"PF5 turns fraud {before or 'blank'} into {expected} in AUTHFRDS and the segment", s)
+    s = user.send("COPAUS1C", "PF3")
+    check(s["program"] == "COPAUS0C", "PF3 on the detail returns to the list", s["program"])
+    s = user.send("COPAUS0C", "PF3")
+    check(s["program"] == "COMEN01C", "PF3 on the list returns to the main menu", s["program"])
+
+
 def drive(base, transcript):
     admin = Client(base, transcript, "admin")
     status, _, url = admin.sign_on("admin001", "password")
@@ -345,6 +382,7 @@ def main():
         drive_transactions(args.base, transcript)
         drive_bill_payment(args.base, transcript)
         drive_report_request(args.base, transcript)
+        drive_authorizations(args.base, transcript)
     finally:
         if args.out:
             args.out.mkdir(parents=True, exist_ok=True)

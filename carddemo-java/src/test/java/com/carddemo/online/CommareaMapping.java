@@ -31,6 +31,9 @@ interface CommareaMapping {
         if (program.equals("COTRTLIC") || program.equals("COTRTUPC")) {
             return new TranTypeCommarea();
         }
+        if (program.startsWith("COPAUS")) {
+            return new AuthorizationCommarea();
+        }
         return new CommareaMapping() {
             @Override
             public void load(String p, Map<String, Object> commarea, Conversation conversation) {

@@ -7,7 +7,9 @@
     python3 characterization/batch/harness.py --out /tmp/evidence   # also keep this run's artifacts
 
 Each job mirrors one JCL member under app/jcl. COBOL programs run unmodified except
-CBSTM03A (see PATCHES). IDCAMS REPRO and DFSORT steps are emulated in Python.
+CBSTM03A (see PATCHES). IDCAMS REPRO and DFSORT steps are emulated in Python. CBPAUP0J comes
+from the authorization module (see MODULES): its EXEC DLI commands become calls to
+stubs/DLISTUB.cbl over a crafted database.
 
 The cycle then runs a second time with FIXES applied to the legacy source: golden-fixed/ holds each
 artifact whose output those fixes change, so the Java port's deliberate fixes are pinned by the legacy
@@ -23,6 +25,8 @@ import subprocess
 import sys
 import tempfile
 from dataclasses import dataclass
+from datetime import date, timedelta
+from decimal import Decimal
 from pathlib import Path
 
 HERE = Path(__file__).resolve().parent
@@ -41,7 +45,10 @@ INTCALC_PARM = "2022071800"
 TRANREPT_WINDOW = ("2022-01-01", "2022-07-06")
 
 PROGRAMS = ["CBACT01C", "CBACT02C", "CBACT03C", "CBACT04C", "CBCUS01C",
-            "CBTRN01C", "CBTRN02C", "CBTRN03C", "CBSTM03A", "CBSTM03B"]
+            "CBTRN01C", "CBTRN02C", "CBTRN03C", "CBSTM03A", "CBSTM03B", "CBPAUP0C"]
+
+# Programs from an optional module rather than app/cbl, compiled with that module's copybooks.
+MODULES = {"CBPAUP0C": APP / "app-authorization-ims-db2-mq"}
 
 # CBSTM03A walks z/OS control blocks (PSA -> TCB -> TIOT) through absolute addresses to
 # DISPLAY the job's DD names. That cannot run off-mainframe, so the harness compiles a copy
@@ -73,7 +80,33 @@ FIXES = [
     Fix("CBACT04C", r"(\n {15}ELSE +\n {20}PERFORM 1050-UPDATE-ACCOUNT +\n {15}END-IF +\n {11}END-PERFORM\.)",
         "\\1\n           IF WS-FIRST-TIME NOT = 'Y'\n              PERFORM 1050-UPDATE-ACCOUNT\n           END-IF.",
         "The loop exits before its end-of-file branch, so the last account's interest was posted to TRANSACT but never added to its balance."),
+    Fix("CBPAUP0C", r"(IF PA-APPROVED-AUTH-CNT <= 0 AND )PA-APPROVED-AUTH-CNT", r"\1PA-DECLINED-AUTH-CNT",
+        "The summary test checked the approved count twice, so a summary whose approvals had expired was deleted with its unexpired declines."),
 ]
+
+
+def dli_calls(text):
+    """EXEC DLI commands as CALL 'DLISTUB' (stubs/DLISTUB.cbl), and the DIB status field they set."""
+    text, calls = re.subn(
+        r"\n(\s+)EXEC DLI (GN|GNP|DLET) USING PCB\(\S+\)\s+SEGMENT \((\w+)\)\s+(?:INTO|FROM) \(([\w-]+)\)\s+END-EXEC",
+        lambda m: f"\n{m[1]}CALL 'DLISTUB' USING '{m[2]:<4}' '{m[3]:<8}'\n{m[1]}    {m[4]} DIBSTAT", text)
+    text, checkpoints = re.subn(r"\n(\s+)EXEC DLI CHKP ID\(([\w-]+)\)\s+END-EXEC",
+                                r"\n\1CALL 'DLISTUB' USING 'CHKP' 'CHKP    '\n\1    \2 DIBSTAT", text)
+    text, dib = re.subn(r"\n( {7})LINKAGE SECTION\.", r"\n\g<1>01  DIB.\n\g<1>    05  DIBSTAT PIC X(02).\n\g<1>LINKAGE SECTION.", text)
+    if not calls or not checkpoints or dib != 1:
+        raise RuntimeError("EXEC DLI translation no longer applies")
+    return text
+
+
+def source(prog, gen):
+    """A program's source: app/cbl, or a module's with EXEC DLI translated."""
+    if prog not in MODULES:
+        return next(APP.glob(f"cbl/{prog}.[cC][bB][lL]"))
+    translated = gen / "dli" / f"{prog}.cbl"
+    if not translated.exists():
+        translated.parent.mkdir(parents=True, exist_ok=True)
+        translated.write_text(dli_calls(next(MODULES[prog].glob(f"cbl/{prog}.[cC][bB][lL]")).read_text()))
+    return translated
 
 
 def patched(src, edits):
@@ -243,7 +276,8 @@ def patch_cobtupdt(text):
 def build_inputs_hash():
     h = hashlib.sha256()
     inputs = [*sorted((APP / "cbl").iterdir()), *sorted((APP / "cpy").iterdir()),
-              *sorted((HERE / "stubs").glob("*.cbl")), COBTUPDT, Path(__file__)]
+              *sorted((HERE / "stubs").glob("*.cbl")), COBTUPDT, Path(__file__),
+              *(p for m in MODULES.values() for d in ("cbl", "cpy") for p in sorted((m / d).iterdir()))]
     for p in inputs:
         h.update(p.name.encode() + p.read_bytes())
     return h.hexdigest()
@@ -259,9 +293,10 @@ def build():
         shutil.rmtree(BUILD)
     gen = BUILD / "src"
     gen.mkdir(parents=True)
-    common = ["-fsign=EBCDIC", "-ftab-width=4", "-I", str(APP / "cpy")]
+    common = ["-fsign=EBCDIC", "-ftab-width=4", "-I", str(APP / "cpy"),
+              *(a for m in MODULES.values() for a in ("-I", str(m / "cpy")))]
     for prog in PROGRAMS:
-        src = next(APP.glob(f"cbl/{prog}.[cC][bB][lL]"))
+        src = source(prog, gen)
         if prog in PATCHES:
             text = patched(src, [PATCHES[prog]])
             src = gen / f"{prog}.cbl"
@@ -272,7 +307,7 @@ def build():
     cobc(["-m", "-o", str(BUILD / "COBTUPDT.so"), str(patched_update)], BUILD)
     BUILD_FIXED.mkdir()
     for prog in sorted({f.program for f in FIXES}):
-        src = next(APP.glob(f"cbl/{prog}.[cC][bB][lL]"))
+        src = source(prog, gen)
         fixed = gen / "fixed" / f"{prog}.cbl"
         fixed.parent.mkdir(exist_ok=True)
         fixed.write_text(patched(src, [*([PATCHES[prog]] if prog in PATCHES else []),
@@ -306,13 +341,13 @@ class Run:
         env.update({f"DD_{dd}": str(self.path(f)) for dd, f in dds.items()})
         return env
 
-    def call(self, program, dds, parm=""):
+    def call(self, program, dds, parm="", sysin=None):
         proc = subprocess.run([str(BUILD / "runpgm"), program, parm], cwd=self.work,
-                              env=self.env(dds), capture_output=True)
+                              env=self.env(dds), capture_output=True, input=sysin)
         return proc.returncode, proc.stdout + proc.stderr
 
-    def exec_pgm(self, job, program, dds, parm=""):
-        rc, out = self.call(program, dds, parm)
+    def exec_pgm(self, job, program, dds, parm="", sysin=None):
+        rc, out = self.call(program, dds, parm, sysin)
         self.artifacts[f"{job}/{program}.sysout"] = out.decode("latin-1") + f"\n[return code {rc}]\n"
         return rc
 
@@ -501,6 +536,82 @@ def scenario_posttran_edges(run):
     run.capture(job, "ACCTDATA.ksds", run.unload_ksds("ACCTDATA")[:4])
 
 
+PAUT = HERE / "fixtures" / "cbpaup0j"
+
+
+def jcl_sysin(member):
+    """The in-stream data of a JCL member's SYSIN DD *."""
+    return re.search(r"^//SYSIN +DD \*\n(.*?)^//", member.read_text(), re.M | re.S)[1].encode()
+
+
+def packed(value, size):
+    """COMP-3 in size bytes of an integer: an amount in cents, a key, an account number."""
+    return bytes.fromhex(f"{abs(value):0{size * 2 - 1}d}" + ("d" if value < 0 else "c"))
+
+
+def unpacked(data):
+    digits = data.hex()
+    return -int(digits[:-1]) if digits[-1] in "bd" else int(digits[:-1])
+
+
+def cents(text):
+    return int(Decimal(text) * 100)
+
+
+def amount(value):
+    return f"{Decimal(value) / 100:.2f}"
+
+
+def paut_segments(lines):
+    """pautdb.txt as DLISTUB records: CIPAUSMY and CIPAUDTY, with the fields the fixture leaves out fixed."""
+    records = []
+    for line in lines:
+        kind, *f = line.split()
+        if kind == "S":
+            seg = (packed(int(f[0]), 6) + f[1].encode() + b" " * 11
+                   + b"".join(packed(cents(a), 6) for a in f[2:6])
+                   + b"".join(int(n).to_bytes(2, "big", signed=True) for n in f[6:8])
+                   + b"".join(packed(cents(a), 6) for a in f[8:10]))
+        else:
+            yyddd, time, resp, txn, approved, tran_id = f
+            day = date(2000 + int(yyddd[:2]), 1, 1) + timedelta(days=int(yyddd[2:]) - 1)
+            seg = (packed(99999 - int(yyddd), 3) + packed(999999999 - int(time), 5)
+                   + day.strftime("%y%m%d").encode() + time[:6].encode()
+                   + b"4111000011112222" + b"0100" + b"1228" + b"0200  " + b"POS   "
+                   + time[:6].encode() + resp.encode() + (b"0000" if resp == "00" else b"4100") + b"000000"
+                   + packed(cents(txn), 7) + packed(cents(approved), 7) + b"5411" + b"USA" + b"01"
+                   + b"123501000675423" + b"CORNER GROCERY".ljust(22) + b"SEATTLE".ljust(13) + b"WA"
+                   + b"98101".ljust(9) + tran_id.encode().ljust(15) + (b"P" if resp == "00" else b"D"))
+        if len(seg) != (66 if kind == "S" else 174):
+            raise ValueError(f"pautdb.txt: {line!r} does not fill its segment layout")
+        records.append(kind.encode() + seg.ljust(200))
+    return records
+
+
+def paut_lines(records):
+    """The database CBPAUP0C left, written back in pautdb.txt's layout."""
+    for r in records:
+        seg = r[1:]
+        if r[:1] == b"S":
+            yield " ".join(["S", f"{unpacked(seg[0:6]):011d}", seg[6:15].decode(),
+                            *(amount(unpacked(seg[o:o + 6])) for o in (26, 32, 38, 44)),
+                            *(str(int.from_bytes(seg[o:o + 2], "big", signed=True)) for o in (50, 52)),
+                            *(amount(unpacked(seg[o:o + 6])) for o in (54, 60))])
+        else:
+            yield " ".join(["D", f"{99999 - unpacked(seg[0:3]):05d}", f"{999999999 - unpacked(seg[3:8]):09d}",
+                            seg[62:64].decode(), amount(unpacked(seg[74:81])), amount(unpacked(seg[81:88])),
+                            seg[158:173].decode().rstrip()])
+
+
+def job_cbpaup0j(run):
+    """CBPAUP0J: DFSRRC00 BMP CBPAUP0C with the member's SYSIN, over fixtures/cbpaup0j/pautdb.txt."""
+    lines = [l for l in (PAUT / "pautdb.txt").read_text().splitlines() if l.strip() and not l.startswith("#")]
+    run.write_seq("PAUTDB", paut_segments(lines))
+    run.exec_pgm("CBPAUP0J", "CBPAUP0C", {"PAUTDB": "PAUTDB"},
+                 sysin=jcl_sysin(MODULES["CBPAUP0C"] / "jcl" / "CBPAUP0J.jcl"))
+    run.artifacts["CBPAUP0J/PAUTDB"] = "".join(l + "\n" for l in paut_lines(run.read_seq("PAUTDB", 201)))
+
+
 JOBS = {
     "READACCT": job_readacct, "READCARD": job_readcard, "READXREF": job_readxref, "READCUST": job_readcust,
     "VALIDTRAN": job_validtran, "POSTTRAN": job_posttran, "INTCALC": job_intcalc, "COMBTRAN": job_combtran,
@@ -545,13 +656,16 @@ def cycle(work, library):
     types = Run(work / "mnttrdb2", library)
     types.work.mkdir()
     scenario_mnttrdb2(types)
-    return {**run.artifacts, **edges.artifacts, **types.artifacts}
+    purge = Run(work / "cbpaup0j", library)
+    purge.work.mkdir()
+    job_cbpaup0j(purge)
+    return {**run.artifacts, **edges.artifacts, **types.artifacts, **purge.artifacts}
 
 
 def main():
     ap = argparse.ArgumentParser(description=__doc__, formatter_class=argparse.RawDescriptionHelpFormatter)
     ap.add_argument("--update", action="store_true", help="rewrite golden/ and golden-fixed/ from this run")
-    ap.add_argument("--job", action="append", choices=[*JOBS, "POSTTRAN-EDGES", "MNTTRDB2"],
+    ap.add_argument("--job", action="append", choices=[*JOBS, "POSTTRAN-EDGES", "MNTTRDB2", "CBPAUP0J"],
                     help="only compare these jobs (all jobs still run, in order)")
     ap.add_argument("--keep", action="store_true", help="keep the scratch directory and print its path")
     ap.add_argument("--out", type=Path, help="also write this run's artifacts here, in the golden/ layout")

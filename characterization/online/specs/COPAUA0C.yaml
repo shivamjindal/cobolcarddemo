@@ -1,0 +1,460 @@
+program: COPAUA0C
+module: app/app-authorization-ims-db2-mq
+transaction: CP00
+evidence: derived
+sources:
+  - app/app-authorization-ims-db2-mq/cbl/COPAUA0C.cbl
+  - app/app-authorization-ims-db2-mq/cpy/CCPAURQY.cpy
+  - app/app-authorization-ims-db2-mq/cpy/CCPAURLY.cpy
+  - app/app-authorization-ims-db2-mq/cpy/CCPAUERY.cpy
+  - app/app-authorization-ims-db2-mq/cpy/CIPAUSMY.cpy
+  - app/app-authorization-ims-db2-mq/cpy/CIPAUDTY.cpy
+  - app/app-authorization-ims-db2-mq/ims/DBPAUTP0.dbd
+  - app/app-authorization-ims-db2-mq/csd/CRDDEMO2.csd
+  - app/cpy/CVACT01Y.cpy
+  - app/cpy/CVACT03Y.cpy
+  - app/cpy/CVCUS01Y.cpy
+files:
+  - name: CCXREF
+    ops: [READ]
+    key: XREF-CARD-NUM
+  - name: ACCTDAT
+    ops: [READ]
+    key: ACCT-ID
+  - name: CUSTDAT
+    ops: [READ]
+    key: CUST-ID
+  - name: PAUTSUM0
+    ops: [READ, REWRITE, WRITE]
+    key: PA-ACCT-ID
+  - name: PAUTDTL1
+    ops: [WRITE]
+    key: PA-AUTHORIZATION-KEY
+navigation: []
+notes:
+  - "CICS starts CP00 from an MQ trigger (CRDDEMO2.csd). 1000-INITIALIZE RETRIEVEs the MQTM for the request queue name and opens it (lines 230-247). 2000-MAIN-PROCESS then loops MQGET, process, SYNCPOINT until no message arrives within 5 seconds or more than 500 messages are done (lines 326-344). Each trigger case is one request message processed by a fresh task."
+  - "MQGET is NO-SYNCPOINT (line 389), so the request leaves the queue at once and is lost if the task fails. MQPUT1 of the reply is NO-SYNCPOINT too (line 753), so the reply is visible before the IMS updates of 8000-WRITE-AUTH-TO-DB commit. The reply is non-persistent with MQMD-EXPIRY 50, five seconds (lines 749-750), goes to the request's MQMD-REPLYTOQ and carries its MQMD-CORRELID (lines 411-414, 742-745)."
+  - "Request (2100-EXTRACT-REQUEST-MSG, lines 354-379). The message is comma separated in CCPAURQY order: auth date YYMMDD, auth time HHMMSS, card number, auth type, card expiry MMYY, message type, message source, processing code, amount, merchant category code, acquirer country, POS entry mode, merchant id, name, city, state, zip, transaction id. UNSTRING truncates or space-pads each value to its field. A message with fewer values leaves the remaining fields as the previous message set them."
+  - "The amount is UNSTRINGed into WS-TRANSACTION-AMT-AN, an X(13), one byte shorter than the request layout's PA-RQ-TRANSACTION-AMT PIC +9(10).99. A 14-character amount in that layout loses its last digit before FUNCTION NUMVAL (case COPAUA0C-010). COMPUTE truncates to two decimals."
+  - "Decision (6000-MAKE-DECISION, lines 664-682). With a summary segment the available amount is PA-CREDIT-LIMIT - PA-CREDIT-BALANCE. Without one it is ACCT-CREDIT-LIMIT - ACCT-CURR-BAL, and without the account too the request is declined. An amount greater than the available amount is declined, so an amount equal to it is approved (case COPAUA0C-002). The customer read does not take part in the decision."
+  - "Reason (lines 697-718). Approved is '0000'. A decline is '3100' when the card, its account or its customer was not found, even when the amount is also over the limit (case COPAUA0C-009), and '4100' otherwise. The '4200', '4300', '5100', '5200' and '9000' branches are unreachable because nothing sets CARD-NOT-ACTIVE, ACCOUNT-CLOSED, CARD-FRAUD or MERCHANT-FRAUD (5600-READ-PROFILE-DATA is CONTINUE, line 650), and every decline is either a lookup miss or insufficient funds."
+  - "Reply (lines 720-731). STRING DELIMITED BY SIZE writes card number X(16), transaction id X(15), auth id code X(6), response code X(2), reason X(4) and WS-APPROVED-AMT-DIS PIC -zzzzzzzzz9.99, each followed by a comma. The auth id code is the request's auth time (line 662). The approved amount is the request amount when approved and zero when declined. Replies are written right-trimmed with the variable parts as placeholders."
+  - "WS-RESP-LENGTH, the STRING pointer and the reply length, starts at 1 (line 46) and is never reset. The first reply of a task is 64 bytes, one byte beyond the 63 written (W02-PUT-BUFFER has no VALUE). Each later message of the same task writes after the previous reply and sends everything so far. The specs see one message per task."
+  - "Only CARD-FOUND-XREF, FOUND-ACCT-IN-MSTR and APPROVE-AUTH are reset per message (lines 441-446). The customer, summary and decline-reason flags keep their previous values until set again. Within the reachable paths this changes no decision."
+  - "A card missing from CCXREF is declined with no IMS update (lines 450-465). Otherwise 8400-UPDATE-SUMMARY (lines 798-848) inserts a new summary, INITIALIZEd with PA-ACCT-ID and PA-CUST-ID from the xref, or replaces the existing one. Both copy ACCT-CREDIT-LIMIT and ACCT-CASH-CREDIT-LIMIT into the summary after the decision used the old summary limits (case COPAUA0C-002). With the account missing that copy is of an unread ACCOUNT-RECORD, so those cases leave the limits out."
+  - "An approval adds 1 to PA-APPROVED-AUTH-CNT, the approved amount to PA-APPROVED-AUTH-AMT and to PA-CREDIT-BALANCE, and sets PA-CASH-BALANCE to zero (lines 813-818). A new summary's credit balance starts at zero, not at the account's current balance, so later decisions on that account see only the pending approvals made here."
+  - "A decline adds 1 to PA-DECLINED-AUTH-CNT and adds PA-TRANSACTION-AMT to PA-DECLINED-AUTH-AMT (lines 820-821). PA-TRANSACTION-AMT is the detail segment's field, which 8500-INSERT-AUTH only fills afterwards (line 884). In a task's first message it holds whatever working storage held (packed decimal, a data exception if it is not valid), later the previous message's amount. Decline cases leave PA-DECLINED-AUTH-AMT out."
+  - "8500-INSERT-AUTH (lines 855-933) inserts PAUTDTL1 under the account's summary. Its key PA-AUTHORIZATION-KEY is PA-AUTH-DATE-9C = 99999 - YYDDD and PA-AUTH-TIME-9C = 999999999 - (HHMMSS * 1000 + milliseconds) of CICS ASKTIME, so the newest authorization of an account sorts first. PA-MATCH-STATUS is 'P' when approved and 'D' when declined, PA-AUTH-FRAUD and PA-FRAUD-RPT-DATE are spaces."
+  - "PAUTDTL1 records here carry the parent summary's PA-ACCT-ID. Because the IMS key comes from the clock, the placeholders {99999 - YYDDD} and {999999999 - HHMMSSmmm} stand for it."
+  - "Errors go through 9500-LOG-ERROR (lines 983-1011), which writes a CCPAUERY record to the CSSL transient data queue. The not-found paths log warnings A001, A002 and A003 and carry on. Any other CICS, IMS or MQ failure is critical and ends the task (9990-END-ROUTINE), after the reply when it happens in 8000. The schema cannot inject IMS or MQ failures, so no case asserts them."
+  - The Java slice replays this spec with deliberate differences listed, each with its reason, in carddemo-java/src/test/resources/spec-overrides/COPAUA0C.yaml.
+cases:
+  - id: COPAUA0C-001
+    summary: an amount within the account's available credit is approved and starts the account's summary
+    given:
+      entry: trigger
+      files:
+        CCXREF: &xref
+          - {XREF-CARD-NUM: "4111000011112222", XREF-CUST-ID: "000000001", XREF-ACCT-ID: "00000000001"}
+        ACCTDAT:
+          - {ACCT-ID: "00000000001", ACCT-ACTIVE-STATUS: "Y", ACCT-CURR-BAL: "300.00", ACCT-CREDIT-LIMIT: "2000.00", ACCT-CASH-CREDIT-LIMIT: "500.00"}
+        CUSTDAT: &customer
+          - {CUST-ID: "000000001", CUST-FIRST-NAME: JOHN, CUST-MIDDLE-NAME: Q, CUST-LAST-NAME: SMITH}
+    when:
+      message: "260115,103015,4111000011112222,0100,1228,0200,POS,000000,125.50,5411,USA,01,123501000675423,CORNER GROCERY,SEATTLE,WA,98101,TXN000000000101"
+      correlation_id: "REQ00001"
+    then:
+      replies:
+        - queue: "{reply-to}"
+          message: "{PA-RL-CARD-NUM},{PA-RL-TRANSACTION-ID},{PA-RL-AUTH-ID-CODE},{}00{},{}0000{},{WS-APPROVED-AMT-DIS},"
+          correlation_id: "REQ00001"
+      file_effects:
+        - file: PAUTSUM0
+          op: WRITE
+          record:
+            PA-ACCT-ID: "1"
+            PA-CUST-ID: "1"
+            PA-AUTH-STATUS: ""
+            PA-ACCOUNT-STATUS: ""
+            PA-CREDIT-LIMIT: "2000.00"
+            PA-CASH-LIMIT: "500.00"
+            PA-CREDIT-BALANCE: "125.50"
+            PA-CASH-BALANCE: "0.00"
+            PA-APPROVED-AUTH-CNT: "1"
+            PA-DECLINED-AUTH-CNT: "0"
+            PA-APPROVED-AUTH-AMT: "125.50"
+            PA-DECLINED-AUTH-AMT: "0.00"
+        - file: PAUTDTL1
+          op: WRITE
+          record:
+            PA-ACCT-ID: "1"
+            PA-AUTH-DATE-9C: "{99999 - YYDDD}"
+            PA-AUTH-TIME-9C: "{999999999 - HHMMSSmmm}"
+            PA-AUTH-ORIG-DATE: "260115"
+            PA-AUTH-ORIG-TIME: "103015"
+            PA-CARD-NUM: "4111000011112222"
+            PA-AUTH-TYPE: "0100"
+            PA-CARD-EXPIRY-DATE: "1228"
+            PA-MESSAGE-TYPE: "0200"
+            PA-MESSAGE-SOURCE: POS
+            PA-AUTH-ID-CODE: "103015"
+            PA-AUTH-RESP-CODE: "00"
+            PA-AUTH-RESP-REASON: "0000"
+            PA-PROCESSING-CODE: "0"
+            PA-TRANSACTION-AMT: "125.50"
+            PA-APPROVED-AMT: "125.50"
+            PA-MERCHANT-CATAGORY-CODE: "5411"
+            PA-ACQR-COUNTRY-CODE: USA
+            PA-POS-ENTRY-MODE: "1"
+            PA-MERCHANT-ID: "123501000675423"
+            PA-MERCHANT-NAME: CORNER GROCERY
+            PA-MERCHANT-CITY: SEATTLE
+            PA-MERCHANT-STATE: WA
+            PA-MERCHANT-ZIP: "98101"
+            PA-TRANSACTION-ID: TXN000000000101
+            PA-MATCH-STATUS: P
+            PA-AUTH-FRAUD: ""
+            PA-FRAUD-RPT-DATE: ""
+    source:
+      file: app/app-authorization-ims-db2-mq/cbl/COPAUA0C.cbl
+      lines: [672, 679]
+
+  - id: COPAUA0C-002
+    summary: with a summary the summary's available credit decides, an amount equal to it is approved, and the limits are refreshed from the account
+    given:
+      entry: trigger
+      files:
+        CCXREF: *xref
+        ACCTDAT: &account-no-balance
+          - {ACCT-ID: "00000000001", ACCT-ACTIVE-STATUS: "Y", ACCT-CURR-BAL: "0.00", ACCT-CREDIT-LIMIT: "2000.00", ACCT-CASH-CREDIT-LIMIT: "500.00"}
+        CUSTDAT: *customer
+        PAUTSUM0: &summary-900
+          - {PA-ACCT-ID: "1", PA-CUST-ID: "1", PA-CREDIT-LIMIT: "1000.00", PA-CASH-LIMIT: "300.00", PA-CREDIT-BALANCE: "900.00", PA-CASH-BALANCE: "0.00", PA-APPROVED-AUTH-CNT: "2", PA-DECLINED-AUTH-CNT: "1", PA-APPROVED-AUTH-AMT: "900.00", PA-DECLINED-AUTH-AMT: "50.00"}
+    when:
+      message: "260115,103015,4111000011112222,0100,1228,0200,POS,000000,100.00,5411,USA,01,123501000675423,CORNER GROCERY,SEATTLE,WA,98101,TXN000000000102"
+      correlation_id: "REQ00002"
+    then:
+      replies:
+        - queue: "{reply-to}"
+          message: "{PA-RL-CARD-NUM},{PA-RL-TRANSACTION-ID},{PA-RL-AUTH-ID-CODE},{}00{},{}0000{},{WS-APPROVED-AMT-DIS},"
+          correlation_id: "REQ00002"
+      file_effects:
+        - file: PAUTSUM0
+          op: REWRITE
+          record:
+            PA-ACCT-ID: "1"
+            PA-CUST-ID: "1"
+            PA-CREDIT-LIMIT: "2000.00"
+            PA-CASH-LIMIT: "500.00"
+            PA-CREDIT-BALANCE: "1000.00"
+            PA-CASH-BALANCE: "0.00"
+            PA-APPROVED-AUTH-CNT: "3"
+            PA-DECLINED-AUTH-CNT: "1"
+            PA-APPROVED-AUTH-AMT: "1000.00"
+            PA-DECLINED-AUTH-AMT: "50.00"
+        - file: PAUTDTL1
+          op: WRITE
+          record:
+            PA-ACCT-ID: "1"
+            PA-TRANSACTION-ID: TXN000000000102
+            PA-AUTH-RESP-CODE: "00"
+            PA-AUTH-RESP-REASON: "0000"
+            PA-TRANSACTION-AMT: "100.00"
+            PA-APPROVED-AMT: "100.00"
+            PA-MATCH-STATUS: P
+    source:
+      file: app/app-authorization-ims-db2-mq/cbl/COPAUA0C.cbl
+      lines: [665, 671]
+
+  - id: COPAUA0C-003
+    summary: with a summary an amount over the summary's available credit is declined for insufficient funds
+    given:
+      entry: trigger
+      files:
+        CCXREF: *xref
+        ACCTDAT: *account-no-balance
+        CUSTDAT: *customer
+        PAUTSUM0: *summary-900
+    when:
+      message: "260115,103015,4111000011112222,0100,1228,0200,POS,000000,100.01,5411,USA,01,123501000675423,CORNER GROCERY,SEATTLE,WA,98101,TXN000000000103"
+      correlation_id: "REQ00003"
+    then:
+      replies:
+        - queue: "{reply-to}"
+          message: "{PA-RL-CARD-NUM},{PA-RL-TRANSACTION-ID},{PA-RL-AUTH-ID-CODE},{}05{},{}4100{},{WS-APPROVED-AMT-DIS},"
+          correlation_id: "REQ00003"
+      file_effects:
+        - file: PAUTSUM0
+          op: REWRITE
+          record:
+            PA-ACCT-ID: "1"
+            PA-CREDIT-LIMIT: "2000.00"
+            PA-CASH-LIMIT: "500.00"
+            PA-CREDIT-BALANCE: "900.00"
+            PA-APPROVED-AUTH-CNT: "2"
+            PA-DECLINED-AUTH-CNT: "2"
+            PA-APPROVED-AUTH-AMT: "900.00"
+        - file: PAUTDTL1
+          op: WRITE
+          record:
+            PA-ACCT-ID: "1"
+            PA-TRANSACTION-ID: TXN000000000103
+            PA-AUTH-RESP-CODE: "05"
+            PA-AUTH-RESP-REASON: "4100"
+            PA-TRANSACTION-AMT: "100.01"
+            PA-APPROVED-AMT: "0.00"
+            PA-MATCH-STATUS: D
+    source:
+      file: app/app-authorization-ims-db2-mq/cbl/COPAUA0C.cbl
+      lines: [665, 671]
+
+  - id: COPAUA0C-004
+    summary: without a summary an amount over the account's available credit is declined for insufficient funds and still starts a summary
+    given:
+      entry: trigger
+      files:
+        CCXREF: *xref
+        ACCTDAT: &account-950
+          - {ACCT-ID: "00000000001", ACCT-ACTIVE-STATUS: "Y", ACCT-CURR-BAL: "950.00", ACCT-CREDIT-LIMIT: "1000.00", ACCT-CASH-CREDIT-LIMIT: "200.00"}
+        CUSTDAT: *customer
+    when:
+      message: "260115,103015,4111000011112222,0100,1228,0200,POS,000000,50.01,5411,USA,01,123501000675423,CORNER GROCERY,SEATTLE,WA,98101,TXN000000000104"
+      correlation_id: "REQ00004"
+    then:
+      replies:
+        - queue: "{reply-to}"
+          message: "{PA-RL-CARD-NUM},{PA-RL-TRANSACTION-ID},{PA-RL-AUTH-ID-CODE},{}05{},{}4100{},{WS-APPROVED-AMT-DIS},"
+          correlation_id: "REQ00004"
+      file_effects:
+        - file: PAUTSUM0
+          op: WRITE
+          record:
+            PA-ACCT-ID: "1"
+            PA-CUST-ID: "1"
+            PA-CREDIT-LIMIT: "1000.00"
+            PA-CASH-LIMIT: "200.00"
+            PA-CREDIT-BALANCE: "0.00"
+            PA-CASH-BALANCE: "0.00"
+            PA-APPROVED-AUTH-CNT: "0"
+            PA-DECLINED-AUTH-CNT: "1"
+            PA-APPROVED-AUTH-AMT: "0.00"
+        - file: PAUTDTL1
+          op: WRITE
+          record:
+            PA-ACCT-ID: "1"
+            PA-TRANSACTION-ID: TXN000000000104
+            PA-AUTH-RESP-CODE: "05"
+            PA-AUTH-RESP-REASON: "4100"
+            PA-TRANSACTION-AMT: "50.01"
+            PA-APPROVED-AMT: "0.00"
+            PA-MATCH-STATUS: D
+    source:
+      file: app/app-authorization-ims-db2-mq/cbl/COPAUA0C.cbl
+      lines: [672, 679]
+
+  - id: COPAUA0C-005
+    summary: a card missing from CCXREF is declined as not found and nothing is written
+    given:
+      entry: trigger
+      files:
+        CCXREF: *xref
+        ACCTDAT: *account-no-balance
+        CUSTDAT: *customer
+    when:
+      message: "260115,103015,4999000099990000,0100,1228,0200,POS,000000,10.00,5411,USA,01,123501000675423,CORNER GROCERY,SEATTLE,WA,98101,TXN000000000105"
+      correlation_id: "REQ00005"
+    then:
+      replies:
+        - queue: "{reply-to}"
+          message: "{PA-RL-CARD-NUM},{PA-RL-TRANSACTION-ID},{PA-RL-AUTH-ID-CODE},{}05{},{}3100{},{WS-APPROVED-AMT-DIS},"
+          correlation_id: "REQ00005"
+      file_effects: []
+    source:
+      file: app/app-authorization-ims-db2-mq/cbl/COPAUA0C.cbl
+      lines: [486, 500]
+
+  - id: COPAUA0C-006
+    summary: a card whose account is missing from ACCTDAT, with no summary, is declined as not found and the decline is recorded
+    given:
+      entry: trigger
+      files:
+        CCXREF: *xref
+        CUSTDAT: *customer
+    when:
+      message: "260115,103015,4111000011112222,0100,1228,0200,POS,000000,10.00,5411,USA,01,123501000675423,CORNER GROCERY,SEATTLE,WA,98101,TXN000000000106"
+      correlation_id: "REQ00006"
+    then:
+      replies:
+        - queue: "{reply-to}"
+          message: "{PA-RL-CARD-NUM},{PA-RL-TRANSACTION-ID},{PA-RL-AUTH-ID-CODE},{}05{},{}3100{},{WS-APPROVED-AMT-DIS},"
+          correlation_id: "REQ00006"
+      file_effects:
+        - file: PAUTSUM0
+          op: WRITE
+          record:
+            PA-ACCT-ID: "1"
+            PA-CUST-ID: "1"
+            PA-CREDIT-BALANCE: "0.00"
+            PA-APPROVED-AUTH-CNT: "0"
+            PA-DECLINED-AUTH-CNT: "1"
+            PA-APPROVED-AUTH-AMT: "0.00"
+        - file: PAUTDTL1
+          op: WRITE
+          record:
+            PA-ACCT-ID: "1"
+            PA-TRANSACTION-ID: TXN000000000106
+            PA-AUTH-RESP-CODE: "05"
+            PA-AUTH-RESP-REASON: "3100"
+            PA-TRANSACTION-AMT: "10.00"
+            PA-APPROVED-AMT: "0.00"
+            PA-MATCH-STATUS: D
+    source:
+      file: app/app-authorization-ims-db2-mq/cbl/COPAUA0C.cbl
+      lines: [680, 681]
+
+  - id: COPAUA0C-007
+    summary: a missing account does not decline when a summary exists, because the summary's available credit decides
+    given:
+      entry: trigger
+      files:
+        CCXREF: *xref
+        CUSTDAT: *customer
+        PAUTSUM0:
+          - {PA-ACCT-ID: "1", PA-CUST-ID: "1", PA-CREDIT-LIMIT: "1000.00", PA-CASH-LIMIT: "300.00", PA-CREDIT-BALANCE: "200.00", PA-CASH-BALANCE: "0.00", PA-APPROVED-AUTH-CNT: "1", PA-DECLINED-AUTH-CNT: "0", PA-APPROVED-AUTH-AMT: "200.00", PA-DECLINED-AUTH-AMT: "0.00"}
+    when:
+      message: "260115,103015,4111000011112222,0100,1228,0200,POS,000000,125.50,5411,USA,01,123501000675423,CORNER GROCERY,SEATTLE,WA,98101,TXN000000000107"
+      correlation_id: "REQ00007"
+    then:
+      replies:
+        - queue: "{reply-to}"
+          message: "{PA-RL-CARD-NUM},{PA-RL-TRANSACTION-ID},{PA-RL-AUTH-ID-CODE},{}00{},{}0000{},{WS-APPROVED-AMT-DIS},"
+          correlation_id: "REQ00007"
+      file_effects:
+        - file: PAUTSUM0
+          op: REWRITE
+          record:
+            PA-ACCT-ID: "1"
+            PA-CREDIT-BALANCE: "325.50"
+            PA-CASH-BALANCE: "0.00"
+            PA-APPROVED-AUTH-CNT: "2"
+            PA-DECLINED-AUTH-CNT: "0"
+            PA-APPROVED-AUTH-AMT: "325.50"
+            PA-DECLINED-AUTH-AMT: "0.00"
+        - file: PAUTDTL1
+          op: WRITE
+          record:
+            PA-ACCT-ID: "1"
+            PA-TRANSACTION-ID: TXN000000000107
+            PA-AUTH-RESP-CODE: "00"
+            PA-AUTH-RESP-REASON: "0000"
+            PA-APPROVED-AMT: "125.50"
+            PA-MATCH-STATUS: P
+    source:
+      file: app/app-authorization-ims-db2-mq/cbl/COPAUA0C.cbl
+      lines: [664, 671]
+
+  - id: COPAUA0C-008
+    summary: a customer missing from CUSTDAT does not change an approval
+    given:
+      entry: trigger
+      files:
+        CCXREF: *xref
+        ACCTDAT: *account-no-balance
+    when:
+      message: "260115,103015,4111000011112222,0100,1228,0200,POS,000000,10.00,5411,USA,01,123501000675423,CORNER GROCERY,SEATTLE,WA,98101,TXN000000000108"
+      correlation_id: "REQ00008"
+    then:
+      replies:
+        - queue: "{reply-to}"
+          message: "{PA-RL-CARD-NUM},{PA-RL-TRANSACTION-ID},{PA-RL-AUTH-ID-CODE},{}00{},{}0000{},{WS-APPROVED-AMT-DIS},"
+          correlation_id: "REQ00008"
+      file_effects:
+        - file: PAUTSUM0
+          op: WRITE
+          record:
+            PA-ACCT-ID: "1"
+            PA-CUST-ID: "1"
+            PA-CREDIT-LIMIT: "2000.00"
+            PA-CREDIT-BALANCE: "10.00"
+            PA-APPROVED-AUTH-CNT: "1"
+            PA-APPROVED-AUTH-AMT: "10.00"
+        - file: PAUTDTL1
+          op: WRITE
+          record:
+            PA-ACCT-ID: "1"
+            PA-TRANSACTION-ID: TXN000000000108
+            PA-AUTH-RESP-CODE: "00"
+            PA-AUTH-RESP-REASON: "0000"
+            PA-APPROVED-AMT: "10.00"
+            PA-MATCH-STATUS: P
+    source:
+      file: app/app-authorization-ims-db2-mq/cbl/COPAUA0C.cbl
+      lines: [583, 594]
+
+  - id: COPAUA0C-009
+    summary: an amount over the limit for a card whose customer is missing is declined as not found (3100), not as insufficient funds
+    given:
+      entry: trigger
+      files:
+        CCXREF: *xref
+        ACCTDAT: *account-950
+    when:
+      message: "260115,103015,4111000011112222,0100,1228,0200,POS,000000,50.01,5411,USA,01,123501000675423,CORNER GROCERY,SEATTLE,WA,98101,TXN000000000109"
+      correlation_id: "REQ00009"
+    then:
+      replies:
+        - queue: "{reply-to}"
+          message: "{PA-RL-CARD-NUM},{PA-RL-TRANSACTION-ID},{PA-RL-AUTH-ID-CODE},{}05{},{}3100{},{WS-APPROVED-AMT-DIS},"
+          correlation_id: "REQ00009"
+      file_effects:
+        - file: PAUTSUM0
+          op: WRITE
+          record:
+            PA-ACCT-ID: "1"
+            PA-DECLINED-AUTH-CNT: "1"
+        - file: PAUTDTL1
+          op: WRITE
+          record:
+            PA-ACCT-ID: "1"
+            PA-TRANSACTION-ID: TXN000000000109
+            PA-AUTH-RESP-CODE: "05"
+            PA-AUTH-RESP-REASON: "3100"
+            PA-APPROVED-AMT: "0.00"
+            PA-MATCH-STATUS: D
+    source:
+      file: app/app-authorization-ims-db2-mq/cbl/COPAUA0C.cbl
+      lines: [698, 706]
+
+  - id: COPAUA0C-010
+    summary: an amount sent in the request layout's 14-character +9(10).99 form loses its last digit
+    given:
+      entry: trigger
+      files:
+        CCXREF: *xref
+        ACCTDAT: *account-no-balance
+        CUSTDAT: *customer
+    when:
+      message: "260115,103015,4111000011112222,0100,1228,0200,POS,000000,+0000000125.55,5411,USA,01,123501000675423,CORNER GROCERY,SEATTLE,WA,98101,TXN000000000110"
+      correlation_id: "REQ00010"
+    then:
+      replies:
+        - queue: "{reply-to}"
+          message: "{PA-RL-CARD-NUM},{PA-RL-TRANSACTION-ID},{PA-RL-AUTH-ID-CODE},{}00{},{}0000{},{WS-APPROVED-AMT-DIS},"
+          correlation_id: "REQ00010"
+      file_effects:
+        - file: PAUTSUM0
+          op: WRITE
+          record:
+            PA-ACCT-ID: "1"
+            PA-CREDIT-BALANCE: "125.50"
+            PA-APPROVED-AUTH-AMT: "125.50"
+        - file: PAUTDTL1
+          op: WRITE
+          record:
+            PA-ACCT-ID: "1"
+            PA-TRANSACTION-ID: TXN000000000110
+            PA-TRANSACTION-AMT: "125.50"
+            PA-APPROVED-AMT: "125.50"
+    source:
+      file: app/app-authorization-ims-db2-mq/cbl/COPAUA0C.cbl
+      lines: [354, 379]
