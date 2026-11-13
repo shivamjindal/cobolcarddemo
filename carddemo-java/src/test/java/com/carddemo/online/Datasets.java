@@ -12,6 +12,8 @@ import java.sql.Timestamp;
 import java.time.LocalDate;
 import java.time.format.DateTimeFormatter;
 import java.util.ArrayList;
+import java.util.Collections;
+import java.util.Comparator;
 import java.util.HashMap;
 import java.util.HashSet;
 import java.util.LinkedHashMap;
@@ -54,11 +56,11 @@ class Datasets {
     }
 
     /**
-     * IMS segment and Db2 table names, as specs use them, to their tables. A PAUTDTL1 key comes from the clock, so
-     * a detail is identified by its account and PA-TRANSACTION-ID. Records load in given.files order, so a spec lists
-     * TRANSACTION_TYPE before TRANSACTION_TYPE_CATEGORY for the foreign key.
+     * IMS segment and Db2 table names, as specs use them, to their tables, each parent before its children: reset
+     * loads them in this order, after the VSAM files. A PAUTDTL1 key comes from the clock, so a detail is identified
+     * by its account and PA-TRANSACTION-ID.
      */
-    static final Map<String, Relation> RELATIONS = Map.of(
+    static final Map<String, Relation> RELATIONS = ordered(
             "TRANSACTION_TYPE", new Relation("tran_types",
                     Map.of("TR_TYPE", "tran_type", "TR_DESCRIPTION", "tran_type_desc"), List.of("TR_TYPE")),
             "TRANSACTION_TYPE_CATEGORY", new Relation("tran_categories",
@@ -107,6 +109,18 @@ class Datasets {
         TABLES.forEach(d -> tables.put(d, Table.of(d)));
     }
 
+    private static Map<String, Relation> ordered(Object... namesAndRelations) {
+        Map<String, Relation> ordered = new LinkedHashMap<>();
+        for (int i = 0; i < namesAndRelations.length; i += 2) {
+            ordered.put((String) namesAndRelations[i], (Relation) namesAndRelations[i + 1]);
+        }
+        return Collections.unmodifiableMap(ordered);
+    }
+
+    private static int loadOrder(String file) {
+        return RELATIONS.containsKey(file) ? 1 + List.copyOf(RELATIONS.keySet()).indexOf(file) : 0;
+    }
+
     /**
      * Every table holds exactly the records given for it; a table the case does not name is empty. A record given
      * under both CCXREF and CXACAIX is one record.
@@ -115,7 +129,7 @@ class Datasets {
         jdbc.execute("TRUNCATE " + Stream.concat(TABLES.stream().map(d -> d.table),
                 RELATIONS.values().stream().map(Relation::table)).distinct().collect(Collectors.joining(", ")));
         Set<List<Object>> inserted = new HashSet<>();
-        files.entrySet().stream().sorted(Map.Entry.comparingByKey()).forEach(entry -> {
+        files.entrySet().stream().sorted(Comparator.comparingInt(e -> loadOrder(e.getKey()))).forEach(entry -> {
             String file = entry.getKey();
             List<Map<String, Object>> records = entry.getValue();
             Relation relation = RELATIONS.get(file);
