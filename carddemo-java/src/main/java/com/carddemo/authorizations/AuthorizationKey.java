@@ -22,4 +22,9 @@ public record AuthorizationKey(int date9c, int time9c) implements Serializable {
         return LocalTime.of(hhmmssmmm / 10_000_000, hhmmssmmm / 100_000 % 100, hhmmssmmm / 1000 % 100,
                 hhmmssmmm % 1000 * 1_000_000);
     }
+
+    /** YYDDD of the day the key was taken. */
+    int yyddd() {
+        return 99999 - date9c;
+    }
 }

@@ -19,6 +19,7 @@ import org.springframework.context.annotation.Primary;
 import org.springframework.jdbc.core.JdbcTemplate;
 
 import java.io.IOException;
+import java.math.BigDecimal;
 import java.nio.charset.StandardCharsets;
 import java.nio.file.Files;
 import java.nio.file.Path;
@@ -51,6 +52,7 @@ class BatchGoldenTest {
 
     static final Path FIXTURES = Path.of(System.getProperty("carddemo.legacy-app"), "data", "ASCII");
     static final Path EDGES = Golden.ROOT.resolve("fixtures/posttran-edges");
+    static final Path PURGE = Golden.ROOT.resolve("fixtures/cbpaup0j/pautdb.txt");
 
     @TestConfiguration(proxyBeanMethods = false)
     static class FixedClock {
@@ -80,6 +82,7 @@ class BatchGoldenTest {
     void theBatchCycleMatchesTheLegacyGoldenMasters() throws IOException {
         cycle();
         edges();
+        purge();
 
         Golden golden = new Golden();
         Map<String, Golden.Master> masters = Golden.load();
@@ -166,6 +169,47 @@ class BatchGoldenTest {
         unload("POSTTRAN-EDGES", VsamDataset.TRANSACTIONS, "TRANSACT");
         artifacts.put("POSTTRAN-EDGES/ACCTDATA.ksds",
                 Golden.render(Table.of(VsamDataset.ACCOUNTS).unload(jdbc).subList(0, 4)));
+    }
+
+    /** harness.py's CBPAUP0J scenario: CBPAUP0C with the member's SYSIN over the crafted DBPAUTP0. */
+    private void purge() throws IOException {
+        jdbc.execute("TRUNCATE pending_auth_summaries CASCADE");
+        long account = 0;
+        for (String line : Files.readAllLines(PURGE)) {
+            String[] f = line.split(" ");
+            if (f[0].equals("S")) {
+                account = Long.parseLong(f[1]);
+                jdbc.update("INSERT INTO pending_auth_summaries (pa_acct_id, pa_cust_id, pa_credit_limit, pa_cash_limit,"
+                                + " pa_credit_balance, pa_cash_balance, pa_approved_auth_cnt, pa_declined_auth_cnt,"
+                                + " pa_approved_auth_amt, pa_declined_auth_amt) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)",
+                        account, Integer.parseInt(f[2]), new BigDecimal(f[3]), new BigDecimal(f[4]), new BigDecimal(f[5]),
+                        new BigDecimal(f[6]), Integer.parseInt(f[7]), Integer.parseInt(f[8]), new BigDecimal(f[9]),
+                        new BigDecimal(f[10]));
+            } else if (f[0].equals("D")) {
+                jdbc.update("INSERT INTO pending_auth_details (pa_acct_id, pa_auth_date_9c, pa_auth_time_9c,"
+                                + " pa_auth_resp_code, pa_transaction_amt, pa_approved_amt, pa_transaction_id)"
+                                + " VALUES (?, ?, ?, ?, ?, ?, ?)",
+                        account, 99999 - Integer.parseInt(f[1]), 999999999 - Integer.parseInt(f[2]), f[3],
+                        new BigDecimal(f[4]), new BigDecimal(f[5]), f[6]);
+            }
+        }
+
+        sysout("CBPAUP0J", run("CBPAUP0J", params()), "CBPAUP0C");
+        List<String> segments = new ArrayList<>();
+        jdbc.queryForList("SELECT * FROM pending_auth_summaries ORDER BY pa_acct_id").forEach(summary -> {
+            segments.add("S %011d %09d %s %s %s %s %d %d %s %s".formatted(summary.get("pa_acct_id"),
+                    summary.get("pa_cust_id"), summary.get("pa_credit_limit"), summary.get("pa_cash_limit"),
+                    summary.get("pa_credit_balance"), summary.get("pa_cash_balance"),
+                    summary.get("pa_approved_auth_cnt"), summary.get("pa_declined_auth_cnt"),
+                    summary.get("pa_approved_auth_amt"), summary.get("pa_declined_auth_amt")));
+            jdbc.queryForList("SELECT * FROM pending_auth_details WHERE pa_acct_id = ? ORDER BY pa_auth_date_9c,"
+                    + " pa_auth_time_9c", summary.get("pa_acct_id")).forEach(detail -> segments.add(
+                    "D %05d %09d %s %s %s %s".formatted(99999 - (int) detail.get("pa_auth_date_9c"),
+                            999999999 - (int) detail.get("pa_auth_time_9c"), detail.get("pa_auth_resp_code"),
+                            detail.get("pa_transaction_amt"), detail.get("pa_approved_amt"),
+                            detail.get("pa_transaction_id"))));
+        });
+        artifacts.put("CBPAUP0J/PAUTDB", Golden.render(segments));
     }
 
     /** Every launch is a new job instance, so the cycle can rerun in a context another test already used. */

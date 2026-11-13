@@ -48,6 +48,11 @@ class PendingAuthorizations {
                 SUMMARY, accountId).stream().findFirst();
     }
 
+    /** GN PAUTSUM0 through the whole database: every summary in ACCNTID order. */
+    List<AuthorizationSummary> summaries() {
+        return jdbc.query("SELECT " + SUMMARY_COLUMNS + " FROM pending_auth_summaries ORDER BY pa_acct_id", SUMMARY);
+    }
+
     /** ISRT of a new summary, or REPL of the one read. */
     void save(AuthorizationSummary s) {
         jdbc.update("INSERT INTO pending_auth_summaries (" + SUMMARY_COLUMNS + ") VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)"
@@ -62,6 +67,11 @@ class PendingAuthorizations {
                 s.accountId(), s.customerId(), s.authStatus(), s.accountStatus(), s.creditLimit(), s.cashLimit(),
                 s.creditBalance(), s.cashBalance(), s.approvedCount(), s.declinedCount(), s.approvedAmount(),
                 s.declinedAmount());
+    }
+
+    /** DLET PAUTSUM0, which deletes the details left under it. */
+    void deleteSummary(long accountId) {
+        jdbc.update("DELETE FROM pending_auth_summaries WHERE pa_acct_id = ?", accountId);
     }
 
     /** ISRT PAUTDTL1 under its account's summary. */
@@ -98,11 +108,23 @@ class PendingAuthorizations {
                 DETAIL, accountId, key.date9c(), key.time9c(), limit);
     }
 
+    /** GNP PAUTDTL1 through all of the account's details. */
+    List<Authorization> details(long accountId) {
+        return jdbc.query("SELECT " + DETAIL_COLUMNS + " FROM pending_auth_details WHERE pa_acct_id = ?" + IMS_ORDER,
+                DETAIL, accountId);
+    }
+
     /** REPL PAUTDTL1 of the fraud fields, the only ones COPAUS1C changes. */
     void rewriteFraud(Authorization a) {
         jdbc.update("UPDATE pending_auth_details SET pa_auth_fraud = ?, pa_fraud_rpt_date = ? WHERE pa_acct_id = ?"
                         + " AND pa_auth_date_9c = ? AND pa_auth_time_9c = ?",
                 a.fraud(), a.fraudReportDate(), a.accountId(), a.key().date9c(), a.key().time9c());
+    }
+
+    /** DLET PAUTDTL1. */
+    void delete(Authorization a) {
+        jdbc.update("DELETE FROM pending_auth_details WHERE pa_acct_id = ? AND pa_auth_date_9c = ? AND pa_auth_time_9c = ?",
+                a.accountId(), a.key().date9c(), a.key().time9c());
     }
 
     private static Authorization detail(ResultSet rs, int n) throws SQLException {

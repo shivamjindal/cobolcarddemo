@@ -37,9 +37,6 @@ class BatchChainTest {
     BatchJobs jobs;
 
     @Autowired
-    ProgramSteps steps;
-
-    @Autowired
     SeedLoader loader;
 
     @TempDir
@@ -76,12 +73,14 @@ class BatchChainTest {
     }
 
     @Test
-    void thePurgeStepDoesNothingUntilTheAuthorizationModuleIsInstalled() throws IOException {
-        JobExecution execution = jobs.run("CBPAUP0J", new JobParametersBuilder()
-                .addString("run", UUID.randomUUID().toString()).toJobParameters());
+    void withoutTheAuthorizationModuleThePurgeStepDoesNothing() throws Exception {
+        var provider = new StaticListableBeanFactory().getBeanProvider(PendingAuthorizationPurge.Purge.class);
+        StepOutput out = new StepOutput(dir);
 
-        assertThat(execution.getStatus()).isEqualTo(BatchStatus.COMPLETED);
-        assertThat(Files.readAllLines(steps.dir(execution).resolve("CBPAUP0C.sysout"), StandardCharsets.ISO_8859_1))
+        new PendingAuthorizationPurge(provider).run(new JobParameters(), out);
+        out.writeSysout("CBPAUP0C");
+
+        assertThat(Files.readAllLines(dir.resolve("CBPAUP0C.sysout"), StandardCharsets.ISO_8859_1))
                 .containsExactly("CBPAUP0C: AUTHORIZATION MODULE NOT INSTALLED, NOTHING TO PURGE", "", "[return code 0]");
     }
 
