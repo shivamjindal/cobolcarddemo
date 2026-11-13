@@ -31,4 +31,4 @@ Each feature file has an H1, one paragraph on the user-visible behavior, and fou
 - [Reports and statements](./reports-and-statements.md) covers the TRANREPT daily report and CREASTMT text and HTML statements.
 - [Master file extracts](./master-file-extracts.md) covers READACCT, READCARD, READXREF, and READCUST.
 - [Online screens](./online-screens.md) covers sign-on, user admin, account, card, transaction, bill-pay, and report screens through derived specs.
-- [Pending authorizations](./pending-authorizations.md) covers the authorization module: COPAUA0C on MQ, the COPAUS0C and COPAUS1C screens with the COPAUS2C fraud report, and the CBPAUP0J purge under a DL/I stub.
+- [Pending authorizations](./pending-authorizations.md) covers the authorization module's COPAUA0C on MQ, its COPAUS0C and COPAUS1C screens with the COPAUS2C fraud report, and its CBPAUP0J purge under a DL/I stub.
