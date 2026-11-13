@@ -66,7 +66,7 @@ The template is `templates/<PROGRAM>.html` and uses the `layout :: screen(title,
 
 ## MQ inquiries
 
-COACCT01 and CODATE01 are `MessageProgram` beans in `com.carddemo.inquiries`. `MessagePrograms` starts one listener per bean. The broker is the embedded Artemis broker from `spring.artemis`. `spring.artemis.mode: native` with `spring.artemis.broker-url` points the same beans at another broker.
+COACCT01 and CODATE01 are `MessageProgram` beans in `com.carddemo.inquiries`. `MessagePrograms` starts one listener per bean. The database commits before the broker does, so each request's JMSMessageID and puts go into `processed_messages` in the database transaction. A request redelivered after a crash between the two commits gets those puts again and is not processed twice. `MessageRedeliveryTest` crashes COPAUA0C there. The broker is the embedded Artemis broker from `spring.artemis`. `spring.artemis.mode: native` with `spring.artemis.broker-url` points the same beans at another broker.
 
 Put a text message on the request queue. The reply uses the request correlation id. The request's reply-to queue is ignored, as it is in the COBOL.
 
