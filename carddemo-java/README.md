@@ -58,6 +58,15 @@ The template is `templates/<PROGRAM>.html` and uses the `layout :: screen(title,
 
 `OnlineSpecReplayTest` replays `../characterization/online/specs/<PROGRAM>.yaml` for every installed program through `/api/screens`, and `SignonReplayTest` replays COSGN00C through the full OIDC flow on a running server. Deliberate differences are entries in `src/test/resources/spec-overrides/<PROGRAM>.yaml`: a one-sentence `reason` plus `given`, `when` or `then` keys that replace the spec's, an optional `then.status`, or `skip: true`. The test task prints a `[spec-replay]` tally per program. When a later slice installs a program a menu points at, delete the override that expects "not installed".
 
+## Authorizations
+
+`authorizations/` ports the optional module `../app/app-authorization-ims-db2-mq`. `V5__pending_authorizations.sql` turns the IMS database DBPAUTP0 into two tables. `pending_auth_summaries` holds PAUTSUM0, one row per account. `pending_auth_details` holds PAUTDTL1, keyed by account and the date and time subtracted from all nines, with `ON DELETE CASCADE` standing in for a parent's DLET. The Db2 table AUTHFRDS becomes `authfrds`. `PendingAuthorizations` holds the DL/I calls the programs make.
+
+- `AuthorizationRequests` is COPAUA0C, a `MessageProgram` on `carddemo.authorizations.request-queue` (default `AWS.M2.CARDDEMO.PAUTH.REQUEST`). It replies to each request's reply-to queue, in the request's unit of work.
+- `AuthorizationList` and `AuthorizationDetail` are COPAUS0C and COPAUS1C (main menu option 11). `FraudReports` is COPAUS2C, called inside COPAUS1C's PF5 transaction.
+- `ExpiredAuthorizationPurge` is CBPAUP0C, the `PendingAuthorizationPurge.Purge` that the CBPAUP0J step runs. Its SYSIN is the `sysin` job parameter, defaulting to the JCL's `00,00001,00001,Y`.
+- With `carddemo.seed.dir` set, `PendingAuthorizationSeed` replaces both tables with the module's IMS unload (`carddemo.seed.pending-authorizations` overrides its path). It stands in for PAUDBUNL, DBUNLDGS and PAUDBLOD, which are not ported.
+
 ## Layout
 
 - `copybook/` parses a single-record copybook into fields with byte offsets.
@@ -66,6 +75,7 @@ The template is `templates/<PROGRAM>.html` and uses the `layout :: screen(title,
 - `vsam/SeedLoader` truncates the tables and reloads them in one transaction.
 - `online/` is the screen engine (`Screens`), both adapters, `Conversation` and the two menus.
 - `signon/` holds both security chains and COSGN00C; `users/` holds the users table and COUSR00C-03C.
+- `authorizations/` holds the pending authorization tables, COPAUA0C, COPAUS0C-2C and CBPAUP0C.
 
 ## Mapping rules
 
