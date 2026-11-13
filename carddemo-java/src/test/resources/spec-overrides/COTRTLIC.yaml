@@ -1,0 +1,4 @@
+# Deliberate differences from characterization/online/specs/COTRTLIC.yaml.
+COTRTLIC-001:
+  reason: The REST adapter has no signed-on session for a direct transid start, so that entry is not replayed. Arriving from the admin menu is COTRTLIC-002.
+  skip: true

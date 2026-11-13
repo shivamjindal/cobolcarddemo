@@ -1,21 +1,25 @@
 # Deliberate differences from characterization/online/specs/COADM01C.yaml, applied by OnlineSpecReplayTest.
 # Each entry replaces whole keys of the case's given, when or then.
-COADM01C-002:
-  reason: The menu lists only installed options, and the Db2 transaction-type programs behind options 5 and 6 are not installed.
-  then:
-    fields:
-      TRNNAMEO: CA00
-      PGMNAMEO: COADM01C
-      OPTN001O: "01. User List (Security)"
-      OPTN002O: "02. User Add (Security)"
-      OPTN003O: "03. User Update (Security)"
-      OPTN004O: "04. User Delete (Security)"
-      OPTN005O: ""
-      OPTN006O: ""
 COADM01C-007:
-  reason: No XCTL is attempted for a program that is not installed, so the conversation keeps the origin it arrived with.
+  reason: COTRTLIC is installed, so option 5 transfers to the transaction type list instead of the not-installed text.
   then:
-    commarea: {}
+    message: null
+    transfer: {via: XCTL, to: COTRTLIC}
+    commarea:
+      CDEMO-FROM-TRANID: CA00
+      CDEMO-FROM-PROGRAM: COADM01C
+      CDEMO-PGM-CONTEXT: 0
+    file_effects: []
+COADM01C-008:
+  reason: COTRTUPC is installed, so option 6 transfers to transaction type maintenance instead of the not-installed text.
+  then:
+    message: null
+    transfer: {via: XCTL, to: COTRTUPC}
+    commarea:
+      CDEMO-FROM-TRANID: CA00
+      CDEMO-FROM-PROGRAM: COADM01C
+      CDEMO-PGM-CONTEXT: 0
+    file_effects: []
 COADM01C-011:
   reason: PGM-CONTEXT is implicit in GET versus POST, so the legacy context bug is gone and option 1 transfers.
   then:

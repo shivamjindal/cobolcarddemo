@@ -24,6 +24,7 @@ public enum Program {
     CORPT00C("CR00", Access.SIGNED_ON),
     COBIL00C("CB00", Access.SIGNED_ON),
     COPAUS0C("CPVS", Access.SIGNED_ON),
+    COPAUS1C("CPVD", Access.SIGNED_ON),
     COTRTLIC("CTLI", Access.ADMIN),
     COTRTUPC("CTTU", Access.ADMIN);
 

@@ -1,0 +1,152 @@
+program: COACCT01
+transaction: CDRA
+module: app/app-vsam-mq
+evidence: derived
+sources:
+  - app/app-vsam-mq/cbl/COACCT01.cbl
+  - app/cpy/CVACT01Y.cpy
+files:
+  - name: ACCTDAT
+    ops: [READ]
+    key: ACCT-ID
+navigation: []
+notes:
+  - "Derived from source, not executed. The module README describes a different contract (request type ACCT, response type ACCT, queues CARDDEMO.REQUEST.QUEUE and CARDDEMO.RESPONSE.QUEUE). The program is the contract."
+  - "The trigger message names the input queue (MQTM-QNAME, lines 191-198). The reply queue is the literal CARD.DEMO.REPLY.ACCT (line 198). The error queue is the literal CARD.DEMO.ERROR (line 294). 4100-PUT-REPLY copies the request MQMD-CORRELID and MQMD-MSGID onto the reply (lines 469-470). SAVE-REPLY2Q is filled from MQMD-REPLYTOQ (line 371) and never read, so the reply does not go to the request's reply-to queue."
+  - "The request is REQUEST-MSG-COPY (lines 109-112). WS-FUNC is 4 characters and WS-KEY is PIC 9(11). A lookup runs only when the function is INQA and the key is greater than zero (line 393). The reply group WS-ACCT-RESPONSE (lines 130-169) is labels abutted with the raw pictures. Amounts are PIC S9(10)V99 with no decimal point. Dates and the group id are the 10 characters stored on ACCTDAT. ACCT-ADDR-ZIP is not in the reply."
+  - "NOTFND (lines 428-435) and the failed IF (lines 448-456) both reply, they do not use the error queue. NOTFND stops after the account id. The failed IF also appends the function. A key that is not numeric makes WS-KEY > ZEROES a data exception before either reply is built. The port answers with the failed-IF text instead of abending."
+  - "A READ RESP other than NORMAL or NOTFND (lines 437-445) puts MQ-ERR-DISPLAY on CARD.DEMO.ERROR and ends the task. MQ-APPL-RETURN-MESSAGE is PIC X(25), so the 28-character literal is stored as ERROR WHILE READING ACCTF. MQ-ERROR-PARA stays spaces. The condition and reason are the READ RESP and RESP2. The queue name is the input queue. 9000-ERROR does not assign MQMD-CORRELID. The descriptor still holds the value MQGET returned, so the error message carries the request correlation id. There is no CICS RESP in the port. A failed read is reported as IOERR (17) and RESP2 00000, which is what an injected fault can show."
+  - "These paths need an MQ or CICS failure and are not cases. RETRIEVE failure (lines 200-209) puts an error. The paragraph name is the misspelling CICS RETREIVE, and line 202 moves WS-CICS-RESP2-CD onto itself, so the displayed RESP2 stays zero. INP MQOPEN (lines 246-252), OUT MQOPEN (lines 280-286), MQGET other than no message (lines 380-386), and reply MQPUT (lines 492-498) each put an error and end. ERR MQOPEN (lines 315-321) and the error-queue MQPUT (lines 529-535) only DISPLAY and end. MQCLOSE of the input (lines 567-572) or the reply (lines 589-594) ends without a put. MQCLOSE of the error queue (lines 612-618) puts an error and ends. Open-input sets REPLY-QUEUE-OPEN (line 245) and open-reply sets RESP-QUEUE-OPEN (line 279). The close tests use those same flags, so each queue still closes."
+cases:
+  - id: COACCT01-001
+    summary: INQA for an account on file replies with the labeled account group and the request correlation id
+    given:
+      entry: trigger
+      files:
+        ACCTDAT:
+          - ACCT-ID: "00000000001"
+            ACCT-ACTIVE-STATUS: Y
+            ACCT-CURR-BAL: "1940.00"
+            ACCT-CREDIT-LIMIT: "2020.00"
+            ACCT-CASH-CREDIT-LIMIT: "1020.00"
+            ACCT-OPEN-DATE: "2014-11-20"
+            ACCT-EXPIRAION-DATE: "2025-05-20"
+            ACCT-REISSUE-DATE: "2025-05-20"
+            ACCT-CURR-CYC-CREDIT: "0.00"
+            ACCT-CURR-CYC-DEBIT: "0.00"
+            ACCT-ADDR-ZIP: "10001"
+            ACCT-GROUP-ID: A000000000
+    when:
+      message: INQA00000000001TRAILER
+      correlation_id: REQ00001
+    then:
+      replies:
+        - queue: CARD.DEMO.REPLY.ACCT
+          message: "ACCOUNT ID : {ACCT-ID}ACCOUNT STATUS : {ACCT-ACTIVE-STATUS}BALANCE : {ACCT-CURR-BAL}CREDIT LIMIT : {ACCT-CREDIT-LIMIT}CASH LIMIT : {ACCT-CASH-CREDIT-LIMIT}OPEN DATE : {ACCT-OPEN-DATE}EXPR DATE : {ACCT-EXPIRAION-DATE}REIS DATE : {ACCT-REISSUE-DATE}CREDIT BAL : {ACCT-CURR-CYC-CREDIT}DEBIT BAL : {ACCT-CURR-CYC-DEBIT}GROUP ID : {ACCT-GROUP-ID}"
+          correlation_id: REQ00001
+      file_effects: []
+    source:
+      file: app/app-vsam-mq/cbl/COACCT01.cbl
+      lines: [407, 427]
+
+  - id: COACCT01-002
+    summary: INQA for an account that is not on file replies that the parameters are invalid and names the account id
+    given:
+      entry: trigger
+      files:
+        ACCTDAT: []
+    when:
+      message: INQA00000000099
+      correlation_id: REQ00002
+    then:
+      replies:
+        - queue: CARD.DEMO.REPLY.ACCT
+          message: "INVALID REQUEST PARAMETERS {}ACCT ID : {WS-KEY}"
+          correlation_id: REQ00002
+      file_effects: []
+    source:
+      file: app/app-vsam-mq/cbl/COACCT01.cbl
+      lines: [428, 435]
+
+  - id: COACCT01-003
+    summary: a function other than INQA replies that the parameters are invalid and names the function
+    given:
+      entry: trigger
+      files:
+        ACCTDAT:
+          - ACCT-ID: "00000000001"
+            ACCT-ACTIVE-STATUS: Y
+            ACCT-CURR-BAL: "1940.00"
+            ACCT-CREDIT-LIMIT: "2020.00"
+            ACCT-CASH-CREDIT-LIMIT: "1020.00"
+            ACCT-OPEN-DATE: "2014-11-20"
+            ACCT-EXPIRAION-DATE: "2025-05-20"
+            ACCT-REISSUE-DATE: "2025-05-20"
+            ACCT-CURR-CYC-CREDIT: "0.00"
+            ACCT-CURR-CYC-DEBIT: "0.00"
+            ACCT-ADDR-ZIP: "10001"
+            ACCT-GROUP-ID: A000000000
+    when:
+      message: NOPE00000000001
+      correlation_id: REQ00003
+    then:
+      replies:
+        - queue: CARD.DEMO.REPLY.ACCT
+          message: "INVALID REQUEST PARAMETERS {}ACCT ID : {WS-KEY}FUNCTION : {WS-FUNC}"
+          correlation_id: REQ00003
+      file_effects: []
+    source:
+      file: app/app-vsam-mq/cbl/COACCT01.cbl
+      lines: [448, 456]
+
+  - id: COACCT01-004
+    summary: INQA with an account id of zero replies that the parameters are invalid
+    given:
+      entry: trigger
+      files:
+        ACCTDAT: []
+    when:
+      message: INQA00000000000
+      correlation_id: REQ00004
+    then:
+      replies:
+        - queue: CARD.DEMO.REPLY.ACCT
+          message: "INVALID REQUEST PARAMETERS {}ACCT ID : {WS-KEY}FUNCTION : {WS-FUNC}"
+          correlation_id: REQ00004
+      file_effects: []
+    source:
+      file: app/app-vsam-mq/cbl/COACCT01.cbl
+      lines: [448, 456]
+
+  - id: COACCT01-005
+    summary: a failed ACCTDAT read puts the truncated read error on CARD.DEMO.ERROR and does not reply
+    given:
+      entry: trigger
+      files:
+        ACCTDAT:
+          - ACCT-ID: "00000000001"
+            ACCT-ACTIVE-STATUS: Y
+            ACCT-CURR-BAL: "1940.00"
+            ACCT-CREDIT-LIMIT: "2020.00"
+            ACCT-CASH-CREDIT-LIMIT: "1020.00"
+            ACCT-OPEN-DATE: "2014-11-20"
+            ACCT-EXPIRAION-DATE: "2025-05-20"
+            ACCT-REISSUE-DATE: "2025-05-20"
+            ACCT-CURR-CYC-CREDIT: "0.00"
+            ACCT-CURR-CYC-DEBIT: "0.00"
+            ACCT-ADDR-ZIP: "10001"
+            ACCT-GROUP-ID: A000000000
+      file_conditions:
+        - {file: ACCTDAT, op: READ, resp: IOERR}
+    when:
+      message: INQA00000000001
+      correlation_id: REQ00005
+    then:
+      replies:
+        - queue: CARD.DEMO.ERROR
+          message: "{lead}ERROR WHILE READING ACCTF{tail}"
+          correlation_id: REQ00005
+      file_effects: []
+    source:
+      file: app/app-vsam-mq/cbl/COACCT01.cbl
+      lines: [437, 445]

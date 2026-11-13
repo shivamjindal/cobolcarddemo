@@ -1,0 +1,9 @@
+* weekly refresh comment
+A08Brand new type
+U01Updated purchase
+D08
+A01Duplicate of purchase
+U99Missing update
+D98Missing delete
+Xbad code
+D07

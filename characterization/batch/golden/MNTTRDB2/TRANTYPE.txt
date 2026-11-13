@@ -1,0 +1,7 @@
+01Updated purchase
+02Payment
+03Credit
+04Authorization
+05Refund
+06Reversal
+07Adjustment

@@ -12,15 +12,20 @@ import java.sql.Timestamp;
 import java.time.LocalDate;
 import java.time.format.DateTimeFormatter;
 import java.util.ArrayList;
+import java.util.Collections;
+import java.util.Comparator;
+import java.util.HashMap;
 import java.util.HashSet;
 import java.util.LinkedHashMap;
 import java.util.List;
+import java.util.Locale;
 import java.util.Map;
 import java.util.Set;
 import java.util.TreeMap;
 import java.util.concurrent.Callable;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.stream.Collectors;
+import java.util.stream.Stream;
 
 
 /**
@@ -34,6 +39,53 @@ class Datasets {
     record Effect(String file, String op, Map<String, String> record) {
     }
 
+    /**
+     * A table whose spec records do not follow a VSAM copybook layout: an IMS segment or a Db2 table. Fields map
+     * to columns by name and travel as Postgres text in both directions; a blank non-text field is NULL.
+     */
+    record Relation(String table, Map<String, String> columns, List<String> key) {
+
+        /** Columns named after the fields, lower case with underscores. */
+        static Relation of(String table, List<String> key, String... fields) {
+            Map<String, String> columns = new LinkedHashMap<>();
+            for (String field : fields) {
+                columns.put(field, field.toLowerCase(Locale.ROOT).replace('-', '_'));
+            }
+            return new Relation(table, columns, key);
+        }
+    }
+
+    /**
+     * IMS segment and Db2 table names, as specs use them, to their tables, each parent before its children: reset
+     * loads them in this order, after the VSAM files. A PAUTDTL1 key comes from the clock, so a detail is identified
+     * by its account and PA-TRANSACTION-ID.
+     */
+    static final Map<String, Relation> RELATIONS = ordered(
+            "TRANSACTION_TYPE", new Relation("tran_types",
+                    Map.of("TR_TYPE", "tran_type", "TR_DESCRIPTION", "tran_type_desc"), List.of("TR_TYPE")),
+            "TRANSACTION_TYPE_CATEGORY", new Relation("tran_categories",
+                    Map.of("TRC_TYPE_CODE", "tran_type_cd", "TRC_TYPE_CATEGORY", "tran_cat_cd",
+                            "TRC_CAT_DATA", "tran_cat_type_desc"),
+                    List.of("TRC_TYPE_CODE", "TRC_TYPE_CATEGORY")),
+            "PAUTSUM0", Relation.of("pending_auth_summaries", List.of("PA-ACCT-ID"),
+                    "PA-ACCT-ID", "PA-CUST-ID", "PA-AUTH-STATUS", "PA-ACCOUNT-STATUS", "PA-CREDIT-LIMIT",
+                    "PA-CASH-LIMIT", "PA-CREDIT-BALANCE", "PA-CASH-BALANCE", "PA-APPROVED-AUTH-CNT",
+                    "PA-DECLINED-AUTH-CNT", "PA-APPROVED-AUTH-AMT", "PA-DECLINED-AUTH-AMT"),
+            "PAUTDTL1", Relation.of("pending_auth_details", List.of("PA-ACCT-ID", "PA-TRANSACTION-ID"),
+                    "PA-ACCT-ID", "PA-AUTH-DATE-9C", "PA-AUTH-TIME-9C", "PA-AUTH-ORIG-DATE", "PA-AUTH-ORIG-TIME",
+                    "PA-CARD-NUM", "PA-AUTH-TYPE", "PA-CARD-EXPIRY-DATE", "PA-MESSAGE-TYPE", "PA-MESSAGE-SOURCE",
+                    "PA-AUTH-ID-CODE", "PA-AUTH-RESP-CODE", "PA-AUTH-RESP-REASON", "PA-PROCESSING-CODE",
+                    "PA-TRANSACTION-AMT", "PA-APPROVED-AMT", "PA-MERCHANT-CATAGORY-CODE", "PA-ACQR-COUNTRY-CODE",
+                    "PA-POS-ENTRY-MODE", "PA-MERCHANT-ID", "PA-MERCHANT-NAME", "PA-MERCHANT-CITY",
+                    "PA-MERCHANT-STATE", "PA-MERCHANT-ZIP", "PA-TRANSACTION-ID", "PA-MATCH-STATUS", "PA-AUTH-FRAUD",
+                    "PA-FRAUD-RPT-DATE"),
+            "AUTHFRDS", Relation.of("authfrds", List.of("CARD_NUM", "AUTH_TS"),
+                    "CARD_NUM", "AUTH_TS", "AUTH_TYPE", "CARD_EXPIRY_DATE", "MESSAGE_TYPE", "MESSAGE_SOURCE",
+                    "AUTH_ID_CODE", "AUTH_RESP_CODE", "AUTH_RESP_REASON", "PROCESSING_CODE", "TRANSACTION_AMT",
+                    "APPROVED_AMT", "MERCHANT_CATAGORY_CODE", "ACQR_COUNTRY_CODE", "POS_ENTRY_MODE", "MERCHANT_ID",
+                    "MERCHANT_NAME", "MERCHANT_CITY", "MERCHANT_STATE", "MERCHANT_ZIP", "TRANSACTION_ID",
+                    "MATCH_STATUS", "AUTH_FRAUD", "FRAUD_RPT_DATE", "ACCT_ID", "CUST_ID"));
+
     /** CSD file name to table; CXACAIX is the account-id alternate index over CCXREF. */
     static final Map<String, VsamDataset> FILES = Map.of("USRSEC", VsamDataset.USERS, "ACCTDAT", VsamDataset.ACCOUNTS,
             "CUSTDAT", VsamDataset.CUSTOMERS, "CARDDAT", VsamDataset.CARDS, "CCXREF", VsamDataset.CARD_XREF,
@@ -43,16 +95,30 @@ class Datasets {
             VsamDataset.CUSTOMERS, VsamDataset.CARDS, VsamDataset.CARD_XREF, VsamDataset.TRANSACTIONS);
     private static final DateTimeFormatter TIMESTAMP = DateTimeFormatter.ofPattern("yyyy-MM-dd HH:mm:ss.SSSSSS");
     private static final Set<String> WRITE_OPS = Set.of("WRITE", "REWRITE", "DELETE");
+    private static final Set<String> TEXT_TYPES = Set.of("bpchar", "varchar", "text");
 
     /** bcrypt is slow on purpose; the specs reuse a handful of passwords. */
     private static final Map<String, String> HASHES = new ConcurrentHashMap<>();
 
     private final JdbcTemplate jdbc;
     private final Map<VsamDataset, Table> tables = new LinkedHashMap<>();
+    private final Map<String, Map<String, String>> columnTypes = new ConcurrentHashMap<>();
 
     Datasets(JdbcTemplate jdbc) {
         this.jdbc = jdbc;
         TABLES.forEach(d -> tables.put(d, Table.of(d)));
+    }
+
+    private static Map<String, Relation> ordered(Object... namesAndRelations) {
+        Map<String, Relation> ordered = new LinkedHashMap<>();
+        for (int i = 0; i < namesAndRelations.length; i += 2) {
+            ordered.put((String) namesAndRelations[i], (Relation) namesAndRelations[i + 1]);
+        }
+        return Collections.unmodifiableMap(ordered);
+    }
+
+    private static int loadOrder(String file) {
+        return RELATIONS.containsKey(file) ? 1 + List.copyOf(RELATIONS.keySet()).indexOf(file) : 0;
     }
 
     /**
@@ -60,9 +126,17 @@ class Datasets {
      * under both CCXREF and CXACAIX is one record.
      */
     void reset(Map<String, List<Map<String, Object>>> files) {
-        jdbc.execute("TRUNCATE " + TABLES.stream().map(d -> d.table).collect(Collectors.joining(", ")));
+        jdbc.execute("TRUNCATE " + Stream.concat(TABLES.stream().map(d -> d.table),
+                RELATIONS.values().stream().map(Relation::table)).distinct().collect(Collectors.joining(", ")));
         Set<List<Object>> inserted = new HashSet<>();
-        files.forEach((file, records) -> {
+        files.entrySet().stream().sorted(Comparator.comparingInt(e -> loadOrder(e.getKey()))).forEach(entry -> {
+            String file = entry.getKey();
+            List<Map<String, Object>> records = entry.getValue();
+            Relation relation = RELATIONS.get(file);
+            if (relation != null) {
+                records.forEach(record -> insert(file, relation, record));
+                return;
+            }
             Table table = tables.get(dataset(file));
             for (Map<String, Object> record : records) {
                 Set<String> unknown = new HashSet<>(record.keySet());
@@ -92,7 +166,49 @@ class Datasets {
             });
             all.put(file(dataset), rows);
         });
+        RELATIONS.forEach((file, relation) -> {
+            Map<String, Map<String, String>> rows = new TreeMap<>();
+            String select = relation.columns().values().stream().map(c -> c + "::text").collect(Collectors.joining(", "));
+            jdbc.query("SELECT " + select + " FROM " + relation.table(), rs -> {
+                Map<String, String> row = new LinkedHashMap<>();
+                int i = 1;
+                for (String field : relation.columns().keySet()) {
+                    String value = rs.getString(i++);
+                    row.put(field, value == null ? "" : value);
+                }
+                rows.put(relation.key().stream().map(row::get).collect(Collectors.joining("|")), row);
+            });
+            all.put(file, rows);
+        });
         return all;
+    }
+
+    private void insert(String file, Relation relation, Map<String, Object> record) {
+        Set<String> unknown = new HashSet<>(record.keySet());
+        unknown.removeAll(relation.columns().keySet());
+        if (!unknown.isEmpty()) {
+            throw new IllegalArgumentException(file + " has no fields " + unknown);
+        }
+        Map<String, String> types = columnTypes.computeIfAbsent(relation.table(), t -> {
+            Map<String, String> byColumn = new HashMap<>();
+            jdbc.query("SELECT column_name, udt_name FROM information_schema.columns WHERE table_name = ?",
+                    rs -> { byColumn.put(rs.getString(1), rs.getString(2)); }, t);
+            return byColumn;
+        });
+        List<String> columns = new ArrayList<>();
+        List<Object> values = new ArrayList<>();
+        relation.columns().forEach((field, column) -> {
+            if (!record.containsKey(field)) {
+                return;
+            }
+            String type = types.get(column);
+            String value = SpecCase.text(record.get(field));
+            columns.add(column);
+            values.add(value.isBlank() && !TEXT_TYPES.contains(type) ? null : value);
+        });
+        jdbc.update("INSERT INTO " + relation.table() + " (" + String.join(", ", columns) + ") VALUES ("
+                + columns.stream().map(c -> "CAST(? AS " + types.get(c) + ")").collect(Collectors.joining(", ")) + ")",
+                values.toArray());
     }
 
     List<Effect> effectsSince(Map<String, Map<String, Map<String, String>>> before) {
@@ -117,7 +233,15 @@ class Datasets {
 
     /** Copybook names of the file's primary key, which identify an effect. */
     List<String> keyFields(String file) {
-        return tables.get(dataset(file)).primaryKey().stream().map(c -> c.field().name()).toList();
+        Relation relation = RELATIONS.get(file);
+        return relation != null ? relation.key()
+                : tables.get(dataset(file)).primaryKey().stream().map(c -> c.field().name()).toList();
+    }
+
+    /** Whether two spec file names are one table, as CCXREF and its CXACAIX path are. */
+    static boolean same(String file, String other) {
+        return RELATIONS.containsKey(file) || RELATIONS.containsKey(other) ? file.equals(other)
+                : FILES.get(file) == FILES.get(other);
     }
 
     /**
@@ -131,7 +255,8 @@ class Datasets {
                 if ("NOTFND".equals(c.get("resp"))) {
                     throw new IllegalArgumentException("NOTFND is a missing record, not an injected fault: " + c);
                 }
-                String table = dataset((String) c.get("file")).table;
+                String file = (String) c.get("file");
+                String table = RELATIONS.containsKey(file) ? RELATIONS.get(file).table() : dataset(file).table;
                 String op = (String) c.get("op");
                 if (WRITE_OPS.contains(op)) {
                     String event = switch (op) { case "WRITE" -> "INSERT"; case "REWRITE" -> "UPDATE"; default -> "DELETE"; };

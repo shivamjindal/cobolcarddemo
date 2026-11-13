@@ -83,8 +83,8 @@ class ScreenPagesTest {
     }
 
     @Test
-    void programsThatAreNotInstalledAreNotFound() throws Exception {
-        mvc.perform(get("/screens/COPAUS0C").session(admin()).with(user("ADMIN001"))).andExpect(status().isNotFound());
+    void unknownProgramsAreNotFound() throws Exception {
+        mvc.perform(get("/screens/NOSUCHPG").session(admin()).with(user("ADMIN001"))).andExpect(status().isNotFound());
         mvc.perform(get("/api/screens/NOSUCHPG").session(admin()).with(user("ADMIN001"))).andExpect(status().isNotFound());
     }
 

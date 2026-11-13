@@ -8,6 +8,7 @@ Usage: browser_drive.py [--base http://localhost:8080] --out DIR
 """
 import argparse
 import os
+import re
 import sys
 from pathlib import Path
 
@@ -50,8 +51,8 @@ def main():
         page.keyboard.press("Enter")
         expect(testid("PGMNAME")).to_have_text("COADM01C")
         expect(testid("OPTN004")).to_have_text("04. User Delete (Security)")
-        expect(testid("OPTN005")).to_have_count(0)
-        shot("admin-menu", "sign-on through OIDC lands on the admin menu with the Db2 options hidden")
+        expect(testid("OPTN005")).to_have_text("05. Transaction Type List/Update (Db2)")
+        shot("admin-menu", "sign-on through OIDC lands on the admin menu with all six options")
 
         testid("OPTION").fill("1")
         page.keyboard.press("Enter")
@@ -161,6 +162,28 @@ def main():
         page.keyboard.press("Enter")
         expect(testid("CURBAL")).not_to_have_text("")
         shot("bill-payment-balance", "bill payment shows account 50's balance and asks to confirm")
+
+        page.keyboard.press("F3")
+        testid("OPTION").fill("11")
+        page.keyboard.press("Enter")
+        expect(testid("PGMNAME")).to_have_text("COPAUS0C")
+        expect(testid("ACCTID")).to_be_focused()
+        testid("ACCTID").fill("00000000007")
+        page.keyboard.press("Enter")
+        expect(testid("CNAME")).to_have_text("Cooper D Mayert")
+        expect(testid("TRNID05")).not_to_have_text("")
+        shot("authorization-list", "option 11 lists account 7's pending authorizations under its summary")
+        tran_id = testid("TRNID01").inner_text()
+        testid("SEL0001").fill("S")
+        page.keyboard.press("Enter")
+        expect(testid("PGMNAME")).to_have_text("COPAUS1C")
+        expect(testid("TRNID")).to_have_text(tran_id)
+        page.keyboard.press("F5")
+        expect(testid("ERRMSG")).to_have_text(re.compile(r"AUTH (MARKED FRAUD|FRAUD REMOVED)\.\.\."))
+        expect(testid("AUTHFRD")).to_have_text(re.compile(r"[FR]-\d\d/\d\d/\d\d"))
+        shot("authorization-fraud", "S opens the authorization's detail and F5 toggles its fraud mark")
+        page.keyboard.press("F3")
+        expect(testid("PGMNAME")).to_have_text("COPAUS0C")
         browser.close()
 
     (args.out / "browser.txt").write_text("".join(f"PASS  {p}\n" for p in passed))

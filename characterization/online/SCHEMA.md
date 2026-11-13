@@ -53,6 +53,28 @@ cases:
       lines: [117, 121]                     # inclusive range that implements this outcome
 ```
 
+## Optional modules
+
+A program from `app/app-*` names its module with a top-level `module: app/app-authorization-ims-db2-mq`. The validator then also reads that module's `csd/`, `cbl/` and `cpy-bms/`, and accepts its IMS segments (`SEGM NAME=` in `ims/`) and Db2 tables (`CREATE TABLE` in `ddl/`) wherever a CICS file name is allowed, for example `files: [{name: PAUTSUM0, ops: [READ]}]` or `given.files.TRANSACTION_TYPE`. Segment records use the segment copybook's names (`PA-ACCT-ID`), Db2 rows use the column names (`TR_TYPE`). DL/I calls and SQL statements map onto the file ops: GU/GN/GNP and SELECT or FETCH are `READ`, ISRT and INSERT are `WRITE`, REPL and UPDATE are `REWRITE`, DLET and DELETE are `DELETE`.
+
+An MQ-triggered program (no `screen`) has `trigger` cases: one request message arrives on the program's input queue.
+
+```yaml
+  - id: COACCT01-001
+    given:
+      entry: trigger
+      files: {ACCTDAT: [...]}
+    when:
+      message: "INQA00000000001"       # the request message text; only trigger cases have it
+      correlation_id: "REQ00001"       # optional MQMD-CORRELID of the request
+    then:
+      replies:                         # every MQPUT/MQPUT1, in order; [] asserts none
+        - queue: CARD.DEMO.REPLY.ACCT  # a queue literal from the sources, or {reply-to} for the request's MQMD-REPLYTOQ
+          message: "ACCOUNT ID : {acct}{}..."   # same placeholder rules as then.message
+          correlation_id: "REQ00001"   # optional
+      file_effects: []
+```
+
 ## Rules the validator enforces
 
 - Top-level keys `program, transaction, evidence, sources, files, navigation, cases` exist and `evidence` is `derived`.

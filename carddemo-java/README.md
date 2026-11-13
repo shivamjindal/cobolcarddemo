@@ -1,6 +1,6 @@
 # carddemo-java
 
-Spring Boot 3 / Java 21 port of CardDemo. It holds the data layer (Postgres tables for the VSAM KSDS clusters, derived from the copybooks in `../app/cpy`, and a loader for the sample data in `../app/data`) and the online screens migrated so far, which are sign-on, both menus and user admin (COSGN00C, COMEN01C, COADM01C, COUSR00C-03C).
+Spring Boot 3 / Java 21 port of CardDemo. It holds the data layer (Postgres tables for the VSAM KSDS clusters, derived from the copybooks in `../app/cpy`, and a loader for the sample data in `../app/data`) and the online screens migrated so far: sign-on, both menus, user admin, accounts, cards, transactions, bill payment, report requests, and transaction-type maintenance (`COTRTLIC`, `COTRTUPC`). It also answers the MQ inquiries COACCT01 and CODATE01.
 
 ## Commands
 
@@ -52,11 +52,41 @@ Two adapters serve every program, so a new screen adds only its `ScreenProgram` 
 - HTML: `GET /screens/{program}` and `POST /screens/{program}` (form fields plus `aid` from the pressed button). Every POST answers 303; a redisplay travels as a flash attribute.
 - REST: `GET /api/screens/{program}` returns `{program, transid, fields, message: {text, kind}, cursor}`. `POST` takes `{aid, fields}` and returns the same, a 303 to `/api/screens/{to}` for a transfer, or `{signedOff: true, message}`. Send the `XSRF-TOKEN` cookie back as `X-XSRF-TOKEN`.
 
-The template is `templates/<PROGRAM>.html` and uses the `layout :: screen(title, body, keys)` fragment, the `fields :: field(name, label, size)` input, and one `<button name="aid" value="PFn">` per key, ENTER first. Each input carries a `<label>` and `data-testid` equal to its BMS name, the message line is `data-testid="ERRMSG"`, and the cursor field gets `autofocus`. `static/js/screen.js` maps F3, F4, F5, F7, F8 and F12 to those buttons.
+The template is `templates/<PROGRAM>.html` and uses the `layout :: screen(title, body, keys)` fragment, the `fields :: field(name, label, size)` input, and one `<button name="aid" value="PFn">` per key, ENTER first. Each input carries a `<label>` and `data-testid` equal to its BMS name, the message line is `data-testid="ERRMSG"`, and the cursor field gets `autofocus`. `static/js/screen.js` maps F2, F3, F4, F5, F6, F7, F8, F10, and F12 to those buttons.
+
+## Transaction types
+
+`trantypes/` is `COTRTLIC` (admin option 5) and `COTRTUPC` (admin option 6) on `tran_types`. `V6__tran_type_category_fk.sql` makes `tran_categories.tran_type_cd` reference `tran_types`, which is the Db2 `ON DELETE RESTRICT`. The seed loads types before categories so that check can run per insert.
+
+`MNTTRDB2` (`TransactionTypeMaintenance`) reads the file in job parameter `input`. A line is an action, a two-character type, and a description: `A` insert, `U` update, `D` delete, `*` comment. It is not part of the daily or monthly schedule. Call `BatchJobs.run("MNTTRDB2", parameters)`.
 
 ## Spec replay
 
-`OnlineSpecReplayTest` replays `../characterization/online/specs/<PROGRAM>.yaml` for every installed program through `/api/screens`, and `SignonReplayTest` replays COSGN00C through the full OIDC flow on a running server. Deliberate differences are entries in `src/test/resources/spec-overrides/<PROGRAM>.yaml`: a one-sentence `reason` plus `given`, `when` or `then` keys that replace the spec's, an optional `then.status`, or `skip: true`. The test task prints a `[spec-replay]` tally per program. When a later slice installs a program a menu points at, delete the override that expects "not installed".
+`OnlineSpecReplayTest` replays `../characterization/online/specs/<PROGRAM>.yaml` for every installed program through `/api/screens`, and `SignonReplayTest` replays COSGN00C through the full OIDC flow on a running server. `MessageSpecReplayTest` replays each `entry: trigger` case through the embedded broker. Deliberate differences are entries in `src/test/resources/spec-overrides/<PROGRAM>.yaml`: a one-sentence `reason` plus `given`, `when` or `then` keys that replace the spec's, an optional `then.status`, or `skip: true`. The test task prints a `[spec-replay]` tally per program. When a later slice installs a program a menu points at, delete the override that expects "not installed".
+
+## MQ inquiries
+
+COACCT01 and CODATE01 are `MessageProgram` beans in `com.carddemo.inquiries`. `MessagePrograms` starts one listener per bean. The database commits before the broker does, so each request's JMSMessageID and puts go into `processed_messages` in the database transaction. A request redelivered after a crash between the two commits gets those puts again and is not processed twice. `MessageRedeliveryTest` crashes COPAUA0C there. The broker is the embedded Artemis broker from `spring.artemis`. `spring.artemis.mode: native` with `spring.artemis.broker-url` points the same beans at another broker.
+
+Put a text message on the request queue. The reply uses the request correlation id. The request's reply-to queue is ignored, as it is in the COBOL.
+
+| Program | Property | Default request queue | Reply queue |
+| --- | --- | --- | --- |
+| COACCT01 | `carddemo.mq.account-request` | `CARD.DEMO.REQUEST.ACCT` | `CARD.DEMO.REPLY.ACCT` |
+| CODATE01 | `carddemo.mq.date-request` | `CARD.DEMO.REQUEST.DATE` | `CARD.DEMO.REPLY.DATE` |
+
+An account request is `INQA` plus an 11-digit account id. Bytes after the first 15 are ignored. A non-zero id that is on file is answered with the labeled account fields at their COBOL picture widths. Amounts are zoned `PIC S9(10)V99`, twelve digits and an implied decimal point. A negative amount overpunches the last digit. A missing account, an id of zero, or any other function is answered on the reply queue with `INVALID REQUEST PARAMETERS`. A failed read is put on `CARD.DEMO.ERROR`. The text is `MQ-ERR-DISPLAY` with return message `ERROR WHILE READING ACCTF`, condition `17`, and reason `00000`.
+
+A date request may contain any text. The reply is `SYSTEM DATE : ` then `MM-DD-YYYY`, then `SYSTEM TIME : ` then `HH:MM:SS`, taken from the injected `java.time.Clock`.
+
+## Authorizations
+
+`authorizations/` ports the optional module `../app/app-authorization-ims-db2-mq`. `V5__pending_authorizations.sql` turns the IMS database DBPAUTP0 into two tables. `pending_auth_summaries` holds PAUTSUM0, one row per account. `pending_auth_details` holds PAUTDTL1, keyed by account and the date and time subtracted from all nines, with `ON DELETE CASCADE` standing in for a parent's DLET. The Db2 table AUTHFRDS becomes `authfrds`. `PendingAuthorizations` holds the DL/I calls the programs make.
+
+- `AuthorizationRequests` is COPAUA0C, a `MessageProgram` on `carddemo.authorizations.request-queue` (default `AWS.M2.CARDDEMO.PAUTH.REQUEST`). It replies to each request's reply-to queue, in the request's unit of work.
+- `AuthorizationList` and `AuthorizationDetail` are COPAUS0C and COPAUS1C (main menu option 11). `FraudReports` is COPAUS2C, called inside COPAUS1C's PF5 transaction.
+- `ExpiredAuthorizationPurge` is CBPAUP0C, the `PendingAuthorizationPurge.Purge` that the CBPAUP0J step runs. Its SYSIN is the `sysin` job parameter, defaulting to the JCL's `00,00001,00001,Y`.
+- With `carddemo.seed.dir` set, `PendingAuthorizationSeed` replaces both tables with the module's IMS unload (`carddemo.seed.pending-authorizations` overrides its path). It stands in for PAUDBUNL, DBUNLDGS and PAUDBLOD, which are not ported.
 
 ## Layout
 
@@ -65,7 +95,9 @@ The template is `templates/<PROGRAM>.html` and uses the `layout :: screen(title,
 - `vsam/Table` and `vsam/Column` turn a dataset into DDL and decode records into row values.
 - `vsam/SeedLoader` truncates the tables and reloads them in one transaction.
 - `online/` is the screen engine (`Screens`), both adapters, `Conversation` and the two menus.
-- `signon/` holds both security chains and COSGN00C; `users/` holds the users table and COUSR00C-03C.
+- `inquiries/` holds the MQ account and date inquiries, COACCT01 and CODATE01.
+- `signon/` holds both security chains and COSGN00C; `users/` holds the users table and COUSR00C-03C; `trantypes/` holds COTRTLIC, COTRTUPC, and the repository `MNTTRDB2` uses.
+- `authorizations/` holds the pending authorization tables, COPAUA0C, COPAUS0C-2C and CBPAUP0C.
 
 ## Mapping rules
 

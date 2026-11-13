@@ -8,6 +8,11 @@ spring:
       enabled: false
     jdbc:
       initialize-schema: never
+  # The queue manager: an in-process Artemis broker; mode native with spring.artemis.broker-url uses an external one.
+  artemis:
+    mode: embedded
+    embedded:
+      persistent: false
 
 management:
   endpoints:
@@ -18,6 +23,9 @@ management:
 # The identity provider's issuer and the app's OIDC redirect URI; browse the app at this address.
 carddemo:
   base-url: http://localhost:${server.port:8080}
+  mq:
+    account-request: CARD.DEMO.REQUEST.ACCT
+    date-request: CARD.DEMO.REQUEST.DATE
   batch:
     # Program SYSOUT and output datasets: <spool-dir>/<job>/<job execution id>/
     spool-dir: ${java.io.tmpdir}/carddemo-spool

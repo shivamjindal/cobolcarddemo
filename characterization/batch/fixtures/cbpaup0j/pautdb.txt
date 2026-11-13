@@ -1,0 +1,20 @@
+# DBPAUTP0 for CBPAUP0J, one segment a line, each summary followed by its details.
+# S account customer credit-limit cash-limit credit-balance cash-balance approved-count declined-count approved-amount declined-amount
+# D yyddd hhmmssmmm response-code transaction-amount approved-amount transaction-id
+# The key of a detail is 99999 - yyddd and 999999999 - hhmmssmmm. The harness clock makes ACCEPT FROM DAY 22187
+# and CBPAUP0J's SYSIN sets the expiry to 00 days, so a detail dated 22187 or earlier expires and 22188 does not.
+#   1 both approvals expire and the decline does not: the approved count reaches zero with a decline left
+#   2 the approval stays and the decline expires
+#   3 every detail expires, so the summary empties
+#   4 a summary with no details and zero counts
+S 00000000001 000000001 2000.00 500.00 300.00 0.00 2 1 300.00 75.00
+D 22188 091500000 05 75.00 0.00 TXN000000000103
+D 22187 101500000 00 100.00 100.00 TXN000000000102
+D 21365 235959999 00 200.00 200.00 TXN000000000101
+S 00000000002 000000002 1000.00 200.00 50.00 0.00 1 1 50.00 20.00
+D 22188 120000000 00 50.00 50.00 TXN000000000202
+D 22180 083000500 05 20.00 0.00 TXN000000000201
+S 00000000003 000000003 1500.00 300.00 0.00 0.00 0 2 0.00 90.00
+D 22187 000000001 05 40.00 0.00 TXN000000000302
+D 22100 173000000 05 50.00 0.00 TXN000000000301
+S 00000000004 000000004 500.00 100.00 0.00 0.00 0 0 0.00 0.00

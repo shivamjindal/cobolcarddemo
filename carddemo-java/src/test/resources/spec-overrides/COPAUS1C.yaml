@@ -1,0 +1,16 @@
+# Deliberate differences from characterization/online/specs/COPAUS1C.yaml, applied by OnlineSpecReplayTest.
+# Each entry replaces whole keys of the case's given, when or then.
+COPAUS1C-001:
+  reason: A first entry with no signed-on user goes to sign-on.
+  then:
+    message: null
+    cursor: null
+    fields: {}
+    commarea: {}
+    transfer: {via: XCTL, to: COSGN00C}
+COPAUS1C-012:
+  reason: A fraud report that fails shows the authorization as it still is, where the legacy screen showed the flag it had failed to write.
+  then:
+    fields:
+      TRNIDO: TXN000000000001
+      AUTHFRDO: "-"
