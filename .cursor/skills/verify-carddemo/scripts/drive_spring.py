@@ -312,9 +312,16 @@ def drive(base, transcript):
 
     menu = admin.screen("COADM01C")
     check(menu["fields"].get("OPTN001") == "01. User List (Security)", "admin menu lists option 01", menu["fields"])
-    check(not any("Db2" in v for v in menu["fields"].values()), "Db2 options (slice 5a) are hidden", menu["fields"])
+    check(menu["fields"].get("OPTN005") == "05. Transaction Type List/Update (Db2)", "admin menu lists option 05",
+          menu["fields"])
     s = admin.send("COADM01C", "ENTER", OPTION="5")
-    check(message(s) == "This option is not installed ...", "typing hidden option 5 says not installed", message(s))
+    check(s["program"] == "COTRTLIC", "option 5 opens the transaction type list", s["program"])
+    s = admin.send("COTRTLIC", "PF3")
+    check(s["program"] == "COADM01C", "PF3 on the transaction type list returns to the admin menu", s["program"])
+    s = admin.send("COADM01C", "ENTER", OPTION="6")
+    check(s["program"] == "COTRTUPC", "option 6 opens transaction type maintenance", s["program"])
+    s = admin.send("COTRTUPC", "PF3")
+    check(s["program"] == "COADM01C", "PF3 on transaction type maintenance returns to the admin menu", s["program"])
 
     users = admin.send("COADM01C", "ENTER", OPTION="1")
     check(users["program"] == "COUSR00C" and users["fields"].get("USRID01") == "ADMIN001",

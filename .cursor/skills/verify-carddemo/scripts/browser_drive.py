@@ -51,8 +51,8 @@ def main():
         page.keyboard.press("Enter")
         expect(testid("PGMNAME")).to_have_text("COADM01C")
         expect(testid("OPTN004")).to_have_text("04. User Delete (Security)")
-        expect(testid("OPTN005")).to_have_count(0)
-        shot("admin-menu", "sign-on through OIDC lands on the admin menu with the Db2 options hidden")
+        expect(testid("OPTN005")).to_have_text("05. Transaction Type List/Update (Db2)")
+        shot("admin-menu", "sign-on through OIDC lands on the admin menu with all six options")
 
         testid("OPTION").fill("1")
         page.keyboard.press("Enter")
